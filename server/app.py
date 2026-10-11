@@ -1,9 +1,10 @@
 """TinyFrens relay: private device credentials, friend consent, live guest visits."""
 import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from collections import defaultdict, deque
-from aiohttp import web, WSMsgType
+from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 
 SHAPES = {'cat', 'blob', 'robot'}
+GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
@@ -64,6 +65,34 @@ def create_app(database=None, origins=None):
             db.execute('INSERT INTO pets VALUES(?,?,?,?)',(pid,code,hashlib.sha256(token.encode()).hexdigest(),json.dumps(p))); db.commit()
             return web.json_response(dict(id=pid,token=token,code=code))
         except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e: return web.json_response({'error':str(e)},status=400)
+    async def chat(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('chat',ip),30,3600)
+            body=await request.json()
+            p=profile(body.get('pet'))
+            message=re.sub(r'\s+',' ',re.sub(r'[\x00-\x1f\x7f]','',str(body.get('message','')))).strip()
+            if not 1<=len(message)<=400: raise ValueError('Say a little something first')
+            api_key=os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+            if not api_key: return web.json_response({'error':'Pet chat is not connected yet'},status=503)
+            model=os.environ.get('GEMINI_MODEL','gemini-2.0-flash')
+            system=('You are a TinyFren: a tiny, warm, playful pocket-pet companion. '
+                    'Reply in one or two short sentences. No markdown. No financial advice, trading instructions, '
+                    'private-key handling, seed phrases, or promises about prices. If wallet or token data is missing, say so gently.')
+            prompt=f"Pet name: {p['name']}. Pet shape: {p['shape']}. User says: {message}"
+            payload={'systemInstruction':{'parts':[{'text':system}]},'contents':[{'role':'user','parts':[{'text':prompt}]}],
+                     'generationConfig':{'temperature':0.8,'maxOutputTokens':120}}
+            timeout=ClientTimeout(total=18)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(GEMINI_URL.format(model=model),headers={'x-goog-api-key':api_key},json=payload) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: raise ValueError('Pet chat is having trouble right now')
+            parts=data.get('candidates',[{}])[0].get('content',{}).get('parts',[])
+            reply=' '.join(str(part.get('text','')) for part in parts).strip()
+            if not reply: reply=p['name']+' blinks, thinking very hard.'
+            return web.json_response({'reply':reply[:500]})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
+            return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -171,7 +200,7 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
-    app.router.add_post('/api/register',register);app.router.add_get('/ws',websocket)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 

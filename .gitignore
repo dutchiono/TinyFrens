@@ -8,3 +8,5 @@ ios/Info.plist
 public/
 .vercel
 dist/
+__pycache__/
+*.pyc

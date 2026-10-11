@@ -55,6 +55,10 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.post('/api/register',headers={'Origin':'https://bad.example'},json={});self.assertEqual(r.status,403)
         r=await self.client.post('/api/register',headers={'Origin':ORIGIN},json={'pet':{'name':'A','shape':'unsafe','color':'no'}});self.assertEqual(r.status,400)
         ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});await ws.send_json({'type':'auth','token':'invalid'});await ws.receive();self.assertEqual(ws.close_code,4003)
+    async def test_chat_requires_configured_model_key(self):
+        r=await self.client.post('/api/chat',headers={'Origin':ORIGIN},json={'message':'hi','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
+        self.assertEqual(r.status,503)
+        self.assertEqual((await r.json())['error'],'Pet chat is not connected yet')
     async def test_device_identity_survives_restart(self):
         a=await self.register('Permanent');await self.client.close()
         self.client=TestClient(TestServer(create_app(self.db,[ORIGIN])));await self.client.start_server()
