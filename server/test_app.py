@@ -70,6 +70,23 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
         finally:
             if old is not None: os.environ['BANKR_API_KEY']=old
+    async def test_party_rooms_share_live_pet_profiles(self):
+        a=await self.register('Party A');b=await self.register('Party B')
+        wa=await self.connect(a);wb=await self.connect(b)
+        await wa.send_json({'type':'party-join','room':'public','pet':{'name':'Party A','shape':'cat','color':'#a474f1'}})
+        state=await self.event(wa,'party-state');self.assertEqual(state['room'],'public');self.assertEqual(len(state['members']),1)
+        await wb.send_json({'type':'party-join','room':'public','pet':{'name':'Party B','shape':'robot','color':'#7edbc4'}})
+        state_a=await self.event(wa,'party-state');state_b=await self.event(wb,'party-state')
+        self.assertEqual(len(state_a['members']),2);self.assertEqual(len(state_b['members']),2)
+        await wa.send_json({'type':'profile','pet':{'name':'Party A2','shape':'bunny','color':'#ff99aa'}})
+        updated=await self.event(wa,'party-state')
+        self.assertIn('Party A2',[m['pet']['name'] for m in updated['members']])
+        await self.event(wb,'party-state')
+        await wb.send_json({'type':'party-join','room':'private','code':'MILADY','pet':{'name':'Party B','shape':'robot','color':'#7edbc4'}})
+        private=await self.event(wb,'party-state');self.assertEqual(private['room'],'private');self.assertEqual(private['code'],'MILADY');self.assertEqual(len(private['members']),1)
+        public=await self.event(wa,'party-state');self.assertEqual(len(public['members']),1)
+        await wb.send_json({'type':'party-leave'})
+        left=await self.event(wb,'party-state');self.assertEqual(left['room'],'none');self.assertEqual(left['members'],[])
     async def test_device_identity_survives_restart(self):
         a=await self.register('Permanent');await self.client.close()
         self.client=TestClient(TestServer(create_app(self.db,[ORIGIN])));await self.client.start_server()

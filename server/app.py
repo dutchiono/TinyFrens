@@ -3,7 +3,7 @@ import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from collections import defaultdict, deque
 from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 
-SHAPES = {'cat', 'blob', 'robot'}
+SHAPES = {'cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 BANKR_URL = 'https://api.bankr.bot'
 
@@ -22,7 +22,7 @@ def create_app(database=None, origins=None):
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));''')
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
-    sockets, visits, pending, rates = {}, {}, {}, defaultdict(deque)
+    sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
     now = time.time
     def limit(key, maximum, seconds):
         q=rates[key]; t=now()
@@ -44,6 +44,19 @@ def create_app(database=None, origins=None):
         v=visits.pop(vid,None)
         if v:
             for p in (v['sender'],v['receiver']): await send(p,dict(type='visit-ended',id=vid))
+    async def room_state(room):
+        if room not in rooms: return
+        members=[dict(id=pid,pet=data['pet']) for pid,data in rooms[room].items()]
+        public=room=='public'
+        code='' if public else room.split(':',1)[1]
+        for pid in list(rooms[room]):
+            await send(pid,dict(type='party-state',room='public' if public else 'private',code=code,members=members))
+    async def leave_room(pid):
+        room=room_by_pet.pop(pid,None)
+        if room and pid in rooms.get(room,{}):
+            rooms[room].pop(pid,None)
+            if rooms[room]: await room_state(room)
+            else: rooms.pop(room,None)
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
@@ -168,6 +181,26 @@ def create_app(database=None, origins=None):
                         for (other,) in db.execute('SELECT b FROM friends WHERE a=?',(pid,)).fetchall(): await state(other)
                         for vid,v in list(visits.items()):
                             if v['sender']==pid: await send(v['receiver'],dict(type='visit-profile',id=vid,pet=p))
+                        if pid in room_by_pet:
+                            rooms[room_by_pet[pid]][pid]=dict(pet=p,updated=now())
+                            await room_state(room_by_pet[pid])
+                    elif typ=='party-join':
+                        limit(('party',pid),20,3600)
+                        p=profile(m.get('pet'))
+                        mode=str(m.get('room','public')).lower()
+                        if mode=='public': room='public'
+                        elif mode=='private':
+                            code=re.sub(r'[^A-Z0-9-]','',str(m.get('code','')).upper())[:24]
+                            if not 3<=len(code)<=24: raise ValueError('Enter a party code')
+                            room='private:'+code
+                        else: raise ValueError('Unknown party room')
+                        if len(rooms[room])>=80: raise ValueError('That party room is full')
+                        await leave_room(pid)
+                        room_by_pet[pid]=room;rooms[room][pid]=dict(pet=p,updated=now())
+                        await room_state(room)
+                    elif typ=='party-leave':
+                        await leave_room(pid)
+                        await send(pid,dict(type='party-state',room='none',code='',members=[]))
                     elif typ=='friend-request':
                         limit(('requests',pid),15,3600); code=str(m.get('code','')).replace('-','').replace(' ','').upper()
                         row=db.execute('SELECT id FROM pets WHERE code=?',(code,)).fetchone()
@@ -221,6 +254,7 @@ def create_app(database=None, origins=None):
         finally:
             if pid and sockets.get(pid) is ws:
                 sockets.pop(pid,None)
+                await leave_room(pid)
                 for vid,v in list(visits.items()):
                     if pid in (v['sender'],v['receiver']): await end(vid)
                 for vid,v in list(pending.items()):
