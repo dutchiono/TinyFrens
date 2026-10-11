@@ -26,7 +26,9 @@ No Apple developer membership, external account provider, or paid hosted service
 
 The relay can also answer TinyFren chat requests from the web app. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to `gemini-2.0-flash`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
 
-Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` on the server to enable `/api/bankr/status` and `/api/bankr/monitor`. The web app's Wallet tab sends a public wallet address and read-only prompt to the relay, which asks Bankr's Agent API and returns a short wallet glance. Keep the Bankr key read-only unless you deliberately build transaction features later. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
+Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` on the server to enable `/api/bankr/status`, `/api/bankr/wallet`, `/api/bankr/nfts`, `/api/bankr/transform`, and `/api/bankr/monitor`. The web app's Wallet tab shows the server's agent-controlled Bankr wallet, reads NFTs from it, and can apply an NFT-derived look to the fren.
+
+Per-fren Bankr wallets are scaffolded behind `BANKR_PARTNER_KEY`. When that partner key is present, `/api/bankr/wallet` provisions a Bankr wallet for the registered fren with `POST /partner/wallets`; without it, TinyFrens uses the shared server Bankr wallet. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
 ## Operations
 

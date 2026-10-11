@@ -27,9 +27,11 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 | Browser | Open the web pet | Pet care, growth, local save, offline use after first load |
 | Native iOS | [iOS source and instructions](ios/README.md) | In-app pet; installation requires Apple signing |
 
-## Bankr wallet glance
+## Bankr fren wallet
 
-The Wallet tab uses the TinyFrens server as a safe bridge to Bankr. Add `BANKR_API_KEY` to the server environment to enable read-only wallet monitoring from the app. The key stays on the server; the app sends only a public wallet address and a short question. This first integration does not provision per-fren wallets, trade, sign, transfer, or expose private keys. Partner wallet provisioning can come later if TinyFrens grows into that.
+The Wallet tab uses the TinyFrens server as a safe bridge to Bankr. Add `BANKR_API_KEY` to the server environment to expose the server's agent-controlled Bankr wallet to the app. Players can send NFTs to that wallet, refresh the Wallet tab, and let their fren adopt one of the NFT looks. The key stays on the server and is never shipped in the web, Android, iOS, or desktop apps.
+
+Per-fren Bankr wallets are scaffolded for later: add `BANKR_PARTNER_KEY` when TinyFrens has Bankr partner provisioning, and the server will create a Bankr wallet for each registered fren instead of using the shared server wallet.
 
 ### Windows and Mac floating pet
 
