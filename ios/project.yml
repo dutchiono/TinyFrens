@@ -1,0 +1,35 @@
+name: TinyFrens
+options:
+  bundleIdPrefix: online.ionoi
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: '0.4.0'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  TinyFrens:
+    type: application
+    platform: iOS
+    sources:
+      - path: TinyFrens
+      - path: ../web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.ionoi.tinyfrens
+        TARGETED_DEVICE_FAMILY: '1,2'
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: TinyFrens
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIRequiresFullScreen: false
+schemes:
+  TinyFrens:
+    build:
+      targets:
+        TinyFrens: all

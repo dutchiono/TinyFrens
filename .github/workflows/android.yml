@@ -57,6 +57,13 @@ jobs:
           PET_KEY_PASSWORD: ${{ secrets.PET_KEY_PASSWORD }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
+          export PET_STORE_PASSWORD="$(python3 -c 'import os; print(os.environ["PET_STORE_PASSWORD"].strip(), end="")')"
+          export PET_KEY_ALIAS="$(python3 -c 'import os; print(os.environ["PET_KEY_ALIAS"].strip(), end="")')"
+          export PET_KEY_PASSWORD="$(python3 -c 'import os; print(os.environ["PET_KEY_PASSWORD"].strip(), end="")')"
+          if ! keytool -list -keystore "$PET_KEYSTORE_PATH" -storepass:env PET_STORE_PASSWORD -alias "$PET_KEY_ALIAS" >/dev/null 2>&1; then
+            echo '::error::Signing secrets do not match the keystore. Re-enter PET_STORE_PASSWORD and PET_KEY_ALIAS from the private signing file; paste values only.'
+            exit 1
+          fi
           code=$((1000 + RUN_NUMBER))
           version="0.3.$RUN_NUMBER"
           gradle :android:app:assembleRelease "-PpetVersionCode=$code" "-PpetVersionName=$version" -PupdateRepo=dutchiono/TinyFrens

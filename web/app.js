@@ -70,3 +70,10 @@ if (native) {
   $('updateStatus').textContent = `Installed: ${info.versionName}`;
   if (info.repo) checkPetUpdate();
 }
+
+if (window.PetIOS) {
+  $('platform').textContent = 'iPhone / iPad: your familiar lives inside this app. iOS does not support the Android floating overlay.';
+  $('start').hidden = true;
+  $('stop').hidden = true;
+  document.querySelector('.modes').hidden = true;
+}

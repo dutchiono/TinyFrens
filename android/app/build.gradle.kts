@@ -19,9 +19,9 @@ android {
             val keyPath = System.getenv("PET_KEYSTORE_PATH")
             if (!keyPath.isNullOrBlank()) {
                 storeFile = file(keyPath)
-                storePassword = System.getenv("PET_STORE_PASSWORD")
-                keyAlias = System.getenv("PET_KEY_ALIAS")
-                keyPassword = System.getenv("PET_KEY_PASSWORD")
+                storePassword = System.getenv("PET_STORE_PASSWORD")?.trim()
+                keyAlias = System.getenv("PET_KEY_ALIAS")?.trim()
+                keyPassword = System.getenv("PET_KEY_PASSWORD")?.trim()
             }
         }
     }

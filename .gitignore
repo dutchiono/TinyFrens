@@ -3,3 +3,6 @@
 local.properties
 *.jks
 *.keystore
+ios/*.xcodeproj/
+ios/Info.plist
+public/

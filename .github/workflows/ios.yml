@@ -1,0 +1,32 @@
+name: iOS build
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', 'web/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', 'web/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build simulator app
+        run: xcodebuild -project ios/TinyFrens.xcodeproj -scheme TinyFrens -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned device archive
+        run: xcodebuild -project ios/TinyFrens.xcodeproj -scheme TinyFrens -configuration Release -destination 'generic/platform=iOS' -archivePath ios/build/TinyFrens.xcarchive CODE_SIGNING_ALLOWED=NO archive
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tinyfrens-ios-simulator
+          path: ios/build/Build/Products/Debug-iphonesimulator/TinyFrens.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tinyfrens-ios-unsigned-archive
+          path: ios/build/TinyFrens.xcarchive
