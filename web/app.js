@@ -7,7 +7,7 @@ function localRead(){
   let s; try{s=JSON.parse(localStorage.getItem(key)) || initial();}catch{s=initial();}
   const now=Date.now(), hours=Math.min(720,Math.max(0,Math.floor((now-(s.last||now))/3600000)));
   s.hunger=Math.max(0,s.hunger-hours*3);s.happiness=Math.max(0,s.happiness-hours*2);
-  s.energy=Math.max(0,s.energy-hours);s.last=now;localStorage.setItem(key,JSON.stringify(s));return s;
+  s.energy=Math.max(0,s.energy-hours);s.last=hours>0?(s.last||now)+hours*3600000:(s.last||now);localStorage.setItem(key,JSON.stringify(s));return s;
 }
 function read(){return native?JSON.parse(PetAndroid.getState()):localRead();}
 function action(name){

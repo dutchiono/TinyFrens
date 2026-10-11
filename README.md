@@ -4,7 +4,7 @@
 
 Feed, play, rest, and watch your pocket companion grow. Android lets your pet float over other apps. iPhone and browser versions keep your pet inside their own window.
 
-[Welcome & install guide](https://dutchiono.github.io/TinyFrens/) · [Play in your browser](https://dutchiono.github.io/TinyFrens/play/) · [Android releases](https://github.com/dutchiono/TinyFrens/releases) · [Build status](https://github.com/dutchiono/TinyFrens/actions)
+[Welcome & install guide](https://dutchiono.github.io/TinyFrens/) · [Play in your browser](https://dutchiono.github.io/TinyFrens/web/) · [Android releases](https://github.com/dutchiono/TinyFrens/releases) · [Build status](https://github.com/dutchiono/TinyFrens/actions)
 
 > The welcome site is available after GitHub Pages is enabled. In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**, then run **Actions → Welcome site → Run workflow**.
 
@@ -65,3 +65,11 @@ Tap or hold the pet to reveal three circular action buttons and a rightmost ☰ 
 - ☰ Open the full care, customization, settings, and update app.
 
 Touch, mouse hover, or stylus hover shows a short label above the pet. Action responses fade away; the bubbles dismiss after eight seconds without interaction. Opening quick controls pauses wandering.
+
+## Free iPhone web app + PiP video
+
+Share https://dutchiono.github.io/TinyFrens/ or directly https://dutchiono.github.io/TinyFrens/web/. The old /play/ URL now redirects. The repository root includes the real welcome page, so branch-based and workflow publishing both serve the same layout.
+
+In Safari: open the pet, tap Float pet, play the video if prompted, then tap Float pet again. iOS can provide a system-managed floating video window where supported; this is not a transparent interactive overlay. Care buttons remain in the webpage. Share → Add to Home Screen installs the free web app. If the installed web app does not offer PiP, open the same pet page in Safari.
+
+PiP loops match cat/blob/robot and the nearest of six colour presets. Videos are bundled offline-compatible H.264/AAC MP4 clips; generated with scripts/build-pet-videos.py. Native iOS shell also enables inline video and PiP playback, but native installation still needs Apple signing. Safari/iPhone device testing is required for PiP behaviour.

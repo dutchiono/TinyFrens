@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVFoundation
 
 @main
 struct TinyFrensApp: App {
@@ -11,6 +12,10 @@ struct TinyFrensApp: App {
 struct PetWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        config.allowsPictureInPictureMediaPlayback = true
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+        try? AVAudioSession.sharedInstance().setActive(true)
         config.websiteDataStore = .default()
         config.userContentController.addUserScript(WKUserScript(
             source: "window.PetIOS = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))

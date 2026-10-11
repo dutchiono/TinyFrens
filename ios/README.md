@@ -14,4 +14,8 @@ For TestFlight, join/use the Apple Developer Program, create the matching App St
 
 ## No Mac or signing available right now?
 
-Use the hosted pet at https://dutchiono.github.io/TinyFrens/play/ after GitHub Pages is enabled. In Safari open Share → Add to Home Screen. This is the browser/PWA version; it plays inside its own window and supports offline use after the first load.
+Use the hosted pet at https://dutchiono.github.io/TinyFrens/web/ after GitHub Pages is enabled. In Safari open Share → Add to Home Screen. This is the browser/PWA version; it plays inside its own window and supports offline use after the first load.
+
+## Picture in Picture
+
+The shell enables WKWebView inline/PiP video playback and the playback audio session. Bundled pet MP4 loops can be played through the web interface using Float pet or the video player controls. PiP is controlled by iOS and requires an actual iPhone test. This does not add a transparent cross-app pet or bypass native signing. The free Safari/home-screen web app uses the same PiP interface.

@@ -28,3 +28,5 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 @keyframes chew{50%{height:12px}}
 @keyframes wander{0%{translate:-45px 0}50%{translate:0 -15px}100%{translate:45px 0}}
 @media(prefers-reduced-motion:reduce){.pet,.eye,.pet-stage.wandering .pet{animation:none!important}}
+
+#pipVideo{display:block;width:100%;max-height:260px;border-radius:14px;background:#17142a;margin:16px 0}.pip-note{font-size:12px!important}details summary{cursor:pointer}details a{color:#d6b6ff}

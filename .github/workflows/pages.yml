@@ -2,7 +2,7 @@ name: Welcome site
 on:
   push:
     branches: [main]
-    paths: ['site/**', 'web/**', '.github/workflows/pages.yml']
+    paths: ['index.html', '.nojekyll', 'play/**', 'site/**', 'web/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,9 +21,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare welcome site and pet
         run: |
-          mkdir -p public/play
-          cp -R site/. public/
-          cp -R web/. public/play/
+          mkdir -p public/site public/web public/play
+          cp index.html public/index.html
+          cp -R site/. public/site/
+          cp -R web/. public/web/
+          cp -R play/. public/play/
           touch public/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

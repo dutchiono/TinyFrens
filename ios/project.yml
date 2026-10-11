@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: '5.0'
-    MARKETING_VERSION: '0.4.0'
+    MARKETING_VERSION: '0.8.0'
     CURRENT_PROJECT_VERSION: '1'
 targets:
   TinyFrens:
@@ -28,6 +28,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIRequiresFullScreen: false
+        UIBackgroundModes: [audio]
 schemes:
   TinyFrens:
     build:
