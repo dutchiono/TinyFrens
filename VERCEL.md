@@ -16,7 +16,7 @@ Import dutchiono/TinyFrens with these settings:
 The committed `vercel.json` supplies the build settings. Do not choose a Python application preset or set the root to server/.
 The build copies only the welcome page, site assets, web pet, and legacy play redirect. It does not publish native source, server data, or signing files.
 
-After deployment, open Project → Settings → Domains, add `tinyfrens.lol` (and optionally `www.tinyfrens.lol`), and enter the DNS records Vercel displays at your domain provider. DNS is not configured by this repository change. GitHub Pages remains available at https://dutchiono.github.io/TinyFrens/.
+After deployment, open Project → Settings → Domains, add `tinyfrens.lol` and `www.tinyfrens.lol`, and enter the DNS records Vercel displays at your domain provider. The public website should be shared as https://tinyfrens.lol/.
 
 Pushes to the connected main branch deploy website changes. Android and iOS app updates continue through GitHub Actions.
 

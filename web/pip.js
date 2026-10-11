@@ -25,7 +25,7 @@
   }
   selectClip();
   window.addEventListener('pet-profile-changed',selectClip);
-  document.getElementById('safariPet').href = location.protocol === 'https:' ? location.href : 'https://dutchiono.github.io/TinyFrens/web/';
+  document.getElementById('safariPet').href = location.protocol === 'https:' ? location.href : 'https://tinyfrens.lol/web/';
   video.addEventListener('error',()=>{status.textContent='Video could not load. Check your connection and reload this page.';button.disabled=false;});
   video.addEventListener('webkitpresentationmodechanged',()=>{if(video.webkitPresentationMode==='picture-in-picture')status.textContent='Your fren is floating. You can switch apps. Return here for care.';});
   video.addEventListener('enterpictureinpicture',()=>{status.textContent='Your fren is floating. Switch apps when you’re ready.';});

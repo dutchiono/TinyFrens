@@ -41,7 +41,7 @@
  $('shareVisit').onclick=async()=>{
   const s=read(),data={v:1,name:cleanName(s.name),shape:s.shape==='mascot'?'robot':['cat','blob','robot'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expires:Date.now()+30*60*1000};
   const encoded=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  const url='https://dutchiono.github.io/TinyFrens/web/?guest='+encoded;
+  const url='https://tinyfrens.lol/web/?guest='+encoded;
   try{
    if(native&&typeof PetAndroid.shareVisit==='function'){PetAndroid.shareVisit(url);return;}
    if(window.PetIOS){window.webkit.messageHandlers.petUpdates.postMessage({type:'share',url});return;}

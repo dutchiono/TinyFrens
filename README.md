@@ -4,7 +4,7 @@
 
 Feed, play, rest, and watch your pocket companion grow. Android lets your pet float over other apps. iPhone and browser versions keep your pet inside their own window.
 
-[Welcome & install guide](https://dutchiono.github.io/TinyFrens/) · [Play in your browser](https://dutchiono.github.io/TinyFrens/web/) · [Android releases](https://github.com/dutchiono/TinyFrens/releases) · [Build status](https://github.com/dutchiono/TinyFrens/actions)
+[Welcome & install guide](https://tinyfrens.lol/) · [Play in your browser](https://tinyfrens.lol/web/) · [Android releases](https://github.com/dutchiono/TinyFrens/releases) · [Build status](https://github.com/dutchiono/TinyFrens/actions)
 
 > The welcome site is available after GitHub Pages is enabled. In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**, then run **Actions → Welcome site → Run workflow**.
 
@@ -88,7 +88,7 @@ Touch, mouse hover, or stylus hover shows a short label above the pet. Action re
 
 ## Free iPhone web app + PiP video
 
-Share https://dutchiono.github.io/TinyFrens/ or directly https://dutchiono.github.io/TinyFrens/web/. The old /play/ URL now redirects. The repository root includes the real welcome page, so branch-based and workflow publishing both serve the same layout.
+Share https://tinyfrens.lol/ or directly https://tinyfrens.lol/web/. The old /play/ URL now redirects. The repository root includes the real welcome page, so branch-based and workflow publishing both serve the same layout.
 
 In Safari: open the pet, tap Float pet, play the video if prompted, then tap Float pet again. iOS can provide a system-managed floating video window where supported; this is not a transparent interactive overlay. Care buttons remain in the webpage. Share → Add to Home Screen installs the free web app. If the installed web app does not offer PiP, open the same pet page in Safari.
 
@@ -120,4 +120,4 @@ Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet 
 
 ## Little touches
 
-Looks now includes pet opacity (40–100%), sparkle bursts, gentle care screen effects, fade, haptic taps and Reduce motion controls. Preferences save immediately. Native Android overlay and Windows/Mac overlay show care effects near the pet; web/iOS show them in the app. Android and native iPhone support haptics; Safari does not. System-controlled iPhone PiP is an opaque video and cannot use transparent pet opacity or these screen overlays. Effects have no care rewards. OS reduced-motion preferences also apply.
+Looks now includes pet opacity (40–100%), sparkle bursts, gentle care screen effects, soft care sounds, fade, haptic taps and Reduce motion controls. Preferences save immediately. Native Android overlay and Windows/Mac overlay show care effects near the pet; web/iOS show them in the app. Android and native iPhone support haptics; Safari does not. System-controlled iPhone PiP is an opaque video and cannot use transparent pet opacity or these screen overlays. Effects have no care rewards. OS reduced-motion preferences also apply.

@@ -19,7 +19,7 @@ def create_app(database=None, origins=None):
     db.executescript('''CREATE TABLE IF NOT EXISTS pets(id TEXT PRIMARY KEY, code TEXT UNIQUE, token TEXT UNIQUE, profile TEXT);
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));''')
-    allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://dutchiono.github.io').split(','))
+    allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rates = {}, {}, {}, defaultdict(deque)
     now = time.time

@@ -2,7 +2,7 @@ import asyncio, tempfile, unittest
 from aiohttp.test_utils import TestClient, TestServer
 from app import create_app
 
-ORIGIN='https://dutchiono.github.io'
+ORIGIN='https://tinyfrens.lol'
 class RelayTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.db=self.tmp.name+'/pets.db'
