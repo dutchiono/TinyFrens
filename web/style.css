@@ -19,6 +19,24 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet[data-shape=bear] .ear{width:34px;height:34px;top:8px;border-radius:50%}.pet[data-shape=bear] .ear.left{left:16px;transform:none}.pet[data-shape=bear] .ear.right{right:16px;transform:none}
 .pet[data-shape=frog] .ear{width:34px;height:34px;top:12px;border-radius:50%}.pet[data-shape=frog] .ear.left{left:18px;transform:none}.pet[data-shape=frog] .ear.right{right:18px;transform:none}.pet[data-shape=frog] .body{border-radius:45% 45% 32% 32%}.pet[data-shape=frog] .mouth{width:16px;left:39px;border-radius:0 0 8px 8px}
 .pet[data-shape=turtle] .ear{display:none}.pet[data-shape=turtle] .body{border-radius:45% 45% 35% 35%;box-shadow:inset 0 0 0 6px #4b2d7744}
+/* Expressions */
+.pet[data-expression=wink] .eye.r{height:4px;top:48px;border-radius:2px}
+.pet[data-expression=shades] .body::before{content:"";position:absolute;top:34px;left:14px;width:82px;height:18px;background:#111;border-radius:4px;box-shadow:0 2px 4px #0006;z-index:5}
+.pet[data-expression=star_eyes] .eye{background:#ffd700;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.pet[data-expression=sleepy] .eye{height:4px;top:46px}
+.pet[data-expression=loving] .eye{background:#ff4757}
+.pet[data-expression=laser] .eye{background:#ff0055;box-shadow:0 0 10px #ff0055}
+.pet[data-expression=grin] .mouth{width:16px;left:39px;height:7px;border-radius:0 0 8px 8px;background:#ff4757}
+/* Accessories */
+.pet[data-accessory=party_hat]::before{content:"";position:absolute;top:-28px;left:44px;width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-bottom:40px solid #ff4757;z-index:10;filter:drop-shadow(0 2px 0 #ffd700)}
+.pet[data-accessory=crown]::before{content:"👑";position:absolute;top:-28px;left:44px;font-size:38px;z-index:10}
+.pet[data-accessory=straw_hat]::before{content:"👒";position:absolute;top:-26px;left:40px;font-size:42px;z-index:10}
+.pet[data-accessory=halo]::before{content:"";position:absolute;top:-18px;left:36px;width:56px;height:16px;border:4px solid #ffd700;border-radius:50%;box-shadow:0 0 10px #ffeaa7;z-index:10}
+.pet[data-accessory=beanie]::before{content:"";position:absolute;top:10px;left:14px;width:100px;height:34px;background:#34495e;border-radius:20px 20px 4px 4px;border:4px solid #2c3e50;z-index:10}
+.pet[data-accessory=strawberry]::after{content:"🍓";position:absolute;bottom:4px;left:96px;font-size:28px;z-index:10}
+.pet[data-accessory=orb]::after{content:"";position:absolute;bottom:20px;right:-18px;width:28px;height:28px;background:radial-gradient(circle,#fff,#00d2d3);border-radius:50%;box-shadow:0 0 14px #00d2d3;z-index:10}
+.pet[data-accessory=bubble]{box-shadow:0 0 0 16px #70a1ff44,inset 0 0 20px #70a1ff33;border-radius:50%}
+.pet[data-accessory=bow_tie] .body::after{content:"🎀";position:absolute;bottom:-6px;left:42px;font-size:24px;z-index:10}
 .eye{animation:blink 5s infinite}.pet[data-action=sleep] .eye{height:4px;animation:none}.pet[data-action=sleep]{animation:breathe 2s infinite}
 .pet[data-action=dance]{animation:dance .45s infinite}.pet[data-action=wave]{animation:wave .6s infinite}
 .pet[data-action=eat] .mouth{animation:chew .4s infinite}

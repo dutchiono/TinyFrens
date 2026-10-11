@@ -70,7 +70,7 @@ MIT licensed. Early prototype; real-phone QA is still needed.
 
 - Wander across both screen axes, pause, blink, dance, eat, wave, sleep, and chase a floating toy.
 - Tap the Android pet for its action menu; drag to move it; tap or hold for circular actions; use the rightmost ☰ button to open the app.
-- Choose cat, blob, or robot, any body colour, size, and wandering speed. Saves and appearance persist through signed upgrades.
+- Choose from 8 companions (cat, blob, robot, bunny, dog, bear, frog, or turtle), any body colour, size, and wandering speed. Saves and appearance persist through signed upgrades.
 - Set Free roam for wandering; Bubble stays in place. Sleeping or very low energy pauses movement.
 - Android permission shortcuts: Allow floating, App settings (battery/notifications), Allow updates.
 - In-app Install update downloads a verified APK and opens Android's install prompt. On first use allow this app to install updates, return, and tap Install update again. Browser download remains available.

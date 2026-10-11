@@ -5,7 +5,7 @@ function cleanName(value) { return [...String(value || '').replace(/[\u0000-\u00
 function normalize(value = {}, now = Date.now()) {
   return { hunger: clamp(value.hunger, 0, 100, 80), happiness: clamp(value.happiness, 0, 100, 80), energy: clamp(value.energy, 0, 100, 80),
     born: clamp(value.born, 0, now, now), last: clamp(value.last, 0, now, now), name: cleanName(value.name) || 'Mochi',
-    shape: ['cat', 'blob', 'robot'].includes(value.shape) ? value.shape : value.shape === 'mascot' ? 'robot' : 'cat',
+    shape: ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'].includes(value.shape) ? value.shape : value.shape === 'mascot' ? 'robot' : 'cat',
     color: /^#[0-9a-f]{6}$/i.test(value.color || '') ? value.color : '#a474f1',
     size: clamp(value.size, 56, 128, 80), speed: clamp(value.speed, 20, 140, 60), mode: value.mode === 'bubble' ? 'bubble' : 'roam',
     opacity: clamp(value.opacity, 40, 100, 100), sparkles: value.sparkles !== false, screenEffects: value.screenEffects !== false, fade: value.fade !== false, haptics: value.haptics !== false, reduceMotion: value.reduceMotion === true };

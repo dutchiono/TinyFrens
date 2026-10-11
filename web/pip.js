@@ -13,14 +13,16 @@
   const rgb = value => [1,3,5].map(i => parseInt(value.slice(i,i+2),16));
   function selectClip() {
     const state = read();
-    const shape = state.shape==='mascot'?'robot':['cat','blob','robot'].includes(state.shape) ? state.shape : 'cat';
+    const validShapes = ['cat','blob','robot','bunny','dog','bear','frog','turtle'];
+    const shape = state.shape==='mascot'?'robot':validShapes.includes(state.shape) ? state.shape : 'cat';
     const colour = /^#[0-9a-f]{6}$/i.test(state.color||'') ? state.color : '#a474f1';
     const wanted = rgb(colour);
     const closest = Object.keys(palette).sort((a,b) => {
       const distance = name => rgb(palette[name]).reduce((sum,n,i) => sum+(n-wanted[i])**2,0);
       return distance(a)-distance(b);
     })[0];
-    const source = 'pip/'+shape+'-'+closest+'.mp4';
+    const videoShape = ['cat','blob','robot'].includes(shape) ? shape : (['bunny','dog','bear'].includes(shape) ? 'cat' : 'blob');
+    const source = 'pip/'+videoShape+'-'+closest+'.mp4';
     if (video.getAttribute('src') !== source) {video.pause();video.src=source;video.load();}
   }
   selectClip();

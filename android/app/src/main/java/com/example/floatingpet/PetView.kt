@@ -25,6 +25,11 @@ class PetView(context:Context):View(context){
   when(shape){
    "robot"->{c.drawRoundRect(8f,11f,32f,32f,2f,2f,paint);rect(c,19f,6f,2f,5f,dark);rect(c,17f,4f,6f,3f,bodyColor)}
    "blob"->c.drawRoundRect(7f,12f,33f,33f,12f,12f,paint)
+   "bunny"->{c.drawRoundRect(8f,13f,32f,32f,6f,6f,paint);rect(c,11f,2f,5f,14f,dark);rect(c,24f,2f,5f,14f,dark);rect(c,12f,3f,3f,12f,bodyColor);rect(c,25f,3f,3f,12f,bodyColor)}
+   "dog"->{c.drawRoundRect(8f,13f,32f,32f,6f,6f,paint);rect(c,6f,14f,5f,12f,dark);rect(c,29f,14f,5f,12f,dark);rect(c,7f,15f,3f,10f,bodyColor);rect(c,30f,15f,3f,10f,bodyColor)}
+   "bear"->{c.drawRoundRect(8f,13f,32f,32f,6f,6f,paint);c.drawCircle(11f,12f,4f,paint);c.drawCircle(29f,12f,4f,paint)}
+   "frog"->{c.drawRoundRect(8f,14f,32f,32f,10f,10f,paint);c.drawCircle(12f,13f,4f,paint);c.drawCircle(28f,13f,4f,paint)}
+   "turtle"->{c.drawRoundRect(7f,13f,33f,31f,12f,12f,paint);rect(c,14f,16f,12f,12f,dark)}
    else->{c.drawRoundRect(8f,13f,32f,32f,6f,6f,paint);rect(c,9f,6f,6f,11f,dark);rect(c,25f,6f,6f,11f,dark);rect(c,10f,8f,4f,8f,bodyColor);rect(c,26f,8f,4f,8f,bodyColor)}
   }
   paint.color=bodyColor;c.drawRoundRect(9f,14f,31f,30f,if(shape=="robot")1f else 7f,if(shape=="robot")1f else 7f,paint)

@@ -13,7 +13,13 @@ def profile(raw):
     name = re.sub(r'\s+', ' ', re.sub(r'[\x00-\x1f\x7f]', '', str(raw.get('name', '')))).strip()[:20]
     if not name or raw.get('shape') not in SHAPES or not re.fullmatch(r'#[a-fA-F0-9]{6}', str(raw.get('color', ''))):
         raise ValueError('Invalid pet')
-    return dict(name=name, shape=raw['shape'], color=raw['color'])
+    res = dict(name=name, shape=raw['shape'], color=raw['color'])
+    if raw.get('expression'): res['expression'] = str(raw['expression'])[:20]
+    if raw.get('accessory'): res['accessory'] = str(raw['accessory'])[:20]
+    if raw.get('tokenId') is not None:
+        try: res['tokenId'] = int(raw['tokenId'])
+        except (ValueError, TypeError): pass
+    return res
 
 def create_app(database=None, origins=None):
     db = sqlite3.connect(database or os.environ.get('DB_PATH', 'tinyfrens.db'))

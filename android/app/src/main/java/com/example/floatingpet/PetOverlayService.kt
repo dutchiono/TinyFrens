@@ -222,7 +222,7 @@ class PetOverlayService:Service(){
   Thread{
    var reply="Pet chat is having trouble right now."
    try{
-    val shape=snapshot.optString("shape","cat").let{if(it in listOf("cat","blob","robot"))it else "cat"}
+    val shape=snapshot.optString("shape","cat").let{if(it in listOf("cat","blob","robot","bunny","dog","bear","frog","turtle"))it else "cat"}
     val color=snapshot.optString("color","#a474f1").let{if(it.matches(Regex("#[0-9a-fA-F]{6}")))it else "#a474f1"}
     val name=snapshot.optString("name","").ifBlank{"Mochi"}
     val payload=org.json.JSONObject().put("message",clean).put("pet",org.json.JSONObject().put("name",name).put("shape",shape).put("color",color)).toString().toByteArray(Charsets.UTF_8)
