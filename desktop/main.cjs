@@ -8,6 +8,8 @@ const { clampPosition, hits } = require('./geometry.cjs');
 const WIDTH = 340, HEIGHT = 400;
 const RELEASES = 'https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest';
 const smoke = process.argv.includes('--tinyfrens-smoke') || app.commandLine.hasSwitch('tinyfrens-smoke');
+// Intel macOS CI runners expose no usable GPU; use software rendering for the test only.
+if (smoke && process.platform === 'darwin' && process.arch === 'x64') app.disableHardwareAcceleration();
 if (smoke) console.log('Starting isolated desktop smoke test.');
 if (smoke) setTimeout(() => { console.error('Desktop startup/renderer test did not finish within 45 seconds'); finishSmoke(1); }, 45000);
 if (smoke) app.setPath('userData', fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tinyfrens-smoke-')));
@@ -119,7 +121,7 @@ async function smokeTest() {
   const deadline = setTimeout(() => { console.error('Desktop smoke test timed out'); finishSmoke(1); }, 30000);
   const js = source => careWindow.webContents.executeJavaScript(source);
   try {
-    for (let i = 0; i < 100 && (pet.webContents.isLoading() || careWindow.webContents.isLoading()); i++) await pause(100);
+    for (let i = 0; i < 200 && (pet.webContents.isLoading() || careWindow.webContents.isLoading() || !pet.isVisible()); i++) await pause(100);
     assert.equal(pet.isAlwaysOnTop(), true);
     assert.equal(pet.hasShadow(), false);
     assert.equal(pet.isVisible(), true);
