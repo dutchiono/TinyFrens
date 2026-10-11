@@ -53,6 +53,7 @@ function render(s){
   $('petName').textContent=who;
   $('mood').textContent=s.feedback||who+(s.hunger<25?' is hungry.':s.energy<25?' needs a nap.':s.happiness<25?' wants to play.':' is curious.');
   $('age').textContent=`Day ${Math.floor((Date.now()-s.born)/86400000)}`;
+  $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
 for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation={feed:'eat',play:'dance',rest:'sleep'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});

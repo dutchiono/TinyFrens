@@ -41,7 +41,7 @@ $('toyPet').onclick=()=>{
 
 
 stylePet(read());
-$('stage').classList.add('wandering');
+$('stage').classList.toggle('wandering',read().mode!=='bubble');
 if(native){
  const permissions=document.createElement('section');permissions.className='overlay';
  permissions.innerHTML='<h2>Android permissions</h2><p id="permissionStatus" role="status"></p><div class="actions"><button data-settings="overlay">Allow floating</button><button data-settings="app">App settings</button><button data-settings="install">Allow updates</button></div><p>Battery and notification controls are in App settings. If Android shows a floating-app list, choose Pocket Familiar.</p>';
