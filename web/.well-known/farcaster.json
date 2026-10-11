@@ -13,6 +13,6 @@
     "buttonTitle": "Play TinyFrens",
     "splashImageUrl": "https://tinyfrens.lol/icons/icon-192.png",
     "splashBackgroundColor": "#17142a",
-    "webhookUrl": "https://tinyfrens.lol/api/farcaster/webhook"
+    "webhookUrl": "https://api.neynar.com/f/app/19a92098-0b5c-4789-aed6-857b315f2d0a/event"
   }
 }

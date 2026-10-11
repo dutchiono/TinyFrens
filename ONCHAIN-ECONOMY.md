@@ -16,7 +16,18 @@ Status: **design only** — no mainnet deployment from this doc. Ship only after
 | `pets` + device `token` (server) | Stable **off-chain identity** for a fren; every paid feature keys off `token` → `pet_id`. |
 | `pet_wallets` + Bankr partner | **Per-fren EVM address** when `BANKR_PARTNER_KEY` is set; shared agent wallet otherwise. |
 | `web/wallet.js` | Loads wallet with `{ token, pet }`; pattern for future “Buy credits” flows. |
-| `contracts/TinyFrensNFT.sol` | On-chain companions (symbol `FREN`); separate from any **FRENS** utility token unless we explicitly link them. |
+| `contracts/TinyFrensNFT.sol` | On-chain companions (symbol `FREN`); separate from utility **FRENS**. |
+| `contracts/config/economy.json` | Canonical addresses: production FRENS on Base, testnet profile for Sepolia. |
+
+### Production FRENS (Base mainnet)
+
+| Field | Value |
+|--------|--------|
+| `chainId` | `8453` |
+| Contract | `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` |
+| Symbol | FRENS (18 decimals) |
+
+**Do not** point dev/test servers at this token until deposit + jackpot flows pass on **Base Sepolia** with `TestFRENS` (`contracts/testnet/`). The server refuses to enable economy features on `ECONOMY_MODE=production` until we flip that guard deliberately.
 
 Jackpots and in-world finds are **game events**; credits can be **off-chain ledger** backed by on-chain deposits.
 
@@ -78,7 +89,8 @@ Deploy on **Base** (align with NFT/Bankr stack) unless product says otherwise.
 
 | Contract | Pattern | Purpose |
 |----------|---------|---------|
-| `FrensToken` (if not existing) | ERC-20, optional upgradeable mint role | Utility FRENS; mint policy frozen or governance later. |
+| FRENS (deployed) | ERC-20 on Base | `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` — no redeploy. |
+| `TestFRENS` | testnet mintable ERC-20 | Base Sepolia only; see `contracts/testnet/README.md`. |
 | `Treasury` | UUPS proxy | Holds FRENS/ETH; only `GameController` can pull for jackpots/payouts. |
 | `JackpotVault` | UUPS proxy | One or more pools; `fund()`, `drawWinner(bytes32 roundId, …)` with VRF or commit-reveal; emits `JackpotWon(petRef, amount)`. |
 | `WorldFindRegistry` | UUPS proxy | Optional: on-chain record of “find” outcomes for transparency; gameplay RNG can stay off-chain with signed attestations from server oracle key. |

@@ -144,5 +144,59 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r3.status,200)
         data3=await r3.json()
         self.assertEqual(data3['version'],'2.0')
+    async def test_economy_status_off_by_default(self):
+        saved={k:os.environ.get(k) for k in ('ECONOMY_MODE','FRENS_TOKEN','CHAIN_ID')}
+        for key in saved: os.environ.pop(key,None)
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            self.assertEqual(r.status,200)
+            data=await r.json()
+            self.assertFalse(data['enabled'])
+            self.assertIsNone(data['mode'])
+            self.assertEqual(data['productionToken'].lower(),'0x1a96226727a1d0a46334b3a4b3878b32b7659ba3')
+        finally:
+            for key,value in saved.items():
+                if value is None: os.environ.pop(key,None)
+                else: os.environ[key]=value
+    async def test_economy_status_testnet_when_configured(self):
+        saved={k:os.environ.get(k) for k in ('ECONOMY_MODE','FRENS_TOKEN','CHAIN_ID')}
+        os.environ['ECONOMY_MODE']='testnet'
+        os.environ['FRENS_TOKEN']='0x'+'ab'*20
+        os.environ['CHAIN_ID']='84532'
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            data=await r.json()
+            self.assertTrue(data['enabled'])
+            self.assertEqual(data['mode'],'testnet')
+            self.assertEqual(data['chainId'],84532)
+        finally:
+            for key,value in saved.items():
+                if value is None: os.environ.pop(key,None)
+                else: os.environ[key]=value
+    async def test_economy_status_production_token_never_enables_server(self):
+        saved=os.environ.get('ECONOMY_MODE')
+        os.environ['ECONOMY_MODE']='production'
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            data=await r.json()
+            self.assertFalse(data['enabled'])
+            self.assertEqual(data['mode'],'production')
+            self.assertEqual(data['frensToken'].lower(),'0x1a96226727a1d0a46334b3a4b3878b32b7659ba3')
+            self.assertIn('testnet',data.get('note','').lower())
+        finally:
+            if saved is None: os.environ.pop('ECONOMY_MODE',None)
+            else: os.environ['ECONOMY_MODE']=saved
+    async def test_farcaster_webhook_and_notify_status(self):
+        r_hook=await self.client.post('/api/farcaster/webhook',json={'event':'frame_added'})
+        self.assertEqual(r_hook.status,200)
+        self.assertTrue((await r_hook.json()).get('received'))
+
+        # Notify without NEYNAR_API_KEY returns 503
+        saved_key=os.environ.pop('NEYNAR_API_KEY',None)
+        try:
+            r_notify=await self.client.post('/api/farcaster/notify',json={'title':'Hungry!','body':'Feed your fren'})
+            self.assertEqual(r_notify.status,503)
+        finally:
+            if saved_key is not None: os.environ['NEYNAR_API_KEY']=saved_key
 
 if __name__=='__main__': unittest.main()

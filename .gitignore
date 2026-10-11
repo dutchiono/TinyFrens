@@ -10,3 +10,8 @@ public/
 dist/
 __pycache__/
 *.pyc
+cache/
+out/
+broadcast/
+lib/
+.secrets/
