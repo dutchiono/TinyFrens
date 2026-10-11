@@ -127,6 +127,35 @@ class MainActivity : Activity() {
             runOnUiThread { sendService("start") }
             return true
         }
+        @JavascriptInterface fun registerFriends(server: String, petJson: String, requestId: Int) {
+            Thread {
+                var result = org.json.JSONObject().put("error", "Could not reach the friends server.")
+                var connection: javax.net.ssl.HttpsURLConnection? = null
+                try {
+                    val uri = Uri.parse(server)
+                    require(uri.scheme == "https" && !uri.host.isNullOrEmpty() && uri.userInfo == null && uri.query == null && uri.fragment == null && uri.path.orEmpty() in listOf("", "/"))
+                    require(petJson.length <= 512)
+                    val payload = org.json.JSONObject().put("pet", org.json.JSONObject(petJson)).toString().toByteArray(Charsets.UTF_8)
+                    val request = java.net.URL(server.trimEnd('/') + "/api/register").openConnection() as javax.net.ssl.HttpsURLConnection
+                    connection = request
+                    request.requestMethod = "POST"; request.connectTimeout = 15000; request.readTimeout = 15000
+                    request.instanceFollowRedirects = false; request.doOutput = true
+                    request.setRequestProperty("Content-Type", "application/json"); request.setRequestProperty("Origin", "null")
+                    request.outputStream.use { it.write(payload) }
+                    if (request.responseCode == 200) {
+                        val bytes = request.inputStream.use { input ->
+                            val output = java.io.ByteArrayOutputStream(); val buffer = ByteArray(1024)
+                            while (output.size() <= 4096) { val count = input.read(buffer, 0, minOf(buffer.size, 4097-output.size())); if (count < 0) break; output.write(buffer, 0, count) }
+                            output.toByteArray()
+                        }
+                        require(bytes.size <= 4096)
+                        result = org.json.JSONObject(String(bytes, Charsets.UTF_8))
+                    }
+                } catch (_: Exception) { } finally { connection?.disconnect() }
+                val response = org.json.JSONObject().put("requestId", requestId).put("result", result)
+                runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.onNativeFriendRegistration?.($response)", null) }
+            }.start()
+        }
         @JavascriptInterface fun isPetVisible(): Boolean = PetOverlayService.running
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)

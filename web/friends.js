@@ -39,10 +39,20 @@
   if(data.type==='visit-ended'&&visit?.id===data.id){endVisit();status('Your fren is back home.');}
  }
  function normalize(raw){const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.pathname!=='/')throw new Error('Use an HTTPS server address, like https://pets.example.com');return u.origin;}
+ let registrationId=0;const nativeRegistrations=new Map();
+ window.onNativeFriendRegistration=data=>{const pending=nativeRegistrations.get(data.requestId);if(!pending)return;nativeRegistrations.delete(data.requestId);clearTimeout(pending.timer);if(data.result?.error)pending.reject(new Error(data.result.error));else pending.resolve(data.result);};
+ async function register(){
+  if(native&&typeof PetAndroid.registerFriends==='function')return new Promise((resolve,reject)=>{
+   const id=++registrationId;const timer=setTimeout(()=>{nativeRegistrations.delete(id);reject(new Error('Friends server took too long. Try again.'));},35000);
+   nativeRegistrations.set(id,{resolve,reject,timer});try{PetAndroid.registerFriends(endpoint,JSON.stringify(pet()),id);}catch(e){clearTimeout(timer);nativeRegistrations.delete(id);reject(e);}
+  });
+  const response=await fetch(endpoint+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pet:pet()}),signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw new Error('Server couldn’t create your friend code. Check setup.');return response.json();
+ }
  async function connect(){
   const gen=++generation;clearTimeout(retry);const old=ws;ws=null;old?.close();endVisit();$('addFriendButton').disabled=true;status('Connecting…');
   try{
-   if(!identity){const response=await fetch(endpoint+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pet:pet()}),signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('Server couldn’t create your friend code. Check setup.');const result=await response.json();if(gen!==generation)return;identity=result;localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));}
+   if(!identity){const result=await register();if(!/^[a-f0-9]{32}$/.test(result.id||'')||!/^[-_A-Za-z0-9]{40,100}$/.test(result.token||'')||!/^[-A-Z2-9]{8}$/.test(result.code||''))throw new Error('Friends server response was invalid.');if(gen!==generation)return;identity=result;localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));}
    if(gen!==generation)return;
    const socket=new WebSocket(endpoint.replace(/^https:/,'wss:')+'/ws');ws=socket;lastProfile='';
    socket.onopen=()=>{delay=1000;socket.send(JSON.stringify({type:'auth',token:identity.token}));};
