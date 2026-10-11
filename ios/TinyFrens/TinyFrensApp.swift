@@ -79,14 +79,19 @@ struct PetWebView: UIViewRepresentable {
                 send(["error": "This local build has no update metadata."]); return
             }
             let installedDate = ISO8601DateFormatter().date(from: info["builtAt"] ?? "") ?? .distantPast
-            var request = URLRequest(url: URL(string: "https://api.github.com/repos/dutchiono/TinyFrens/releases/latest")!)
+            // Desktop/Android-only releases must not hide the newest installable iPhone build.
+            var request = URLRequest(url: URL(string: "https://api.github.com/repos/dutchiono/TinyFrens/releases?per_page=20")!)
             request.timeoutInterval = 15
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             request.setValue("TinyFrens", forHTTPHeaderField: "User-Agent")
             URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
                 var result: [String: Any] = ["error": "Unable to check for updates."]
                 if error == nil, (response as? HTTPURLResponse)?.statusCode == 200,
-                   let data = data, let release = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                   let data = data, let releases = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]],
+                   let release = releases.first(where: { entry in
+                       let assets = entry["assets"] as? [[String: Any]] ?? []
+                       return assets.contains { ($0["name"] as? String) == "TinyFrens-unsigned.ipa" }
+                   }) {
                     let latest = release["target_commitish"] as? String ?? ""
                     let created = ISO8601DateFormatter().date(from: release["created_at"] as? String ?? "") ?? .distantPast
                     let assets = release["assets"] as? [[String: Any]] ?? []
