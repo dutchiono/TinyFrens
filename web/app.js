@@ -55,7 +55,7 @@ function render(s){
   $('age').textContent=`Day ${Math.floor((Date.now()-s.born)/86400000)}`;
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
-for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked)window.animatePet?.({feed:'eat',play:'dance',rest:'sleep'}[a]);});
+for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation={feed:'eat',play:'dance',rest:'sleep'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
   let s;if(desktop)s=JSON.parse(desktop.setMode(b.dataset.mode));
   else if(native)s=JSON.parse(PetAndroid.setMode(b.dataset.mode));

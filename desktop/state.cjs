@@ -7,7 +7,8 @@ function normalize(value = {}, now = Date.now()) {
     born: clamp(value.born, 0, now, now), last: clamp(value.last, 0, now, now), name: cleanName(value.name) || 'Mochi',
     shape: ['cat', 'blob', 'robot'].includes(value.shape) ? value.shape : value.shape === 'mascot' ? 'robot' : 'cat',
     color: /^#[0-9a-f]{6}$/i.test(value.color || '') ? value.color : '#a474f1',
-    size: clamp(value.size, 56, 128, 80), speed: clamp(value.speed, 20, 140, 60), mode: value.mode === 'bubble' ? 'bubble' : 'roam' };
+    size: clamp(value.size, 56, 128, 80), speed: clamp(value.speed, 20, 140, 60), mode: value.mode === 'bubble' ? 'bubble' : 'roam',
+    opacity: clamp(value.opacity, 40, 100, 100), sparkles: value.sparkles !== false, screenEffects: value.screenEffects !== false, fade: value.fade !== false, haptics: value.haptics !== false, reduceMotion: value.reduceMotion === true };
 }
 function decay(value, now = Date.now()) {
   const s = normalize(value, now), hours = Math.min(720, Math.max(0, Math.floor((now - s.last) / 3600000)));
@@ -31,7 +32,7 @@ class PetStore {
   read() { this.state = decay(this.state); return { ...this.state }; }
   action(name) { const result = care(this.state, name); this.state = result.state; this.save(); return { ...this.state, blocked: result.blocked, feedback: result.feedback }; }
   rename(value) { this.state.name = cleanName(value) || this.state.name; this.save(); return this.read(); }
-  customize(value) { this.state = normalize({ ...this.read(), color: value.color, shape: value.shape, size: value.size, speed: value.speed }); this.save(); return this.read(); }
+  customize(value) { const allowed = ['color','shape','size','speed','opacity','sparkles','screenEffects','fade','haptics','reduceMotion']; const patch = Object.fromEntries(allowed.filter(k => Object.hasOwn(value, k)).map(k => [k, value[k]])); this.state = normalize({ ...this.read(), ...patch }); this.save(); return this.read(); }
   mode(value) { this.state.mode = value === 'bubble' ? 'bubble' : 'roam'; this.save(); return this.read(); }
 }
 module.exports = { normalize, decay, care, PetStore };

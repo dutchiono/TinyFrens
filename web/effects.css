@@ -1,0 +1,11 @@
+.care-effect{position:fixed;inset:0;pointer-events:none;z-index:100;--effect-color:#dfbaf0;contain:strict}
+.care-eat{--effect-color:#edb5c2}.care-sleep{--effect-color:#b6cce6}.care-glow{background:radial-gradient(circle 120px at var(--cx) var(--cy),color-mix(in srgb,var(--effect-color) 28%,transparent),transparent);animation:care-glow 1s ease-out both}
+.care-effect span{position:absolute;left:var(--cx);top:var(--cy);font-size:17px;color:var(--effect-color);text-shadow:0 1px 2px #fff;animation:care-spark 850ms ease-out both;animation-delay:var(--delay)}
+@keyframes care-spark{from{opacity:0;transform:translate(-50%,-50%) scale(.5)}20%{opacity:.9}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.3)}}
+@keyframes care-glow{from{opacity:0}25%{opacity:1}to{opacity:0}}
+[data-reduced-motion=true] .pet,[data-reduced-motion=true] .eye,[data-reduced-motion=true] .pet-stage.wandering .pet{animation:none!important}
+[data-reduced-motion=true] .care-effect{display:none!important}
+[data-pet-fade=true] .screen{animation:pet-panel-fade 180ms ease-out}
+@keyframes pet-panel-fade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.care-effect{display:none!important}}
+

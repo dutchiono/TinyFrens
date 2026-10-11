@@ -1,13 +1,19 @@
-# Upcoming TinyFrens play
+# TinyFrens play and effects
 
-## Screen effects — coming soon
+## Available now
 
-Small optional effects tied to game actions: a snack sparkle, play confetti, sleepy stars, and visitor arrival/goodbye. Start inside the pet stage, then add native Android overlay effects. Keep them brief, with an off switch and reduced-motion support. iOS effects stay inside the app or its video; they cannot draw above arbitrary apps.
+Windows and Mac have a native floating pet with care bubbles, dragging, roaming, a close button and shared desktop saves.
 
-## Objects — coming soon
+Looks → Little touches provides 40–100% opacity, sparkles, gentle care glow, fade and Reduce motion. Android and desktop overlays show effects near the pet; web/native iOS show them inside the app. Effects are cosmetic, brief and do not change care rewards. Native Android/iPhone support haptic taps on compatible hardware. Browser support varies; Safari and desktop do not provide pet haptics. System-controlled iPhone PiP remains an opaque video.
 
-Beds for naps, bowls for snacks, and toys for play. Objects must trigger the existing Feed/Play/Nap rules, with the same costs, caps, animations and feedback as the app and bubbles. No extra hidden rewards from dragging or catching an object. Keep dragging, tapping and dismissal easy on a phone.
+## More screen effects — planned
+
+Weather, richer action-specific confetti/stars and arrival/goodbye effects. Preserve the off switches, reduced motion and click-through areas. iOS cannot draw these above arbitrary apps.
+
+## Objects — planned
+
+Beds for naps, bowls for snacks and toys for play. Objects must trigger existing Feed/Play/Nap rules with the same costs, caps, animations and feedback. No hidden rewards from dragging/catching objects. The Android toy chase already exists; desktop has a cosmetic toy beside the pet, with a moving chase still planned.
 
 ## Nearby friends
 
-Native Bluetooth/Wi-Fi discovery should find a nearby friend's server code and enter the existing friendship/visit consent flow. No automatic uninvited visits. Requires native SDK integration, permissions and tests on two phones; the server relay is already built.
+Native Bluetooth/Wi-Fi discovery should find a friend's server code and enter the existing friendship/visit consent flow. No automatic uninvited visits. Requires native SDK integration, permissions and tests on two phones; the relay is built. Visitors currently appear inside the care app rather than as floating guests.

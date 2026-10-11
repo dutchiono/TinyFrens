@@ -117,3 +117,7 @@ The PFP robot has been removed. Existing pets using it switch to Simple robot wi
 
 Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet for its bubbles; the top-right × hides the whole floating pet. [Screen effects and objects](ROADMAP.md) are planned, not yet enabled.
 
+
+## Little touches
+
+Looks now includes pet opacity (40–100%), sparkle bursts, gentle care screen effects, fade, haptic taps and Reduce motion controls. Preferences save immediately. Native Android overlay and Windows/Mac overlay show care effects near the pet; web/iOS show them in the app. Android and native iPhone support haptics; Safari does not. System-controlled iPhone PiP is an opaque video and cannot use transparent pet opacity or these screen overlays. Effects have no care rewards. OS reduced-motion preferences also apply.

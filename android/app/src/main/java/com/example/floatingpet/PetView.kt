@@ -7,6 +7,7 @@ import kotlin.math.sin
 class PetView(context:Context):View(context){
  var onDrag:((Int,Int)->Unit)?=null;var onDragEnd:(()->Unit)?=null;var onTap:(()->Unit)?=null;var onHold:(()->Unit)?=null
  var dragging=false;var frame=0;var direction=1;var mode="roam";var mood="idle";var stage=0;var shape="cat"
+ var reducedMotion=false
  var bodyColor=Color.rgb(164,116,241)
  private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
  private var dx=0f;private var dy=0f;private var lx=0f;private var ly=0f;private var held=false
@@ -15,10 +16,10 @@ class PetView(context:Context):View(context){
  private fun rect(c:Canvas,x:Float,y:Float,w:Float,h:Float,color:Int){paint.color=color;c.drawRect(x,y,x+w,y+h,paint)}
  override fun onDraw(c:Canvas){
   super.onDraw(c);c.save();c.scale(width/40f,height/40f)
-  val dark=Color.rgb(47,32,69);val phase=frame*.32f
+  val dark=Color.rgb(47,32,69);val phase=if(reducedMotion)0f else frame*.32f
   if(mode=="bubble"){paint.color=Color.rgb(40,32,67);c.drawCircle(20f,20f,19f,paint);paint.color=Color.rgb(224,209,255);paint.style=Paint.Style.STROKE;paint.strokeWidth=1f;c.drawCircle(20f,20f,18f,paint);paint.style=Paint.Style.FILL}
   val bounce=when(mood){"walk"->abs(sin(phase))*1.8f;"dance","happy"->abs(sin(phase))*4;"eat"->sin(phase)*.8f;else->sin(phase*.25f)*.5f}
-  c.save();c.translate(0f,-bounce);if(mood=="dance")c.rotate(sin(phase)*12,20f,25f)
+  c.save();c.translate(0f,-bounce);if(mood=="dance"&&!reducedMotion)c.rotate(sin(phase)*12,20f,25f)
   if(mood=="sleep")c.translate(0f,2f)
   paint.color=dark
   when(shape){
@@ -28,7 +29,7 @@ class PetView(context:Context):View(context){
   }
   paint.color=bodyColor;c.drawRoundRect(9f,14f,31f,30f,if(shape=="robot")1f else 7f,if(shape=="robot")1f else 7f,paint)
   val look=direction*.7f
-  if(mood=="sleep"||mood=="happy"||frame%100<4){rect(c,13f+look,21f,4f,1f,dark);rect(c,23f+look,21f,4f,1f,dark)}
+  if(mood=="sleep"||mood=="happy"||(!reducedMotion&&frame%100<4)){rect(c,13f+look,21f,4f,1f,dark);rect(c,23f+look,21f,4f,1f,dark)}
   else{rect(c,13f+look,18f,4f,5f,dark);rect(c,23f+look,18f,4f,5f,dark);rect(c,14f+look,18f,1f,1f,Color.WHITE);rect(c,24f+look,18f,1f,1f,Color.WHITE)}
   rect(c,11f,24f,4f,2f,Color.rgb(255,130,167));rect(c,25f,24f,4f,2f,Color.rgb(255,130,167));rect(c,19f,26f,2f,if(mood=="eat"&&frame%10<5)3f else 1f,dark)
   val step=if(mood=="walk")sin(phase)*2 else 0f;rect(c,12f,31f+step,5f,3f,dark);rect(c,23f,31f-step,5f,3f,dark)
@@ -50,4 +51,5 @@ class PetView(context:Context):View(context){
  override fun performClick():Boolean{super.performClick();return true}
  override fun onDetachedFromWindow(){removeCallbacks(hold);super.onDetachedFromWindow()}
 }
+
 

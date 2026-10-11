@@ -34,6 +34,10 @@ test('hourly decay and migrated robot preserve stats', () => {
   const now = Date.now(), state = decay({ hunger: 80, happiness: 80, energy: 80, last: now - 2 * 3600000, shape: 'mascot' }, now);
   assert.deepEqual([state.hunger, state.happiness, state.energy], [74, 76, 78]); assert.equal(state.shape, 'robot');
 });
+test('effect preferences persist and changing shape preserves them', () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tinyfrens-effects-'));
+  try{const file=path.join(dir,'pet.json'),store=new PetStore(file);store.customize({opacity:55,sparkles:false,screenEffects:false,fade:false,haptics:false,reduceMotion:true});store.customize({shape:'blob'});const s=new PetStore(file).read();assert.equal(s.opacity,55);assert.equal(s.reduceMotion,true);for(const k of ['sparkles','screenEffects','fade','haptics'])assert.equal(s[k],false);assert.equal(s.shape,'blob');}finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
 test('negative monitor coordinates clamp safely and only pet/buttons intercept clicks', () => {
   const area = { x: -1920, y: -200, width: 1920, height: 1080 };
   assert.deepEqual(clampPosition({ x: -5000, y: 5000 }, area, 340, 400), { x: -1920, y: 480 });

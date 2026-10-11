@@ -17,6 +17,7 @@
     lastState = s;
     pet.dataset.shape = s.shape; pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
     pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String(s.size / 80));
+    pet.style.opacity=String(s.opacity/100);const reduced=s.reduceMotion||matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(reduced);bridge.motion(reduced);
     pet.setAttribute('aria-label', s.name + '. Click for care, drag to move.');
     const r = pet.getBoundingClientRect(); close.style.left = Math.min(296, r.right + 3) + 'px'; close.style.top = Math.max(40, r.top - 8) + 'px';
     const buttons = bubbles.querySelectorAll('[data-action]');
@@ -27,6 +28,11 @@
   }
   function animation(name) {
     if (name === 'check-update') return;
+    const s=lastState;
+    if(s&&!s.reduceMotion&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&(s.sparkles||s.screenEffects)){
+      document.querySelector('.care-effect')?.remove();const effect=document.createElement('div');effect.className='care-effect care-'+name+(s.screenEffects?' care-glow':'');effect.setAttribute('aria-hidden','true');effect.style.setProperty('--cx','170px');effect.style.setProperty('--cy','174px');
+      if(s.sparkles)for(let i=0;i<8;i++){const dot=document.createElement('span');dot.textContent='✦';dot.style.setProperty('--dx',((i%4)-1.5)*55+'px');dot.style.setProperty('--dy',(i<4?-1:1)*75+'px');dot.style.setProperty('--delay',i*20+'ms');effect.append(dot);}document.body.append(effect);setTimeout(()=>effect.remove(),1100);
+    }
     if (name === 'toy') {
       toy.hidden = false; toy.style.left = (45 + Math.random() * 235) + 'px'; message('Toy time!');
       name = 'dance'; clearTimeout(toyTimer); toyTimer = setTimeout(() => { toy.hidden = true; hitRegions(); }, 6000);
@@ -59,6 +65,7 @@
   }
   toy.onclick = () => bridge.action('toy');
   bridge.onState(render); bridge.onAnimation(animation); render(JSON.parse(bridge.getState()));
+  matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',()=>render(lastState));
   // Animated transforms change hit areas: never let the transparent margin intercept desktop clicks.
   setInterval(hitRegions, 150);
 })();

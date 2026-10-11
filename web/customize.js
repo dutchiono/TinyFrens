@@ -24,9 +24,10 @@ $('resetStyle').onclick=()=>saveLook(true);
 for(const id of ['petColor','petSize','petSpeed'])$(id).addEventListener('input',()=>saveLook(false));
 $('petShape').addEventListener('change',()=>saveLook(false));
 function animatePet(name){$('pet').dataset.action=name;clearTimeout(window.petActionTimeout);window.petActionTimeout=setTimeout(()=>{$('pet').dataset.action='';},name==='sleep'?15000:6000);}
-$('wavePet').onclick=()=>{if(desktop)desktop.action('wave');else if(native)PetAndroid.action('wave');animatePet('wave');};
-$('dancePet').onclick=()=>{if(desktop)desktop.action('dance');else if(native)PetAndroid.action('dance');animatePet('dance');};
+$('wavePet').onclick=()=>{if(desktop)desktop.action('wave');else if(native)PetAndroid.action('wave');animatePet('wave');window.tinyFrensEffects?.respond('wave');};
+$('dancePet').onclick=()=>{if(desktop)desktop.action('dance');else if(native)PetAndroid.action('dance');animatePet('dance');window.tinyFrensEffects?.respond('dance');};
 $('toyPet').onclick=()=>{
+ window.tinyFrensEffects?.respond('toy');
  if(desktop){desktop.action('toy');$('styleMessage').textContent='Toy placed beside your floating pet.';}
  else if(native){PetAndroid.toy();$('styleMessage').textContent='Toy placed. Show your pet to watch the chase.';}
  else{

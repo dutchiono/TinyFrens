@@ -7,10 +7,12 @@ const { PetStore } = require('./state.cjs');
 const { clampPosition, hits } = require('./geometry.cjs');
 const WIDTH = 340, HEIGHT = 400;
 const RELEASES = 'https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest';
-const smoke = app.commandLine.hasSwitch('tinyfrens-smoke');
+const smoke = process.argv.includes('--tinyfrens-smoke') || app.commandLine.hasSwitch('tinyfrens-smoke');
+if (smoke) console.log('Starting isolated desktop smoke test.');
+if (smoke) setTimeout(() => { console.error('Desktop startup/renderer test did not finish within 45 seconds'); finishSmoke(1); }, 45000);
 if (smoke) app.setPath('userData', fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tinyfrens-smoke-')));
-let store, pet, careWindow, tray, tick, quitting = false, regions = [], menuUntil = 0, drag = null;
-let moving = null, target = null, nextTarget = 0, lastTick = Date.now(), ignoring = true, sleepingUntil = 0;
+let store, pet, careWindow, tray, tick, quitting = false, petVisible = false, regions = [], menuUntil = 0, drag = null;
+let moving = null, target = null, nextTarget = 0, lastTick = Date.now(), ignoring = true, sleepingUntil = 0, fadeTimer = null, systemReducedMotion = false;
 const allowedWindows = new Map();
 function trusted(event) {
   const expected = allowedWindows.get(event.sender.id);
@@ -30,7 +32,7 @@ function secureWindow(win, file) {
   return win.loadFile(file);
 }
 const preferences = () => ({ preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, backgroundThrottling: false });
-function snapshot(extra = {}) { return { ...store.read(), visible: !!pet?.isVisible(), ...extra }; }
+function snapshot(extra = {}) { return { ...store.read(), visible: petVisible, ...extra }; }
 function broadcast(extra = {}) {
   const data = snapshot(extra);
   for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:state', data);
@@ -43,8 +45,14 @@ function recover() {
   const point = clampPosition({ x: area.x + area.width - WIDTH - 30, y: area.y + area.height - HEIGHT - 30 }, area, WIDTH, HEIGHT);
   pet.setPosition(point.x, point.y); moving = point; target = null; nextTarget = 0;
 }
-function showPet() { menuUntil = 0; drag = null; pet.showInactive(); broadcast(); }
-function hidePet() { pet.hide(); drag = null; menuUntil = 0; broadcast(); }
+function fadeWindow(from, to, done) {
+  clearInterval(fadeTimer); const s=store.read();
+  if (!s.fade || s.reduceMotion || systemReducedMotion || smoke) { pet.setOpacity(to); done?.(); return; }
+  const start=Date.now(); pet.setOpacity(from);
+  fadeTimer=setInterval(()=>{const p=Math.min(1,(Date.now()-start)/220);pet.setOpacity(from+(to-from)*p);if(p===1){clearInterval(fadeTimer);done?.();}},20);
+}
+function showPet() { petVisible=true; menuUntil = 0; drag = null; pet.showInactive(); fadeWindow(0,1); broadcast(); }
+function hidePet() { petVisible=false;drag = null; menuUntil = 0; fadeWindow(pet.getOpacity(),0,()=>{pet.hide();pet.setOpacity(1);broadcast();}); broadcast(); }
 function openApp() {
   if (!careWindow || careWindow.isDestroyed()) {
     careWindow = new BrowserWindow({ width: 510, height: 810, minWidth: 360, minHeight: 550, title: 'TinyFrens', backgroundColor: '#f5f1e8', show: false, webPreferences: preferences() });
@@ -57,7 +65,7 @@ function openApp() {
 function updateTray() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: pet?.isVisible() ? 'Hide pet' : 'Show pet', click: () => pet.isVisible() ? hidePet() : showPet() },
+    { label: petVisible ? 'Hide pet' : 'Show pet', click: () => petVisible ? hidePet() : showPet() },
     { label: 'Open TinyFrens', click: openApp },
     { label: 'Bring pet back to this screen', click: () => { recover(); showPet(); } },
     { label: 'Check for updates', click: () => { openApp(); careWindow.webContents.send('tinyfrens:animation', 'check-update'); } },
@@ -66,7 +74,7 @@ function updateTray() {
 }
 function moveTick() {
   const now = Date.now(), elapsed = Math.min(.1, (now - lastTick) / 1000); lastTick = now;
-  if (!pet?.isVisible()) return;
+  if (!petVisible || !pet?.isVisible()) return;
   const pointer = screen.getCursorScreenPoint(), bounds = pet.getBounds();
   if (drag) {
     if (now - drag.started > 20000) drag = null;
@@ -81,7 +89,7 @@ function moveTick() {
   if (ignore !== ignoring) { pet.setIgnoreMouseEvents(ignore, { forward: true }); ignoring = ignore; }
   if (drag || over || now < menuUntil || now < sleepingUntil) return;
   const state = store.read();
-  if (state.mode !== 'roam' || state.energy < 15) return;
+  if (state.mode !== 'roam' || state.energy < 15 || state.reduceMotion || systemReducedMotion) return;
   const area = screen.getDisplayMatching(bounds).workArea;
   if (!moving) moving = { x: bounds.x, y: bounds.y };
   if (now > nextTarget) {
@@ -108,7 +116,7 @@ async function checkUpdate() {
 async function smokeTest() {
   const assert = require('node:assert/strict');
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-  const deadline = setTimeout(() => { console.error('Desktop smoke test timed out'); app.exit(1); }, 30000);
+  const deadline = setTimeout(() => { console.error('Desktop smoke test timed out'); finishSmoke(1); }, 30000);
   const js = source => careWindow.webContents.executeJavaScript(source);
   try {
     for (let i = 0; i < 100 && (pet.webContents.isLoading() || careWindow.webContents.isLoading()); i++) await pause(100);
@@ -124,6 +132,9 @@ async function smokeTest() {
     await js('document.getElementById("petShape").value="robot";document.getElementById("petShape").dispatchEvent(new Event("change"))');
     await pause(100);
     assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.shape'), 'robot');
+    await js('document.getElementById("petOpacity").value="55";document.getElementById("petOpacity").dispatchEvent(new Event("input"))');
+    await pause(100);assert.equal(store.read().opacity,55);
+    assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").style.opacity'),'0.55');
     await pet.webContents.executeJavaScript('document.querySelector("[data-action=feed]").click()');
     await pause(100);
     assert.equal(store.read().hunger, 97);
@@ -140,16 +151,21 @@ async function smokeTest() {
     for (let i = 0; i < 8; i++) { regions = []; lastTick = Date.now() - 100; moveTick(); }
     assert.notEqual(pet.getBounds().x, before.x);
     console.log('Desktop smoke passed: isolated renderer, always-on-top overlay, shared care, instant shape, close/show, movement.');
-    clearTimeout(deadline); app.exit(0);
-  } catch (error) { console.error(error); clearTimeout(deadline); app.exit(1); }
+    clearTimeout(deadline); finishSmoke(0);
+  } catch (error) { console.error(error); clearTimeout(deadline); finishSmoke(1); }
+}
+function finishSmoke(code) {
+  quitting = true; clearInterval(tick); clearInterval(fadeTimer);
+  for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.destroy();
+  tray?.destroy(); app.exit(code);
 }
 ipcMain.on('tinyfrens:sync', (event, name, value) => {
   if (!trusted(event) || !store) { event.returnValue = null; return; }
   try {
     switch (name) {
       case 'state': event.returnValue = JSON.stringify(snapshot()); break;
-      case 'visible': event.returnValue = pet.isVisible(); break;
-      case 'toggle': if (pet.isVisible()) hidePet(); else showPet(); event.returnValue = pet.isVisible(); break;
+      case 'visible': event.returnValue = petVisible; break;
+      case 'toggle': if (petVisible) hidePet(); else showPet(); event.returnValue = petVisible; break;
       case 'hide': hidePet(); event.returnValue = true; break;
       case 'open': openApp(); event.returnValue = true; break;
       case 'rename': event.returnValue = JSON.stringify(store.rename(typeof value === 'string' ? value : '')); broadcast(); break;
@@ -166,6 +182,7 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
         break;
       }
       case 'menu': if (event.sender === pet.webContents) menuUntil = value === true ? Date.now() + 8500 : 0; event.returnValue = true; break;
+      case 'motion': if (event.sender === pet.webContents) systemReducedMotion = value === true; event.returnValue = true; break;
       case 'drag': if (event.sender === pet.webContents) { const b = pet.getBounds(); drag = value === true ? { x: b.x, y: b.y, pointer: screen.getCursorScreenPoint(), started: Date.now() } : null; if (!drag) { moving = { x: b.x, y: b.y }; target = null; } } event.returnValue = true; break;
       case 'update': external(RELEASES); event.returnValue = true; break;
       default: event.returnValue = null;
@@ -201,8 +218,8 @@ else {
     tick = setInterval(moveTick, 50);
     openApp();
     if (smoke) smokeTest();
-  });
+  }).catch(error => { console.error('TinyFrens startup failed:', error); app.exit(1); });
 }
-app.on('activate', () => { if (store) openApp(); });
+app.on('activate', () => { if (store && !quitting) openApp(); });
 app.on('window-all-closed', () => {});
-app.on('before-quit', () => { quitting = true; clearInterval(tick); if (store) { store.read(); store.save(); } });
+app.on('before-quit', () => { quitting = true; clearInterval(tick); clearInterval(fadeTimer); if (store) { store.read(); store.save(); } });

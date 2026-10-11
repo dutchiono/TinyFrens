@@ -20,6 +20,7 @@ class PetOverlayService:Service(){
  private val position by lazy{getSharedPreferences("overlay_position",MODE_PRIVATE)}
  private var state=org.json.JSONObject();private var lastRead=0L;private var frame=0
  private var x=0f;private var y=0f;private var tx=0f;private var ty=0f
+ private var effectsView:View?=null;private var lastEffectToken=0L;private var hiding=false
  private var nextDecision=0L;private var behavior="walk";private var screenOn=true
  private val closeMenu=Runnable{removeMenu()}
  private val fadeCaption=Runnable{caption?.animate()?.alpha(0f)?.setDuration(600)?.withEndAction{removeCaption()}?.start()}
@@ -33,10 +34,35 @@ class PetOverlayService:Service(){
  private fun chooseWalk(){val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by;behavior="walk";nextDecision=SystemClock.elapsedRealtime()+12000}
  private fun clamp(){val(bx,by)=bounds();x=x.coerceIn(0f,bx);y=y.coerceIn(0f,by);params?.let{it.x=x.roundToInt();it.y=y.roundToInt()}}
  private fun update(v:View,p:WindowManager.LayoutParams){try{wm.updateViewLayout(v,p)}catch(_:Exception){if(!Settings.canDrawOverlays(this))stopSelf()}}
+ private fun reducedMotion()=state.optBoolean("reduceMotion")||Settings.Global.getFloat(contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
+ private fun hideWithFade(){
+  if(hiding)return;hiding=true;removeMenu();removeToy();removeEffects()
+  val v=pet
+  if(v!=null&&state.optBoolean("fade",true)&&!reducedMotion())v.animate().alpha(0f).setDuration(220).withEndAction{stopSelf()}.start()else stopSelf()
+ }
+ private fun removeEffects(){effectsView?.let{try{wm.removeView(it)}catch(_:Exception){}};effectsView=null}
+ private fun careEffect(){
+  if(reducedMotion()||(!state.optBoolean("sparkles",true)&&!state.optBoolean("screenEffects",true)))return
+  removeEffects()
+  val started=SystemClock.elapsedRealtime();val sparkle=state.optBoolean("sparkles",true);val glow=state.optBoolean("screenEffects",true)
+  val view=object:View(this@PetOverlayService){
+   private val paint=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+   override fun onDraw(canvas:android.graphics.Canvas){
+    val progress=((SystemClock.elapsedRealtime()-started)/900f).coerceIn(0f,1f);val cx=width/2f;val cy=height/2f
+    if(glow){paint.color=Color.argb(((1-progress)*70).toInt(),210,180,240);canvas.drawCircle(cx,cy,dp(32)*(1+progress),paint)}
+    if(sparkle)for(n in 0..7){val angle=n*Math.PI/4;val distance=dp(22)+progress*dp(70);val px=cx+kotlin.math.cos(angle).toFloat()*distance;val py=cy+kotlin.math.sin(angle).toFloat()*distance;paint.color=Color.argb(((1-progress)*255).toInt(),240,210,255);paint.strokeWidth=dp(2).toFloat();canvas.drawLine(px-dp(3),py,px+dp(3),py,paint);canvas.drawLine(px,py-dp(3),px,py+dp(3),paint)}
+    if(progress<1)postInvalidateOnAnimation()
+   }
+  }
+  val p=overlay(dp(240),dp(240));p.flags=p.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;p.alpha=.5f;p.x=(x+(params?.width?:dp(80))/2-p.width/2).toInt();p.y=(y+(params?.height?:dp(80))/2-p.height/2).toInt()
+  try{wm.addView(view,p);effectsView=view;handler.postDelayed({if(effectsView===view)removeEffects()},1000)}catch(_:Exception){}
+ }
  private fun style(){
   val v=pet?:return;val p=params?:return
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
-  v.shape=state.optString("shape","cat")
+  v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
+  if(!hiding)v.alpha=state.optInt("opacity",100).coerceIn(40,100)/100f
+  val token=state.optLong("actionUntil");if(token!=lastEffectToken){lastEffectToken=token;if(token>System.currentTimeMillis())careEffect()}
   val size=dp(state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}
  }
  private val animator=object:Runnable{override fun run(){
@@ -52,7 +78,7 @@ class PetOverlayService:Service(){
     else chooseWalk()
    }
    v.mood=when{forced->state.optString("action","idle");state.optInt("energy",80)<15->"sleep";v.dragging||menu!=null->"happy";v.mode=="bubble"->"idle";else->behavior}
-   if(v.mode=="roam"&&!v.dragging&&menu==null&&v.mood=="walk"){
+   if(v.mode=="roam"&&!reducedMotion()&&!v.dragging&&menu==null&&v.mood=="walk"){
     val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,state.optInt("speed",60)*resources.displayMetrics.density,.05f,bx,by)
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
     if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
@@ -70,7 +96,8 @@ class PetOverlayService:Service(){
    .setSmallIcon(android.R.drawable.btn_star_big_on).setContentIntent(launch).addAction(android.R.drawable.ic_menu_close_clear_cancel,"Hide pet",hide).setOngoing(true).build())
  }
  override fun onStartCommand(i:Intent?,flags:Int,startId:Int):Int{
-  if(i?.action==ACTION_HIDE||!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY}
+  if(i?.action==ACTION_HIDE){hideWithFade();return START_NOT_STICKY}
+  if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY}
   if(pet==null)createOverlay();state=store.read();lastRead=0;style()
   if(i?.getStringExtra("command")=="toy")spawnToy()
   return START_STICKY
@@ -85,10 +112,11 @@ class PetOverlayService:Service(){
   v.onTap={toggleMenu()}
   v.onHold={toggleMenu()}
   v.setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER&&menu==null){showMenu();say("Hey, you!")};false}
-  try{wm.addView(v,p);style();chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
+  try{wm.addView(v,p);lastEffectToken=state.optLong("actionUntil");style();if(state.optBoolean("fade",true)&&!reducedMotion()){val opacity=v.alpha;v.alpha=0f;v.animate().alpha(opacity).setDuration(220).start()};chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
  }
  private fun openCare(){removeMenu();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
  private fun toggleMenu(){
+  if(state.optBoolean("haptics",true))pet?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
   if(menu!=null){removeMenu();removeCaption()}else{showMenu();say("Hey, you!")}
  }
  private fun refreshMenuTimer(){handler.removeCallbacks(closeMenu);handler.postDelayed(closeMenu,8000)}
@@ -113,7 +141,7 @@ class PetOverlayService:Service(){
     setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say(label);refreshMenuTimer()};false}
     setOnClickListener{
      if(action=="care")openCare()
-     else{val result=store.act(action);lastRead=0;refreshMenuTimer();say(result.optString("feedback","Done!"))}
+     else{val result=store.act(action);if(!result.optBoolean("blocked")&&result.optBoolean("haptics",true))performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);lastRead=0;refreshMenuTimer();say(result.optString("feedback","Done!"))}
     }
 
    }
@@ -135,7 +163,7 @@ class PetOverlayService:Service(){
    text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide pet"
    setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
    background=GradientDrawable().apply{shape=GradientDrawable.OVAL;setColor(Color.rgb(65,51,87));setStroke(dp(1),Color.rgb(183,153,235))}
-   setOnClickListener{stopSelf()}
+   setOnClickListener{hideWithFade()}
    setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say("Hide pet");refreshMenuTimer()};false}
   }
   val p=overlay(dp(48),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
@@ -168,7 +196,8 @@ class PetOverlayService:Service(){
  }
  private fun savePosition(){position.edit().putInt("x",x.toInt()).putInt("y",y.toInt()).apply()}
  override fun onConfigurationChanged(c:Configuration){super.onConfigurationChanged(c);removeMenu();removeToy();clamp();pet?.let{v->params?.let{p->update(v,p)}};nextDecision=0}
- override fun onDestroy(){running=false;handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeToy();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
+ override fun onDestroy(){running=false;pet?.animate()?.cancel();removeEffects();handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeToy();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
  override fun onBind(i:Intent?):IBinder?=null
 }
+
 

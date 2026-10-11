@@ -24,6 +24,10 @@ The pet appears when the app opens. Closing the care window leaves the pet runni
 
 Wave, Dance and Toy are cosmetic. Toy appears beside the pet and has no care reward; a separate moving desktop toy chase is not implemented. Accepted friends and visits appear inside the care app, using the same optional relay as mobile; guest pets do not yet float on the desktop.
 
+## Effects
+
+Looks → Little touches adds 40–100% pet opacity, sparkles, screen effects, fade and Reduce motion. Desktop care effects stay around the pet and never take keyboard focus or intercept clicks. Hide/show fades are brief. Reduce motion (including the OS preference) disables wandering and care particles. Desktop haptics are unavailable; native Android and iPhone support them on compatible hardware.
+
 ## Save and updates
 
 The full app and floating window share one native save, stored as pet.json under Electron's user-data directory (TinyFrens/tinyfrens-desktop depending on packaging). Names, care and appearance survive replacing the executable/app with a newer version. Browser and phone saves remain separate. Do not delete the app-data folder to update.

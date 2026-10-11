@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UIKit
 import AVFoundation
 
 @main
@@ -49,6 +50,7 @@ struct PetWebView: UIViewRepresentable {
         deinit { if let observer = foregroundObserver { NotificationCenter.default.removeObserver(observer) } }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.frameInfo.isMainFrame, message.name == "petUpdates" else { return }
+            if (message.body as? String) == "tap" { UIImpactFeedbackGenerator(style: .light).impactOccurred(); return }
             if (message.body as? String) == "check" { checkUpdates(); return }
             if let data = message.body as? [String: String], data["type"] == "share",
                let raw = data["url"], raw.count < 2200, let url = URL(string: raw),
@@ -111,3 +113,4 @@ struct PetWebView: UIViewRepresentable {
         }
     }
 }
+

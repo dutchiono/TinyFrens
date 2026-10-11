@@ -104,12 +104,12 @@ class MainActivity : Activity() {
             runOnUiThread { sendService("refresh") }
             return state.toString()
         }
-        @JavascriptInterface fun toy() { runOnUiThread { sendService("toy") } }
+        @JavascriptInterface fun toy() { runOnUiThread { if(store.read().optBoolean("haptics",true))web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);sendService("toy") } }
         @JavascriptInterface fun getState(): String = store.read().toString()
         @JavascriptInterface fun rename(name: String): String = store.rename(name).toString()
         @JavascriptInterface fun action(name: String): String {
             val state = store.act(name)
-            runOnUiThread { sendService("refresh") }
+            runOnUiThread { if(!state.optBoolean("blocked")&&state.optBoolean("haptics",true))web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);sendService("refresh") }
             return state.toString()
         }
         @JavascriptInterface fun setMode(name: String): String {
@@ -187,7 +187,7 @@ class MainActivity : Activity() {
     }
     private fun sendService(command: String) {
         val intent = Intent(this, PetOverlayService::class.java).putExtra("command", command)
-        if (command == "stop") stopService(intent)
+        if (command == "stop") { if(PetOverlayService.running)startService(intent.setAction(PetOverlayService.ACTION_HIDE))else stopService(intent) }
         else if (command == "start") startForegroundService(intent)
         else if (PetOverlayService.running) startService(intent)
     }
@@ -201,4 +201,5 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 }
+
 

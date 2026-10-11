@@ -17,6 +17,7 @@ class PetStore(context:Context) {
   JSONObject().put("hunger",hunger).put("happiness",happiness).put("energy",energy).put("born",born)
    .put("mode",prefs.getString("mode","roam")).put("stage",((now-born)/86400000L).coerceIn(0,2).toInt())
    .put("color",prefs.getString("color","#a474f1")).put("shape",prefs.getString("shape","cat"))
+   .put("opacity",prefs.getInt("opacity",100)).put("sparkles",prefs.getBoolean("sparkles",true)).put("screenEffects",prefs.getBoolean("screenEffects",true)).put("fade",prefs.getBoolean("fade",true)).put("haptics",prefs.getBoolean("haptics",true)).put("reduceMotion",prefs.getBoolean("reduceMotion",false))
    .put("size",prefs.getInt("size",80)).put("speed",prefs.getInt("speed",60)).put("name",prefs.getString("name",""))
    .put("action",prefs.getString("action","idle")).put("actionUntil",prefs.getLong("actionUntil",0))
  }
@@ -45,7 +46,10 @@ class PetStore(context:Context) {
   val shape=o.optString("shape");if(shape in listOf("cat","blob","robot"))e.putString("shape",shape)
   if(o.has("size"))e.putInt("size",o.optInt("size",80).coerceIn(56,128))
   if(o.has("speed"))e.putInt("speed",o.optInt("speed",60).coerceIn(20,140))
+  if(o.has("opacity"))e.putInt("opacity",o.optInt("opacity",100).coerceIn(40,100))
+  for(k in listOf("sparkles","screenEffects","fade","haptics","reduceMotion"))if(o.has(k))e.putBoolean(k,o.optBoolean(k,k!="reduceMotion"))
   e.apply();read()
  }
 }
+
 
