@@ -15,7 +15,21 @@ struct FrenWidgetView: View {
         ZStack {
             Color(red: 0.09, green: 0.07, blue: 0.17)
             VStack(spacing: 8) {
-                Image("mascot-robot").resizable().scaledToFit().frame(width: 76, height: 76).accessibilityLabel("TinyFrens purple robot")
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6).fill(Color.purple).frame(width: 62, height: 54)
+                    VStack(spacing: 10) {
+                        HStack(spacing: 18) {
+                            RoundedRectangle(cornerRadius: 2).fill(Color.black).frame(width: 10, height: 12)
+                            RoundedRectangle(cornerRadius: 2).fill(Color.black).frame(width: 10, height: 12)
+                        }
+                        Rectangle().fill(Color.black).frame(width: 18, height: 3)
+                    }
+                    Rectangle().fill(Color.purple).frame(width: 4, height: 12).offset(y: -33)
+                    HStack(spacing: 24) {
+                        Rectangle().fill(Color.purple).frame(width: 10, height: 9)
+                        Rectangle().fill(Color.purple).frame(width: 10, height: 9)
+                    }.offset(y: 30)
+                }.frame(width: 76, height: 76).accessibilityLabel("TinyFrens simple robot")
                 Text("Hey, fren!").font(.headline).foregroundColor(.white)
                 Text("Tap to play").font(.caption).foregroundColor(.white.opacity(0.8))
             }.padding()
@@ -36,3 +50,4 @@ struct TinyFrensWidget: Widget {
         .supportedFamilies([.systemSmall])
     }
 }
+

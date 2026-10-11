@@ -3,10 +3,11 @@ import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from collections import defaultdict, deque
 from aiohttp import web, WSMsgType
 
-SHAPES = {'cat', 'blob', 'robot', 'mascot'}
+SHAPES = {'cat', 'blob', 'robot'}
 
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
+    if raw.get('shape')=='mascot': raw={**raw,'shape':'robot'}
     name = re.sub(r'\s+', ' ', re.sub(r'[\x00-\x1f\x7f]', '', str(raw.get('name', '')))).strip()[:20]
     if not name or raw.get('shape') not in SHAPES or not re.fullmatch(r'#[a-fA-F0-9]{6}', str(raw.get('color', ''))):
         raise ValueError('Invalid pet')

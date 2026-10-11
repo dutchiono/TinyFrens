@@ -1,6 +1,6 @@
-const CACHE='pocket-familiar-v14';
+const CACHE='pocket-familiar-v15';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
-const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./pets/mascot-robot.png','./pip/mascot-purple.mp4',...VIDEOS];
+const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pocket-familiar-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

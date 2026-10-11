@@ -5,6 +5,7 @@ class PetStore(context:Context) {
  companion object {private val lock=Any()}
  private val prefs=context.getSharedPreferences("pet",Context.MODE_PRIVATE)
  fun read():JSONObject=synchronized(lock){
+  if(prefs.getString("shape","cat")=="mascot")prefs.edit().putString("shape","robot").apply()
   val now=System.currentTimeMillis();val last=prefs.getLong("last",now).coerceAtMost(now)
   val hours=((now-last)/3600000L).coerceIn(0,720);val born=prefs.getLong("born",now)
   val hunger=(prefs.getInt("hunger",80)-hours.toInt()*3).coerceAtLeast(0)
@@ -41,9 +42,10 @@ class PetStore(context:Context) {
  fun customize(json:String):JSONObject=synchronized(lock){
   val o=try{JSONObject(json)}catch(_:Exception){return@synchronized read()};val e=prefs.edit()
   val color=o.optString("color");if(color.matches(Regex("#[0-9a-fA-F]{6}")))e.putString("color",color)
-  val shape=o.optString("shape");if(shape in listOf("cat","blob","robot","mascot"))e.putString("shape",shape)
+  val shape=o.optString("shape");if(shape in listOf("cat","blob","robot"))e.putString("shape",shape)
   if(o.has("size"))e.putInt("size",o.optInt("size",80).coerceIn(56,128))
   if(o.has("speed"))e.putInt("speed",o.optInt("speed",60).coerceIn(20,140))
   e.apply();read()
  }
 }
+

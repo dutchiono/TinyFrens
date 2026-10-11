@@ -26,4 +26,4 @@ The optional relay in `server/` provides permanent eight-character codes, accept
 
 ## Appearance
 
-Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately. Fixed PFP robot colours remain intentional.
+Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately.

@@ -1,12 +1,11 @@
 'use strict';
 const styleSection=document.createElement('section');
 styleSection.className='overlay';
-styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="mascot">PFP Robot</option></select><p id="mascotNote" hidden>This robot keeps its purple-and-cyan PFP look. Pick another shape to choose a colour.</p><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
+styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option></select><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
 $('lookPanel').append(styleSection);
 function stylePet(s){
  const color=/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1';
- const shape=['cat','blob','robot','mascot'].includes(s.shape)?s.shape:'cat';
- $('petColor').disabled=shape==='mascot';$('mascotNote').hidden=shape!=='mascot';
+ const shape=s.shape==='mascot'?'robot':['cat','blob','robot'].includes(s.shape)?s.shape:'cat';
  $('petColor').value=color;$('petShape').value=shape;$('petSize').value=s.size||80;$('petSpeed').value=s.speed||60;
  $('sizeValue').textContent=s.size||80;$('speedValue').textContent=s.speed||60;
  $('pet').style.setProperty('--pet-color',color);$('pet').style.setProperty('--pet-scale',String((s.size||80)/80));$('pet').dataset.shape=shape;
@@ -37,7 +36,6 @@ $('toyPet').onclick=()=>{
  }
 };
 
-const mascotSprite=document.createElement('img');mascotSprite.className='mascot-sprite';mascotSprite.src='pets/mascot-robot.png';mascotSprite.alt='Purple and cyan TinyFrens robot';mascotSprite.draggable=false;$('pet').append(mascotSprite);
 
 stylePet(read());
 $('stage').classList.add('wandering');

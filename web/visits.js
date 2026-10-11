@@ -7,9 +7,10 @@
   const bytes=Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
   const data=JSON.parse(new TextDecoder().decode(bytes));
   if(data.v!==1||!['cat','blob','robot','mascot'].includes(data.shape)||!/^#[0-9a-f]{6}$/i.test(data.color)||!Number.isFinite(data.expires)||data.expires<Date.now()||data.expires>Date.now()+31*60*1000)throw new Error('Expired invite');
-  return {name:cleanName(data.name)||'A fren',shape:data.shape,color:data.color,expires:data.expires,v:1};
+  return {name:cleanName(data.name)||'A fren',shape:data.shape==='mascot'?'robot':data.shape,color:data.color,expires:data.expires,v:1};
  }
  function guest(data,options={}){
+  if(data.shape==='mascot')data={...data,shape:'robot'};
   $('guestVisit')?.remove();
   const card=document.createElement('section');card.id='guestVisit';card.className='visit-box';
   const title=document.createElement('h2');title.textContent=data.name+' is visiting!';
@@ -24,7 +25,7 @@
   if(options.live){for(const action of ['wave','dance']){const button=document.createElement('button');button.textContent=action==='wave'?'Wave':'Dance';button.onclick=()=>options.onAction?.(action);card.insertBefore(button,leave);}}
   setTimeout(()=>{if(card.isConnected)leave.click();},Math.max(0,data.expires-Date.now()));
  }
- window.TinyFrensVisits={guest,end:()=>$('guestVisit')?.remove(),update:data=>{const card=$('guestVisit');if(!card)return;card.querySelector('h2').textContent=data.name+' is visiting!';const sprite=card.querySelector('.guest-stage > div');if(sprite){sprite.dataset.shape=data.shape;sprite.style.setProperty('--pet-color',data.color);}},animate:action=>{const sprite=$('guestVisit')?.querySelector('.guest-stage > div');if(sprite)sprite.dataset.action=action;}};
+ window.TinyFrensVisits={guest,end:()=>$('guestVisit')?.remove(),update:data=>{const card=$('guestVisit');if(!card)return;card.querySelector('h2').textContent=data.name+' is visiting!';const sprite=card.querySelector('.guest-stage > div');if(sprite){sprite.dataset.shape=data.shape==='mascot'?'robot':data.shape;sprite.style.setProperty('--pet-color',data.color);}},animate:action=>{const sprite=$('guestVisit')?.querySelector('.guest-stage > div');if(sprite)sprite.dataset.action=action;}};
  const incoming=new URLSearchParams(location.search).get('guest');
  if(incoming){
   try{
@@ -38,7 +39,7 @@
   try{const saved=sessionStorage.getItem('tinyfrens-guest');if(saved){const data=JSON.parse(saved);if(data.expires>Date.now())guest(data);else sessionStorage.removeItem('tinyfrens-guest');}}catch{}
  }
  $('shareVisit').onclick=async()=>{
-  const s=read(),data={v:1,name:cleanName(s.name),shape:['cat','blob','robot','mascot'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expires:Date.now()+30*60*1000};
+  const s=read(),data={v:1,name:cleanName(s.name),shape:s.shape==='mascot'?'robot':['cat','blob','robot'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expires:Date.now()+30*60*1000};
   const encoded=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const url='https://dutchiono.github.io/TinyFrens/web/?guest='+encoded;
   try{

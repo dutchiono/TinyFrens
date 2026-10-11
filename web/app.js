@@ -5,6 +5,7 @@ const $ = id => document.getElementById(id);
 function initial(){return {hunger:80,happiness:80,energy:80,born:Date.now(),last:Date.now(),mode:'roam'};}
 function localRead(){
   let s; try{s=JSON.parse(localStorage.getItem(key)) || initial();}catch{s=initial();}
+  if(s.shape==='mascot')s.shape='robot';
   const now=Date.now(), hours=Math.min(720,Math.max(0,Math.floor((now-(s.last||now))/3600000)));
   s.hunger=Math.max(0,s.hunger-hours*3);s.happiness=Math.max(0,s.happiness-hours*2);
   s.energy=Math.max(0,s.energy-hours);s.last=hours>0?(s.last||now)+hours*3600000:(s.last||now);localStorage.setItem(key,JSON.stringify(s));return s;
@@ -15,7 +16,7 @@ const NAMES={
   blob:['Gloop','Jellybean','Bubbles','Squish','Wobble','Gumdrop','Puddle','Dumpling','Boba','Blorp','Jiggles','Plum','Goober','Squidge','Gelato','Bloop'],
   robot:['Bolt','Widget','Sprocket','Beep','Gizmo','Pixel','Chip','Rivet','Zippy','Bleep','Cogsworth','Byte','Servo','Tinker','Boop-3','Sparky']
 };
-NAMES.mascot=NAMES.robot;
+
 function cleanName(n){return [...String(n||'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim()].slice(0,20).join('');}
 function randomName(shape,avoid){
   const bank=(NAMES[shape]||NAMES.cat).filter(n=>n!==avoid);
