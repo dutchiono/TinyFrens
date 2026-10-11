@@ -35,4 +35,16 @@ for shape in ['cat','blob','robot']:
     im.save(Path(tmp)/f'{frame:03}.png')
    subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-framerate','15','-i',str(Path(tmp)/'%03d.png'),'-f','lavfi','-i','anullsrc=r=44100:cl=mono','-t','6','-c:v','libx264','-preset','fast','-pix_fmt','yuv420p','-profile:v','baseline','-level','3.0','-crf','23','-c:a','aac','-b:a','32k','-movflags','+faststart','-shortest',str(Path(tmp)/'output.mp4')],check=True)
    path.write_bytes((Path(tmp)/'output.mp4').read_bytes())
+# The profile-picture mascot uses its actual transparent artwork.
+mascot=Path(__file__).resolve().parents[1]/'web/pets/mascot-robot.png'
+if mascot.exists():
+ subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y',
+  '-f','lavfi','-i','color=c=0x17142a:s=320x240:r=15:d=6',
+  '-loop','1','-framerate','15','-i',str(mascot),
+  '-f','lavfi','-i','anullsrc=r=44100:cl=mono','-filter_complex_threads','1',
+  '-filter_complex','[1:v]scale=170:170:flags=lanczos,format=rgba[pet];[0:v][pet]overlay=x=75+16*sin(2*PI*t/6):y=32-5*abs(sin(2*PI*t)):shortest=1,format=yuv420p[v]',
+  '-map','[v]','-map','2:a','-t','6','-c:v','libx264','-preset','fast',
+  '-profile:v','baseline','-level','3.0','-crf','23','-pix_fmt','yuv420p',
+  '-c:a','aac','-b:a','32k','-movflags','+faststart','-shortest',
+  str(out/'mascot-purple.mp4')],check=True)
 print(f'Generated {len(list(out.glob("*.mp4")))} compatible pet loops.')

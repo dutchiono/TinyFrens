@@ -9,6 +9,7 @@ class PetView(context:Context):View(context){
  var dragging=false;var frame=0;var direction=1;var mode="roam";var mood="idle";var stage=0;var shape="cat"
  var bodyColor=Color.rgb(164,116,241)
  private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
+ private val mascotBitmap:Bitmap? by lazy{try{context.assets.open("pets/mascot-robot.png").use{BitmapFactory.decodeStream(it)}}catch(_:Exception){null}}
  private var dx=0f;private var dy=0f;private var lx=0f;private var ly=0f;private var held=false
  private val slop=ViewConfiguration.get(context).scaledTouchSlop
  private val hold=Runnable{if(!dragging){held=true;onHold?.invoke()}}
@@ -20,6 +21,13 @@ class PetView(context:Context):View(context){
   val bounce=when(mood){"walk"->abs(sin(phase))*1.8f;"dance","happy"->abs(sin(phase))*4;"eat"->sin(phase)*.8f;else->sin(phase*.25f)*.5f}
   c.save();c.translate(0f,-bounce);if(mood=="dance")c.rotate(sin(phase)*12,20f,25f)
   if(mood=="sleep")c.translate(0f,2f)
+  val mascot=if(shape=="mascot")mascotBitmap else null
+  if(mascot!=null){
+   if(mood=="wave")c.rotate(sin(phase)*7,20f,23f)
+   if(mood=="sleep")c.scale(1f,1f+sin(phase*.3f)*.015f,20f,23f)
+   paint.color=Color.WHITE;paint.isFilterBitmap=true
+   c.drawBitmap(mascot,null,RectF(1f,1f,39f,39f),paint)
+  }else{
   paint.color=dark
   when(shape){
    "robot"->{c.drawRoundRect(8f,11f,32f,32f,2f,2f,paint);rect(c,19f,6f,2f,5f,dark);rect(c,17f,4f,6f,3f,bodyColor)}
@@ -34,6 +42,7 @@ class PetView(context:Context):View(context){
   val step=if(mood=="walk")sin(phase)*2 else 0f;rect(c,12f,31f+step,5f,3f,dark);rect(c,23f,31f-step,5f,3f,dark)
   if(mood=="wave"||mood=="dance")rect(c,32f,17f+sin(phase)*3,3f,7f,bodyColor)
   if(stage>=1)rect(c,6f,22f,3f,5f,bodyColor);if(stage>=2)rect(c,19f,9f,2f,4f,Color.rgb(255,219,105))
+  }
   c.restore()
   if(mood=="eat"){rect(c,17f,30f,6f,5f,Color.rgb(240,80,119));rect(c,19f,28f,2f,2f,Color.GREEN)}
   if(mood in listOf("sleep","happy","dance","wave")){paint.color=Color.WHITE;paint.textSize=6f;paint.typeface=Typeface.DEFAULT_BOLD;c.drawText(when(mood){"sleep"->"zZ";"wave"->"hi!";else->"♥"},26f,8f+sin(phase),paint)}

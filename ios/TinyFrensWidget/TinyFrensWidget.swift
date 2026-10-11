@@ -15,7 +15,7 @@ struct FrenWidgetView: View {
         ZStack {
             Color(red: 0.09, green: 0.07, blue: 0.17)
             VStack(spacing: 8) {
-                Text("🐱").font(.system(size: 48))
+                Image("mascot-robot").resizable().scaledToFit().frame(width: 76, height: 76).accessibilityLabel("TinyFrens purple robot")
                 Text("Hey, fren!").font(.headline).foregroundColor(.white)
                 Text("Tap to play").font(.caption).foregroundColor(.white.opacity(0.8))
             }.padding()

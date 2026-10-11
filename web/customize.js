@@ -1,11 +1,12 @@
 'use strict';
 const styleSection=document.createElement('section');
 styleSection.className='overlay';
-styleSection.innerHTML='<h2>Make it yours</h2><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Robot</option></select><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="saveStyle">Save look</button><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p><h2>Little actions</h2><div class="actions"><button id="wavePet">Wave</button><button id="dancePet">Dance</button><button id="toyPet">Chase toy</button></div>';
+styleSection.innerHTML='<h2>Make it yours</h2><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="mascot">PFP Robot</option></select><p id="mascotNote" hidden>This robot keeps its purple-and-cyan PFP look. Pick another shape to choose a colour.</p><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="saveStyle">Save look</button><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p><h2>Little actions</h2><div class="actions"><button id="wavePet">Wave</button><button id="dancePet">Dance</button><button id="toyPet">Chase toy</button></div>';
 document.querySelector('footer').before(styleSection);
 function stylePet(s){
  const color=/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1';
- const shape=['cat','blob','robot'].includes(s.shape)?s.shape:'cat';
+ const shape=['cat','blob','robot','mascot'].includes(s.shape)?s.shape:'cat';
+ $('petColor').disabled=shape==='mascot';$('mascotNote').hidden=shape!=='mascot';
  $('petColor').value=color;$('petShape').value=shape;$('petSize').value=s.size||80;$('petSpeed').value=s.speed||60;
  $('sizeValue').textContent=s.size||80;$('speedValue').textContent=s.speed||60;
  $('pet').style.setProperty('--pet-color',color);$('pet').style.setProperty('--pet-scale',String((s.size||80)/80));$('pet').dataset.shape=shape;
@@ -34,6 +35,8 @@ $('toyPet').onclick=()=>{
  }
 };
 for(const [id,name]of [['feed','eat'],['play','dance'],['rest','sleep']])$(id).addEventListener('click',()=>animatePet(name));
+const mascotSprite=document.createElement('img');mascotSprite.className='mascot-sprite';mascotSprite.src='pets/mascot-robot.png';mascotSprite.alt='Purple and cyan TinyFrens robot';mascotSprite.draggable=false;$('pet').append(mascotSprite);
+$('petShape').addEventListener('change',()=>stylePet({...read(),shape:$('petShape').value,color:$('petColor').value,size:Number($('petSize').value),speed:Number($('petSpeed').value)}));
 stylePet(read());
 $('stage').classList.add('wandering');
 if(native){

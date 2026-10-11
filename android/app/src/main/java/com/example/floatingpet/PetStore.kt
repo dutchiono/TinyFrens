@@ -35,7 +35,7 @@ class PetStore(context:Context) {
  fun customize(json:String):JSONObject=synchronized(lock){
   val o=try{JSONObject(json)}catch(_:Exception){return@synchronized read()};val e=prefs.edit()
   val color=o.optString("color");if(color.matches(Regex("#[0-9a-fA-F]{6}")))e.putString("color",color)
-  val shape=o.optString("shape");if(shape in listOf("cat","blob","robot"))e.putString("shape",shape)
+  val shape=o.optString("shape");if(shape in listOf("cat","blob","robot","mascot"))e.putString("shape",shape)
   if(o.has("size"))e.putInt("size",o.optInt("size",80).coerceIn(56,128))
   if(o.has("speed"))e.putInt("speed",o.optInt("speed",60).coerceIn(20,140))
   e.apply();read()

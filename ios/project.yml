@@ -38,6 +38,8 @@ targets:
     platform: iOS
     sources:
       - path: TinyFrensWidget
+      - path: ../web/pets/mascot-robot.png
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: online.ionoi.tinyfrens.widget
