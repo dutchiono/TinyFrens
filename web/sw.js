@@ -1,7 +1,7 @@
-const CACHE='pocket-familiar-v15';
+const CACHE='pocket-familiar-v16';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
 const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'}))))));
 self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pocket-familiar-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 async function videoResponse(request){
@@ -18,6 +18,6 @@ async function videoResponse(request){
 self.addEventListener('fetch',e=>{
  if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;
  if(new URL(e.request.url).pathname.endsWith('.mp4')){e.respondWith(videoResponse(e.request));return;}
- e.respondWith(fetch(e.request).then(r=>{if(r.ok&&r.status===200){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});}return r;}).catch(()=>caches.match(e.request)));
+ e.respondWith(fetch(e.request,{cache:'no-cache'}).then(r=>{if(r.ok&&r.status===200){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});}return r;}).catch(()=>caches.match(e.request)));
 });
 
