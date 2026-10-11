@@ -73,3 +73,27 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 
 
 .friends-panel{border-top:1px solid #d8d0c4;margin-top:22px;padding-top:16px}.friends-panel h3{margin:0 0 8px}.friends-panel input{box-sizing:border-box;width:100%;font:inherit}.friends-panel #myFriendCode{font-family:monospace;font-size:13px;letter-spacing:.5px}.friends-panel form{margin-top:20px}.friend-card{border-top:1px solid #d8d0c4;padding:14px 0}.friend-card .actions{margin-top:10px}.friend-confirm button{margin-right:8px}
+
+@media(min-width:860px){
+ body{min-height:100vh}
+ main{max-width:1040px;padding:32px 44px 118px}
+ .topbar{max-width:840px;margin:0 auto 28px}
+ .screen>h1,.screen-intro{max-width:820px;margin-left:auto;margin-right:auto}
+ #screen-pet{display:grid;grid-template-columns:minmax(390px,1fr) minmax(330px,420px);gap:18px 48px;align-items:start}
+ #screen-pet .pet-card{grid-row:1 / span 4}
+ #screen-pet .stats{align-self:end}
+ .pet-name{font-size:40px}
+ .name-row{justify-content:flex-start;max-width:520px;margin:0 auto .2rem}
+ .stage-label,#mood{text-align:left;max-width:520px;margin-left:auto;margin-right:auto}
+ .pet-stage{height:430px;margin:18px auto 18px;max-width:560px;background-size:20px 20px;border-radius:18px}
+ #mood{font-size:14px}
+ .stats{gap:16px;margin-top:70px}
+ .care-actions{margin-top:0}
+ .care-actions button{min-height:86px}
+ .little-actions{margin:14px 0 30px}
+ .floating-controls{border-top:0;background:#fffcf5;border:1px solid #ddd5c8;border-radius:16px;padding:24px;margin-top:2px}
+ .floating-controls .actions{margin-bottom:0}
+ #floatingVideoHost{grid-column:2}
+ #screen-looks,#screen-settings{max-width:820px;margin:0 auto}
+ .tabbar{width:min(100%,560px)}
+}
