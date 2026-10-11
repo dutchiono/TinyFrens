@@ -22,9 +22,11 @@ No Apple developer membership, external account provider, or paid hosted service
 - This release shows live guests **inside the app/web page**. iOS may suspend connections when backgrounded; it does not enable guests above other apps or put visitors in widgets/PiP. Android's existing overlay continues to show the owner's pet.
 - Bluetooth/Wi-Fi/NFC discovery is not included. A native proximity adapter can call `TinyFrensFriends.requestByCode(code)` after explicit discovery and approval. The same server consent flow then applies.
 
-## Pet chat
+## Pet chat and Bankr
 
-The relay can also answer TinyFren chat requests from the web app. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to `gemini-2.0-flash`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only. Wallet/Bankr actions are intentionally not connected to chat yet.
+The relay can also answer TinyFren chat requests from the web app. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to `gemini-2.0-flash`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
+
+Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` on the server to enable `/api/bankr/status` and `/api/bankr/monitor`. The web app's Wallet tab sends a public wallet address and read-only prompt to the relay, which asks Bankr's Agent API and returns a short wallet glance. Keep the Bankr key read-only unless you deliberately build transaction features later. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
 ## Operations
 

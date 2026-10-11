@@ -9,6 +9,7 @@ services:
       TRUST_PROXY: "true"
       HOST: 0.0.0.0
       GEMINI_MODEL: gemini-2.0-flash
+      BANKR_API_KEY: ${BANKR_API_KEY:-}
     volumes:
       - pets:/data
     expose:

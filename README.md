@@ -27,6 +27,10 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 | Browser | Open the web pet | Pet care, growth, local save, offline use after first load |
 | Native iOS | [iOS source and instructions](ios/README.md) | In-app pet; installation requires Apple signing |
 
+## Bankr wallet glance
+
+The Wallet tab uses the TinyFrens server as a safe bridge to Bankr. Add `BANKR_API_KEY` to the server environment to enable read-only wallet monitoring from the app. The key stays on the server; the app sends only a public wallet address and a short question. This first integration does not provision per-fren wallets, trade, sign, transfer, or expose private keys. Partner wallet provisioning can come later if TinyFrens grows into that.
+
 ### Windows and Mac floating pet
 
 Download the matching native app from the [desktop release](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest): Windows x64 portable executable, Mac Apple Silicon zip, or Mac Intel zip. See [desktop installation and controls](desktop/README.md). First downloads appear after the Desktop floating pet workflow succeeds.

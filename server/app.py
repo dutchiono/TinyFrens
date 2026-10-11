@@ -5,6 +5,7 @@ from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 
 SHAPES = {'cat', 'blob', 'robot'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+BANKR_URL = 'https://api.bankr.bot'
 
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
@@ -94,6 +95,54 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply[:500]})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
             return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
+    async def bankr_status(request):
+        return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY'))})
+    async def bankr_monitor(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('bankr',ip),12,3600)
+            api_key=os.environ.get('BANKR_API_KEY')
+            if not api_key: return web.json_response({'error':'Bankr is not connected yet'},status=503)
+            body=await request.json()
+            p=profile(body.get('pet'))
+            wallet=re.sub(r'\s+','',str(body.get('wallet',''))).strip()
+            question=re.sub(r'\s+',' ',re.sub(r'[\x00-\x1f\x7f]','',str(body.get('question','')))).strip()[:300]
+            if not 4<=len(wallet)<=120 or not re.fullmatch(r'[A-Za-z0-9:._-]+',wallet): raise ValueError('Enter a wallet address first')
+            if not question: question='Give me a quick read on this wallet today.'
+            prompt=(
+                'You are Bankr being used inside TinyFrens, a tiny pet app. This is read-only wallet monitoring. '
+                'Do not trade, swap, transfer, sign, deploy, or ask for private keys. Do not give financial advice. '
+                f"Pet name: {p['name']}. Public wallet/address to monitor: {wallet}. "
+                f"User request: {question}. "
+                'Answer in a compact TinyFrens style: first say whether the day looks green, red, or quiet if data supports it, '
+                'then mention the most important wallet signal at a glance. Keep it under 90 words.'
+            )
+            bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+            timeout=ClientTimeout(total=35)
+            async with ClientSession(timeout=timeout) as session:
+                headers={'Content-Type':'application/json','X-API-Key':api_key}
+                async with session.post(bankr_base+'/agent/prompt',headers=headers,json={'prompt':prompt}) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Bankr is unavailable'},status=response.status)
+                job_id=data.get('jobId');thread_id=data.get('threadId')
+                if not job_id: return web.json_response({'error':'Bankr did not return a job id'},status=400)
+                result=data
+                for _ in range(14):
+                    await asyncio.sleep(2)
+                    async with session.get(bankr_base+'/agent/job/'+str(job_id),headers={'X-API-Key':api_key}) as response:
+                        result=await response.json(content_type=None)
+                        if response.status>=400: return web.json_response({'error':result.get('message') or result.get('error') or 'Bankr is unavailable'},status=response.status)
+                    if result.get('status') in ('completed','failed','cancelled'): break
+                if result.get('status')!='completed':
+                    return web.json_response({'pending':True,'jobId':job_id,'threadId':thread_id,'reply':'Bankr is still thinking. Try again in a moment.'})
+            reply=str(result.get('response') or result.get('message') or '').strip()
+            rich=result.get('richData')
+            if not reply and isinstance(rich,dict): reply=str(rich.get('summary') or rich.get('text') or '').strip()
+            reply=re.sub(r'[*_`#>\[\]]','',reply)[:900]
+            if not reply: reply='Bankr finished, but did not return a readable wallet note.'
+            return web.json_response({'reply':reply,'wallet':wallet,'jobId':job_id,'threadId':thread_id})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
+            return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -201,7 +250,7 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/ws',websocket)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 

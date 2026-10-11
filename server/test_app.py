@@ -1,4 +1,4 @@
-import asyncio, tempfile, unittest
+import asyncio, os, tempfile, unittest
 from aiohttp.test_utils import TestClient, TestServer
 from app import create_app
 
@@ -59,6 +59,17 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.post('/api/chat',headers={'Origin':ORIGIN},json={'message':'hi','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
         self.assertEqual(r.status,503)
         self.assertEqual((await r.json())['error'],'Pet chat is not connected yet')
+    async def test_bankr_requires_configured_api_key(self):
+        old=os.environ.pop('BANKR_API_KEY',None)
+        try:
+            r=await self.client.get('/api/bankr/status',headers={'Origin':ORIGIN})
+            self.assertEqual(r.status,200)
+            self.assertFalse((await r.json())['connected'])
+            r=await self.client.post('/api/bankr/monitor',headers={'Origin':ORIGIN},json={'wallet':'0x1234','question':'how is it','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
+            self.assertEqual(r.status,503)
+            self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
+        finally:
+            if old is not None: os.environ['BANKR_API_KEY']=old
     async def test_device_identity_survives_restart(self):
         a=await self.register('Permanent');await self.client.close()
         self.client=TestClient(TestServer(create_app(self.db,[ORIGIN])));await self.client.start_server()
