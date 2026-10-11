@@ -14,6 +14,7 @@ import kotlin.random.Random
 class PetOverlayService:Service(){
  companion object{@Volatile var running=false;const val ACTION_HIDE="com.example.floatingpet.HIDE"}
  private lateinit var wm:WindowManager
+ private var caption:TextView?=null;private var menuAbove=false
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var toy:View?=null
  private val handler=Handler(Looper.getMainLooper());private val store by lazy{PetStore(this)}
  private val position by lazy{getSharedPreferences("overlay_position",MODE_PRIVATE)}
@@ -21,6 +22,7 @@ class PetOverlayService:Service(){
  private var x=0f;private var y=0f;private var tx=0f;private var ty=0f
  private var nextDecision=0L;private var behavior="walk";private var screenOn=true
  private val closeMenu=Runnable{removeMenu()}
+ private val fadeCaption=Runnable{caption?.animate()?.alpha(0f)?.setDuration(600)?.withEndAction{removeCaption()}?.start()}
  private val screenReceiver=object:BroadcastReceiver(){override fun onReceive(c:Context?,i:Intent?){screenOn=i?.action!=Intent.ACTION_SCREEN_OFF}}
  private fun dp(n:Int)=(n*resources.displayMetrics.density).roundToInt()
  private fun bounds():Pair<Float,Float>{
@@ -64,7 +66,7 @@ class PetOverlayService:Service(){
   nm.createNotificationChannel(NotificationChannel("pet","Floating pet",NotificationManager.IMPORTANCE_LOW))
   val launch=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
   val hide=PendingIntent.getService(this,1,Intent(this,PetOverlayService::class.java).setAction(ACTION_HIDE),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-  startForeground(10,Notification.Builder(this,"pet").setContentTitle("TinyFrens is here").setContentText("Tap pet for actions · hold for care")
+  startForeground(10,Notification.Builder(this,"pet").setContentTitle("TinyFrens is here").setContentText("Tap or hold pet for bubbles · ☰ opens care")
    .setSmallIcon(android.R.drawable.btn_star_big_on).setContentIntent(launch).addAction(android.R.drawable.ic_menu_close_clear_cancel,"Hide pet",hide).setOngoing(true).build())
  }
  override fun onStartCommand(i:Intent?,flags:Int,startId:Int):Int{
@@ -78,24 +80,73 @@ class PetOverlayService:Service(){
  private fun createOverlay(){
   state=store.read();val size=dp(state.optInt("size",80));val v=PetView(this);val p=overlay(size,size);pet=v;params=p
   val(bx,by)=bounds();x=position.getInt("x",(bx/2).toInt()).toFloat();y=position.getInt("y",(by/3).toInt()).toFloat();clamp()
-  v.onDrag={dx,dy->removeMenu();x+=dx;y+=dy;clamp();update(v,p)}
+  v.onDrag={dx,dy->removeMenu();removeCaption();x+=dx;y+=dy;clamp();update(v,p)}
   v.onDragEnd={savePosition();nextDecision=0}
-  v.onTap={store.act("pet");lastRead=0;if(menu==null)showMenu()else removeMenu()}
-  v.onHold={openCare()}
+  v.onTap={toggleMenu()}
+  v.onHold={toggleMenu()}
   try{wm.addView(v,p);style();chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
  }
- private fun openCare(){removeMenu();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
- private fun showMenu(){
-  val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(8),dp(8),dp(8),dp(8));background=GradientDrawable().apply{setColor(Color.rgb(35,28,54));cornerRadius=dp(16).toFloat()}}
-  for((label,action)in listOf("Feed" to "feed","Dance" to "play","Sleep" to "rest","Wave" to "wave","Toy" to "toy","Care / style" to "care","Close" to "close")){
-   panel.addView(Button(this).apply{text=label;setOnClickListener{removeMenu();when(action){"toy"->spawnToy();"care"->openCare();"close"->{};else->{store.act(action);lastRead=0}}}},LinearLayout.LayoutParams(dp(150),dp(42)))
-  }
-  val p=overlay(dp(166),dp(310));val(bx,by)=bounds()
-  p.x=(x+dp(70)).toInt().coerceIn(0,(bx+(params?.width?:0)-p.width).toInt().coerceAtLeast(0))
-  p.y=y.toInt().coerceIn(0,(by+(params?.height?:0)-p.height).toInt().coerceAtLeast(0))
-  try{wm.addView(panel,p);menu=panel;handler.postDelayed(closeMenu,12000)}catch(_:Exception){}
+ private fun openCare(){removeMenu();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
+ private fun toggleMenu(){
+  if(menu!=null){removeMenu();removeCaption()}else{store.act("pet");lastRead=0;showMenu();say("Hey, you!")}
  }
- private fun removeMenu(){handler.removeCallbacks(closeMenu);menu?.let{try{wm.removeView(it)}catch(_:Exception){}};menu=null}
+ private fun refreshMenuTimer(){handler.removeCallbacks(closeMenu);handler.postDelayed(closeMenu,8000)}
+ private fun showMenu(){
+  val panel=LinearLayout(this).apply{
+   orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER
+   setPadding(dp(4),dp(4),dp(4),dp(4))
+  }
+  val actions=listOf(Triple("🍓","feed","Feed · hold for wave"),Triple("🎾","play","Play · hold for toy"),Triple("☾","rest","Sleep"),Triple("☰","care","Open full app"))
+  for((icon,action,label)in actions){
+   val circle=Button(this).apply{
+    text=icon;textSize=21f;gravity=Gravity.CENTER;setTextColor(Color.WHITE)
+    setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
+    contentDescription=label
+    background=android.graphics.drawable.StateListDrawable().apply{
+     fun disc(color:Int)=GradientDrawable().apply{shape=GradientDrawable.OVAL;setColor(color);setStroke(dp(1),Color.rgb(183,153,235))}
+     addState(intArrayOf(android.R.attr.state_pressed),disc(Color.rgb(115,77,172)))
+     addState(intArrayOf(),disc(if(action=="care")Color.rgb(65,51,87)else Color.rgb(40,32,67)))
+    }
+    elevation=dp(3).toFloat()
+    setOnTouchListener{_,event->if(event.actionMasked==MotionEvent.ACTION_DOWN){say(label);refreshMenuTimer()};false}
+    setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say(label);refreshMenuTimer()};false}
+    setOnClickListener{
+     if(action=="care")openCare()
+     else{store.act(action);lastRead=0;refreshMenuTimer();say(when(action){"feed"->"Yum! Thanks."; "play"->"Let's dance!";else->"Nap time…"})}
+    }
+    setOnLongClickListener{
+     when(action){
+      "feed"->{store.act("wave");lastRead=0;say("Hi there!")}
+      "play"->{spawnToy();say("Catch the toy!")}
+      "care"->openCare()
+      else->{store.act("rest");lastRead=0;say("Sweet dreams…")}
+     };refreshMenuTimer();true
+    }
+   }
+   panel.addView(circle,LinearLayout.LayoutParams(dp(48),dp(48)).apply{setMargins(dp(3),0,dp(3),0)})
+  }
+  val p=overlay(dp(224),dp(56));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  val screenWidth=(bx+pw).toInt();val screenHeight=(by+ph).toInt()
+  p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,(screenWidth-p.width).coerceAtLeast(0))
+  menuAbove=y+ph+p.height>screenHeight
+  p.y=(if(menuAbove)y-p.height else y+ph-dp(6)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
+  try{wm.addView(panel,p);menu=panel;refreshMenuTimer()}catch(_:Exception){}
+ }
+ private fun say(text:String){
+  removeCaption()
+  val label=TextView(this).apply{
+   this.text=text;textSize=13f;setTextColor(Color.WHITE);gravity=Gravity.CENTER;setPadding(dp(10),dp(4),dp(10),dp(4))
+   background=GradientDrawable().apply{setColor(Color.argb(220,35,28,54));cornerRadius=dp(12).toFloat()}
+   importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES;accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE
+  }
+  val p=overlay(dp(224),dp(36));p.flags=p.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+  val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
+  p.y=(y-dp(if(menuAbove)98 else 40)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
+  try{wm.addView(label,p);caption=label;label.alpha=0f;label.animate().alpha(1f).setDuration(160).start();handler.postDelayed(fadeCaption,1800)}catch(_:Exception){}
+ }
+ private fun removeCaption(){handler.removeCallbacks(fadeCaption);caption?.let{it.animate().cancel();try{wm.removeView(it)}catch(_:Exception){}};caption=null}
+ private fun removeMenu(){handler.removeCallbacks(closeMenu);menu?.let{try{wm.removeView(it)}catch(_:Exception){}};menu=null;menuAbove=false;removeCaption()}
  private fun removeToy(){toy?.let{try{wm.removeView(it)}catch(_:Exception){}};toy=null}
  private fun spawnToy(){
   removeToy();store.setMode("roam");lastRead=0;val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by

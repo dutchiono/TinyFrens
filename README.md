@@ -22,7 +22,7 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 1. Open the signed APK and approve installation. Allow installation from your browser/file manager when Android asks.
 2. Launch **Pocket Familiar**, tap **Show pet**, and grant **Display over other apps**.
 3. Return to the app and tap **Show pet** again.
-4. Switch apps. Drag your pet to move it; tap it to open care. **Hide pet** dismisses it.
+4. Switch apps. Drag your pet to move it; tap or hold it for quick actions; use the rightmost ☰ button to open care. **Hide pet** dismisses it.
 
 Use signed release APKs for your ongoing pet. Debug artifacts are test builds and can have different signing keys.
 
@@ -45,7 +45,7 @@ MIT licensed. Early prototype; real-phone QA is still needed.
 ## Update 0.5 — active companions
 
 - Wander across both screen axes, pause, blink, dance, eat, wave, sleep, and chase a floating toy.
-- Tap the Android pet for its action menu; drag to move it; hold for 0.6 seconds or use Care / style to open the app.
+- Tap the Android pet for its action menu; drag to move it; tap or hold for circular actions; use the rightmost ☰ button to open the app.
 - Choose cat, blob, or robot, any body colour, size, and wandering speed. Saves and appearance persist through signed upgrades.
 - Set Free roam for wandering; Bubble stays in place. Sleeping or very low energy pauses movement.
 - Android permission shortcuts: Allow floating, App settings (battery/notifications), Allow updates.
@@ -54,3 +54,14 @@ MIT licensed. Early prototype; real-phone QA is still needed.
 - Android movement tests run before release publication. Physical-device behaviour still needs validation.
 
 For this first upgrade from 0.3, use the existing Browser download button or download the latest release. After installing 0.5, future updates can use Install update.
+
+## Floating bubble controls
+
+Tap or hold the pet to reveal three circular action buttons and a rightmost ☰ button under it. The menu flips above the pet near the bottom edge. Dragging dismisses the bubbles and moves the pet.
+
+- 🍓 Feed; hold for a wave.
+- 🎾 Play/dance; hold to place a toy.
+- ☾ Sleep.
+- ☰ Open the full care, customization, settings, and update app.
+
+Touch, mouse hover, or stylus hover shows a short label above the pet. Action responses fade away; the bubbles dismiss after eight seconds without interaction. Opening quick controls pauses wandering.
