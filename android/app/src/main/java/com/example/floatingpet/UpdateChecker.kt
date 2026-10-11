@@ -42,7 +42,7 @@ object UpdateChecker {
                 JSONObject(c.inputStream.bufferedReader().use { it.readText() })
             } finally { c.disconnect() }
             out.put("available", manifest.getInt("versionCode") > installed)
-                .put("versionName", manifest.getString("versionName")).put("url", apkUrl)
+                .put("versionName", manifest.getString("versionName")).put("url", apkUrl).put("sha256", manifest.optString("sha256"))
         } catch (e: Exception) { out.put("error", e.message ?: "Unable to check for updates.") }
     }
 }

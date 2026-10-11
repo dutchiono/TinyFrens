@@ -6,3 +6,25 @@
 .stage-label {font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.75rem;color:#c8b1fa;margin-bottom:.35rem}
 
 [hidden]{display:none!important}#updateRepo{box-sizing:border-box;width:100%;padding:12px;margin:12px 0;border-radius:10px;border:1px solid #777;background:#17142a;color:white}button:disabled{opacity:.5}
+
+input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d;border:1px solid #63517c;padding:12px;color:#f7f1ff;border-radius:10px}input[type=color]{width:100%;height:42px;border:0;margin-bottom:18px}
+.pet{--pet-color:#a474f1;--pet-scale:1;scale:var(--pet-scale)}
+.pet .body,.pet .ear{background:var(--pet-color)!important}
+.pet[data-shape=blob] .ear{display:none}.pet[data-shape=blob] .body{border-radius:50% 50% 35% 35%}
+.pet[data-shape=robot] .body{border-radius:5px}.pet[data-shape=robot] .ear{width:10px;height:30px;top:7px;border-width:3px}
+.eye{animation:blink 5s infinite}.pet[data-action=sleep] .eye{height:4px;animation:none}.pet[data-action=sleep]{animation:breathe 2s infinite}
+.pet[data-action=dance]{animation:dance .45s infinite}.pet[data-action=wave]{animation:wave .6s infinite}
+.pet[data-action=eat] .mouth{animation:chew .4s infinite}
+.pet[data-action=sleep]::after{content:"zZ";position:absolute;right:-12px;top:-12px;color:white}
+.pet[data-action=wave]::after{content:"hi!";position:absolute;right:-12px;top:-12px;color:white}
+.pet[data-action=eat]::after{content:"🍓";position:absolute;bottom:15px;left:45px;font-size:25px}
+.pet-stage{position:relative}.pet-stage.wandering .pet{animation:bob 1.5s steps(2,end) infinite,wander var(--wander-time,8s) ease-in-out infinite alternate}
+.pet-stage .pet[data-action=dance]{animation:dance .45s infinite}.pet-stage .pet[data-action=wave]{animation:wave .6s infinite}.pet-stage .pet[data-action=sleep]{animation:breathe 2s infinite}
+.web-toy{position:absolute;bottom:10px;background:transparent!important;font-size:28px;color:#82eba1;padding:0}
+@keyframes blink{0%,4%,100%{transform:scaleY(1)}2%{transform:scaleY(.1)}}
+@keyframes dance{50%{transform:translateY(-18px) rotate(12deg)}}
+@keyframes wave{50%{transform:rotate(-9deg)}}
+@keyframes breathe{50%{transform:scaleY(.96)}}
+@keyframes chew{50%{height:12px}}
+@keyframes wander{0%{translate:-45px 0}50%{translate:0 -15px}100%{translate:45px 0}}
+@media(prefers-reduced-motion:reduce){.pet,.eye,.pet-stage.wandering .pet{animation:none!important}}

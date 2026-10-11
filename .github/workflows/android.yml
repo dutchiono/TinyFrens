@@ -30,7 +30,7 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build test APK
-        run: gradle :android:app:assembleDebug -PupdateRepo=dutchiono/TinyFrens
+        run: gradle :android:app:testDebugUnitTest :android:app:assembleDebug -PupdateRepo=dutchiono/TinyFrens
       - uses: actions/upload-artifact@v4
         with:
           name: pocket-familiar-test-apk
@@ -65,10 +65,11 @@ jobs:
             exit 1
           fi
           code=$((1000 + RUN_NUMBER))
-          version="0.3.$RUN_NUMBER"
+          version="0.5.$RUN_NUMBER"
           gradle :android:app:assembleRelease "-PpetVersionCode=$code" "-PpetVersionName=$version" -PupdateRepo=dutchiono/TinyFrens
           cp android/app/build/outputs/apk/release/app-release.apk pocket-familiar.apk
-          printf '{"versionCode":%s,"versionName":"%s"}\n' "$code" "$version" > update.json
+          checksum=$(sha256sum pocket-familiar.apk | cut -d ' ' -f1)
+          printf '{"versionCode":%s,"versionName":"%s","sha256":"%s"}\n' "$code" "$version" "$checksum" > update.json
       - name: Publish APK release
         if: steps.signing.outputs.ready == 'true'
         env:
@@ -79,7 +80,7 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'This build is already published; leaving its APK unchanged.'
           else
-            gh release create "$tag" pocket-familiar.apk update.json --target "$GITHUB_SHA" --title "Pocket Familiar 0.3.$RUN_NUMBER" --notes 'Install pocket-familiar.apk to update. Your existing pet data is retained when updating a release signed with the same key.' --latest
+            gh release create "$tag" pocket-familiar.apk update.json --target "$GITHUB_SHA" --title "Pocket Familiar 0.5.$RUN_NUMBER" --notes 'Install pocket-familiar.apk to update. Your existing pet data is retained when updating a release signed with the same key.' --latest
           fi
       - name: Remove temporary signing key
         if: always()

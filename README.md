@@ -41,3 +41,16 @@ The browser pet caches files offline; reopen it after a site update. Saves are l
 The iOS workflow builds a simulator app and unsigned device archive. These are not signed installable IPAs or TestFlight releases. The Android-style cross-app overlay is not available on iOS.
 
 MIT licensed. Early prototype; real-phone QA is still needed.
+
+## Update 0.5 — active companions
+
+- Wander across both screen axes, pause, blink, dance, eat, wave, sleep, and chase a floating toy.
+- Tap the Android pet for its action menu; drag to move it; hold for 0.6 seconds or use Care / style to open the app.
+- Choose cat, blob, or robot, any body colour, size, and wandering speed. Saves and appearance persist through signed upgrades.
+- Set Free roam for wandering; Bubble stays in place. Sleeping or very low energy pauses movement.
+- Android permission shortcuts: Allow floating, App settings (battery/notifications), Allow updates.
+- In-app Install update downloads a verified APK and opens Android's install prompt. On first use allow this app to install updates, return, and tap Install update again. Browser download remains available.
+- Web/iOS share the appearance controls and care animations; web movement stays inside the page. Cross-app text/buttons are not inspected or controlled.
+- Android movement tests run before release publication. Physical-device behaviour still needs validation.
+
+For this first upgrade from 0.3, use the existing Browser download button or download the latest release. After installing 0.5, future updates can use Install update.

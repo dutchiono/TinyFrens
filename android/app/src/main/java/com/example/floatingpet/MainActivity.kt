@@ -14,13 +14,18 @@ import android.webkit.WebViewClient
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private val store by lazy { PetStore(this) }
+    private var latestUpdate: org.json.JSONObject? = null
+    private var pendingApk: java.io.File? = null
+    private val downloading = java.util.concurrent.atomic.AtomicBoolean(false)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.allowFileAccessFromFileURLs = false
             settings.allowUniversalAccessFromFileURLs = false
-            webViewClient = WebViewClient()
+            webViewClient = object: WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean = request.url.scheme != "file"
+            }
             addJavascriptInterface(Bridge(), "PetAndroid")
             loadUrl("file:///android_asset/index.html")
         }
@@ -41,6 +46,7 @@ class MainActivity : Activity() {
                 val repo = getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO).orEmpty()
                 val result = UpdateChecker.check(repo, BuildConfig.VERSION_CODE)
                 runOnUiThread {
+                    latestUpdate = result
                     if (!isFinishing && !isDestroyed) web.evaluateJavascript("window.onPetUpdate(${result});", null)
                 }
             }.start()
@@ -50,8 +56,40 @@ class MainActivity : Activity() {
             if (!UpdateChecker.allowedDownload(url, repo)) return
             runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         }
+        @JavascriptInterface fun installUpdate() {
+            runOnUiThread {
+                val apk = pendingApk
+                if (apk != null && apk.exists()) { requestInstall(apk); return@runOnUiThread }
+                val release = latestUpdate
+                if (release == null || !release.optBoolean("available")) { updateStatus("Check for an update first."); return@runOnUiThread }
+                if (!downloading.compareAndSet(false, true)) return@runOnUiThread
+                updateStatus("Downloading update…")
+                val repo = getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO).orEmpty()
+                Thread {
+                    try {
+                        val file = UpdateInstaller.download(this@MainActivity, release, repo)
+                        runOnUiThread { pendingApk = file; if (!isFinishing && !isDestroyed) requestInstall(file) }
+                    } catch (e: Exception) { runOnUiThread { updateStatus(e.message ?: "Download failed. Retry or use browser download.") } }
+                    finally { downloading.set(false) }
+                }.start()
+            }
+        }
+        @JavascriptInterface fun permissions(): String = org.json.JSONObject()
+            .put("overlay", Settings.canDrawOverlays(this@MainActivity))
+            .put("install", packageManager.canRequestPackageInstalls()).toString()
+        @JavascriptInterface fun openSettings(kind: String) { runOnUiThread { settingsLink(kind) } }
+        @JavascriptInterface fun customize(json: String): String {
+            val state = store.customize(json)
+            runOnUiThread { sendService("refresh") }
+            return state.toString()
+        }
+        @JavascriptInterface fun toy() { runOnUiThread { sendService("toy") } }
         @JavascriptInterface fun getState(): String = store.read().toString()
-        @JavascriptInterface fun action(name: String): String = store.act(name).toString()
+        @JavascriptInterface fun action(name: String): String {
+            val state = store.act(name)
+            runOnUiThread { sendService("refresh") }
+            return state.toString()
+        }
         @JavascriptInterface fun setMode(name: String): String {
             val state = store.setMode(name)
             sendService("refresh")
@@ -60,8 +98,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun startPet(): Boolean {
             if (!Settings.canDrawOverlays(this@MainActivity)) {
                 runOnUiThread {
-                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")))
+                    settingsLink("overlay")
                 }
                 return false
             }
@@ -70,6 +107,28 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)
+    }
+    private fun updateStatus(message: String) {
+        if (!isFinishing && !isDestroyed && ::web.isInitialized)
+            web.evaluateJavascript("window.onUpdateDownload?.(${org.json.JSONObject.quote(message)})", null)
+    }
+    private fun requestInstall(apk: java.io.File) {
+        if (!packageManager.canRequestPackageInstalls()) {
+            updateStatus("Allow updates from TinyFrens in Settings, return here, then tap Install update again.")
+            settingsLink("install")
+        } else {
+            try { UpdateInstaller.install(this, apk); updateStatus("Approve Android's installation prompt. If cancelled, tap Install update again.") }
+            catch (_: Exception) { updateStatus("Could not open installer. Use browser download.") }
+        }
+    }
+    private fun settingsLink(kind: String) {
+        val action = when(kind) {
+            "overlay" -> Settings.ACTION_MANAGE_OVERLAY_PERMISSION
+            "install" -> Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES
+            else -> Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+        }
+        try { startActivity(Intent(action, Uri.parse("package:$packageName"))) }
+        catch (_: Exception) { try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) } catch (_: Exception) {} }
     }
     private fun sendService(command: String) {
         val intent = Intent(this, PetOverlayService::class.java).putExtra("command", command)
