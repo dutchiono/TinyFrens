@@ -147,6 +147,8 @@ async function smokeTest() {
     await pause(100); assert.equal(pet.isVisible(), true);
     const before = pet.getBounds(), area = screen.getDisplayMatching(before).workArea;
     moving = { x: before.x, y: before.y }; target = clampPosition({ x: before.x - 100, y: before.y - 50 }, area, WIDTH, HEIGHT); nextTarget = Date.now() + 5000; menuUntil = 0; regions = []; sleepingUntil = 0;
+    // CI machines may enable system reduced motion. Check its pause, then explicitly exercise movement.
+    systemReducedMotion=true;lastTick=Date.now()-100;moveTick();assert.equal(pet.getBounds().x,before.x);systemReducedMotion=false;
     // Tick explicitly so renderer hit-region updates cannot pause this movement assertion.
     for (let i = 0; i < 8; i++) { regions = []; lastTick = Date.now() - 100; moveTick(); }
     assert.notEqual(pet.getBounds().x, before.x);
