@@ -74,3 +74,6 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 @media(max-width:350px){main{padding-left:16px;padding-right:16px}.pet-stage{height:200px}.stats{gap:8px}}
 
 .look-preview{height:230px;display:grid;place-items:center;background:#eee6f3;border-radius:12px;margin:18px 0 24px}.guest-stage{height:140px;display:grid;place-items:center}.guest-stage .pet{scale:.75;animation:wave 2s infinite}.visit-box{background:#e5e9d7;border-radius:12px;padding:16px;margin-top:22px}.visit-box h2{font-size:16px}.visit-box p{font-size:12px;color:#716a67;line-height:1.5}.visit-box input{width:100%;font-size:12px;padding:10px;margin-top:10px}#visitInvite{background:#e8e0f1}.visit-box button{font-size:12px}
+
+
+.friends-panel{border-top:1px solid #d8d0c4;margin-top:22px;padding-top:16px}.friends-panel h3{margin:0 0 8px}.friends-panel input{box-sizing:border-box;width:100%;font:inherit}.friends-panel #myFriendCode{font-family:monospace;font-size:13px;letter-spacing:.5px}.friends-panel form{margin-top:20px}.friend-card{border-top:1px solid #d8d0c4;padding:14px 0}.friend-card .actions{margin-top:10px}.friend-confirm button{margin-right:8px}

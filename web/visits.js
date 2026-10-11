@@ -9,7 +9,7 @@
   if(data.v!==1||!['cat','blob','robot','mascot'].includes(data.shape)||!/^#[0-9a-f]{6}$/i.test(data.color)||!Number.isFinite(data.expires)||data.expires<Date.now()||data.expires>Date.now()+31*60*1000)throw new Error('Expired invite');
   return {name:cleanName(data.name)||'A fren',shape:data.shape,color:data.color,expires:data.expires,v:1};
  }
- function guest(data){
+ function guest(data,options={}){
   $('guestVisit')?.remove();
   const card=document.createElement('section');card.id='guestVisit';card.className='visit-box';
   const title=document.createElement('h2');title.textContent=data.name+' is visiting!';
@@ -18,9 +18,13 @@
   const note=document.createElement('p');note.textContent='A little hello from a friend. Your own pet and save stay here.';
   const leave=document.createElement('button');leave.className='secondary';leave.textContent='Say goodbye';leave.onclick=()=>{card.remove();try{sessionStorage.removeItem('tinyfrens-guest');}catch{}};
   card.append(title,stage,note,leave);box.before(card);
-  try{sessionStorage.setItem('tinyfrens-guest',JSON.stringify(data));}catch{}
+  if(options.live)try{sessionStorage.removeItem('tinyfrens-guest');}catch{}
+  if(!options.live)try{sessionStorage.setItem('tinyfrens-guest',JSON.stringify(data));}catch{}
+  leave.addEventListener('click',()=>options.onLeave?.());
+  if(options.live){for(const action of ['wave','dance']){const button=document.createElement('button');button.textContent=action==='wave'?'Wave':'Dance';button.onclick=()=>options.onAction?.(action);card.insertBefore(button,leave);}}
   setTimeout(()=>{if(card.isConnected)leave.click();},Math.max(0,data.expires-Date.now()));
  }
+ window.TinyFrensVisits={guest,end:()=>$('guestVisit')?.remove(),update:data=>{const card=$('guestVisit');if(!card)return;card.querySelector('h2').textContent=data.name+' is visiting!';const sprite=card.querySelector('.guest-stage > div');if(sprite){sprite.dataset.shape=data.shape;sprite.style.setProperty('--pet-color',data.color);}},animate:action=>{const sprite=$('guestVisit')?.querySelector('.guest-stage > div');if(sprite)sprite.dataset.action=action;}};
  const incoming=new URLSearchParams(location.search).get('guest');
  if(incoming){
   try{
@@ -45,3 +49,4 @@
   }catch(e){if(e.name==='AbortError')return;$('visitLink').hidden=false;$('visitLink').value=url;$('visitLink').focus();$('visitLink').select();$('visitStatus').textContent='Copy this link and send it to your friend.';}
  };
 })();
+

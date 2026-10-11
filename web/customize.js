@@ -1,7 +1,7 @@
 'use strict';
 const styleSection=document.createElement('section');
 styleSection.className='overlay';
-styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="mascot">PFP Robot</option></select><p id="mascotNote" hidden>This robot keeps its purple-and-cyan PFP look. Pick another shape to choose a colour.</p><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="saveStyle">Save look</button><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
+styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="mascot">PFP Robot</option></select><p id="mascotNote" hidden>This robot keeps its purple-and-cyan PFP look. Pick another shape to choose a colour.</p><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
 $('lookPanel').append(styleSection);
 function stylePet(s){
  const color=/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1';
@@ -18,10 +18,11 @@ function saveLook(reset){
  let state;
  if(native)state=JSON.parse(PetAndroid.customize(JSON.stringify(data)));
  else{state=Object.assign(read(),data);localStorage.setItem(key,JSON.stringify(state));}
- stylePet(state);render(state);$('styleMessage').textContent=native?'Saved! Your floating pet changes immediately.':'Look saved on this device.';
+ stylePet(state);render(state);window.dispatchEvent(new Event('pet-profile-changed'));$('styleMessage').textContent=native?'Saved! Your floating pet changes immediately.':'Look saved on this device.';
 }
-$('saveStyle').onclick=()=>saveLook(false);$('resetStyle').onclick=()=>saveLook(true);
-for(const [id,out]of [['petSize','sizeValue'],['petSpeed','speedValue']])$(id).oninput=e=>$(out).textContent=e.target.value;
+$('resetStyle').onclick=()=>saveLook(true);
+for(const id of ['petColor','petSize','petSpeed'])$(id).addEventListener('input',()=>saveLook(false));
+$('petShape').addEventListener('change',()=>saveLook(false));
 function animatePet(name){$('pet').dataset.action=name;clearTimeout(window.petActionTimeout);window.petActionTimeout=setTimeout(()=>{$('pet').dataset.action='';},name==='sleep'?15000:6000);}
 $('wavePet').onclick=()=>{if(native)PetAndroid.action('wave');animatePet('wave');};
 $('dancePet').onclick=()=>{if(native)PetAndroid.action('dance');animatePet('dance');};
@@ -37,7 +38,7 @@ $('toyPet').onclick=()=>{
 };
 
 const mascotSprite=document.createElement('img');mascotSprite.className='mascot-sprite';mascotSprite.src='pets/mascot-robot.png';mascotSprite.alt='Purple and cyan TinyFrens robot';mascotSprite.draggable=false;$('pet').append(mascotSprite);
-$('petShape').addEventListener('change',()=>stylePet({...read(),shape:$('petShape').value,color:$('petColor').value,size:Number($('petSize').value),speed:Number($('petSpeed').value)}));
+
 stylePet(read());
 $('stage').classList.add('wandering');
 if(native){
@@ -49,3 +50,4 @@ if(native){
  const resume=window.onAndroidResume;window.onAndroidResume=()=>{resume?.();refreshPermissions();stylePet(read());};
  refreshPermissions();
 }
+

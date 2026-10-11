@@ -18,3 +18,12 @@ The first implementation is a temporary guest invitation, shared as a link. It c
 Nearby discovery is not implemented in this release. Native Android/iOS interoperability can use Google's Nearby Connections API (Bluetooth/BLE/Wi-Fi). It needs explicit permissions, both apps active, device-pairing verification and testing on two real phones. RFID/NFC would be a deliberate tap interaction, not continuous discovery. The iPhone web app cannot provide native Bluetooth discovery.
 
 Source: https://developers.google.com/nearby/connections/overview
+
+
+## Live friends and visits
+
+The optional relay in `server/` provides permanent eight-character codes, accepted friendship, presence and live visitor profiles. Add friend requires the other person to accept. Ask to visit requires a separate acceptance; both apps must be connected. Wave/Dance synchronize without care rewards. Changes to the visiting pet name/look synchronize. Either person can end; disconnect ends it too. Guest never replaces owner saves. Visitors currently appear inside the app, not Android overlay/iOS PiP/widgets. Nearby radio discovery is not implemented; it must enter this same consent flow. See `server/README.md` for deployment.
+
+## Appearance
+
+Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately. Fixed PFP robot colours remain intentional.

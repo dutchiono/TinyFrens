@@ -1,0 +1,29 @@
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    environment:
+      DB_PATH: /data/tinyfrens.db
+      ALLOWED_ORIGINS: https://dutchiono.github.io
+      ALLOW_NATIVE_ORIGIN: "true"
+      TRUST_PROXY: "true"
+    volumes:
+      - pets:/data
+    expose:
+      - "8080"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PET_DOMAIN: ${PET_DOMAIN:?Set PET_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  pets:
+  caddy_data:
+  caddy_config:

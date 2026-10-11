@@ -69,7 +69,8 @@ function editName(open){
 }
 $('editName').onclick=()=>editName(true);
 $('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
-$('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n)render(rename(n));editName(false);};
+$('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n){render(rename(n));window.dispatchEvent(new Event('pet-profile-changed'));}editName(false);};
 $('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
 window.onAndroidResume=()=>render(read());
 render(ensureName(read()));
+

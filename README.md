@@ -93,3 +93,8 @@ Pet / Looks / Settings replace the long care dashboard. [Game rules](GAMEPLAY.md
 Releases also include TinyFrens-unsigned.ipa, packaged for local signing with your own account (for example AltStore Classic). It is not signed or directly installable from Safari. Native iOS update checks use build-info.json stamped by CI. Locally built apps need equivalent revision/build timestamp metadata.
 
 Visit invites create a temporary, accepted guest on the receiver's web pet page. Bluetooth/Wi-Fi discovery and live ownership transfers are not included yet.
+
+
+## Live friends (deploy later)
+
+The optional [friends relay](server/README.md) includes Docker/Caddy HTTPS setup, persistent friend codes, friend acceptance, online status, live visit requests, synchronized looks and cosmetic guest actions. Set the server address in app Settings after deploying; the app works without it. Nearby radio discovery is not included. Appearance choices now apply and save immediately.

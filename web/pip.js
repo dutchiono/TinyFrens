@@ -24,7 +24,7 @@
     if (video.getAttribute('src') !== source) {video.pause();video.src=source;video.load();}
   }
   selectClip();
-  for (const id of ['saveStyle','resetStyle']) document.getElementById(id)?.addEventListener('click',selectClip);
+  window.addEventListener('pet-profile-changed',selectClip);
   document.getElementById('safariPet').href = location.protocol === 'https:' ? location.href : 'https://dutchiono.github.io/TinyFrens/web/';
   video.addEventListener('error',()=>{status.textContent='Video could not load. Check your connection and reload this page.';button.disabled=false;});
   video.addEventListener('webkitpresentationmodechanged',()=>{if(video.webkitPresentationMode==='picture-in-picture')status.textContent='Your fren is floating. You can switch apps. Return here for care.';});
@@ -60,3 +60,4 @@
   $('start').textContent='Float pet video';$('start').hidden=false;$('start').onclick=()=>{window.showScreen?.('pet');panel.scrollIntoView({behavior:'smooth',block:'center'});button.click();};
   $('stop').hidden=true;
 })();
+
