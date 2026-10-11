@@ -1,0 +1,23 @@
+{
+  "name": "tinyfrens-desktop",
+  "version": "0.1.0",
+  "description": "TinyFrens floating desktop companion",
+  "author": "TinyFrens",
+  "license": "MIT",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "prepare-assets": "node prepare.cjs",
+    "dist": "npm run prepare-assets && electron-builder --publish never"
+  },
+  "devDependencies": {"electron": "44.7.0", "electron-builder": "26.0.12"},
+  "build": {
+    "appId": "lol.tinyfrens.desktop",
+    "productName": "TinyFrens",
+    "directories": {"output": "release"},
+    "files": ["*.cjs", "*.html", "*.css", "*.js", "web/**/*", "!test/**/*", "!release/**/*"],
+    "win": {"target": ["portable"], "artifactName": "TinyFrens-Windows.exe"},
+    "mac": {"target": ["zip"], "identity": "-", "category": "public.app-category.games", "artifactName": "TinyFrens-Mac-${arch}.zip"}
+  }
+}

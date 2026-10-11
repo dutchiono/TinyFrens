@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-  if (native) return; // Android uses the transparent native overlay.
+  if (native || window.TinyFrensDesktop) return; // Android uses the transparent native overlay.
   const panel = document.createElement('section');
   panel.className = 'overlay';
   panel.id = 'video-pet';
@@ -60,4 +60,5 @@
   $('start').textContent='Float pet video';$('start').hidden=false;$('start').onclick=()=>{window.showScreen?.('pet');panel.scrollIntoView({behavior:'smooth',block:'center'});button.click();};
 
 })();
+
 

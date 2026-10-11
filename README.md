@@ -22,18 +22,20 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 |---|---|---|
 | Android 8+ | Download `pocket-familiar.apk` from Releases | Floating pet, dragging, roaming/bubble mode, feed/play/rest, local save |
 | iPhone / iPad | Open the web pet in Safari → Share → Add to Home Screen | Home-screen pet, care, growth, local browser save |
-| Windows PC | Open the web pet in Edge; install from the address bar or More tools → Apps | Pet care, instant looks, local save, optional browser PiP video |
-| Mac | Open the web pet in Safari; File → Add to Dock on macOS 14+ | Pet care, instant looks, local save, optional browser PiP video |
+| Windows PC x64 | [Desktop download](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest) | Transparent floating pet, wandering, drag, care bubbles, shared desktop save |
+| Mac (Apple Silicon / Intel) | [Desktop download](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest) | Transparent floating pet, wandering, drag, care bubbles, shared desktop save |
 | Browser | Open the web pet | Pet care, growth, local save, offline use after first load |
 | Native iOS | [iOS source and instructions](ios/README.md) | In-app pet; installation requires Apple signing |
 
-### Windows and Mac installation
+### Windows and Mac floating pet
 
-Open [the web pet](https://dutchiono.github.io/TinyFrens/web/) on your computer. On Windows, Edge offers installation through the address-bar install icon or ⋯ → More tools → Apps → Install this site as an app. On Mac running macOS Sonoma 14 or newer, Safari offers File → Add to Dock. Older Macs can play in the browser.
+Download the matching native app from the [desktop release](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest): Windows x64 portable executable, Mac Apple Silicon zip, or Mac Intel zip. See [desktop installation and controls](desktop/README.md). First downloads appear after the Desktop floating pet workflow succeeds.
 
-The same web care, customization, local save, and update UI runs on desktop. Float pet uses browser Picture in Picture when supported. This release does not include a native transparent desktop overlay or desktop installers. Phone, browser, installed web app and different-domain saves are separate; there is no automatic transfer. Windows/macOS physical-device QA is still required.
+The transparent pet floats above normal apps, wanders, pauses for interactions, and can be dragged between monitors. Hover, click or hold for Feed / Play / Nap / ☰; × hides it. Empty margins let clicks through. The full app and floating pet share native care/name/look state; looks change instantly. Show/Hide is one toggle. Tray/menu-bar controls reopen, recover, hide or quit.
 
-References: [Microsoft Edge installation](https://support.microsoft.com/en-us/edge/install-manage-or-uninstall-apps-in-microsoft-edge) · [Apple Safari web apps](https://support.apple.com/en-us/104996).
+Desktop builds are unsigned on Windows and ad-hoc signed but not notarized on Mac. OS security prompts may appear. Updates alert and link to a manual replacement download; no automatic installer. Physical Windows/Mac testing is still needed for full-screen/Spaces, mixed DPI and drag/click-through behavior. Browser/phone saves are separate.
+
+The web pet also remains available on either computer. Edge can install it as a web app; Safari on macOS 14+ can add it to the Dock. The native desktop download supplies the transparent interactive overlay.
 
 ### Android installation
 
@@ -114,3 +116,4 @@ The optional [friends relay](server/README.md) includes Docker/Caddy HTTPS setup
 The PFP robot has been removed. Existing pets using it switch to Simple robot without losing their name, look settings or care stats.
 
 Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet for its bubbles; the top-right × hides the whole floating pet. [Screen effects and objects](ROADMAP.md) are planned, not yet enabled.
+

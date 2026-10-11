@@ -15,18 +15,20 @@ function stylePet(s){
 function saveLook(reset){
  const data=reset?{color:'#a474f1',shape:'cat',size:80,speed:60}:{color:$('petColor').value,shape:$('petShape').value,size:Number($('petSize').value),speed:Number($('petSpeed').value)};
  let state;
- if(native)state=JSON.parse(PetAndroid.customize(JSON.stringify(data)));
+ if(desktop)state=JSON.parse(desktop.customize(JSON.stringify(data)));
+ else if(native)state=JSON.parse(PetAndroid.customize(JSON.stringify(data)));
  else{state=Object.assign(read(),data);localStorage.setItem(key,JSON.stringify(state));}
- stylePet(state);render(state);window.dispatchEvent(new Event('pet-profile-changed'));$('styleMessage').textContent=native?'Saved! Your floating pet changes immediately.':'Look saved on this device.';
+ stylePet(state);render(state);window.dispatchEvent(new Event('pet-profile-changed'));$('styleMessage').textContent=(native||desktop)?'Saved! Your floating pet changes immediately.':'Look saved on this device.';
 }
 $('resetStyle').onclick=()=>saveLook(true);
 for(const id of ['petColor','petSize','petSpeed'])$(id).addEventListener('input',()=>saveLook(false));
 $('petShape').addEventListener('change',()=>saveLook(false));
 function animatePet(name){$('pet').dataset.action=name;clearTimeout(window.petActionTimeout);window.petActionTimeout=setTimeout(()=>{$('pet').dataset.action='';},name==='sleep'?15000:6000);}
-$('wavePet').onclick=()=>{if(native)PetAndroid.action('wave');animatePet('wave');};
-$('dancePet').onclick=()=>{if(native)PetAndroid.action('dance');animatePet('dance');};
+$('wavePet').onclick=()=>{if(desktop)desktop.action('wave');else if(native)PetAndroid.action('wave');animatePet('wave');};
+$('dancePet').onclick=()=>{if(desktop)desktop.action('dance');else if(native)PetAndroid.action('dance');animatePet('dance');};
 $('toyPet').onclick=()=>{
- if(native){PetAndroid.toy();$('styleMessage').textContent='Toy placed. Show your pet to watch the chase.';}
+ if(desktop){desktop.action('toy');$('styleMessage').textContent='Toy placed beside your floating pet.';}
+ else if(native){PetAndroid.toy();$('styleMessage').textContent='Toy placed. Show your pet to watch the chase.';}
  else{
   const stage=$('stage');stage.classList.add('chasing');let toy=stage.querySelector('.web-toy');
   if(!toy){toy=document.createElement('button');toy.className='web-toy';toy.textContent='●';toy.setAttribute('aria-label','Move the toy');stage.append(toy);}
@@ -48,4 +50,5 @@ if(native){
  const resume=window.onAndroidResume;window.onAndroidResume=()=>{resume?.();refreshPermissions();stylePet(read());};
  refreshPermissions();
 }
+
 

@@ -1,0 +1,80 @@
+name: Desktop floating pet
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', 'web/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win --x64
+            name: windows
+          - os: macos-latest
+            target: --mac --arm64
+            name: mac-arm64
+          - os: macos-15-intel
+            target: --mac --x64
+            name: mac-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm version 0.1.${{ github.run_number }} --no-git-tag-version
+      - run: npm run prepare-assets
+      - name: Native renderer and overlay smoke test
+        run: npx electron . --tinyfrens-smoke
+        timeout-minutes: 3
+      - name: Build desktop download
+        run: npm run dist -- ${{ matrix.target }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          path: |
+            desktop/release/TinyFrens-Windows.exe
+            desktop/release/TinyFrens-Mac-*.zip
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: downloads
+          merge-multiple: true
+      - name: Publish desktop downloads separately from phone releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DESKTOP_VERSION: 0.1.${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          Path('desktop-release.md').write_text('Desktop version: ' + os.environ['DESKTOP_VERSION'] + '\n\nTransparent floating pet for Windows x64 and Mac (Apple Silicon or Intel). Download the matching file. These builds are unsigned/not notarized. Windows may show SmartScreen; macOS may block opening until allowed in Privacy & Security. See desktop/README.md for setup. Updating keeps the local pet save.\n')
+          PY
+          gh release view desktop-latest >/dev/null 2>&1 || gh release create desktop-latest --target "$GITHUB_SHA" --title 'TinyFrens desktop floating pet' --draft --latest=false
+          gh release upload desktop-latest downloads/* --clobber
+          gh release edit desktop-latest --notes-file desktop-release.md --draft=false --latest=false

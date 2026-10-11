@@ -20,7 +20,9 @@
   show('An update is ready','Ask a grown-up to install it. Your fren comes with you.',install,'Install update');
   if($('autoDownload').checked&&PetAndroid.canAutoDownload())PetAndroid.prepareUpdate();
  }
- if(native){
+ if(window.TinyFrensDesktop){
+  $('updateExplanation').textContent='Checks for new desktop downloads. Replace the app with the new version; your fren stays in its saved folder. Installation is manual.';
+ }else if(native){
   const info=JSON.parse(PetAndroid.updateInfo());$('updateRepo').value=info.repo||'dutchiono/TinyFrens';
   $('advancedUpdates').hidden=false;$('autoDownloadRow').hidden=false;
   $('updateExplanation').textContent='Checks when you open the app and while it’s in use. Wi-Fi downloads are optional; Android still asks before installing.';
@@ -71,7 +73,13 @@
   if(inFlight||(!manual&&Date.now()-lastCheck<15*60*1000)||(!manual&&!$('autoCheck').checked))return;
   lastCheck=Date.now();inFlight=true;$('checkUpdate').disabled=true;status.textContent='Checking…';
   try{
-   if(native){
+   if(window.TinyFrensDesktop){
+    const result=await window.TinyFrensDesktop.checkUpdate();
+    inFlight=false;$('checkUpdate').disabled=false;
+    if(result.error){quietError();return;}
+    status.textContent=result.available?'A new desktop version is ready.':result.unpublished?'Your desktop build is ready; the first download is still publishing.':'You’re up to date.';
+    if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your pet stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else banner.hidden=true;
+   }else if(native){
     if(!PetAndroid.saveUpdateRepo($('updateRepo').value.trim()))throw new Error('Invalid source');
     PetAndroid.checkUpdate();
    }else if(window.PetIOS){window.webkit.messageHandlers.petUpdates.postMessage('check');}
@@ -87,3 +95,4 @@
  // Check only after all callback handlers have been installed.
  if($('autoCheck').checked)check(true);else status.textContent='Automatic checks are off. Tap Check now any time.';
 })();
+

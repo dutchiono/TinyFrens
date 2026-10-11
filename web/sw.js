@@ -1,4 +1,4 @@
-const CACHE='pocket-familiar-v17';
+const CACHE='pocket-familiar-v18';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
 const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'}))))));
@@ -20,4 +20,5 @@ self.addEventListener('fetch',e=>{
  if(new URL(e.request.url).pathname.endsWith('.mp4')){e.respondWith(videoResponse(e.request));return;}
  e.respondWith(fetch(e.request,{cache:'no-cache'}).then(r=>{if(r.ok&&r.status===200){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});}return r;}).catch(()=>caches.match(e.request)));
 });
+
 
