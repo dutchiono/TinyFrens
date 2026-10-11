@@ -89,6 +89,7 @@ def create_app(database=None, origins=None):
                     if response.status>=400: raise ValueError('Pet chat is having trouble right now')
             parts=data.get('candidates',[{}])[0].get('content',{}).get('parts',[])
             reply=' '.join(str(part.get('text','')) for part in parts).strip()
+            reply=re.sub(r'[*_`#>\[\]]','',reply)
             if not reply: reply=p['name']+' blinks, thinking very hard.'
             return web.json_response({'reply':reply[:500]})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
@@ -204,4 +205,4 @@ def create_app(database=None, origins=None):
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 
-if __name__=='__main__': web.run_app(create_app(),host='0.0.0.0',port=int(os.environ.get('PORT','8080')),access_log=None)
+if __name__=='__main__': web.run_app(create_app(),host=os.environ.get('HOST','0.0.0.0'),port=int(os.environ.get('PORT','8080')),access_log=None)

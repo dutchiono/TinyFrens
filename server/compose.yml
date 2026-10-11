@@ -7,6 +7,7 @@ services:
       ALLOWED_ORIGINS: https://dutchiono.github.io,https://tinyfrens.lol,https://www.tinyfrens.lol,https://tinyfrens.vercel.app
       ALLOW_NATIVE_ORIGIN: "true"
       TRUST_PROXY: "true"
+      HOST: 0.0.0.0
       GEMINI_MODEL: gemini-2.0-flash
     volumes:
       - pets:/data
