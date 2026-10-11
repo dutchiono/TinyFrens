@@ -9,7 +9,7 @@
  const storage='tinyfrens-live-server';
  function status(text){$('friendsStatus').textContent=text;$('serverStatus').textContent=text;}
  function send(data){if(ws?.readyState!==WebSocket.OPEN){status('Not connected. Try again when you’re online.');return false;}ws.send(JSON.stringify(data));return true;}
- function pet(){const s=read();return {name:cleanName(s.name)||'A fren',shape:s.shape==='mascot'?'robot':['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expression:s.expression||'joyful',accessory:s.accessory||'none',tokenId:s.tokenId||null};}
+ function pet(){const s=read();return {name:cleanName(s.name)||'A fren',shape:s.shape==='mascot'?'robot':['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expression:s.expression||'happy',accessory:s.accessory||'none',tokenId:s.tokenId||null};}
  function sync(){const p=JSON.stringify(pet());if(ws?.readyState===WebSocket.OPEN&&p!==lastProfile){if(send({type:'profile',pet:JSON.parse(p)}))lastProfile=p;}}
  function endVisit(){visit=null;window.TinyFrensVisits.end();$('liveVisit').replaceChildren();$('visitRequests').replaceChildren();}
  function button(text,handler,secondary=false){const b=document.createElement('button');b.textContent=text;b.className=secondary?'secondary':'';b.onclick=handler;return b;}

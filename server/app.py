@@ -160,7 +160,7 @@ def create_app(database=None, origins=None):
         seed=':'.join(str(nft.get(k,'')) for k in ('chain','tokenId','name'))+':'+str((nft.get('collection') or {}).get('address',''))
         digest=hashlib.sha256(seed.encode()).digest()
         shapes=['cat','blob','robot','bunny','dog','bear','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675']
-        exprs=['joyful','wink','shades','star_eyes','sleepy','loving','laser','grin'];accs=['none','party_hat','crown','straw_hat','halo','beanie','strawberry','orb','bubble','bow_tie']
+        exprs=['happy','wink','shades','star_eyes'];accs=['none','party_hat','crown','halo','bow_tie','orb']
         return {'shape':shapes[digest[0]%len(shapes)],'color':colors[digest[1]%len(colors)],'expression':exprs[digest[2]%len(exprs)],'accessory':accs[digest[3]%len(accs)]}
     async def wallet_api_key(pid):
         row=db.execute('SELECT api_key FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
