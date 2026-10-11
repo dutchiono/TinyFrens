@@ -8,6 +8,14 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 
 > The welcome site is available after GitHub Pages is enabled. In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**, then run **Actions → Welcome site → Run workflow**.
 
+## Find TinyFrens
+
+[Website](https://tinyfrens.lol) · [Telegram](https://t.me/tinyfrens) · [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to)
+
+## Vercel hosting
+
+See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends server requirements.
+
 ## Bring a fren home
 
 | Platform | Start here | What it can do |
