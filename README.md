@@ -73,3 +73,9 @@ Share https://dutchiono.github.io/TinyFrens/ or directly https://dutchiono.githu
 In Safari: open the pet, tap Float pet, play the video if prompted, then tap Float pet again. iOS can provide a system-managed floating video window where supported; this is not a transparent interactive overlay. Care buttons remain in the webpage. Share → Add to Home Screen installs the free web app. If the installed web app does not offer PiP, open the same pet page in Safari.
 
 PiP loops match cat/blob/robot and the nearest of six colour presets. Videos are bundled offline-compatible H.264/AAC MP4 clips; generated with scripts/build-pet-videos.py. Native iOS shell also enables inline video and PiP playback, but native installation still needs Apple signing. Safari/iPhone device testing is required for PiP behaviour.
+
+## Family setup and widgets
+
+The welcome page now has short phone-first instructions, direct Android download, grown-up permission steps, video PiP help, and widget availability. The same care/help instructions are bundled in the Android and iOS apps.
+
+The native iOS build includes a small WidgetKit hello widget. It opens TinyFrens when tapped; it does not show live care data or continuous animation. It needs installation of the signed native app; the Safari home-screen icon is not a widget. Open the installed native app once, then hold the home screen → Edit → Add Widget (or +) → TinyFrens → Add Widget. Android does not yet include a native home-screen widget.

@@ -10,7 +10,7 @@
     if (url.origin !== 'https://github.com' || !url.pathname.startsWith('/dutchiono/TinyFrens/releases/download/')) return;
     const button = document.getElementById('apk');
     button.href = url.href;
-    button.textContent = 'Download Android APK ↗';
-    document.getElementById('releaseStatus').textContent = `Latest: ${release.name || release.tag_name}`;
+    button.textContent = 'Get Android app ↓';
+    document.getElementById('releaseStatus').textContent = `Ready to download · ${release.name || release.tag_name}`;
   } catch { /* The Releases link remains available without the API. */ }
 })();

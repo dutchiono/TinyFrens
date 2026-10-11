@@ -17,6 +17,8 @@ targets:
       - path: ../web
         type: folder
         buildPhase: resources
+    dependencies:
+      - target: TinyFrensWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: online.ionoi.tinyfrens
@@ -24,11 +26,29 @@ targets:
     info:
       path: Info.plist
       properties:
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [tinyfrens]
         CFBundleDisplayName: TinyFrens
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIRequiresFullScreen: false
         UIBackgroundModes: [audio]
+  TinyFrensWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TinyFrensWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.ionoi.tinyfrens.widget
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: WidgetInfo.plist
+      properties:
+        CFBundleDisplayName: TinyFrens
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 schemes:
   TinyFrens:
     build:
