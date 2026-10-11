@@ -197,7 +197,7 @@ class PetOverlayService:Service(){
  private fun showChat(){
   removeMenu();removeCaption();removeChat()
   val status=TextView(this).apply{text="Ask your fren.";textSize=12f;setTextColor(Color.rgb(70,62,82))}
-  val input=EditText(this).apply{hint="Say something";singleLine=true;textSize=16f;filters=arrayOf(android.text.InputFilter.LengthFilter(220))}
+  val input=EditText(this).apply{hint="Say something";setSingleLine(true);textSize=16f;filters=arrayOf(android.text.InputFilter.LengthFilter(220))}
   val send=Button(this).apply{text="Send";minHeight=0;minimumHeight=0}
   val cancel=Button(this).apply{text="×";minWidth=0;minimumWidth=0;contentDescription="Close chat"}
   val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;addView(input,LinearLayout.LayoutParams(0,dp(48),1f));addView(send,LinearLayout.LayoutParams(dp(76),dp(48)).apply{setMargins(dp(8),0,0,0)})}
