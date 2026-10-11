@@ -1,8 +1,8 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
+    "header": "eyJmaWQiOjQ3NDg2NywidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweGQ1OUIyOUNEZGM4NGZjNTNDNzM3NjIzOEUzRjE2QUMzMTI1MTZDNTYifQ",
     "payload": "eyJkb21haW4iOiJ0aW55ZnJlbnMubG9sIn0",
-    "signature": "MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw"
+    "signature": "zU1IIoh01bRjAVWa4kx/6+N0oT8bfVDpSEoJm5vEeFhVXeyGgD2yvUH1yYXRyZlJoOBogB3AMyJTOlut9/7uoRs="
   },
   "frame": {
     "version": "1",
@@ -10,7 +10,7 @@
     "iconUrl": "https://tinyfrens.lol/icons/icon-192.png",
     "homeUrl": "https://tinyfrens.lol/",
     "imageUrl": "https://tinyfrens.lol/icons/icon-512.png",
-    "buttonTitle": "Open TinyFrens",
+    "buttonTitle": "Play TinyFrens",
     "splashImageUrl": "https://tinyfrens.lol/icons/icon-192.png",
     "splashBackgroundColor": "#17142a",
     "webhookUrl": "https://tinyfrens.lol/api/farcaster/webhook"

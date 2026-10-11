@@ -324,10 +324,16 @@ def create_app(database=None, origins=None):
         action=request.query.get('action')
         return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json')
     async def farcaster_manifest(request):
-        manifest_path=os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json')
-        if os.path.exists(manifest_path):
-            with open(manifest_path,'r',encoding='utf-8') as f: data=json.load(f)
-        else:
+        candidates=[
+            os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json'),
+            os.path.join(os.path.dirname(__file__),'web','.well-known','farcaster.json'),
+            os.path.join(os.path.dirname(__file__),'.well-known','farcaster.json')
+        ]
+        data=None
+        for p in candidates:
+            if os.path.exists(p):
+                with open(p,'r',encoding='utf-8') as f: data=json.load(f); break
+        if not data:
             data={"accountAssociation":{"header":"","payload":"","signature":""},"frame":{"version":"1","name":"TinyFrens","iconUrl":"https://tinyfrens.lol/icons/icon-192.png","homeUrl":"https://tinyfrens.lol/","imageUrl":"https://tinyfrens.lol/icons/icon-512.png","buttonTitle":"Open TinyFrens","splashImageUrl":"https://tinyfrens.lol/icons/icon-192.png","splashBackgroundColor":"#17142a"}}
         return web.json_response(data, content_type='application/json')
     async def websocket(request):
