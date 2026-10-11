@@ -9,4 +9,6 @@ await mkdir(output, { recursive: true });
 for (const entry of ['index.html', 'site', 'web', 'play']) {
   await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
-console.log('Built welcome page and web pet in dist/');
+await cp(path.join(root, 'web', '.well-known'), path.join(output, '.well-known'), { recursive: true });
+await cp(path.join(root, 'web', 'snap-v2.json'), path.join(output, 'snap-v2.json'));
+console.log('Built welcome page, web pet, and Farcaster manifests in dist/');

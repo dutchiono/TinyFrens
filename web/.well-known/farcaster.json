@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
+    "payload": "eyJkb21haW4iOiJ0aW55ZnJlbnMubG9sIn0",
+    "signature": "MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw"
+  },
+  "frame": {
+    "version": "1",
+    "name": "TinyFrens",
+    "iconUrl": "https://tinyfrens.lol/icons/icon-192.png",
+    "homeUrl": "https://tinyfrens.lol/",
+    "imageUrl": "https://tinyfrens.lol/icons/icon-512.png",
+    "buttonTitle": "Open TinyFrens",
+    "splashImageUrl": "https://tinyfrens.lol/icons/icon-192.png",
+    "splashBackgroundColor": "#17142a",
+    "webhookUrl": "https://tinyfrens.lol/api/farcaster/webhook"
+  }
+}

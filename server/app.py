@@ -72,11 +72,17 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        if request.path!='/health' and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
+        public_paths={'/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap'}
+        is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
+        is_public=request.path in public_paths or is_snap_req
+        if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
-        if origin in allowed and not isinstance(response,web.WebSocketResponse):
-            response.headers.update({'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
+        if not isinstance(response,web.WebSocketResponse):
+            if is_public:
+                response.headers.update({'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Accept, X-Snap-Payload','Access-Control-Allow-Methods':'POST, GET, OPTIONS'})
+            elif origin in allowed:
+                response.headers.update({'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
         return response
     async def register(request):
         try:
@@ -246,6 +252,84 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply,'wallet':wallet,'jobId':job_id,'threadId':thread_id})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
+    def make_snap_payload(action=None):
+        effects=["confetti"] if action in ("pet","feed","play") else []
+        status_text="Your 1:1 on-chain & floating desktop companion."
+        if action=="pet": status_text="You petted the fren! They did a little wiggle 💖"
+        elif action=="feed": status_text="You fed the fren a fresh strawberry 🍓! Nom nom."
+        elif action=="play": status_text="You played ball with your fren 🎾! Joy is at 100%!"
+        return {
+            "version": "2.0",
+            "theme": {"accent": "purple"},
+            "effects": effects,
+            "ui": {
+                "root": "page",
+                "elements": {
+                    "page": {
+                        "type": "stack",
+                        "props": {"gap": "md"},
+                        "children": ["header", "hero-img", "status-text", "action-buttons", "open-miniapp-btn"]
+                    },
+                    "header": {
+                        "type": "text",
+                        "props": {"content": "TinyFrens · Pocket Pet", "weight": "bold", "size": "lg"}
+                    },
+                    "hero-img": {
+                        "type": "image",
+                        "props": {
+                            "url": "https://tinyfrens.lol/icons/icon-512.png",
+                            "aspect": "16:9",
+                            "title": "TinyFrens",
+                            "subtitle": status_text
+                        }
+                    },
+                    "status-text": {
+                        "type": "text",
+                        "props": {
+                            "content": "8 companion species · Curated 888 on-chain supply · AR camera snaps · Multiplayer party rooms",
+                            "size": "sm"
+                        }
+                    },
+                    "action-buttons": {
+                        "type": "stack",
+                        "props": {"direction": "horizontal", "gap": "sm", "equalWidth": True},
+                        "children": ["btn-pet", "btn-feed", "btn-play"]
+                    },
+                    "btn-pet": {
+                        "type": "button",
+                        "props": {"label": "Pet 💖", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=pet"}}}
+                    },
+                    "btn-feed": {
+                        "type": "button",
+                        "props": {"label": "Feed 🍓", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=feed"}}}
+                    },
+                    "btn-play": {
+                        "type": "button",
+                        "props": {"label": "Play 🎾", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=play"}}}
+                    },
+                    "open-miniapp-btn": {
+                        "type": "button",
+                        "props": {"label": "Open TinyFrens Mini App 🐾", "variant": "primary", "icon": "arrow-right"},
+                        "on": {"press": {"action": "open_mini_app", "params": {"target": "https://tinyfrens.lol/"}}}
+                    }
+                }
+            }
+        }
+    async def get_snap(request):
+        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json')
+    async def post_snap_interact(request):
+        action=request.query.get('action')
+        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json')
+    async def farcaster_manifest(request):
+        manifest_path=os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json')
+        if os.path.exists(manifest_path):
+            with open(manifest_path,'r',encoding='utf-8') as f: data=json.load(f)
+        else:
+            data={"accountAssociation":{"header":"","payload":"","signature":""},"frame":{"version":"1","name":"TinyFrens","iconUrl":"https://tinyfrens.lol/icons/icon-192.png","homeUrl":"https://tinyfrens.lol/","imageUrl":"https://tinyfrens.lol/icons/icon-512.png","buttonTitle":"Open TinyFrens","splashImageUrl":"https://tinyfrens.lol/icons/icon-192.png","splashBackgroundColor":"#17142a"}}
+        return web.json_response(data, content_type='application/json')
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -374,6 +458,10 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
+    app.router.add_get('/api/snap',get_snap)
+    app.router.add_post('/api/snap/interact',post_snap_interact)
+    app.router.add_get('/snap',get_snap)
+    app.router.add_get('/.well-known/farcaster.json',farcaster_manifest)
     app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app

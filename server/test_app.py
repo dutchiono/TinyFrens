@@ -115,5 +115,34 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         await ws.close();ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});self.sockets.append(ws)
         await ws.send_json({'type':'auth','token':a['token']});state=await self.event(ws,'state')
         self.assertEqual(state['self']['code'],a['code']);self.assertEqual(state['self']['pet']['name'],'Renamed')
+    async def test_farcaster_manifest_returns_json_and_cors(self):
+        r=await self.client.get('/.well-known/farcaster.json')
+        self.assertEqual(r.status,200)
+        self.assertEqual(r.headers.get('Access-Control-Allow-Origin'),'*')
+        data=await r.json()
+        self.assertIn('frame',data)
+        self.assertEqual(data['frame']['name'],'TinyFrens')
+        self.assertEqual(data['frame']['version'],'1')
+    async def test_farcaster_snap_endpoints_and_content_negotiation(self):
+        r=await self.client.get('/api/snap')
+        self.assertEqual(r.status,200)
+        self.assertIn('application/vnd.farcaster.snap+json',r.headers.get('Content-Type',''))
+        data=await r.json()
+        self.assertEqual(data['version'],'2.0')
+        self.assertEqual(data['ui']['root'],'page')
+        self.assertIn('btn-pet',data['ui']['elements'])
+
+        # Interactive POST with action
+        r2=await self.client.post('/api/snap/interact?action=pet')
+        self.assertEqual(r2.status,200)
+        data2=await r2.json()
+        self.assertEqual(data2['version'],'2.0')
+        self.assertIn('confetti',data2.get('effects',[]))
+
+        # Content negotiation on /snap
+        r3=await self.client.get('/snap',headers={'Accept':'application/vnd.farcaster.snap+json'})
+        self.assertEqual(r3.status,200)
+        data3=await r3.json()
+        self.assertEqual(data3['version'],'2.0')
 
 if __name__=='__main__': unittest.main()
