@@ -20,7 +20,7 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 
 | Platform | Start here | What it can do |
 |---|---|---|
-| Android 8+ | Download `pocket-familiar.apk` from Releases | Floating pet, dragging, roaming/bubble mode, feed/play/rest, local save |
+| Android 8+ | Download `pocket-familiar.apk` from Releases | Floating pet, dragging, roaming/bubble mode, feed/play/rest/chat, local save |
 | iPhone / iPad | Open the web pet in Safari → Share → Add to Home Screen | Home-screen pet, care, growth, local browser save |
 | Windows PC x64 | [Desktop download](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest) | Transparent floating pet, wandering, drag, care bubbles, shared desktop save |
 | Mac (Apple Silicon / Intel) | [Desktop download](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest) | Transparent floating pet, wandering, drag, care bubbles, shared desktop save |
@@ -102,7 +102,7 @@ The native iOS build includes a small WidgetKit hello widget. It opens TinyFrens
 
 ## Mobile UI, updates, and visits
 
-Pet / Looks / Settings replace the long care dashboard. [Game rules](GAMEPLAY.md) define the matching app and bubble actions. Native Android checks on launch/return and every 15 minutes while active; available updates show a banner. Optional Wi-Fi downloads prepare a verified APK; Android still asks before installation. The web app downloads service-worker updates and offers Refresh, or applies a waiting update next launch. Native iOS checks the latest release for a newer unsigned iPhone build and shows signing/AltStore update help.
+Pet / Chat / Looks / Settings replace the long care dashboard. [Game rules](GAMEPLAY.md) define the matching app and bubble actions. Native Android checks on launch/return and every 15 minutes while active; the floating pet also checks while running. Available updates show a banner and Android notification. Optional Wi-Fi downloads prepare a verified APK; Android still asks before installation. The web app downloads service-worker updates and offers Refresh, or applies a waiting update next launch. Native iOS checks the latest release for a newer unsigned iPhone build and shows signing/AltStore update help.
 
 Releases also include TinyFrens-unsigned.ipa, packaged for local signing with your own account (for example AltStore Classic). It is not signed or directly installable from Safari. Native iOS update checks use build-info.json stamped by CI. Locally built apps need equivalent revision/build timestamp metadata.
 
@@ -115,7 +115,7 @@ The optional [friends relay](server/README.md) includes Docker/Caddy HTTPS setup
 
 The PFP robot has been removed. Existing pets using it switch to Simple robot without losing their name, look settings or care stats.
 
-Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet for its bubbles; the top-right × hides the whole floating pet. [Screen effects and objects](ROADMAP.md) are planned, not yet enabled.
+Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet for its bubbles; the chat bubble opens a tiny overlay composer and replies above the pet. The top-right × hides the whole floating pet. [Screen effects and objects](ROADMAP.md) are planned, not yet enabled.
 
 
 ## Little touches

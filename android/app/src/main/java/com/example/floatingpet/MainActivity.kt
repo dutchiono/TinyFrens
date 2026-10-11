@@ -2,6 +2,10 @@ package com.example.floatingpet
 
 import android.Manifest
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -35,6 +39,7 @@ class MainActivity : Activity() {
         }
         setContentView(web)
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4)
+        createUpdateChannel()
     }
     inner class Bridge {
         @JavascriptInterface fun updateInfo(): String = org.json.JSONObject()
@@ -53,6 +58,7 @@ class MainActivity : Activity() {
                     if (!result.has("error")) {
                         if (latestUpdate?.optString("sha256") != result.optString("sha256")) pendingApk = null
                         latestUpdate = result
+                        if (result.optBoolean("available")) notifyUpdate(result)
                     }
                     if (!isFinishing && !isDestroyed) web.evaluateJavascript("window.onPetUpdate(${result});", null)
                 }
@@ -90,7 +96,7 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun shareVisit(url: String) {
             val uri = Uri.parse(url)
-            if (uri.scheme != "https" || uri.host != "dutchiono.github.io" || uri.path != "/TinyFrens/web/" || url.length > 2200) return
+            if (uri.scheme != "https" || uri.host !in listOf("tinyfrens.lol", "www.tinyfrens.lol") || uri.path != "/web/" || url.length > 2200) return
             runOnUiThread {
                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, url) }, "Send a visit invite"))
             }
@@ -161,6 +167,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)
     }
     private fun updateReady() {
+        notifyDownloaded()
         if (!isFinishing && !isDestroyed) web.evaluateJavascript("window.onUpdateReady?.()", null)
     }
     private fun updateStatus(message: String) {
@@ -190,6 +197,36 @@ class MainActivity : Activity() {
         if (command == "stop") { if(PetOverlayService.running)startService(intent.setAction(PetOverlayService.ACTION_HIDE))else stopService(intent) }
         else if (command == "start") startForegroundService(intent)
         else if (PetOverlayService.running) startService(intent)
+    }
+    private fun createUpdateChannel() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(NotificationChannel("updates", "TinyFrens updates", NotificationManager.IMPORTANCE_DEFAULT))
+    }
+    private fun updateIntent(): PendingIntent = PendingIntent.getActivity(
+        this, 2, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+    private fun postUpdateNotification(id: Int, title: String, text: String) {
+        try {
+            val notification = Notification.Builder(this, "updates")
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setContentIntent(updateIntent())
+                .setAutoCancel(true)
+                .build()
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(id, notification)
+        } catch (_: Exception) { }
+    }
+    private fun notifyUpdate(result: org.json.JSONObject) {
+        val token = result.optString("sha256", result.optString("url"))
+        if (token.isBlank()) return
+        val prefs = getSharedPreferences("updates", MODE_PRIVATE)
+        if (prefs.getString("lastUpdateNotification", "") == token) return
+        prefs.edit().putString("lastUpdateNotification", token).apply()
+        postUpdateNotification(20, "TinyFrens update ready", "Open TinyFrens to install the new Android build.")
+    }
+    private fun notifyDownloaded() {
+        postUpdateNotification(21, "TinyFrens update downloaded", "Open TinyFrens to finish installing it.")
     }
     override fun onResume() {
         super.onResume()
