@@ -22,8 +22,18 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 |---|---|---|
 | Android 8+ | Download `pocket-familiar.apk` from Releases | Floating pet, dragging, roaming/bubble mode, feed/play/rest, local save |
 | iPhone / iPad | Open the web pet in Safari → Share → Add to Home Screen | Home-screen pet, care, growth, local browser save |
+| Windows PC | Open the web pet in Edge; install from the address bar or More tools → Apps | Pet care, instant looks, local save, optional browser PiP video |
+| Mac | Open the web pet in Safari; File → Add to Dock on macOS 14+ | Pet care, instant looks, local save, optional browser PiP video |
 | Browser | Open the web pet | Pet care, growth, local save, offline use after first load |
 | Native iOS | [iOS source and instructions](ios/README.md) | In-app pet; installation requires Apple signing |
+
+### Windows and Mac installation
+
+Open [the web pet](https://dutchiono.github.io/TinyFrens/web/) on your computer. On Windows, Edge offers installation through the address-bar install icon or ⋯ → More tools → Apps → Install this site as an app. On Mac running macOS Sonoma 14 or newer, Safari offers File → Add to Dock. Older Macs can play in the browser.
+
+The same web care, customization, local save, and update UI runs on desktop. Float pet uses browser Picture in Picture when supported. This release does not include a native transparent desktop overlay or desktop installers. Phone, browser, installed web app and different-domain saves are separate; there is no automatic transfer. Windows/macOS physical-device QA is still required.
+
+References: [Microsoft Edge installation](https://support.microsoft.com/en-us/edge/install-manage-or-uninstall-apps-in-microsoft-edge) · [Apple Safari web apps](https://support.apple.com/en-us/104996).
 
 ### Android installation
 
