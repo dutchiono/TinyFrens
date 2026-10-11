@@ -1,23 +1,29 @@
 'use strict';
 const styleSection=document.createElement('section');
 styleSection.className='overlay';
-styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><div class="nft-sync-box" style="margin:0 0 18px;padding:14px;background:#e8e0f1;border-radius:12px;"><label for="nftTokenInput" style="font-weight:700;margin:0 0 4px">Replicate TinyFren NFT</label><p class="small" style="margin:2px 0 8px;color:#5d3a8e;">Enter your on-chain token ID (#1–#3333) to copy its exact NFT traits.</p><div class="actions" style="margin:0"><input id="nftTokenInput" type="number" min="1" max="3333" placeholder="Token # e.g. 42" style="background:#fff;border-radius:8px;padding:8px;width:100%"><button id="syncNftButton" type="button" class="secondary" style="flex:none">Sync Look</button></div></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="bunny">Bunny</option><option value="dog">Puppy dog</option><option value="bear">Teddy bear</option><option value="frog">Frog</option><option value="turtle">Turtle</option></select><label for="petExpression">Expression</label><select id="petExpression"><option value="joyful">Joyful</option><option value="wink">Wink</option><option value="shades">Cool Shades</option><option value="star_eyes">Star Eyes</option><option value="sleepy">Sleepy zZ</option><option value="loving">Loving Blush</option><option value="laser">Laser Eyes</option><option value="grin">Cheerful Grin</option></select><label for="petAccessory">Accessory</label><select id="petAccessory"><option value="none">None</option><option value="party_hat">Party Hat</option><option value="crown">Royal Crown</option><option value="straw_hat">Straw Hat</option><option value="halo">Angel Halo</option><option value="beanie">Winter Beanie</option><option value="strawberry">Strawberry Snack</option><option value="orb">Mystic Orb</option><option value="bubble">Bubble Shield</option><option value="bow_tie">Bow Tie</option></select><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
+styleSection.innerHTML='<div id="lookPreview" class="look-preview" aria-label="Appearance preview"></div><div class="nft-sync-box" style="margin:0 0 18px;padding:14px;background:#e8e0f1;border-radius:12px;"><label for="nftTokenInput" style="font-weight:700;margin:0 0 4px">Replicate TinyFren NFT</label><p class="small" style="margin:2px 0 8px;color:#5d3a8e;">Enter your on-chain token ID (#1–#888) to copy its exact NFT traits.</p><div class="actions" style="margin:0"><input id="nftTokenInput" type="number" min="1" max="888" placeholder="Token # e.g. 42 (1–888)" style="background:#fff;border-radius:8px;padding:8px;width:100%"><button id="syncNftButton" type="button" class="secondary" style="flex:none">Sync Look</button></div></div><label for="petColor">Colour</label><input id="petColor" type="color" value="#a474f1"><label for="petShape">Shape</label><select id="petShape"><option value="cat">Cat</option><option value="blob">Blob</option><option value="robot">Simple robot</option><option value="bunny">Bunny</option><option value="dog">Puppy dog</option><option value="bear">Teddy bear</option><option value="frog">Frog</option><option value="turtle">Turtle</option></select><label for="petExpression">Expression</label><select id="petExpression"><option value="happy">Classic Happy</option><option value="wink">Playful Wink</option><option value="shades">Cool Shades</option><option value="star_eyes">Star Eyes</option></select><label for="petAccessory">Accessory</label><select id="petAccessory"><option value="none">None</option><option value="party_hat">Party Hat</option><option value="crown">Royal Crown</option><option value="halo">Angel Halo</option><option value="bow_tie">Dapper Bow Tie</option><option value="orb">Mystic Orb</option></select><label for="petSize">Size <output id="sizeValue">80</output></label><input id="petSize" type="range" min="56" max="128" value="80"><label for="petSpeed">Wander speed <output id="speedValue">60</output></label><input id="petSpeed" type="range" min="20" max="140" value="60"><div class="actions"><button id="resetStyle" class="secondary">Reset look</button></div><p id="styleMessage" role="status"></p>';
 $('lookPanel').append(styleSection);
 const validShapes=['cat','blob','robot','bunny','dog','bear','frog','turtle'];
 const validExprs=['joyful','wink','shades','star_eyes','sleepy','loving','laser','grin'];
-const validAccs=['none','party_hat','crown','straw_hat','halo','beanie','strawberry','orb','bubble','bow_tie'];
+const validAccs=['none','party_hat','crown','halo','bow_tie','orb'];
+const validExprs=['happy','wink','shades','star_eyes'];
 function nftTraits(tokenId){
- const SHAPES=['cat','blob','robot','bunny','dog','bear','frog','turtle'];
- const COLORS=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675','#8854d0','#2d3436'];
- const EXPRS=['joyful','wink','shades','star_eyes','sleepy','loving','laser','grin'];
- const ACCS=['none','party_hat','crown','straw_hat','halo','beanie','strawberry','orb','bubble','bow_tie'];
+ const SPECIES=['cat','blob','robot','bunny','dog','bear','frog','turtle'];
+ const PALETTES=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#3a2d52','#ffd700'];
+ const EXPRS=['happy','wink','shades','star_eyes'];
+ const ACCS=['none','party_hat','crown','halo','bow_tie','orb'];
  let s=Number(BigInt(Number(tokenId)*104729+7919)%2147483647n);
  function rand(){s=(s*16807)%2147483647;return(s-1)/2147483646;}
+ const species=SPECIES[(Number(tokenId)-1)%8];
+ const palRoll=rand()*100;
+ const color=palRoll<5?PALETTES[7]:palRoll<20?PALETTES[6]:PALETTES[Math.floor(rand()*6)];
+ const expr=EXPRS[Math.floor(rand()*EXPRS.length)];
+ const acc=ACCS[Math.floor(rand()*ACCS.length)];
  return {
-  shape:SHAPES[Math.floor(rand()*SHAPES.length)],
-  color:COLORS[Math.floor(rand()*COLORS.length)],
-  expression:EXPRS[Math.floor(rand()*EXPRS.length)],
-  accessory:ACCS[Math.floor(rand()*ACCS.length)],
+  shape:species,
+  color,
+  expression:expr,
+  accessory:acc,
   tokenId:Number(tokenId)
  };
 }
@@ -50,7 +56,7 @@ for(const id of ['petColor','petSize','petSpeed'])$(id).addEventListener('input'
 for(const id of ['petShape','petExpression','petAccessory'])$(id).addEventListener('change',()=>saveLook(false));
 $('syncNftButton').onclick=()=>{
  const id=parseInt($('nftTokenInput').value,10);
- if(!id||id<1||id>3333){$('styleMessage').textContent='Enter a valid token ID between 1 and 3333.';return;}
+ if(!id||id<1||id>888){$('styleMessage').textContent='Enter a valid token ID between 1 and 888.';return;}
  const t=nftTraits(id);
  $('petColor').value=t.color;$('petShape').value=t.shape;$('petExpression').value=t.expression;$('petAccessory').value=t.accessory;
  saveLook(false);

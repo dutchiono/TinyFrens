@@ -76,6 +76,7 @@
   send,
   on:handler=>{listeners.add(handler);return()=>listeners.delete(handler);},
   pet,
+  identity:()=>identity,
   connected:()=>ws?.readyState===WebSocket.OPEN,
   connect:()=>{if(enabled&&!ws)connect();}
  };

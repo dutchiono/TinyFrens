@@ -61,6 +61,7 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await r.json())['error'],'Pet chat is not connected yet')
     async def test_bankr_requires_configured_api_key(self):
         old=os.environ.pop('BANKR_API_KEY',None)
+        old_partner=os.environ.pop('BANKR_PARTNER_KEY',None)
         try:
             r=await self.client.get('/api/bankr/status',headers={'Origin':ORIGIN})
             self.assertEqual(r.status,200)
@@ -68,8 +69,26 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             r=await self.client.post('/api/bankr/monitor',headers={'Origin':ORIGIN},json={'wallet':'0x1234','question':'how is it','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
             self.assertEqual(r.status,503)
             self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
+            a=await self.register('Walletless')
+            r=await self.client.post('/api/bankr/wallet',headers={'Origin':ORIGIN},json={'token':a['token'],'pet':{'name':'Walletless','shape':'robot','color':'#a474f1'}})
+            self.assertEqual(r.status,503)
+            self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
         finally:
             if old is not None: os.environ['BANKR_API_KEY']=old
+            if old_partner is not None: os.environ['BANKR_PARTNER_KEY']=old_partner
+    async def test_bankr_transform_stores_nft_traits_without_bankr_call(self):
+        a=await self.register('NFT Pet')
+        nft={'name':'TinyFren #42','tokenId':'42','chain':'base','collection':{'name':'TinyFrens','address':'0x1234567890abcdef1234567890abcdef12345678'}}
+        r=await self.client.post('/api/bankr/transform',headers={'Origin':ORIGIN},json={'token':a['token'],'nft':nft})
+        self.assertEqual(r.status,200)
+        data=await r.json()
+        self.assertEqual(data['pet']['name'],'TinyFren #42')
+        self.assertIn(data['pet']['shape'],['cat','blob','robot','bunny','dog','bear','frog','turtle'])
+        self.assertRegex(data['pet']['color'],r'^#[0-9a-f]{6}$')
+        ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});self.sockets.append(ws)
+        await ws.send_json({'type':'auth','token':a['token']})
+        state=await self.event(ws,'state')
+        self.assertEqual(state['self']['pet']['name'],'TinyFren #42')
     async def test_party_rooms_share_live_pet_profiles(self):
         a=await self.register('Party A');b=await self.register('Party B')
         wa=await self.connect(a);wb=await self.connect(b)

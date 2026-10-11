@@ -25,7 +25,8 @@ def create_app(database=None, origins=None):
     db = sqlite3.connect(database or os.environ.get('DB_PATH', 'tinyfrens.db'))
     db.executescript('''CREATE TABLE IF NOT EXISTS pets(id TEXT PRIMARY KEY, code TEXT UNIQUE, token TEXT UNIQUE, profile TEXT);
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
-    CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));''')
+    CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));
+    CREATE TABLE IF NOT EXISTS pet_wallets(pet_id TEXT PRIMARY KEY, provider TEXT, wallet_id TEXT, evm_address TEXT, sol_address TEXT, api_key TEXT, nft TEXT, created INTEGER);''')
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
@@ -38,6 +39,11 @@ def create_app(database=None, origins=None):
     def pet(pid):
         row=db.execute('SELECT code,profile FROM pets WHERE id=?',(pid,)).fetchone()
         return dict(id=pid,code=row[0],pet=json.loads(row[1]),online=pid in sockets)
+    def token_pet(token):
+        if not isinstance(token,str) or len(token)>200: raise ValueError('Device credential not recognized')
+        row=db.execute('SELECT id FROM pets WHERE token=?',(hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
+        if not row: raise ValueError('Device credential not recognized')
+        return row[0]
     def paired(a,b): return db.execute('SELECT 1 FROM friends WHERE a=? AND b=?',(a,b)).fetchone() is not None
     async def send(pid, data):
         ws=sockets.get(pid)
@@ -115,7 +121,85 @@ def create_app(database=None, origins=None):
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
             return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
     async def bankr_status(request):
-        return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY'))})
+        return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY')),'partner':bool(os.environ.get('BANKR_PARTNER_KEY'))})
+    async def bankr_wallet(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('bankr-wallet',ip),20,3600)
+            body=await request.json()
+            pid=token_pet(body.get('token'))
+            if body.get('pet') is not None:
+                p=profile(body.get('pet')); db.execute('UPDATE pets SET profile=? WHERE id=?',(json.dumps(p),pid)); db.commit()
+            row=db.execute('SELECT provider,wallet_id,evm_address,sol_address,api_key FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
+            if row:
+                return web.json_response({'mode':row[0],'walletId':row[1],'evmAddress':row[2],'solAddress':row[3],'partner':row[0]=='bankr-partner'})
+            bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+            partner_key=os.environ.get('BANKR_PARTNER_KEY')
+            timeout=ClientTimeout(total=20)
+            if partner_key:
+                async with ClientSession(timeout=timeout) as session:
+                    payload={'idempotencyKey':'tinyfrens:'+pid,'wallet':{'solana':False},'apiKey':{'permissions':{'agentApiEnabled':True,'llmGatewayEnabled':False,'tokenLaunchApiEnabled':False,'readOnly':False}}}
+                    async with session.post(bankr_base+'/partner/wallets',headers={'Content-Type':'application/json','X-Partner-Key':partner_key},json=payload) as response:
+                        data=await response.json(content_type=None)
+                        if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Bankr could not create a fren wallet'},status=response.status)
+                db.execute('INSERT OR REPLACE INTO pet_wallets VALUES(?,?,?,?,?,?,?,?)',(pid,'bankr-partner',data.get('id',''),data.get('evmAddress',''),data.get('solAddress',''),data.get('apiKey',''),None,int(now())))
+                db.commit()
+                return web.json_response({'mode':'bankr-partner','walletId':data.get('id',''),'evmAddress':data.get('evmAddress',''),'solAddress':data.get('solAddress',''),'partner':True})
+            api_key=os.environ.get('BANKR_API_KEY')
+            if not api_key: return web.json_response({'error':'Bankr is not connected yet'},status=503)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.get(bankr_base+'/wallet/me',headers={'X-API-Key':api_key}) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Bankr wallet is unavailable'},status=response.status)
+            evm=next((w.get('address') for w in data.get('wallets',[]) if w.get('chain')=='evm'),None)
+            sol=next((w.get('address') for w in data.get('wallets',[]) if w.get('chain')=='solana'),None)
+            return web.json_response({'mode':'server-agent','walletId':'server-bankr-wallet','evmAddress':evm or '','solAddress':sol or '','partner':False,'message':'Using the server Bankr wallet until per-fren partner wallets are enabled.'})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
+            return web.json_response({'error':str(e) or 'Bankr wallet is having trouble right now'},status=400)
+    def nft_traits(nft):
+        seed=':'.join(str(nft.get(k,'')) for k in ('chain','tokenId','name'))+':'+str((nft.get('collection') or {}).get('address',''))
+        digest=hashlib.sha256(seed.encode()).digest()
+        shapes=['cat','blob','robot','bunny','dog','bear','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675']
+        exprs=['joyful','wink','shades','star_eyes','sleepy','loving','laser','grin'];accs=['none','party_hat','crown','straw_hat','halo','beanie','strawberry','orb','bubble','bow_tie']
+        return {'shape':shapes[digest[0]%len(shapes)],'color':colors[digest[1]%len(colors)],'expression':exprs[digest[2]%len(exprs)],'accessory':accs[digest[3]%len(accs)]}
+    async def wallet_api_key(pid):
+        row=db.execute('SELECT api_key FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
+        return row[0] if row and row[0] else os.environ.get('BANKR_API_KEY')
+    async def bankr_nfts(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('bankr-nfts',ip),30,3600)
+            body=await request.json(); pid=token_pet(body.get('token')); api_key=await wallet_api_key(pid)
+            if not api_key: return web.json_response({'error':'Bankr is not connected yet'},status=503)
+            bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+            async with ClientSession(timeout=ClientTimeout(total=25)) as session:
+                async with session.get(bankr_base+'/wallet/portfolio?include=nfts',headers={'X-API-Key':api_key}) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Could not read fren NFTs'},status=response.status)
+            return web.json_response({'nfts':data.get('nfts',[])})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
+            return web.json_response({'error':str(e) or 'Could not read fren NFTs'},status=400)
+    async def bankr_transform(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('bankr-transform',ip),30,3600)
+            body=await request.json(); pid=token_pet(body.get('token')); nft=body.get('nft')
+            if not isinstance(nft,dict): raise ValueError('Choose an NFT first')
+            name=re.sub(r'\s+',' ',re.sub(r'[\x00-\x1f\x7f]','',str(nft.get('name') or 'NFT Fren'))).strip()[:20] or 'NFT Fren'
+            current=pet(pid)['pet']; traits=nft_traits(nft)
+            transformed={**current,**traits,'name':name}
+            if nft.get('tokenId') is not None:
+                try: transformed['tokenId']=int(str(nft.get('tokenId')).split('.')[0])
+                except ValueError: pass
+            db.execute('UPDATE pets SET profile=? WHERE id=?',(json.dumps(transformed),pid))
+            if db.execute('SELECT 1 FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone():
+                db.execute('UPDATE pet_wallets SET nft=? WHERE pet_id=?',(json.dumps(nft),pid))
+            else:
+                db.execute('INSERT INTO pet_wallets VALUES(?,?,?,?,?,?,?,?)',(pid,'server-agent','','','',os.environ.get('BANKR_API_KEY',''),json.dumps(nft),int(now())))
+            db.commit()
+            return web.json_response({'pet':transformed,'nft':nft})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Could not transform your fren'},status=400)
     async def bankr_monitor(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
@@ -290,7 +374,7 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 
