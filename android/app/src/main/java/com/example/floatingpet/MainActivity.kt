@@ -21,10 +21,14 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
             settings.allowFileAccessFromFileURLs = false
             settings.allowUniversalAccessFromFileURLs = false
             webViewClient = object: WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean = request.url.scheme != "file"
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                    if (request.url.scheme == "https") startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                    return request.url.scheme != "file"
+                }
             }
             addJavascriptInterface(Bridge(), "PetAndroid")
             loadUrl("file:///android_asset/index.html")
@@ -46,7 +50,10 @@ class MainActivity : Activity() {
                 val repo = getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO).orEmpty()
                 val result = UpdateChecker.check(repo, BuildConfig.VERSION_CODE)
                 runOnUiThread {
-                    latestUpdate = result
+                    if (!result.has("error")) {
+                        if (latestUpdate?.optString("sha256") != result.optString("sha256")) pendingApk = null
+                        latestUpdate = result
+                    }
                     if (!isFinishing && !isDestroyed) web.evaluateJavascript("window.onPetUpdate(${result});", null)
                 }
             }.start()
@@ -56,10 +63,17 @@ class MainActivity : Activity() {
             if (!UpdateChecker.allowedDownload(url, repo)) return
             runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         }
-        @JavascriptInterface fun installUpdate() {
+        @JavascriptInterface fun canAutoDownload(): Boolean {
+            val manager = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+            return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+        }
+        @JavascriptInterface fun prepareUpdate() { downloadUpdate(false) }
+        @JavascriptInterface fun installUpdate() { downloadUpdate(true) }
+        private fun downloadUpdate(install: Boolean) {
             runOnUiThread {
                 val apk = pendingApk
-                if (apk != null && apk.exists()) { requestInstall(apk); return@runOnUiThread }
+                if (apk != null && apk.exists()) { if (install) requestInstall(apk) else updateReady(); return@runOnUiThread }
                 val release = latestUpdate
                 if (release == null || !release.optBoolean("available")) { updateStatus("Check for an update first."); return@runOnUiThread }
                 if (!downloading.compareAndSet(false, true)) return@runOnUiThread
@@ -68,10 +82,17 @@ class MainActivity : Activity() {
                 Thread {
                     try {
                         val file = UpdateInstaller.download(this@MainActivity, release, repo)
-                        runOnUiThread { pendingApk = file; if (!isFinishing && !isDestroyed) requestInstall(file) }
+                        runOnUiThread { pendingApk = file; if (!isFinishing && !isDestroyed) { if (install) requestInstall(file) else updateReady() } }
                     } catch (e: Exception) { runOnUiThread { updateStatus(e.message ?: "Download failed. Retry or use browser download.") } }
                     finally { downloading.set(false) }
                 }.start()
+            }
+        }
+        @JavascriptInterface fun shareVisit(url: String) {
+            val uri = Uri.parse(url)
+            if (uri.scheme != "https" || uri.host != "dutchiono.github.io" || uri.path != "/TinyFrens/web/" || url.length > 2200) return
+            runOnUiThread {
+                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, url) }, "Send a visit invite"))
             }
         }
         @JavascriptInterface fun permissions(): String = org.json.JSONObject()
@@ -108,6 +129,9 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)
+    }
+    private fun updateReady() {
+        if (!isFinishing && !isDestroyed) web.evaluateJavascript("window.onUpdateReady?.()", null)
     }
     private fun updateStatus(message: String) {
         if (!isFinishing && !isDestroyed && ::web.isInitialized)

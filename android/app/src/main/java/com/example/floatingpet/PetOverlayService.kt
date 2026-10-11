@@ -55,7 +55,7 @@ class PetOverlayService:Service(){
    if(v.mode=="roam"&&!v.dragging&&menu==null&&v.mood=="walk"){
     val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,state.optInt("speed",60)*resources.displayMetrics.density,.05f,bx,by)
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
-    if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();store.act("play");lastRead=0}}
+    if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
    };v.invalidate()
   };handler.postDelayed(this,if(screenOn)50 else 1000)
  }}
@@ -88,7 +88,7 @@ class PetOverlayService:Service(){
  }
  private fun openCare(){removeMenu();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
  private fun toggleMenu(){
-  if(menu!=null){removeMenu();removeCaption()}else{store.act("pet");lastRead=0;showMenu();say("Hey, you!")}
+  if(menu!=null){removeMenu();removeCaption()}else{showMenu();say("Hey, you!")}
  }
  private fun refreshMenuTimer(){handler.removeCallbacks(closeMenu);handler.postDelayed(closeMenu,8000)}
  private fun showMenu(){
@@ -96,7 +96,7 @@ class PetOverlayService:Service(){
    orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER
    setPadding(dp(4),dp(4),dp(4),dp(4))
   }
-  val actions=listOf(Triple("🍓","feed","Feed · hold for wave"),Triple("🎾","play","Play · hold for toy"),Triple("☾","rest","Sleep"),Triple("☰","care","Open full app"))
+  val actions=listOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple("☾","rest","Nap"),Triple("☰","care","More"))
   for((icon,action,label)in actions){
    val circle=Button(this).apply{
     text=icon;textSize=21f;gravity=Gravity.CENTER;setTextColor(Color.WHITE)
@@ -112,20 +112,16 @@ class PetOverlayService:Service(){
     setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say(label);refreshMenuTimer()};false}
     setOnClickListener{
      if(action=="care")openCare()
-     else{store.act(action);lastRead=0;refreshMenuTimer();say(when(action){"feed"->"Yum! Thanks."; "play"->"Let's dance!";else->"Nap time…"})}
+     else{val result=store.act(action);lastRead=0;refreshMenuTimer();say(result.optString("feedback","Done!"))}
     }
-    setOnLongClickListener{
-     when(action){
-      "feed"->{store.act("wave");lastRead=0;say("Hi there!")}
-      "play"->{spawnToy();say("Catch the toy!")}
-      "care"->openCare()
-      else->{store.act("rest");lastRead=0;say("Sweet dreams…")}
-     };refreshMenuTimer();true
-    }
+
    }
-   panel.addView(circle,LinearLayout.LayoutParams(dp(48),dp(48)).apply{setMargins(dp(3),0,dp(3),0)})
+   val cell=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
+   cell.addView(circle,LinearLayout.LayoutParams(dp(48),dp(48)))
+   cell.addView(TextView(this).apply{text=label;textSize=11f;setTextColor(Color.WHITE);gravity=Gravity.CENTER;background=GradientDrawable().apply{setColor(Color.argb(220,35,28,54));cornerRadius=dp(6).toFloat()};setPadding(dp(4),dp(2),dp(4),dp(2))},LinearLayout.LayoutParams(dp(54),dp(22)))
+   panel.addView(cell,LinearLayout.LayoutParams(dp(56),dp(70)).apply{setMargins(dp(1),0,dp(1),0)})
   }
-  val p=overlay(dp(224),dp(56));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  val p=overlay(dp(240),dp(78));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
   val screenWidth=(bx+pw).toInt();val screenHeight=(by+ph).toInt()
   p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,(screenWidth-p.width).coerceAtLeast(0))
   menuAbove=y+ph+p.height>screenHeight
@@ -142,7 +138,7 @@ class PetOverlayService:Service(){
   val p=overlay(dp(224),dp(36));p.flags=p.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
   val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
   p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
-  p.y=(y-dp(if(menuAbove)98 else 40)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
+  p.y=(y-dp(if(menuAbove)120 else 40)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
   try{wm.addView(label,p);caption=label;label.alpha=0f;label.animate().alpha(1f).setDuration(160).start();handler.postDelayed(fadeCaption,1800)}catch(_:Exception){}
  }
  private fun removeCaption(){handler.removeCallbacks(fadeCaption);caption?.let{it.animate().cancel();try{wm.removeView(it)}catch(_:Exception){}};caption=null}

@@ -4,8 +4,8 @@
   const panel = document.createElement('section');
   panel.className = 'overlay';
   panel.id = 'video-pet';
-  panel.innerHTML = '<h2>Take your fren along</h2><p>Play an animated pet in a floating video window. Tap Float pet, then switch apps to take your fren with you. Your phone decides whether floating video is available.</p><video id="pipVideo" controls playsinline webkit-playsinline loop preload="auto" aria-label="Animated TinyFrens pet"></video><div class="actions"><button id="floatPet">Float pet</button><button id="stopFloat" class="secondary">Stop video</button></div><p id="pipStatus" role="status">Tap Float pet. If prompted, play the video first, then tap again.</p><p class="pip-note">PiP uses a video window and the closest preset colour. Feed, play and customize back here.</p><details><summary>Install on iPhone</summary><p>Open this page in Safari → Share → Add to Home Screen → Add. No payment or account needed. If floating is unavailable in the installed app, <a id="safariPet" target="_blank" rel="noopener">open the pet in Safari</a> and try there.</p></details>';
-  document.querySelector('footer').before(panel);
+  panel.innerHTML = '<h2>Take your fren along</h2><p>A little video companion for your other apps.</p><video id="pipVideo" controls playsinline webkit-playsinline loop preload="auto" aria-label="Animated TinyFrens pet"></video><div class="actions"><button id="floatPet">Float pet</button><button id="stopFloat" class="secondary">Stop video</button></div><p id="pipStatus" role="status">Tap Float pet. If prompted, play the video first, then tap again.</p><p class="pip-note">PiP uses a video window and the closest preset colour. Feed, play and customize back here.</p><details><summary>Install on iPhone</summary><p>Open this page in Safari → Share → Add to Home Screen → Add. No payment or account needed. If floating is unavailable in the installed app, <a id="safariPet" target="_blank" rel="noopener">open the pet in Safari</a> and try there.</p></details>';
+  $('floatingVideoHost').append(panel);
   const video = document.getElementById('pipVideo');
   const button = document.getElementById('floatPet');
   const status = document.getElementById('pipStatus');
@@ -56,7 +56,7 @@
     video.pause();status.textContent='Video stopped. Your pet’s care data stays saved.';
   };
   // Replace the old nonfunctional web-overlay controls with the working video route.
-  $('platform').textContent='Your phone can float an animated pet video using Picture in Picture. See Take your fren along below.';
-  $('start').textContent='Float pet video';$('start').hidden=false;$('start').onclick=()=>{panel.scrollIntoView({behavior:'smooth',block:'center'});button.click();};
+  $('platform').textContent='Your fren can come along in a floating video.';
+  $('start').textContent='Float pet video';$('start').hidden=false;$('start').onclick=()=>{window.showScreen?.('pet');panel.scrollIntoView({behavior:'smooth',block:'center'});button.click();};
   $('stop').hidden=true;
 })();

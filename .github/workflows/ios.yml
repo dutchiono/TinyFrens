@@ -11,8 +11,17 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp native update metadata
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime
+          from pathlib import Path
+          Path('web/build-info.json').write_text(json.dumps({'revision': os.environ['GITHUB_SHA'], 'builtAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}))
+          PY
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
@@ -30,3 +39,27 @@ jobs:
         with:
           name: tinyfrens-ios-unsigned-archive
           path: ios/build/TinyFrens.xcarchive
+      - name: Package for free-account sideloading
+        run: |
+          mkdir -p ios/build/Payload
+          cp -R ios/build/TinyFrens.xcarchive/Products/Applications/TinyFrens.app ios/build/Payload/
+          cd ios/build
+          zip -qr TinyFrens-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tinyfrens-ios-sideload
+          path: ios/build/TinyFrens-unsigned.ipa
+      - name: Add iPhone build to the matching release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 24); do
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq ".[] | select(.target_commitish == \"$GITHUB_SHA\") | .tag_name" | head -n 1)
+            if [ -n "$tag" ]; then
+              gh release upload "$tag" ios/build/TinyFrens-unsigned.ipa --clobber
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::warning::No matching Android release yet. The iPhone IPA is available in this run’s artifacts.'

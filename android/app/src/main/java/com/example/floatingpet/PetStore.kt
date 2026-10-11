@@ -20,11 +20,17 @@ class PetStore(context:Context) {
    .put("action",prefs.getString("action","idle")).put("actionUntil",prefs.getLong("actionUntil",0))
  }
  fun act(action:String):JSONObject=synchronized(lock){
-  val s=read();val e=prefs.edit()
+  val s=read()
+  val blocked=when{action=="feed"&&s.getInt("hunger")>=100->"Already full.";action=="rest"&&s.getInt("energy")>=100->"Not sleepy yet.";action=="play"&&s.getInt("energy")<12->"A nap first, then play.";action=="play"&&s.getInt("hunger")<8->"A snack first, then play.";else->""}
+  if(blocked.isNotEmpty())return@synchronized s.put("blocked",true).put("feedback",blocked)
+  val e=prefs.edit()
   fun adjust(k:String,n:Int){e.putInt(k,(s.getInt(k)+n).coerceIn(0,100))}
   when(action){"feed"->adjust("hunger",25);"play"->{adjust("happiness",20);adjust("energy",-12);adjust("hunger",-8)};"rest"->adjust("energy",25);"pet"->adjust("happiness",5)}
-  val animation=when(action){"feed"->"eat";"play"->"dance";"rest"->"sleep";"wave"->"wave";"pet"->"happy";else->"idle"}
-  e.putString("action",animation).putLong("actionUntil",System.currentTimeMillis()+if(action=="rest")15000 else 6000).apply();read()
+  val animation=when(action){"feed"->"eat";"play"->"dance";"rest"->"sleep";"wave"->"wave";"dance"->"dance";"pet"->"happy";else->"idle"}
+  e.putString("action",animation).putLong("actionUntil",System.currentTimeMillis()+if(action=="rest")15000 else 6000).apply()
+  val after=read()
+  val feedback=when(action){"feed"->"Snacks +"+(after.getInt("hunger")-s.getInt("hunger"));"rest"->"Energy +"+(after.getInt("energy")-s.getInt("energy"));"play"->"Joy +"+(after.getInt("happiness")-s.getInt("happiness"))+" · Energy −12 · Snacks −8";else->""}
+  after.put("feedback",feedback)
  }
  fun setMode(mode:String):JSONObject=synchronized(lock){if(mode in listOf("roam","bubble"))prefs.edit().putString("mode",mode).apply();read()}
  fun rename(name:String):JSONObject=synchronized(lock){

@@ -37,3 +37,40 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet[data-shape=mascot]>.mascot-sprite{display:block}
 .pet[data-shape=mascot]>.body,.pet[data-shape=mascot]>.ear,.pet[data-shape=mascot]>.foot{display:none}
 #mascotNote{font-size:12px}
+
+/* A small handheld pet, with three clear places to go. */
+:root{color:#252326;background:#f5f1e8;font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif}
+main{max-width:460px;padding:calc(18px + env(safe-area-inset-top)) 22px calc(112px + env(safe-area-inset-bottom))}
+.topbar{display:flex;align-items:center;justify-content:space-between;text-align:left;margin-bottom:26px}
+.wordmark{font-size:20px;font-weight:850;letter-spacing:-1px;color:#252326;text-decoration:none}.wordmark span{font-size:12px;margin-left:4px;color:#9371c4}
+.day-label{font-size:12px;font-weight:700;background:#e9e4d9;padding:7px 10px;border-radius:7px}
+.screen>h1{font-size:30px;letter-spacing:-1px;margin:12px 0 4px}.screen-intro{margin:0 0 26px;color:#716a67;font-size:14px}
+.pet-card{padding:0;margin:0;border:0;border-radius:0;background:none;box-shadow:none}
+.name-row{gap:2px}.pet-name{font-size:32px;letter-spacing:-1px}.name-edit{min-width:44px;min-height:44px;color:#716a67;padding:8px}
+.stage-label{font-size:11px;color:#716a67;text-transform:none;letter-spacing:0;font-weight:500;margin:1px 0 0}
+.pet-stage{height:240px;background:radial-gradient(circle,#ded7cd 1px,transparent 1px);background-size:18px 18px;margin:12px 0}
+.pet{filter:drop-shadow(0 8px 0 #ddd6cb)}#mood{color:#716a67;font-size:13px;margin:0 0 22px;padding:0}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0;background:none;border:0;border-radius:0;margin:0 0 22px}
+.stats>div{margin:0}.stats label{font-size:11px;gap:4px}.stats label b{color:#716a67;font-weight:500}
+progress{height:7px;border:0;background:#e2dcd0;border-radius:3px}progress::-webkit-progress-bar{background:#e2dcd0;border-radius:3px}progress::-webkit-progress-value{background:#9371c4;border-radius:3px}progress::-moz-progress-bar{background:#9371c4;border-radius:3px}
+button{font:inherit;font-size:14px;font-weight:700;min-height:48px;border:1px solid #252326;border-bottom-width:3px;border-radius:10px;background:#cab4ec;color:#252326;padding:12px 14px;touch-action:manipulation}
+button:active{translate:0 2px;transform:none;border-bottom-width:1px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #9371c4;outline-offset:3px}
+button.secondary,.modes button{background:#ebe5da;color:#252326;border-color:#c7beb1}
+.actions{gap:10px}.care-actions{margin:0}.care-actions button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:#e8e0f1}.care-actions button span{font-size:27px;line-height:1.1}.care-actions button:nth-child(2){background:#e1e7cf}.care-actions button:nth-child(3){background:#e7dcca}
+.little-actions{margin:12px 0 24px}.little-actions button{min-height:42px;padding:8px;font-size:12px;border:0;background:none;text-decoration:underline;text-underline-offset:4px}
+.overlay{background:none;border:0;border-top:1px solid #ddd5c8;border-radius:0;padding:22px 0;margin:0}.overlay h2{font-size:16px;margin:0 0 10px;letter-spacing:-.3px}.overlay p{color:#716a67;line-height:1.5;font-size:13px;margin:6px 0 12px}
+.floating-controls p{margin-bottom:10px}.modes button.selected{outline:0;background:#cab4ec;border-color:#252326}
+#lookPanel>.overlay{border-top:0;padding-top:0}label{font-weight:650;margin:16px 0 8px;font-size:13px}label output{font-weight:500;color:#716a67}
+input[type=range]{accent-color:#9371c4;margin:4px 0 14px;min-height:32px}select,input[type=color],#updateRepo,.name-form input{background:#fffcf5;color:#252326;border:1px solid #c7beb1;border-radius:8px;min-height:48px;font-size:16px}
+select{margin:0 0 12px;padding:12px}.name-form{margin-bottom:10px}.name-form button{padding:8px}.name-form input{width:100%;padding:8px}
+input[type=color]{padding:4px;margin:0 0 12px}input:disabled{opacity:.5}
+details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{min-height:28px;line-height:28px;font-weight:650}details a,.overlay>a{color:#5d3a8e}.overlay>a{display:inline-block;margin-top:20px;font-size:13px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 0;margin:0;font-weight:500}.toggle input{accent-color:#9371c4;width:22px;height:22px;flex:none}.small{font-size:12px!important}
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,460px);display:flex;padding:12px 16px calc(12px + env(safe-area-inset-bottom));gap:8px;background:#f5f1e8;border-top:1px solid #ddd5c8;z-index:10}
+.tabbar button{flex:1;border:0;border-radius:8px;background:none;color:#716a67;font-size:11px;display:flex;align-items:center;flex-direction:column;gap:3px;min-height:50px;padding:7px}
+.tabbar button span{font-size:24px;line-height:1}.tabbar button[aria-selected=true]{background:#e8e0f1;color:#5d3a8e}
+.update-banner{padding:16px;background:#e1e7cf;border:1px solid #b8c498;border-radius:10px;margin-bottom:22px}.update-banner strong{font-size:14px}.update-banner p{font-size:12px;line-height:1.4;margin:5px 0 0}.update-banner .actions{margin:12px 0 0}.update-banner button{min-height:40px;font-size:12px;padding:8px}
+#pipVideo{border-radius:8px;max-height:240px}#video-pet .pip-note{font-size:11px!important}.pet[data-action=sleep]::after,.pet[data-action=wave]::after{color:#5d3a8e}
+@media(max-width:350px){main{padding-left:16px;padding-right:16px}.pet-stage{height:200px}.stats{gap:8px}}
+
+.look-preview{height:230px;display:grid;place-items:center;background:#eee6f3;border-radius:12px;margin:18px 0 24px}.guest-stage{height:140px;display:grid;place-items:center}.guest-stage .pet{scale:.75;animation:wave 2s infinite}.visit-box{background:#e5e9d7;border-radius:12px;padding:16px;margin-top:22px}.visit-box h2{font-size:16px}.visit-box p{font-size:12px;color:#716a67;line-height:1.5}.visit-box input{width:100%;font-size:12px;padding:10px;margin-top:10px}#visitInvite{background:#e8e0f1}.visit-box button{font-size:12px}

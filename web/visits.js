@@ -1,0 +1,47 @@
+'use strict';
+(()=>{
+ const box=document.createElement('section');box.className='visit-box';box.innerHTML='<h2>Friends can visit</h2><p>Send a little hello to someone you know. They choose whether to let your fren visit.</p><button id="shareVisit">Send a visit invite</button><input id="visitLink" readonly aria-label="Visit invite link" hidden><p id="visitStatus" role="status"></p><p class="small">Invites share your pet’s name and look for 30 minutes. Your pet stays here. Bluetooth discovery is not included yet.</p>';
+ $('screen-pet').append(box);
+ function decode(value){
+  if(!value||value.length>1600)throw new Error('Invalid invite');
+  const bytes=Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+  const data=JSON.parse(new TextDecoder().decode(bytes));
+  if(data.v!==1||!['cat','blob','robot','mascot'].includes(data.shape)||!/^#[0-9a-f]{6}$/i.test(data.color)||!Number.isFinite(data.expires)||data.expires<Date.now()||data.expires>Date.now()+31*60*1000)throw new Error('Expired invite');
+  return {name:cleanName(data.name)||'A fren',shape:data.shape,color:data.color,expires:data.expires,v:1};
+ }
+ function guest(data){
+  $('guestVisit')?.remove();
+  const card=document.createElement('section');card.id='guestVisit';card.className='visit-box';
+  const title=document.createElement('h2');title.textContent=data.name+' is visiting!';
+  const stage=document.createElement('div');stage.className='guest-stage';
+  const sprite=$('pet').cloneNode(true);sprite.removeAttribute('id');sprite.dataset.shape=data.shape;sprite.dataset.action='wave';sprite.style.setProperty('--pet-color',data.color);sprite.style.setProperty('--pet-scale','1');stage.append(sprite);
+  const note=document.createElement('p');note.textContent='A little hello from a friend. Your own pet and save stay here.';
+  const leave=document.createElement('button');leave.className='secondary';leave.textContent='Say goodbye';leave.onclick=()=>{card.remove();try{sessionStorage.removeItem('tinyfrens-guest');}catch{}};
+  card.append(title,stage,note,leave);box.before(card);
+  try{sessionStorage.setItem('tinyfrens-guest',JSON.stringify(data));}catch{}
+  setTimeout(()=>{if(card.isConnected)leave.click();},Math.max(0,data.expires-Date.now()));
+ }
+ const incoming=new URLSearchParams(location.search).get('guest');
+ if(incoming){
+  try{
+   const data=decode(incoming);const invite=document.createElement('section');invite.id='visitInvite';invite.className='visit-box';
+   const title=document.createElement('h2');title.textContent=data.name+' wants to visit';
+   const yes=document.createElement('button');yes.textContent='Let them visit';yes.onclick=()=>{invite.remove();guest(data);};
+   const no=document.createElement('button');no.textContent='Not now';no.className='secondary';no.onclick=()=>invite.remove();
+   const actions=document.createElement('div');actions.className='actions';actions.append(yes,no);invite.append(title,actions);$('screen-pet').prepend(invite);
+  }catch{$('visitStatus').textContent='This invite has expired or doesn’t look right. Ask for a new one.';}
+ }else{
+  try{const saved=sessionStorage.getItem('tinyfrens-guest');if(saved){const data=JSON.parse(saved);if(data.expires>Date.now())guest(data);else sessionStorage.removeItem('tinyfrens-guest');}}catch{}
+ }
+ $('shareVisit').onclick=async()=>{
+  const s=read(),data={v:1,name:cleanName(s.name),shape:['cat','blob','robot','mascot'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expires:Date.now()+30*60*1000};
+  const encoded=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const url='https://dutchiono.github.io/TinyFrens/web/?guest='+encoded;
+  try{
+   if(native&&typeof PetAndroid.shareVisit==='function'){PetAndroid.shareVisit(url);return;}
+   if(window.PetIOS){window.webkit.messageHandlers.petUpdates.postMessage({type:'share',url});return;}
+   if(navigator.share){await navigator.share({title:'A TinyFrens visit',text:data.name+' wants to say hello!',url});return;}
+   await navigator.clipboard.writeText(url);$('visitStatus').textContent='Invite copied. Send it to your friend.';
+  }catch(e){if(e.name==='AbortError')return;$('visitLink').hidden=false;$('visitLink').value=url;$('visitLink').focus();$('visitLink').select();$('visitStatus').textContent='Copy this link and send it to your friend.';}
+ };
+})();

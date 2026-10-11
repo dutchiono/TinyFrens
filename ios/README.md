@@ -19,3 +19,9 @@ Use the hosted pet at https://dutchiono.github.io/TinyFrens/web/ after GitHub Pa
 ## Picture in Picture
 
 The shell enables WKWebView inline/PiP video playback and the playback audio session. Bundled pet MP4 loops can be played through the web interface using Float pet or the video player controls. PiP is controlled by iOS and requires an actual iPhone test. This does not add a transparent cross-app pet or bypass native signing. The free Safari/home-screen web app uses the same PiP interface.
+
+## Free-account sideloading and updates
+
+Download TinyFrens-unsigned.ipa from the latest GitHub release (or the tinyfrens-ios-sideload workflow artifact). AltStore Classic on a Windows PC/Mac can sign it with your own free account and install it on your phone. Free provisioning expires after seven days and needs refresh. This file is unsigned; tapping it in Safari does not install it.
+
+The app checks for newer iPhone release builds on launch/return and every 15 minutes while active, and displays an update banner. The Update help button leads here. Install a newer IPA through your existing signing/AltStore setup; the app cannot silently replace its native executable. The CI-stamped web/build-info.json identifies the installed source revision and build date. Native widgets use an additional app ID when signed.

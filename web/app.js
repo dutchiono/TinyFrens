@@ -29,11 +29,16 @@ function rename(n){
 function ensureName(s){return s.name?s:rename(randomName(s.shape));}
 function action(name){
   if(native)return JSON.parse(PetAndroid.action(name));
-  const s=localRead(), add=(k,n)=>s[k]=Math.max(0,Math.min(100,s[k]+n));
+  const s=localRead();
+  const blocked=name==='feed'&&s.hunger>=100?'Already full.':name==='rest'&&s.energy>=100?'Not sleepy yet.':name==='play'&&s.energy<12?'A nap first, then play.':name==='play'&&s.hunger<8?'A snack first, then play.':'';
+  if(blocked)return {...s,blocked:true,feedback:blocked};
+  const before={...s}, add=(k,n)=>s[k]=Math.max(0,Math.min(100,s[k]+n));
   if(name==='feed')add('hunger',25);
   if(name==='play'){add('happiness',20);add('energy',-12);add('hunger',-8);}
   if(name==='rest')add('energy',25);
-  localStorage.setItem(key,JSON.stringify(s));return s;
+  localStorage.setItem(key,JSON.stringify(s));
+  const feedback=name==='feed'?'Snacks +'+(s.hunger-before.hunger):name==='rest'?'Energy +'+(s.energy-before.energy):name==='play'?'Joy +'+(s.happiness-before.happiness)+' · Energy −12 · Snacks −8':'';
+  return {...s,feedback};
 }
 function render(s){
   const stage=Math.min(2,Math.max(0,Math.floor((Date.now()-s.born)/86400000)));
@@ -42,11 +47,11 @@ function render(s){
   for(const k of ['hunger','happiness','energy']){$(k).value=s[k];$(k+'Text').textContent=s[k];}
   const who=s.name||'Your fren';
   $('petName').textContent=who;
-  $('mood').textContent=who+(s.hunger<25?' is hungry.':s.energy<25?' needs a nap.':s.happiness<25?' wants to play.':' is curious.');
-  $('age').textContent=`Age: ${Math.floor((Date.now()-s.born)/86400000)} days`;
+  $('mood').textContent=s.feedback||who+(s.hunger<25?' is hungry.':s.energy<25?' needs a nap.':s.happiness<25?' wants to play.':' is curious.');
+  $('age').textContent=`Day ${Math.floor((Date.now()-s.born)/86400000)}`;
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
-for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>render(action(a)));
+for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked)window.animatePet?.({feed:'eat',play:'dance',rest:'sleep'}[a]);});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
   let s;if(native)s=JSON.parse(PetAndroid.setMode(b.dataset.mode));
   else{s=localRead();s.mode=b.dataset.mode;localStorage.setItem(key,JSON.stringify(s));}
@@ -54,10 +59,10 @@ for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('clic
 });
 $('start').onclick=()=>{
   if(!native){$('message').textContent='Floating over other apps requires the Android APK. The PWA pet works inside your browser.';return;}
-  $('message').textContent=PetAndroid.startPet()?'Pet enabled! Switch to another app.':'Allow “Display over other apps” in Android Settings, then tap Show pet again.';
+  $('message').textContent=PetAndroid.startPet()?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show pet again.';
 };
 $('stop').onclick=()=>{if(native){PetAndroid.stopPet();$('message').textContent='Pet hidden.';}else $('message').textContent='The browser pet is already contained in this page.';};
-$('platform').textContent=native?'Tap Show pet and grant Android overlay permission. Drag the pet; tap it to open this screen.':'PWA mode: play here or install to your home screen. Android APK is required to float over other apps.';
+$('platform').textContent=native?'Let your fren wander while you use other apps.':'Try the floating video below.';
 function editName(open){
   $('nameRow').hidden=open;$('nameForm').hidden=!open;
   if(open){$('nameInput').value=read().name||'';$('nameInput').focus();$('nameInput').select();}
@@ -68,39 +73,3 @@ $('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').v
 $('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
 window.onAndroidResume=()=>render(read());
 render(ensureName(read()));
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
-
-let updateUrl = '';
-window.onPetUpdate = result => {
-  $('checkUpdate').disabled = false;
-  $('downloadUpdate').hidden = true;
-  updateUrl = '';
-  if (result.error) { $('updateStatus').textContent = result.error; return; }
-  $('updateStatus').textContent = result.available
-    ? `Version ${result.versionName} is available. Download the APK, open it, and approve the update.`
-    : 'Your pet is up to date.';
-  if (result.available) { updateUrl = result.url; $('downloadUpdate').hidden = false; }
-};
-function checkPetUpdate() {
-  const repo = $('updateRepo').value.trim();
-  if (!PetAndroid.saveUpdateRepo(repo)) { $('updateStatus').textContent = 'Enter owner/repo.'; return; }
-  $('checkUpdate').disabled = true;
-  $('updateStatus').textContent = 'Checking GitHub…';
-  PetAndroid.checkUpdate();
-}
-if (native) {
-  $('updates').hidden = false;
-  const info = JSON.parse(PetAndroid.updateInfo());
-  $('updateRepo').value = info.repo;
-  $('checkUpdate').onclick = checkPetUpdate;
-  $('downloadUpdate').onclick = () => { if(updateUrl) PetAndroid.openUpdate(updateUrl); };
-  $('updateStatus').textContent = `Installed: ${info.versionName}`;
-  if (info.repo) checkPetUpdate();
-}
-
-if (window.PetIOS) {
-  $('platform').textContent = 'iPhone / iPad: your familiar lives inside this app. iOS does not support the Android floating overlay.';
-  $('start').hidden = true;
-  $('stop').hidden = true;
-  document.querySelector('.modes').hidden = true;
-}
