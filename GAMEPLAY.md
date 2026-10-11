@@ -27,3 +27,5 @@ The optional relay in `server/` provides permanent eight-character codes, accept
 ## Appearance
 
 Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately.
+
+Show/Hide is one state-aware toggle. The Android bubble menu also exposes a top-right × to hide the pet without opening the app; neither action changes care stats.

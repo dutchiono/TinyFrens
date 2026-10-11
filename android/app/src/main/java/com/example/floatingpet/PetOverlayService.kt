@@ -14,7 +14,7 @@ import kotlin.random.Random
 class PetOverlayService:Service(){
  companion object{@Volatile var running=false;const val ACTION_HIDE="com.example.floatingpet.HIDE"}
  private lateinit var wm:WindowManager
- private var caption:TextView?=null;private var menuAbove=false
+ private var closeButton:View?=null;private var caption:TextView?=null;private var menuAbove=false
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var toy:View?=null
  private val handler=Handler(Looper.getMainLooper());private val store by lazy{PetStore(this)}
  private val position by lazy{getSharedPreferences("overlay_position",MODE_PRIVATE)}
@@ -84,6 +84,7 @@ class PetOverlayService:Service(){
   v.onDragEnd={savePosition();nextDecision=0}
   v.onTap={toggleMenu()}
   v.onHold={toggleMenu()}
+  v.setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER&&menu==null){showMenu();say("Hey, you!")};false}
   try{wm.addView(v,p);style();chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
  }
  private fun openCare(){removeMenu();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
@@ -126,8 +127,23 @@ class PetOverlayService:Service(){
   p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,(screenWidth-p.width).coerceAtLeast(0))
   menuAbove=y+ph+p.height>screenHeight
   p.y=(if(menuAbove)y-p.height else y+ph-dp(6)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
-  try{wm.addView(panel,p);menu=panel;refreshMenuTimer()}catch(_:Exception){}
+  try{wm.addView(panel,p);menu=panel;showCloseButton();refreshMenuTimer()}catch(_:Exception){}
  }
+ private fun showCloseButton(){
+  removeCloseButton()
+  val button=Button(this).apply{
+   text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide pet"
+   setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
+   background=GradientDrawable().apply{shape=GradientDrawable.OVAL;setColor(Color.rgb(65,51,87));setStroke(dp(1),Color.rgb(183,153,235))}
+   setOnClickListener{stopSelf()}
+   setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say("Hide pet");refreshMenuTimer()};false}
+  }
+  val p=overlay(dp(48),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  p.x=(x+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
+  p.y=(y-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
+  try{wm.addView(button,p);closeButton=button}catch(_:Exception){}
+ }
+ private fun removeCloseButton(){closeButton?.let{try{wm.removeView(it)}catch(_:Exception){}};closeButton=null}
  private fun say(text:String){
   removeCaption()
   val label=TextView(this).apply{
@@ -142,7 +158,7 @@ class PetOverlayService:Service(){
   try{wm.addView(label,p);caption=label;label.alpha=0f;label.animate().alpha(1f).setDuration(160).start();handler.postDelayed(fadeCaption,1800)}catch(_:Exception){}
  }
  private fun removeCaption(){handler.removeCallbacks(fadeCaption);caption?.let{it.animate().cancel();try{wm.removeView(it)}catch(_:Exception){}};caption=null}
- private fun removeMenu(){handler.removeCallbacks(closeMenu);menu?.let{try{wm.removeView(it)}catch(_:Exception){}};menu=null;menuAbove=false;removeCaption()}
+ private fun removeMenu(){removeCloseButton();handler.removeCallbacks(closeMenu);menu?.let{try{wm.removeView(it)}catch(_:Exception){}};menu=null;menuAbove=false;removeCaption()}
  private fun removeToy(){toy?.let{try{wm.removeView(it)}catch(_:Exception){}};toy=null}
  private fun spawnToy(){
   removeToy();store.setMode("roam");lastRead=0;val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by
@@ -155,3 +171,4 @@ class PetOverlayService:Service(){
  override fun onDestroy(){running=false;handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeToy();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
  override fun onBind(i:Intent?):IBinder?=null
 }
+

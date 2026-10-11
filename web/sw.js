@@ -1,4 +1,4 @@
-const CACHE='pocket-familiar-v16';
+const CACHE='pocket-familiar-v17';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
 const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'}))))));

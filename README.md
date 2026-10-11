@@ -94,3 +94,5 @@ Visit invites create a temporary, accepted guest on the receiver's web pet page.
 The optional [friends relay](server/README.md) includes Docker/Caddy HTTPS setup, persistent friend codes, friend acceptance, online status, live visit requests, synchronized looks and cosmetic guest actions. Set the server address in app Settings after deploying; the app works without it. Nearby radio discovery is not included. Appearance choices now apply and save immediately.
 
 The PFP robot has been removed. Existing pets using it switch to Simple robot without losing their name, look settings or care stats.
+
+Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet for its bubbles; the top-right × hides the whole floating pet. [Screen effects and objects](ROADMAP.md) are planned, not yet enabled.

@@ -58,11 +58,17 @@ for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('clic
   else{s=localRead();s.mode=b.dataset.mode;localStorage.setItem(key,JSON.stringify(s));}
   render(s);
 });
+function refreshFloatingButton(){
+ if(!native)return;
+ const visible=PetAndroid.isPetVisible();$('start').textContent=visible?'Hide pet':'Show pet';$('start').setAttribute('aria-pressed',String(visible));
+}
 $('start').onclick=()=>{
-  if(!native){$('message').textContent='Floating over other apps requires the Android APK. The PWA pet works inside your browser.';return;}
-  $('message').textContent=PetAndroid.startPet()?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show pet again.';
+ if(!native)return;
+ if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Pet hidden.';$('start').textContent='Show pet';}
+ else{const started=PetAndroid.startPet();$('message').textContent=started?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show pet again.';if(started)$('start').textContent='Hide pet';}
+ $('start').disabled=true;setTimeout(()=>{$('start').disabled=false;refreshFloatingButton();},500);
 };
-$('stop').onclick=()=>{if(native){PetAndroid.stopPet();$('message').textContent='Pet hidden.';}else $('message').textContent='The browser pet is already contained in this page.';};
+if(native){refreshFloatingButton();setInterval(()=>{if(!document.hidden)refreshFloatingButton();},1000);}
 $('platform').textContent=native?'Let your fren wander while you use other apps.':'Try the floating video below.';
 function editName(open){
   $('nameRow').hidden=open;$('nameForm').hidden=!open;
@@ -72,6 +78,6 @@ $('editName').onclick=()=>editName(true);
 $('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
 $('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n){render(rename(n));window.dispatchEvent(new Event('pet-profile-changed'));}editName(false);};
 $('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
-window.onAndroidResume=()=>render(read());
+window.onAndroidResume=()=>{render(read());refreshFloatingButton();};
 render(ensureName(read()));
 

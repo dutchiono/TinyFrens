@@ -127,6 +127,7 @@ class MainActivity : Activity() {
             runOnUiThread { sendService("start") }
             return true
         }
+        @JavascriptInterface fun isPetVisible(): Boolean = PetOverlayService.running
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)
     }
@@ -171,3 +172,4 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 }
+

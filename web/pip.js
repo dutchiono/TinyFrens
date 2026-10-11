@@ -4,7 +4,7 @@
   const panel = document.createElement('section');
   panel.className = 'overlay';
   panel.id = 'video-pet';
-  panel.innerHTML = '<h2>Take your fren along</h2><p>A little video companion for your other apps.</p><video id="pipVideo" controls playsinline webkit-playsinline loop preload="auto" aria-label="Animated TinyFrens pet"></video><div class="actions"><button id="floatPet">Float pet</button><button id="stopFloat" class="secondary">Stop video</button></div><p id="pipStatus" role="status">Tap Float pet. If prompted, play the video first, then tap again.</p><p class="pip-note">PiP uses a video window and the closest preset colour. Feed, play and customize back here.</p><details><summary>Install on iPhone</summary><p>Open this page in Safari → Share → Add to Home Screen → Add. No payment or account needed. If floating is unavailable in the installed app, <a id="safariPet" target="_blank" rel="noopener">open the pet in Safari</a> and try there.</p></details>';
+  panel.innerHTML = '<h2>Take your fren along</h2><p>A little video companion for your other apps.</p><video id="pipVideo" controls playsinline webkit-playsinline loop preload="auto" aria-label="Animated TinyFrens pet"></video><div class="actions"><button id="floatPet">Float pet</button></div><p id="pipStatus" role="status">Tap Float pet. If prompted, play the video first, then tap again.</p><p class="pip-note">PiP uses a video window and the closest preset colour. Feed, play and customize back here.</p><details><summary>Install on iPhone</summary><p>Open this page in Safari → Share → Add to Home Screen → Add. No payment or account needed. If floating is unavailable in the installed app, <a id="safariPet" target="_blank" rel="noopener">open the pet in Safari</a> and try there.</p></details>';
   $('floatingVideoHost').append(panel);
   const video = document.getElementById('pipVideo');
   const button = document.getElementById('floatPet');
@@ -36,7 +36,12 @@
     }
     status.textContent='Floating video is unavailable here. Try Safari on iPhone, or use the video’s controls. Your pet still works in this page.';
   }
+  const isFloating=()=>video.webkitPresentationMode==='picture-in-picture'||document.pictureInPictureElement===video;
+  function refreshFloatButton(){button.textContent=isFloating()?'Hide pet':'Float pet';$('start').textContent=isFloating()?'Hide pet video':'Float pet video';}
+  function stopFloating(){if(video.webkitPresentationMode==='picture-in-picture')video.webkitSetPresentationMode('inline');else if(document.pictureInPictureElement===video)document.exitPictureInPicture().catch(()=>{});video.pause();status.textContent='Pet video hidden. Your pet stays saved.';refreshFloatButton();}
+  for(const event of ['enterpictureinpicture','leavepictureinpicture','webkitpresentationmodechanged'])video.addEventListener(event,refreshFloatButton);
   button.onclick = () => {
+    if(isFloating()){stopFloating();return;}
     // Keep PiP invocation within this tap; do not await network work and lose user activation.
     video.muted=false;
     const playback=video.play();
@@ -50,14 +55,9 @@
     }
     fallback();
   };
-  document.getElementById('stopFloat').onclick=()=>{
-    if(video.webkitPresentationMode==='picture-in-picture')video.webkitSetPresentationMode('inline');
-    else if(document.pictureInPictureElement===video)document.exitPictureInPicture().catch(()=>{});
-    video.pause();status.textContent='Video stopped. Your pet’s care data stays saved.';
-  };
   // Replace the old nonfunctional web-overlay controls with the working video route.
   $('platform').textContent='Your fren can come along in a floating video.';
   $('start').textContent='Float pet video';$('start').hidden=false;$('start').onclick=()=>{window.showScreen?.('pet');panel.scrollIntoView({behavior:'smooth',block:'center'});button.click();};
-  $('stop').hidden=true;
+
 })();
 
