@@ -3,6 +3,8 @@
 /* Visible evolution stages: color changes alongside the native sprite. */
 .pet[data-stage="1"] .body,.pet[data-stage="1"] .ear { background:#66c7d2; }
 .pet[data-stage="2"] .body,.pet[data-stage="2"] .ear { background:#ffb95e; }
+.name-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:.2rem}.pet-name{font-size:24px;margin:0;overflow-wrap:anywhere}.name-edit{background:transparent;color:#c8b1fa;padding:4px 8px;font-size:16px}
+.name-form{display:flex;gap:6px;max-width:320px;margin:0 auto .5rem}.name-form input{flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid #63517c;background:#17142a;color:#f7f1ff;font-size:16px}.name-form button{padding:10px 12px}
 .stage-label {font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.75rem;color:#c8b1fa;margin-bottom:.35rem}
 
 [hidden]{display:none!important}#updateRepo{box-sizing:border-box;width:100%;padding:12px;margin:12px 0;border-radius:10px;border:1px solid #777;background:#17142a;color:white}button:disabled{opacity:.5}

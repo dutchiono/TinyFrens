@@ -85,6 +85,7 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun toy() { runOnUiThread { sendService("toy") } }
         @JavascriptInterface fun getState(): String = store.read().toString()
+        @JavascriptInterface fun rename(name: String): String = store.rename(name).toString()
         @JavascriptInterface fun action(name: String): String {
             val state = store.act(name)
             runOnUiThread { sendService("refresh") }

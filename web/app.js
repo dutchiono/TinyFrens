@@ -10,6 +10,22 @@ function localRead(){
   s.energy=Math.max(0,s.energy-hours);s.last=hours>0?(s.last||now)+hours*3600000:(s.last||now);localStorage.setItem(key,JSON.stringify(s));return s;
 }
 function read(){return native?JSON.parse(PetAndroid.getState()):localRead();}
+const NAMES={
+  cat:['Mochi','Whiskers','Biscuit','Pudding','Miso','Noodle','Tofu','Pebble','Marshmallow','Sprinkles','Mittens','Purrcy','Tiramisu','Butterscotch','Clementine','Nugget'],
+  blob:['Gloop','Jellybean','Bubbles','Squish','Wobble','Gumdrop','Puddle','Dumpling','Boba','Blorp','Jiggles','Plum','Goober','Squidge','Gelato','Bloop'],
+  robot:['Bolt','Widget','Sprocket','Beep','Gizmo','Pixel','Chip','Rivet','Zippy','Bleep','Cogsworth','Byte','Servo','Tinker','Boop-3','Sparky']
+};
+function cleanName(n){return [...String(n||'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim()].slice(0,20).join('');}
+function randomName(shape,avoid){
+  const bank=(NAMES[shape]||NAMES.cat).filter(n=>n!==avoid);
+  return bank[Math.floor(Math.random()*bank.length)];
+}
+function rename(n){
+  const name=cleanName(n);
+  if(native)return JSON.parse(PetAndroid.rename(name));
+  const s=localRead();if(name)s.name=name;localStorage.setItem(key,JSON.stringify(s));return s;
+}
+function ensureName(s){return s.name?s:rename(randomName(s.shape));}
 function action(name){
   if(native)return JSON.parse(PetAndroid.action(name));
   const s=localRead(), add=(k,n)=>s[k]=Math.max(0,Math.min(100,s[k]+n));
@@ -23,7 +39,9 @@ function render(s){
   $('pet').dataset.stage=String(stage);
   $('stageText').textContent=['Hatchling','Sprout','Elder'][stage];
   for(const k of ['hunger','happiness','energy']){$(k).value=s[k];$(k+'Text').textContent=s[k];}
-  $('mood').textContent=s.hunger<25?'Your familiar is hungry.':s.energy<25?'Your familiar needs a nap.':s.happiness<25?'Your familiar wants to play.':'Your familiar is curious.';
+  const who=s.name||'Your fren';
+  $('petName').textContent=who;
+  $('mood').textContent=who+(s.hunger<25?' is hungry.':s.energy<25?' needs a nap.':s.happiness<25?' wants to play.':' is curious.');
   $('age').textContent=`Age: ${Math.floor((Date.now()-s.born)/86400000)} days`;
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
@@ -39,8 +57,16 @@ $('start').onclick=()=>{
 };
 $('stop').onclick=()=>{if(native){PetAndroid.stopPet();$('message').textContent='Pet hidden.';}else $('message').textContent='The browser pet is already contained in this page.';};
 $('platform').textContent=native?'Tap Show pet and grant Android overlay permission. Drag the pet; tap it to open this screen.':'PWA mode: play here or install to your home screen. Android APK is required to float over other apps.';
+function editName(open){
+  $('nameRow').hidden=open;$('nameForm').hidden=!open;
+  if(open){$('nameInput').value=read().name||'';$('nameInput').focus();$('nameInput').select();}
+}
+$('editName').onclick=()=>editName(true);
+$('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
+$('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n)render(rename(n));editName(false);};
+$('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
 window.onAndroidResume=()=>render(read());
-render(read());
+render(ensureName(read()));
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 let updateUrl = '';
