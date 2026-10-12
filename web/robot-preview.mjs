@@ -27,7 +27,7 @@ function add(group, label, overrides) {
 function draw() {
   for (const { image, traits } of cards) {
     let svg = renderNftArt(traits);
-    if (paused) svg = svg.replace("</style>", ".body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow{animation:none}</style>");
+    if (paused) svg = svg.replace("</style>", ".body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow,.camera,.parallax,.light,.sheen{animation:none}</style>");
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }
   const button = document.getElementById("motion");

@@ -6,6 +6,11 @@ import {LibString} from "solady/utils/LibString.sol";
 contract TinyFrensSprite {
     using LibString for uint256;
 
+    // Fixed CSS lives beside sprite data to leave room for packed scene artwork.
+    function sceneryStyle() external pure returns (string memory) {
+        return '.camera{transform-origin:64px 96px;animation:depth 20s steps(4) infinite alternate}.parallax{animation:parallax 20s steps(4) infinite alternate}.light{animation:lighting 8s steps(4) infinite alternate}.sheen{animation:shade 8s steps(4) infinite alternate}.drift{animation:breeze 12s steps(10) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes depth{from{transform:scale(1)}to{transform:scale(1.025)}}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}';
+    }
+
     function _box(uint256 x, uint256 y, uint256 width, uint256 height, string memory color)
         internal pure returns (string memory)
     {
@@ -56,7 +61,7 @@ contract TinyFrensSprite {
         return string.concat(
             '<g class="body">',
             _box(17, 18, 30, 24, ink), _box(19, 20, 26, 20, body),
-            _box(20, 20, 23, 1, "#d5e5eb"), _box(19, 21, 1, 16, "#b9c6e4"),
+            '<g class="sheen">', _box(20, 20, 23, 1, "#d5e5eb"), _box(19, 21, 1, 16, "#b9c6e4"), '</g>',
             _box(43, 22, 2, 18, ink), _box(21, 21, 1, 1, ink), _box(42, 21, 1, 1, ink),
             _box(16, 24, 3, 8, "#6bdce3"), _box(45, 24, 3, 8, "#6bdce3"),
             _box(22, 23, 20, 12, "#192a41"), _eyes(expression, 26, 36, 27, "#79e3e3"),
