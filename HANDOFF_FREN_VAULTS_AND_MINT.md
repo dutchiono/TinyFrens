@@ -84,6 +84,8 @@ This release resolves the wallet security and onboarding bottlenecks for mobile 
 | [`web/app.js`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/web/app.js) | **Modified** | Added startup listener for `#restore=<code>` to execute seamless magic link pet restoration. |
 | [`web/friends.js`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/web/friends.js) | **Modified** | Added `setIdentity(newId)` to `window.TinyFrensFriends` to cleanly re-authenticate WebSockets upon restoration. |
 | [`web/style.css`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/web/style.css) | **Modified** | Added CSS rules for `.fren-vault-card`, `.mint-fren-card`, `.magic-link-box`, and inputs. |
+| [`contracts/TinyFrensNFT.sol`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/contracts/TinyFrensNFT.sol) | **Modified** | Extracted SVG vector rendering to `TinyFrensArt` to comply with EIP-170 (reduced runtime size from 34,072 B to 13,961 B). |
+| [`contracts/TinyFrensArt.sol`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/contracts/TinyFrensArt.sol) | **Added** | Standalone on-chain SVG renderer contract (22,321 B, within EIP-170 limit). |
 | [`server/indexer.py`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/server/indexer.py) | **Modified** | Fixed `IndexerError` inheritance (`ValueError`) for deposit topic decoding. |
 | [`server/requirements.txt`](file:///c:/Users/epj33/Documents/Playground/TinyFrens/server/requirements.txt) | **Modified** | Added `eth-account` dependency. |
 
@@ -94,16 +96,17 @@ This release resolves the wallet security and onboarding bottlenecks for mobile 
 ### Local Test Suites
 ```bash
 # Server & Wallet Test Suite
-python -m unittest discover -s server -p test_app.py
-# Result: 31/31 OK (Ran in 2.08s)
+python -m unittest discover -s server -p "test_*.py"
+# Result: 73/73 OK (Ran in 202.13s across all test suites including Anvil testnet deployment)
 
-# Economy Ledger Test Suite
-python -m unittest discover -s server -p test_economy.py
-# Result: 33/33 OK (Ran in 0.85s)
+# Solidity Contracts Test Suite
+forge test
+# Result: 75/75 PASS (DepositRouter, TinyFrensNFT, Treasury, TestFRENS, JackpotVault)
 
-# Deposit Router Allocator Test Suite
-python -m unittest discover -s server -p test_deposit_allocator.py
-# Result: 3/3 OK (Ran in 32.49s against Foundry anvil/forge)
+# Contract Bytecode Size Check
+forge build --sizes
+# Result: TinyFrensArt (22,321 B, margin +2,255 B), TinyFrensNFT (13,961 B, margin +10,615 B)
+# All contracts fully compliant with EIP-170 (max 24,576 B)
 ```
 
 ### Live Production Server Verification (`miono`)
