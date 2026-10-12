@@ -4,13 +4,21 @@
   target.innerHTML = `
     <section class="overlay wallet-link-panel" style="margin-top:0;">
       <h3>Connect your wallet</h3>
-      <p class="small">Sign one plain-text message to link an external Web3 address to this fren. No gas, approvals, transfers, seed phrases, or spending permissions. Your external NFTs stay in your wallet.</p>
+      <p class="small">Use your wallet directly, or copy the message below and send it to Bankr. Your NFTs stay in your wallet.</p>
       <div id="linkedWallet" class="wallet-link-address"></div>
       <div class="actions">
-        <button type="button" id="linkWallet">Connect my wallet</button>
+        <button type="button" id="linkWallet">Connect wallet manually</button>
 
       </div>
       <p id="walletLinkStatus" role="status"></p>
+      <div class="bankr-connect">
+        <h4>Connect with Bankr</h4>
+        <p class="small">Send this to @bankrbot on X or in Bankr chat, then accept the wallet link here.</p>
+        <label for="bankrWalletPrompt">Your Bankr message</label>
+        <textarea id="bankrWalletPrompt" readonly rows="5" placeholder="Preparing your device code…"></textarea>
+        <div class="actions"><button type="button" id="copyBankrWalletPrompt" disabled>Copy Bankr message</button><button type="button" id="renewWalletPairing" class="secondary">New code</button><button type="button" id="acceptWalletPairing" hidden>Accept wallet link</button></div>
+        <p id="walletPairingStatus" role="status"></p>
+      </div>
     </section>
     <section class="overlay wallet-link-panel">
       <h3>Your supported NFTs</h3>
@@ -58,11 +66,12 @@
           showLink(data.addresses || []);
           linkStatus.textContent = 'Wallet removed. Your other wallet links stay connected.';
           await scan();
+          await startPairing();
         } catch (error) { linkStatus.textContent = error.message; remove.disabled = false; }
       };
       row.append(label, remove); linkedWallet.append(row);
     }
-    linkButton.textContent = addresses.length ? 'Add wallet' : 'Connect my wallet';
+    linkButton.textContent = addresses.length ? 'Add wallet manually' : 'Connect wallet manually';
     scanButton.disabled = !addresses.length;
     if (!addresses.length) matches.replaceChildren();
   }
@@ -107,7 +116,7 @@
   linkButton.addEventListener('click', async () => {
     linkButton.disabled = true;
     try {
-      if (!window.ethereum?.request) { location.href = 'hood-turtles.html'; return; }
+      if (!window.ethereum?.request) throw new Error('Use a browser with your wallet extension for manual connection, or copy the Bankr message below.');
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const address = accounts?.[0];
       if (!address) throw new Error('No wallet selected.');
@@ -120,6 +129,7 @@
       showLink(result.addresses || [result.address]);
       linkStatus.textContent = 'Wallet linked. You will not need to sign again for read-only NFT checks.';
       await scan();
+      await startPairing();
     } catch (error) {
       linkStatus.textContent = error.message || 'Wallet link was not completed.';
     } finally {
@@ -128,10 +138,63 @@
   });
 
   scanButton.addEventListener('click', scan);
+  const prompt = document.getElementById('bankrWalletPrompt');
+  const copy = document.getElementById('copyBankrWalletPrompt');
+  const renew = document.getElementById('renewWalletPairing');
+  const accept = document.getElementById('acceptWalletPairing');
+  const pairingStatus = document.getElementById('walletPairingStatus');
+  let pairing, timer, polling = false;
+  async function pollPairing() {
+    clearTimeout(timer);
+    if (!pairing || document.hidden || polling) return;
+    if (Date.now() >= pairing.expires * 1000) {
+      pairing = null; copy.disabled = true; accept.hidden = true;
+      pairingStatus.textContent = 'Code expired. Choose New code to continue.'; return;
+    }
+    const current = pairing; polling = true;
+    try {
+      const data = await post('/api/turtle-connect/status', {code:current.code});
+      if (pairing !== current) return;
+      accept.hidden = !data.verified;
+      pairingStatus.textContent = data.verified ? `Bankr verified ${data.wallet}. Accept only if this is your wallet.` : 'Waiting for Bankr…';
+    } catch (error) { if (pairing === current) { accept.hidden = true; pairingStatus.textContent = error.message; } }
+    finally { polling = false; if (pairing && !document.hidden) timer = setTimeout(pollPairing, 4000); }
+  }
+  async function startPairing() {
+    renew.disabled = true; copy.disabled = true; accept.hidden = true;
+    pairing = null; clearTimeout(timer); prompt.value = '';
+    try {
+      pairing = await post('/api/turtle-connect/start');
+      const code = pairing.code.match(/.{1,4}/g).join('-');
+      prompt.value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${code}. Keep my NFTs in my wallet.`;
+      copy.disabled = false; await pollPairing();
+    } catch (error) { pairingStatus.textContent = error.message; }
+    finally { renew.disabled = false; }
+  }
+  copy.onclick = async () => {
+    if (!pairing || Date.now() >= pairing.expires * 1000) { await pollPairing(); return; }
+    try { await navigator.clipboard.writeText(prompt.value); pairingStatus.textContent = 'Copied. Paste into X or Bankr chat.'; }
+    catch { prompt.focus(); prompt.select(); pairingStatus.textContent = 'Select and copy the message above.'; }
+  };
+  renew.onclick = startPairing;
+  accept.onclick = async () => {
+    if (!pairing) return;
+    accept.disabled = true;
+    try {
+      const current = pairing;
+      await post('/api/turtle-connect/accept', {code:current.code});
+      pairing = null; clearTimeout(timer); accept.hidden = true; copy.disabled = true; prompt.value = '';
+      prompt.placeholder = 'Choose New code to connect another wallet.';
+      pairingStatus.textContent = 'Wallet connected. Choose an NFT below, or create a new code to add another wallet.';
+      await loadLink();
+    } catch (error) { pairingStatus.textContent = error.message; }
+    finally { accept.disabled = false; }
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollPairing(); });
   let attempts = 0;
   showLink([]);
   async function initialLoad() {
-    try { await loadLink(); }
+    try { await loadLink(); await startPairing(); }
     catch (error) {
       if (++attempts < 8 && !window.TinyFrensFriends?.identity?.()?.token) {
         setTimeout(initialLoad, 1000);

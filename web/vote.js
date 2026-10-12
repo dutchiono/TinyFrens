@@ -104,10 +104,10 @@
         const rawWei = BigInt(result);
         userFrensBalance = Number(rawWei / (10n ** 18n));
       } else {
-        userFrensBalance = 1500000; // Demo fallback
+        userFrensBalance = 0;
       }
     } catch {
-      userFrensBalance = 1500000;
+      userFrensBalance = 0;
     }
     userFrensDisplay.textContent = `${userFrensBalance.toLocaleString()} FRENS`;
     updateUserBoostUI();
@@ -181,10 +181,10 @@
           </div>
 
           <div class="vote-action-row">
-            <button class="btn-hold-vote" onclick="castHoldVote(${p.id})">
+            <button class="btn-hold-vote" disabled title="Preview: live voting is not connected" onclick="castHoldVote(${p.id})">
               🗳️ Cast Hold Vote (${userFrensBalance > 0 ? `${userFrensBalance.toLocaleString()} wt` : 'Holders'})
             </button>
-            <button class="btn-burn-vote" onclick="toggleBurnModal(${p.id})">
+            <button class="btn-burn-vote" disabled title="Preview: live burning is not connected" onclick="toggleBurnModal(${p.id})">
               🔥 Burn for 5x Frenzy
             </button>
           </div>
@@ -204,7 +204,7 @@
             <div style="font-size: 11px; color: #34d399; margin-bottom: 8px;">
               Yields: <strong id="burn-yield-${p.id}">+250,000 Votes (5x)</strong>
             </div>
-            <button class="btn-burn-vote" style="width: 100%;" onclick="executeBurnVote(${p.id})">
+            <button class="btn-burn-vote" disabled title="Preview: live burning is not connected" style="width: 100%;" onclick="executeBurnVote(${p.id})">
               Confirm Incineration & Cast 5x Vote
             </button>
           </div>
@@ -229,6 +229,7 @@
   };
 
   window.castHoldVote = function (id) {
+    return; // Preview only; no deployed voting contract is configured.
     if (!userAddress) {
       connectWallet();
       return;
@@ -250,6 +251,7 @@
   };
 
   window.executeBurnVote = function (id) {
+    return; // Preview only; never report a simulated burn as a transaction.
     if (!userAddress) {
       connectWallet();
       return;
@@ -273,7 +275,8 @@
   };
 
   if (btnConnectVoteWallet) {
-    btnConnectVoteWallet.addEventListener("click", connectWallet);
+    btnConnectVoteWallet.disabled = true;
+    btnConnectVoteWallet.textContent = "Voting coming soon";
   }
 
   // Auto tick timer every 1s

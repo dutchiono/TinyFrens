@@ -618,3 +618,5 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .companion-settings select,.companion-settings input{display:block;margin:8px 0 0}
 .companion-settings select{color:#f7f1ff;background:#120f22;border-color:#63517c}
 .companion-settings .small{margin:8px 0 0}
+
+.bankr-connect{margin-top:24px;padding-top:20px;border-top:1px solid #4a3b68}.bankr-connect h4{margin:0 0 8px}.bankr-connect textarea{width:100%;box-sizing:border-box;background:#17142a;color:#f7f1ff;border:1px solid #63517c;border-radius:12px;padding:14px;font:14px/1.6 system-ui;resize:vertical}.wallet-link-panel .actions{flex-wrap:wrap}.wallet-link-panel button{white-space:normal}
