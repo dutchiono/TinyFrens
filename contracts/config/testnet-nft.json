@@ -1,0 +1,15 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "collection": "0x091FB40292925E822849BA415599939eec078b62",
+  "artRenderer": "0xF4832Cf0bF1469C3181Eef42A650C8A04a9544d1",
+  "spriteRenderer": "0x4C729221479e38729A79Ec7B8b224EF9e4e1656A",
+  "deployer": "0x1ee653b8C242c149a04CB04Fe416c4035345f4eD",
+  "testFrens": "0x18Fe8FCde8D2046D80741549e25B16023fBBBAB6",
+  "netProtocol": "0x00000000B24D62781dB359b07880a105cD0b64e6",
+  "netStorage": "0x00000000DB40fcB9f4466330982372e27Fd7Bbf5",
+  "deploymentTransaction": "0x59c3ec1711bd978256c296b08d6f4c3735617c8d5da695f5e1e28bbc09da4aa7",
+  "species": "Robot",
+  "sourceCommit": "83d74d9",
+  "previousCollection": "0x695a9a01C4e4659327bBb4f157E5c08F05bDde2e"
+}
