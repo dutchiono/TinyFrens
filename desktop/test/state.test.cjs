@@ -4,20 +4,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const vm = require('node:vm');
-const { care, PetStore, decay } = require('../state.cjs');
+const { care, PetStore, decay, Engine } = require('../state.cjs');
 const { clampPosition, hits } = require('../geometry.cjs');
-test('desktop care exactly matches bundled web care, including blocked actions and caps', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../web/app.js'), 'utf8').split('for(const a of')[0];
+test('desktop care exactly matches the shared pet engine, including blocked actions and caps', () => {
   for (const values of [{ hunger: 80, happiness: 80, energy: 80 }, { hunger: 99, happiness: 99, energy: 99 }, { hunger: 100, happiness: 100, energy: 100 }, { hunger: 7, happiness: 10, energy: 11 }, { hunger: 8, happiness: 99, energy: 12 }]) {
     for (const name of ['feed', 'play', 'rest', 'wave', 'dance', 'toy']) {
-      const state = { ...values, born: Date.now(), last: Date.now(), name: 'Bolt', shape: 'robot', color: '#66c7d2', size: 80, speed: 60, mode: 'roam' };
-      let saved = JSON.stringify(state);
-      const context = vm.createContext({ window: {}, document: {}, localStorage: { getItem: () => saved, setItem: (_, value) => { saved = value; } }, Date, Math, JSON });
-      vm.runInContext(source, context);
-      const web = vm.runInContext('action(' + JSON.stringify(name) + ')', context), desktop = care(state, name);
-      for (const stat of ['hunger', 'happiness', 'energy']) assert.equal(desktop.state[stat], web[stat]);
-      assert.equal(desktop.blocked, !!web.blocked); assert.equal(desktop.feedback, web.feedback || '');
+      const now = Date.now(), state = { ...values, born: now, last: now, name: 'Bolt', shape: 'robot', color: '#66c7d2', size: 80, speed: 60, mode: 'roam' };
+      const shared = JSON.parse(Engine.bridge('act', JSON.stringify(state), JSON.stringify(name), now));
+      const desktop = care(state, name, now);
+      for (const stat of ['hunger', 'happiness', 'energy']) assert.equal(Math.round(desktop.state[stat]), shared.view[stat]);
+      assert.equal(desktop.blocked, !!shared.blocked); assert.equal(desktop.feedback, shared.feedback || '');
     }
   }
 });
@@ -44,4 +40,21 @@ test('negative monitor coordinates clamp safely and only pet/buttons intercept c
   const bounds = { x: -1000, y: 200 }, regions = [{ x: 100, y: 100, width: 128, height: 148 }];
   assert.equal(hits({ x: -895, y: 305 }, bounds, regions), true);
   assert.equal(hits({ x: -990, y: 210 }, bounds, regions), false);
+});
+test('needs: clean clears mess and vitamin cures, blocked when not applicable', () => {
+  const now = Date.now();
+  const base = { hunger: 80, happiness: 80, energy: 80, born: now, last: now, name: 'Bolt', shape: 'robot' };
+  const clean = Engine.act({ ...base, poops: 2 }, 'clean', now, () => 1);
+  assert.ok(!clean.blocked); assert.equal(Engine.view(clean.state, now).poops, 0);
+  assert.ok(Engine.act(base, 'clean', now, () => 1).blocked);
+  const cure = Engine.act({ ...base, sick: true }, 'vitamin', now, () => 1);
+  assert.ok(!cure.blocked); assert.equal(cure.state.sick, false);
+  assert.ok(Engine.act(base, 'vitamin', now, () => 1).blocked);
+});
+test('needs: play always cheers a sad fren and a calm sick fren recovers', () => {
+  const now = Date.now();
+  const cheered = Engine.act({ hunger: 80, happiness: 0, energy: 80, born: now, last: now }, 'play', now, () => 1);
+  assert.ok(cheered.state.happiness > 25, 'play lifts a sad fren out of the sad band');
+  const sick = Engine.save(Engine.normalize({ hunger: 80, happiness: 80, energy: 80, sick: true, last: now - 4 * 3600000, born: now - 4 * 3600000 }, now));
+  assert.equal(Engine.advance(sick, now, () => 1).sick, false);
 });

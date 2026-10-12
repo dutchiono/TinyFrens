@@ -197,7 +197,7 @@ python -m unittest discover -s . -v
    https://base-sepolia.blockscout.com/token/<nftAddress>
    ```
 
-2. **Local gallery** (`web/gallery.html`) — previews all 888 pieces client-side and can load the
+2. **Local gallery** (`web/gallery.html`) — previews all 2664 pieces client-side and can load the
    exact on-chain art per token. The relay serves `web/` under `/web/`:
 
    ```text

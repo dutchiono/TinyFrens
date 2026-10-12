@@ -1,15 +1,33 @@
 # TinyFrens game rules
 
-The Pet screen and Android bubbles use the same three care actions. Opening the bubble menu is not a reward. There are no hidden long-press variants on action buttons. Tap or hold the pet to open its menu; drag to move it.
+The Pet screen and the floating pet use the same three care actions, plus Clean and Vitamin when your fren needs them. Opening the bubble menu is not a reward. There are no hidden long-press variants on action buttons. Tap or hold the pet to open its menu; drag to move it.
 
 | Action | Result | When unavailable |
 |---|---|---|
-| Feed | Snacks +25, capped at 100; eating animation | Already full |
-| Play | Joy +20, capped at 100; snacks −8, energy −12; dancing animation | Snacks below 8 or energy below 12 |
+| Feed | Food +25, capped at 100; eating animation | Already full |
+| Play | Joy +20, capped at 100; food −8, energy −12; dancing animation | Food below 8 or energy below 12 |
 | Nap | Energy +25, capped at 100; sleeping animation | Energy already 100 |
+| Clean | Clears mess; small Joy gain | Nothing to clean |
+| Vitamin | Cures sickness immediately | Already healthy |
 | More (bubble menu) | Open the full app | Never changes care stats |
 
 Wave, Dance and Toy in the app are flavour interactions, not extra care rewards. A toy caught by the floating pet does not grant a second Play reward. Feedback reports actual capped gains. Saves, names and looks persist through signed updates.
+
+## Needs
+
+Needs arise from stats and time. Clean or Vitamin appears as an extra button only while the need applies, so care stays uncluttered.
+
+| Need | Arises when | Fix |
+|---|---|---|
+| Hungry | Food is 25 or less | Feed |
+| Sleepy | Energy is 25 or less | Nap: rest refills Energy over time |
+| Bored | About twice a day, while awake and Energy is 25 or more | Play, which also lifts Joy to Happy |
+| Dirty | About once a day, while Food is 25 or more | Clean the mess |
+| Sad | Joy is 25 or less | Play; a play session always cheers a sad fren |
+| Sick | Anytime; time spent hungry, sleepy, bored, sad or dirty raises the odds | Vitamin (instant), or a few calm hours with no other needs |
+| Lost | Anytime; time spent sad or adventuring raises the odds | Wait — your fren walks home on their own, tired |
+
+Joy tiers: happy at 75 or more, okay in between, sad at 25 or less.
 
 ## Visits
 

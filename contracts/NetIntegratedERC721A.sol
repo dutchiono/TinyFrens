@@ -112,9 +112,13 @@ abstract contract NetIntegratedERC721A is ERC721A {
 
     function _mintSeeded(address to, uint256 amount) private {
         _enforceSupply(amount);
-        _seed(_nextTokenId(), amount);
+        uint256 startTokenId = _nextTokenId();
+        _seed(startTokenId, amount);
         _mint(to, amount);
+        _afterMintSeeded(startTokenId, amount);
     }
+
+    function _afterMintSeeded(uint256 startTokenId, uint256 amount) internal virtual {}
 
     function _enforceSupply(uint256 amount) internal view {
         if (maxSupply != 0 && _totalMinted() + amount > maxSupply) {

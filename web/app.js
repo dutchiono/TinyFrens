@@ -5,60 +5,57 @@ const desktop = window.TinyFrensDesktop;
 try { if (desktop && JSON.parse(desktop.getState()).frameless) document.documentElement.classList.add('desktop-titlebar'); } catch {}
 const key = 'pocket-familiar-v1';
 const $ = id => document.getElementById(id);
-function initial(){return {hunger:80,happiness:80,energy:80,born:Date.now(),last:Date.now(),mode:'roam'};}
-function localRead(){
+const Engine = window.TinyFrensEngine;
+function initial(){return Engine.save(Engine.normalize({mode:'roam'},Date.now()));}
+function localRaw(){
   let s; try{s=JSON.parse(localStorage.getItem(key)) || initial();}catch{s=initial();}
-  if(s.shape==='mascot')s.shape='robot';
-  const now=Date.now(), hours=Math.min(720,Math.max(0,Math.floor((now-(s.last||now))/3600000)));
-  s.hunger=Math.max(0,s.hunger-hours*3);s.happiness=Math.max(0,s.happiness-hours*2);
-  s.energy=Math.max(0,s.energy-hours);s.last=hours>0?(s.last||now)+hours*3600000:(s.last||now);localStorage.setItem(key,JSON.stringify(s));return s;
+  return s && typeof s === 'object' ? s : initial();
+}
+function localBridge(method,arg){
+  const out=JSON.parse(Engine.bridge(method,JSON.stringify(localRaw()),JSON.stringify(arg ?? null),Date.now()));
+  localStorage.setItem(key,JSON.stringify(out.state));
+  if(out.feedback!==undefined)out.view.feedback=out.feedback;
+  if(out.blocked!==undefined)out.view.blocked=out.blocked;
+  if(out.animation!==undefined)out.view.animation=out.animation;
+  return out.view;
+}
+function localRead(){
+  return localBridge('read');
 }
 function read(){return desktop?JSON.parse(desktop.getState()):native?JSON.parse(PetAndroid.getState()):localRead();}
-const NAMES={
-  cat:['Mochi','Whiskers','Biscuit','Pudding','Miso','Noodle','Tofu','Pebble','Marshmallow','Sprinkles','Mittens','Purrcy','Tiramisu','Butterscotch','Clementine','Nugget'],
-  blob:['Gloop','Jellybean','Bubbles','Squish','Wobble','Gumdrop','Puddle','Dumpling','Boba','Blorp','Jiggles','Plum','Goober','Squidge','Gelato','Bloop'],
-  robot:['Bolt','Widget','Sprocket','Beep','Gizmo','Pixel','Chip','Rivet','Zippy','Bleep','Cogsworth','Byte','Servo','Tinker','Boop-3','Sparky']
-};
-
-function cleanName(n){return [...String(n||'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim()].slice(0,20).join('');}
+const NAMES=Engine.NAMES;
+function cleanName(n){return Engine.cleanName(n);}
 function randomName(shape,avoid){
-  const bank=(NAMES[shape]||NAMES.cat).filter(n=>n!==avoid);
-  return bank[Math.floor(Math.random()*bank.length)];
+  return Engine.randomName(Engine.normalShape(shape),avoid);
 }
 function rename(n){
   const name=cleanName(n);
   if(desktop)return JSON.parse(desktop.rename(name));
   if(native)return JSON.parse(PetAndroid.rename(name));
-  const s=localRead();if(name)s.name=name;localStorage.setItem(key,JSON.stringify(s));return s;
+  return localBridge('rename',name);
 }
 function ensureName(s){return s.name?s:rename(randomName(s.shape));}
 function action(name){
   if(desktop)return JSON.parse(desktop.action(name));
   if(native)return JSON.parse(PetAndroid.action(name));
-  const s=localRead();
-  const blocked=name==='feed'&&s.hunger>=100?'Already full.':name==='rest'&&s.energy>=100?'Not sleepy yet.':name==='play'&&s.energy<12?'A nap first, then play.':name==='play'&&s.hunger<8?'A snack first, then play.':'';
-  if(blocked)return {...s,blocked:true,feedback:blocked};
-  const before={...s}, add=(k,n)=>s[k]=Math.max(0,Math.min(100,s[k]+n));
-  if(name==='feed')add('hunger',25);
-  if(name==='play'){add('happiness',20);add('energy',-12);add('hunger',-8);}
-  if(name==='rest')add('energy',25);
-  localStorage.setItem(key,JSON.stringify(s));
-  const feedback=name==='feed'?'Snacks +'+(s.hunger-before.hunger):name==='rest'?'Energy +'+(s.energy-before.energy):name==='play'?'Joy +'+(s.happiness-before.happiness)+' · Energy −12 · Snacks −8':'';
-  return {...s,feedback};
+  return localBridge('act',name);
 }
 function render(s){
-  const stage=Math.min(2,Math.max(0,Math.floor((Date.now()-s.born)/86400000)));
+  const stage=Number(s.stage)||0;
   $('pet').dataset.stage=String(stage);
-  $('stageText').textContent=['Hatchling','Sprout','Elder'][stage];
-  for(const k of ['hunger','happiness','energy']){$(k).value=s[k];$(k+'Text').textContent=s[k];}
+  $('stageText').textContent=s.stageName||['Hatchling','Sprout','Elder'][stage]||'Hatchling';
+  for(const k of ['hunger','happiness','energy']){const value=Math.round(Number(s[k])||0);$(k).value=value;$(k+'Text').textContent=value;}
+  const needActions=[];if(Number(s.poops)>0)needActions.push('clean');if(s.sick)needActions.push('vitamin');
+  for(const a of ['clean','vitamin'])$(a).hidden=!needActions.includes(a);
+  $('needsActions').hidden=needActions.length===0;
   const who=s.name||'Your fren';
   $('petName').textContent=who;
-  $('mood').textContent=s.feedback||who+(s.hunger<25?' is hungry.':s.energy<25?' needs a nap.':s.happiness<25?' wants to play.':' is curious.');
-  $('age').textContent=`Day ${Math.floor((Date.now()-s.born)/86400000)}`;
+  $('mood').textContent=s.feedback||s.mood||who+' is curious.';
+  $('age').textContent=`Day ${Number(s.day)||0}`;
   $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
-for(const a of ['feed','play','rest'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation={feed:'eat',play:'dance',rest:'sleep'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});
+for(const a of ['feed','play','rest','clean','vitamin'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation=s.animation||{feed:'eat',play:'dance',rest:'sleep',clean:'happy',vitamin:'eat'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
   let s;if(desktop)s=JSON.parse(desktop.setMode(b.dataset.mode));
   else if(native)s=JSON.parse(PetAndroid.setMode(b.dataset.mode));

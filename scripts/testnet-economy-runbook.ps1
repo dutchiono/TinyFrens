@@ -276,7 +276,8 @@ function Step-2-Wallet {
     https://portal.cdp.coinbase.com/products/faucet
     https://faucet.quicknode.com/base/sepolia
 
-  Need roughly 0.02-0.05 Sepolia ETH for deploy + a few mint txs.
+  Need roughly 0.01 Base Sepolia ETH for deploy + a few mint txs. Current dry-run
+  estimates are far below that, but the buffer keeps retry noise boring.
 '@
     Pause-Step 'Press Enter after you requested faucet ETH'
 }

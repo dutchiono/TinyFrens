@@ -1,6 +1,6 @@
 ---
 name: tinyfrens-nft
-description: Deploy and verify the TinyFrens on-chain generative NFT collection on Robinhood Chain (4663) or Base (8453) with 8 companion species, 888 max supply (111 per species), 1:1 floating pet vector art, and Net Protocol integration.
+description: Deploy and verify the TinyFrens on-chain generative NFT collection on Robinhood Chain (4663) or Base (8453) with 8 companion species, 2664 max supply (333 per species), 1:1 floating pet vector art, and Net Protocol integration.
 metadata: {"bankr":{"emoji":"🐾","requires":{"bins":["forge","cast"]}}}
 ---
 
@@ -16,14 +16,14 @@ metadata: {"bankr":{"emoji":"🐾","requires":{"bins":["forge","cast"]}}}
 |---|---|
 | **Collection Name** | `TinyFrens` |
 | **Token Symbol** | `FREN` |
-| **Max Supply** | `888` (Exactly 111 tokens per species) |
+| **Max Supply** | `2664` (Exactly 333 tokens per species) |
 | **Mint Price** | `0.001 ETH` |
 | **Max Mints Per Wallet** | `20` |
 | **Creator Reserve** | `20` |
 | **Art Type** | Fully On-Chain SVG (1:1 vector twin of in-game floating companion) |
 | **Species (8)** | Cat, Blob, Robot, Bunny, Puppy, Bear, Frog, Turtle |
 | **Permutation Matrix** | 1,536 curated combinations (8 species × 8 paired palettes × 4 expressions × 6 accessories) |
-| **In-Game Sync** | Direct replication via Token ID (`#1–#888`) across desktop overlay, web app, and multiplayer visit links |
+| **In-Game Sync** | Direct replication via Token ID (`#1–#2664`) across desktop overlay, web app, and multiplayer visit links |
 | **Target Networks** | Robinhood Chain (EVM `4663`) or Base (`8453`) |
 | **Net Protocol Contract** | `0x00000000B24D62781dB359b07880a105cD0b64e6` |
 
@@ -256,7 +256,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     using LibPRNG for LibPRNG.PRNG;
 
     struct Traits {
-        uint8 species; // 0..7 (111 of each across 888 total supply)
+        uint8 species; // 0..7 (333 of each across 2664 total supply)
         uint8 palette; // 0..7 (Curated paired body, outline, bg)
         uint8 expr;    // 0..3 (Happy, Wink, Shades, Star Eyes)
         uint8 acc;     // 0..5 (None, Party Hat, Crown, Halo, Bow Tie, Mystic Orb)
@@ -267,7 +267,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             "TinyFrens", // name
             "FREN",      // symbol
             0.001 ether, // price (0.001 ETH)
-            888,         // maxSupply (111 per species)
+            2664,        // maxSupply (333 per species)
             20,          // maxMintsPerWallet
             20           // creatorReserve
         )
@@ -277,7 +277,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         LibPRNG.PRNG memory p;
         p.seed(uint256(_tokenToSeed[tokenId]));
 
-        // Exactly 111 of each species across 888 supply
+        // Exactly 333 of each species across 2664 supply
         t.species = uint8((tokenId - 1) % 8);
 
         // Curated rarity distribution for palettes
@@ -508,5 +508,5 @@ forge create src/TinyFrensNFT.sol:TinyFrensNFT \
 cast send $NFT_ADDRESS "mintToCreator(uint256,address)" 20 $CREATOR_ADDRESS --rpc-url $RPC_URL --private-key $PRIVATE_KEY
 
 # Announce on the collection's Net Protocol feed:
-netp message send --text "TinyFrens is officially live! 8 companion species, 888 curated 1:1 on-chain frens. Minting now." --topic "feed-$(echo $NFT_ADDRESS | tr '[:upper:]' '[:lower:]')" --chain-id $CHAIN_ID
+netp message send --text "TinyFrens is officially live! 8 companion species, 2664 curated 1:1 on-chain frens. Minting now." --topic "feed-$(echo $NFT_ADDRESS | tr '[:upper:]' '[:lower:]')" --chain-id $CHAIN_ID
 ```

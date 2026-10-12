@@ -5,10 +5,12 @@
  $('shareVisit').closest('section').append(panel);
  const settings=document.createElement('section');settings.className='overlay';settings.innerHTML='<details><summary>Friends server setup</summary><p>Ask a grown-up to set up the server first.</p><label for="friendsServer">Server address</label><input id="friendsServer" type="url" placeholder="https://pets.example.com" autocomplete="off"><div class="actions"><button id="connectFriends">Connect</button><button id="disconnectFriends" class="secondary">Disconnect</button></div><p id="serverStatus" role="status"></p><p class="small">Use the same server on both phones. Your private device key stays on this phone. Clearing app data loses your friend code.</p></details>';$('settingsPanel').append(settings);
  let ws=null,endpoint='',identity=null,enabled=false,retry=null,delay=1000,visit=null,lastProfile='',generation=0,profileTimer=null;
+ const notifiedRequests=new Set();
  const listeners=new Set();
  const storage='tinyfrens-live-server';
  function status(text){$('friendsStatus').textContent=text;$('serverStatus').textContent=text;}
  function send(data){if(ws?.readyState!==WebSocket.OPEN){status('Not connected. Try again when you’re online.');return false;}ws.send(JSON.stringify(data));return true;}
+ function nativeNotify(title,text){if(native&&typeof PetAndroid.notify==='function'){try{PetAndroid.notify(title,text);}catch{}}}
  function pet(){const s=read();return {name:cleanName(s.name)||'A fren',shape:s.shape==='mascot'?'robot':['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expression:s.expression||'happy',accessory:s.accessory||'none',tokenId:s.tokenId||null};}
  function sync(){const p=JSON.stringify(pet());if(ws?.readyState===WebSocket.OPEN&&p!==lastProfile){if(send({type:'profile',pet:JSON.parse(p)}))lastProfile=p;}}
  function endVisit(){visit=null;window.TinyFrensVisits.end();$('liveVisit').replaceChildren();$('visitRequests').replaceChildren();}
@@ -16,7 +18,7 @@
  function drawState(data){
   $('myFriendCode').value=data.self.code.slice(0,4)+'-'+data.self.code.slice(4);$('copyFriendCode').disabled=false;$('addFriendButton').disabled=false;
   const requests=$('friendRequests');requests.replaceChildren();
-  for(const f of data.requests){const card=document.createElement('div');card.className='friend-card';const p=document.createElement('p');p.textContent=f.pet.name+' wants to be friends.';card.append(p,button('Accept',()=>send({type:'friend-answer',id:f.id,accept:true})),button('Not now',()=>send({type:'friend-answer',id:f.id,accept:false}),true));requests.append(card);}
+  for(const f of data.requests){if(!notifiedRequests.has(f.id)){notifiedRequests.add(f.id);nativeNotify('TinyFrens friend request',f.pet.name+' wants to be friends.')}const card=document.createElement('div');card.className='friend-card';const p=document.createElement('p');p.textContent=f.pet.name+' wants to be friends.';card.append(p,button('Accept',()=>send({type:'friend-answer',id:f.id,accept:true})),button('Not now',()=>send({type:'friend-answer',id:f.id,accept:false}),true));requests.append(card);}
   const list=$('friendList');list.replaceChildren();
   for(const f of data.friends){const card=document.createElement('div');card.className='friend-card';const name=document.createElement('strong');name.textContent=f.pet.name+' · '+(f.online?'Here now':'Away');const actions=document.createElement('div');actions.className='actions';const b=button('Ask to visit',()=>send({type:'visit-request',id:f.id}));b.disabled=!f.online||Boolean(visit);actions.append(b,button('Remove',()=>send({type:'friend-remove',id:f.id}),true));card.append(name,actions);list.append(card);}
   if(!data.friends.length){const p=document.createElement('p');p.className='small';p.textContent='Swap codes to add your first friend.';list.append(p);}
@@ -26,6 +28,7 @@
   if(data.type==='state'){drawState(data);status('Connected. Friends can say hello.');sync();}
   if(data.type==='notice'||data.type==='error')status(data.text);
   if(data.type==='visit-request'){
+   nativeNotify('TinyFrens visit request',data.friend.pet.name+' wants to visit.');
    const requests=$('visitRequests');requests.replaceChildren();const p=document.createElement('p');p.textContent=data.friend.pet.name+' wants to visit.';
    requests.append(p,button('Let them visit',()=>{send({type:'visit-answer',id:data.id,accept:true});requests.replaceChildren();}),button('Not now',()=>{send({type:'visit-answer',id:data.id,accept:false});requests.replaceChildren();},true));status('A friend wants to visit!');window.showScreen('pet');requests.scrollIntoView({behavior:'smooth',block:'center'});
   }

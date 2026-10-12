@@ -18,7 +18,7 @@
     const shape = s.shape === 'mascot' ? 'robot' : VALID_SHAPES.includes(s.shape) ? s.shape : 'cat';
     const expr = VALID_EXPRS.includes(s.expression) ? s.expression : 'happy';
     const acc = VALID_ACCS.includes(s.accessory) ? s.accessory : 'none';
-    const tokenId = (typeof s.tokenId === 'number' && s.tokenId >= 1 && s.tokenId <= 888) ? s.tokenId : null;
+    const tokenId = (typeof s.tokenId === 'number' && s.tokenId >= 1 && s.tokenId <= 2664) ? s.tokenId : null;
     return {
       name: cleanName(s.name) || 'A fren',
       shape,

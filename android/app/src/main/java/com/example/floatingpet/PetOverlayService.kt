@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.*
 import android.provider.Settings
 import android.view.*
@@ -185,6 +187,7 @@ class PetOverlayService:Service(){
  private fun openCare(){removeMenu();removeChat();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
  private fun toggleMenu(){
   if(state.optBoolean("haptics",true))pet?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+  playPetSound("menu")
   if(menu!=null){removeMenu();removeCaption()}else{showMenu();say("Hey, you!")}
  }
  private fun refreshMenuTimer(){handler.removeCallbacks(closeMenu);handler.postDelayed(closeMenu,8000)}
@@ -193,10 +196,17 @@ class PetOverlayService:Service(){
    orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER
    setPadding(dp(4),dp(4),dp(4),dp(4))
   }
-  val actions=listOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple("☾","rest","Nap"),Triple("💬","chat","Chat"),Triple("☰","care","More"))
+  val actions=mutableListOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple("☾","rest","Nap"))
+  if(state.optInt("poops",0)>0)actions.add(Triple("🧼","clean","Clean"))
+  if(state.optBoolean("sick",false))actions.add(Triple("💊","vitamin","Vitamin"))
+  actions.add(Triple("💬","chat","Chat"));actions.add(Triple("☰","care","More"))
+  val compact=actions.size>5
+  val cellW=dp(if(actions.size>=7)44 else if(compact)50 else 56)
+  val circleSize=cellW-dp(8)
+  val labelW=cellW-dp(2)
   for((icon,action,label)in actions){
    val circle=Button(this).apply{
-    text=icon;textSize=21f;gravity=Gravity.CENTER;setTextColor(Color.WHITE)
+    text=icon;textSize=if(compact)18f else 21f;gravity=Gravity.CENTER;setTextColor(Color.WHITE)
     setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
     contentDescription=label
     background=android.graphics.drawable.StateListDrawable().apply{
@@ -210,16 +220,16 @@ class PetOverlayService:Service(){
     setOnClickListener{
      if(action=="care")openCare()
      else if(action=="chat")showChat()
-     else{val result=store.act(action);if(!result.optBoolean("blocked")&&result.optBoolean("haptics",true))performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);lastRead=0;refreshMenuTimer();say(result.optString("feedback","Done!"))}
+     else{val result=store.act(action);if(!result.optBoolean("blocked")){if(result.optBoolean("haptics",true))performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);playPetSound(action)};lastRead=0;refreshMenuTimer();say(result.optString("feedback","Done!"))}
     }
 
    }
    val cell=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
-   cell.addView(circle,LinearLayout.LayoutParams(dp(48),dp(48)))
-   cell.addView(TextView(this).apply{text=label;textSize=11f;setTextColor(Color.WHITE);gravity=Gravity.CENTER;background=GradientDrawable().apply{setColor(Color.argb(220,35,28,54));cornerRadius=dp(6).toFloat()};setPadding(dp(4),dp(2),dp(4),dp(2))},LinearLayout.LayoutParams(dp(54),dp(22)))
-   panel.addView(cell,LinearLayout.LayoutParams(dp(56),dp(70)).apply{setMargins(dp(1),0,dp(1),0)})
+   cell.addView(circle,LinearLayout.LayoutParams(circleSize,circleSize))
+   cell.addView(TextView(this).apply{text=label;textSize=if(compact)10f else 11f;setTextColor(Color.WHITE);gravity=Gravity.CENTER;background=GradientDrawable().apply{setColor(Color.argb(220,35,28,54));cornerRadius=dp(6).toFloat()};setPadding(dp(4),dp(2),dp(4),dp(2))},LinearLayout.LayoutParams(labelW,dp(22)))
+   panel.addView(cell,LinearLayout.LayoutParams(cellW,dp(70)).apply{setMargins(dp(1),0,dp(1),0)})
   }
-  val p=overlay(dp(296),dp(78));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  val p=overlay(actions.size*cellW+dp(8),dp(78));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
   val screenWidth=(bx+pw).toInt();val screenHeight=(by+ph).toInt()
   p.x=(x+pw/2f-p.width/2f).toInt().coerceIn(0,(screenWidth-p.width).coerceAtLeast(0))
   menuAbove=y+ph+p.height>screenHeight
@@ -256,6 +266,11 @@ class PetOverlayService:Service(){
   try{wm.addView(label,p);caption=label;label.alpha=0f;label.animate().alpha(1f).setDuration(160).start();handler.postDelayed(fadeCaption,duration)}catch(_:Exception){}
  }
  private fun removeCaption(){handler.removeCallbacks(fadeCaption);caption?.let{it.animate().cancel();try{wm.removeView(it)}catch(_:Exception){}};caption=null}
+ private fun playPetSound(name:String){
+  if(!store.read().optBoolean("sounds",true))return
+  val tone=when(name){"rest","sleep"->ToneGenerator.TONE_PROP_BEEP;"play","dance","toy"->ToneGenerator.TONE_PROP_ACK;"feed","eat"->ToneGenerator.TONE_PROP_BEEP2;else->ToneGenerator.TONE_PROP_PROMPT}
+  try{val player=ToneGenerator(AudioManager.STREAM_MUSIC,45);player.startTone(tone,120);handler.postDelayed({try{player.release()}catch(_:Exception){}},180)}catch(_:Exception){}
+ }
  private fun showChat(){
   removeMenu();removeCaption();removeChat()
   val status=TextView(this).apply{text="Ask your fren.";textSize=12f;setTextColor(Color.rgb(70,62,82))}

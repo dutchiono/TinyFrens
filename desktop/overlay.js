@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const bridge = window.TinyFrensDesktop, pet = document.getElementById('pet'), bubbles = document.getElementById('bubbles'), close = document.getElementById('closePet'), hint = document.getElementById('hint'), toy = document.getElementById('toy');
-  let menuTimer, hintTimer, actionTimer, toyTimer, pointer = null, lastState;
+  let menuTimer, hintTimer, actionTimer, toyTimer, leaveTimer, pointer = null, lastState;
   function hitRegions() {
     bridge.regions([pet, ...(!bubbles.hidden ? [...bubbles.querySelectorAll('button'), close] : []), ...(!toy.hidden ? [toy] : [])].map(el => {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -13,15 +13,18 @@
     if (open) menuTimer = setTimeout(() => menu(false), 8000);
     hitRegions();
   }
+  // Keep the bubbles from hanging around: close shortly after the cursor leaves the pet and buttons.
+  function scheduleClose() { clearTimeout(leaveTimer); leaveTimer = setTimeout(() => { if (!pointer) menu(false); }, 900); }
   function render(s) {
     lastState = s;
     pet.dataset.shape = s.shape; pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
+    bubbles.querySelector('[data-action=clean]').hidden = !(Number(s.poops) > 0);
+    bubbles.querySelector('[data-action=vitamin]').hidden = !s.sick;
     pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String(s.size / 80));
     pet.style.opacity=String(s.opacity/100);const reduced=s.reduceMotion||matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(reduced);bridge.motion(reduced);
     pet.setAttribute('aria-label', s.name + '. Click for care, drag to move.');
     const r = pet.getBoundingClientRect(); close.style.left = Math.min(296, r.right + 3) + 'px'; close.style.top = Math.max(40, r.top - 8) + 'px';
-    const buttons = bubbles.querySelectorAll('[data-action]');
-    for (const b of buttons) b.disabled = b.dataset.action === 'feed' ? s.hunger >= 100 : b.dataset.action === 'rest' ? s.energy >= 100 : s.energy < 12 || s.hunger < 8;
+    for (const b of bubbles.querySelectorAll('[data-action]')) b.disabled = false;
     if (s.feedback) message(s.feedback);
     if (!s.visible) menu(false);
     hitRegions();
@@ -42,6 +45,9 @@
     hitRegions();
   }
   pet.onpointerenter = () => { if (!pointer) { menu(true); message(lastState?.name + ' · Feed, Play, Nap or More'); } };
+  pet.onpointerleave = scheduleClose;
+  bubbles.onpointerleave = scheduleClose;
+  bubbles.onpointerenter = () => { clearTimeout(leaveTimer); if (bubbles.hidden) menu(true); };
   pet.onpointerdown = event => {
     if (event.button !== 0) return;
     event.preventDefault(); pointer = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false };

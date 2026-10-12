@@ -4,6 +4,7 @@
   const refresh = $('walletRefreshNfts'), nftList = $('walletNfts');
   const vaultAddressInput = $('vaultAddressInput'), copyVaultAddress = $('copyVaultAddress'), vaultStatusChip = $('vaultStatusChip');
   const mintNftButton = $('mintNftButton'), mintSubtext = $('mintSubtext');
+  const tokenIdInput = $('walletTokenId'), renameInput = $('walletRenameInput'), renameNftButton = $('walletRenameNft'), evolveNftButton = $('walletEvolveNft');
   const magicLinkButton = $('magicLinkButton'), magicLinkBox = $('magicLinkBox'), magicLinkInput = $('magicLinkInput'), copyMagicLink = $('copyMagicLink');
 
   const server = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
@@ -31,6 +32,17 @@
 
   function walletAddress() {
     return wallet?.evmAddress || wallet?.solAddress || '';
+  }
+
+  function currentTokenId() {
+    const raw = Number(tokenIdInput?.value || read().tokenId || 0);
+    return Number.isInteger(raw) && raw > 0 ? raw : 0;
+  }
+
+  function syncOnchainControls() {
+    const s = read();
+    if (tokenIdInput && !tokenIdInput.value && s.tokenId) tokenIdInput.value = String(s.tokenId);
+    if (renameInput && !renameInput.value) renameInput.value = cleanName(s.name) || '';
   }
 
   function showWallet(data) {
@@ -64,14 +76,13 @@
       const res = await fetch(base + '/api/nft/price');
       if (!res.ok) return;
       livePriceQuote = await res.json();
-      if (mintNftButton && livePriceQuote.frensRequired) {
-        const frensFmt = Number(livePriceQuote.frensRequired).toLocaleString(undefined, {maximumFractionDigits: 2});
-        mintNftButton.textContent = `✨ Mint TinyFren · $1.00 (~${frensFmt} FRENS)`;
+      if (mintNftButton && livePriceQuote.ethRequired) {
+        const ethFmt = Number(livePriceQuote.ethRequired).toLocaleString(undefined, {maximumFractionDigits: 6});
+        mintNftButton.textContent = `✨ Mint TinyFren · ${ethFmt} ETH`;
       }
-      if (mintSubtext && livePriceQuote.priceUsd) {
-        const p = livePriceQuote.priceUsd;
-        const pFmt = p < 0.0001 ? p.toFixed(8) : p.toFixed(4);
-        mintSubtext.textContent = `1 FRENS ≈ $${pFmt} USD on Base DEX. Fixed $1.00 USD mint.`;
+      if (mintSubtext && livePriceQuote.ethRequired) {
+        const ethFmt = Number(livePriceQuote.ethRequired).toLocaleString(undefined, {maximumFractionDigits: 6});
+        mintSubtext.textContent = `Official on-chain mint paid in ETH on Base (${ethFmt} ETH).`;
       }
     } catch (_) {}
   }
@@ -167,19 +178,60 @@
   if (mintNftButton) {
     mintNftButton.onclick = async () => {
       mintNftButton.disabled = true;
-      if (status) status.textContent = 'Minting your TinyFren NFT ($1.00 USD in FRENS)...';
+      if (status) status.textContent = 'Minting your TinyFren NFT in ETH on Base...';
       try {
         const data = await post('/api/wallet/mint', {});
         if (data.success && data.nft) {
           savePetLook(data.pet);
+          if (tokenIdInput) tokenIdInput.value = String(data.nft.tokenId || '');
+          if (renameInput) renameInput.value = cleanName(data.pet.name) || '';
           if (status) status.textContent = `🎉 Minted TinyFren #${data.nft.tokenId}! Your fren is wearing their 1:1 on-chain look.`;
           await loadNfts();
           window.animatePet?.('dance');
         }
       } catch (err) {
-        if (status) status.textContent = err.message || 'Minting error. Check FRENS balance.';
+        if (status) status.textContent = err.message || 'Minting error. Check ETH balance.';
       } finally {
         mintNftButton.disabled = false;
+      }
+    };
+  }
+
+  if (renameNftButton) {
+    renameNftButton.onclick = async () => {
+      const tokenId = currentTokenId();
+      const name = renameInput?.value?.trim();
+      if (!tokenId) { if (status) status.textContent = 'Pick the TinyFren token to rename first.'; return; }
+      if (!name) { if (status) status.textContent = 'Type the new on-chain name first.'; return; }
+      renameNftButton.disabled = true;
+      if (status) status.textContent = `Signing rename for TinyFren #${tokenId}...`;
+      try {
+        const data = await post('/api/wallet/rename-nft', {tokenId, name});
+        if (data.pet) savePetLook(data.pet);
+        if (status) status.textContent = `Rename sent. Tx: ${data.tx?.hash || 'submitted'}`;
+        window.animatePet?.('wave');
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Could not rename NFT.';
+      } finally {
+        renameNftButton.disabled = false;
+      }
+    };
+  }
+
+  if (evolveNftButton) {
+    evolveNftButton.onclick = async () => {
+      const tokenId = currentTokenId();
+      if (!tokenId) { if (status) status.textContent = 'Pick the TinyFren token to evolve first.'; return; }
+      evolveNftButton.disabled = true;
+      if (status) status.textContent = `Signing evolution for TinyFren #${tokenId}...`;
+      try {
+        const data = await post('/api/wallet/evolve-nft', {tokenId});
+        if (status) status.textContent = `Evolution sent. Tx: ${data.tx?.hash || 'submitted'}`;
+        window.animatePet?.('dance');
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Could not evolve NFT.';
+      } finally {
+        evolveNftButton.disabled = false;
       }
     };
   }
@@ -243,5 +295,6 @@
 
   if (refresh) refresh.onclick = loadNfts;
 
+  syncOnchainControls();
   loadWallet();
 })();

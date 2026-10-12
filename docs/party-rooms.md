@@ -40,7 +40,7 @@ everyone in the room.
 
 - Rooms hold up to **80 frens** at once.
 - **Leaving** is one tap — your fren instantly disappears from the shared scene.
-- Party rooms are **cosmetic**. Being in a room never changes your fren's snacks, joy, or
+- Party rooms are **cosmetic**. Being in a room never changes your fren's food, joy, or
   energy, and other people can't touch your pet.
 
 ### Good to know
@@ -71,7 +71,7 @@ visit **your** fren, and **you have to accept first**.
 - **Nothing is automatic.** A visit only happens after the other person accepts. You can
   always decline.
 - **Your fren stays yours.** A visiting fren is just a guest — it never replaces your pet,
-  and it can't change your saved snacks, joy, energy, name, or look.
+  and it can't change your saved food, joy, energy, name, or look.
 - **Visitors are a snapshot.** They see your fren's current name and appearance. Core
   care (Feed/Play/Nap) is always done by *you*, the owner.
 - **It expires.** Invites and visits are temporary by design — nothing lingers.

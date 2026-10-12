@@ -15,7 +15,7 @@ This release resolves the wallet security and onboarding bottlenecks for mobile 
 2. **Deterministic Custodial Fren Pocket Vaults**: Every fren automatically gets a unique, private EVM address on Base (`0x...`) derived deterministically via server HMAC seed. No MetaMask, seed phrases, or wallet connection required.
 3. **Frictionless "Magic Link" Backup & 1-Click Restore**: Mobile players can backup and restore their fren identity, traits, and vault across devices with a single URL token (`#restore=<code>`).
 4. **Dynamic $1.00 USD NFT Mint Paid in FRENS Tokens**: Integrated a live DexScreener pricing oracle for the FRENS token (`0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` on Base) to dynamically calculate the exact FRENS required to equal **$1.00 USD** at every sale.
-5. **Instant In-Game NFT Trait Equipping**: Minting immediately assigns an available curated token (`#1`–`#888`), writes to the vault database, equips on-chain traits/SVG styles, and adds the golden `#tokenId` badge across Web, Plaza, and Android overlays.
+5. **Instant In-Game NFT Trait Equipping**: Minting immediately assigns an available curated token (`#1`–`#2664`), writes to the vault database, equips on-chain traits/SVG styles, and adds the golden `#tokenId` badge across Web, Plaza, and Android overlays.
 
 ---
 
@@ -41,7 +41,7 @@ This release resolves the wallet security and onboarding bottlenecks for mobile 
     - Checks balance in `credit_accounts`.
     - If `checkOnly=true`, returns affordability status and current quote without charging.
     - If balance suffices, deducts credits from `credit_accounts`, records transaction in `credit_ledger` (`reason: 'mint_nft_frens'`).
-    - Randomly picks an unused token ID from `1`–`888`.
+    - Randomly picks an unused token ID from `1`–`2664`.
     - Computes deterministic traits using `nft_traits_by_id(token_id)`.
     - Records NFT in `fren_nfts`.
     - Auto-updates the pet profile in `pets` table and returns `{ success: true, pet, nft, evmAddress, quote }`.

@@ -11,7 +11,7 @@
 
 input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d;border:1px solid #63517c;padding:12px;color:#f7f1ff;border-radius:10px}input[type=color]{width:100%;height:42px;border:0;margin-bottom:18px}
 .pet{--pet-color:#a474f1;--pet-scale:1;scale:var(--pet-scale)}
-.pet .body,.pet .ear{background:var(--pet-color)!important}
+.pet .body,.pet .ear{background:linear-gradient(145deg,#ffffff55 0%,#ffffff00 34%,#00000024 100%),var(--pet-color)!important}
 .pet[data-shape=blob] .ear{display:none}.pet[data-shape=blob] .body{border-radius:50% 50% 35% 35%}
 .pet[data-shape=robot] .body{border-radius:5px}.pet[data-shape=robot] .ear{width:10px;height:30px;top:7px;border-width:3px}
 .pet[data-shape=bunny] .ear{width:22px;height:72px;top:-18px;border-radius:14px 14px 6px 6px}.pet[data-shape=bunny] .ear.left{left:26px;transform:rotate(-6deg)}.pet[data-shape=bunny] .ear.right{right:26px;transform:rotate(6deg)}
@@ -19,6 +19,23 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet[data-shape=bear] .ear{width:34px;height:34px;top:8px;border-radius:50%}.pet[data-shape=bear] .ear.left{left:16px;transform:none}.pet[data-shape=bear] .ear.right{right:16px;transform:none}
 .pet[data-shape=frog] .ear{width:34px;height:34px;top:12px;border-radius:50%}.pet[data-shape=frog] .ear.left{left:18px;transform:none}.pet[data-shape=frog] .ear.right{right:18px;transform:none}.pet[data-shape=frog] .body{border-radius:45% 45% 32% 32%}.pet[data-shape=frog] .mouth{width:16px;left:39px;border-radius:0 0 8px 8px}
 .pet[data-shape=turtle] .ear{display:none}.pet[data-shape=turtle] .body{border-radius:45% 45% 35% 35%;box-shadow:inset 0 0 0 6px #4b2d7744}
+.pet .body{border-radius:44% 46% 34% 38%;box-shadow:inset 10px 10px 0 #ffffff1f,inset -10px -12px 0 #00000018,0 6px 0 #00000010;overflow:visible}
+.pet .body::before{content:"";position:absolute;left:18px;top:13px;width:44px;height:32px;border-radius:50%;background:radial-gradient(circle,#fff8 0%,#fff0 68%);pointer-events:none}
+.pet .ear{border-radius:44% 44% 28% 28%;box-shadow:inset 5px 7px 0 #ffffff1c}
+.pet .eye{border-radius:5px;box-shadow:inset 2px 2px 0 #ffffff3b}.pet .cheek{border-radius:999px;opacity:.88}.pet .mouth{border-radius:0 0 7px 7px}
+.pet .foot{border-radius:54% 48% 30% 30%;transform-origin:center top;box-shadow:inset 3px 3px 0 #ffffff1a}
+.pet:not([data-action=sleep]) .foot.l{animation:tinyStepL .62s ease-in-out infinite}.pet:not([data-action=sleep]) .foot.r{animation:tinyStepR .62s ease-in-out infinite}
+.pet[data-shape=robot] .body{border-radius:8px;box-shadow:inset 0 0 0 5px #ffffff1c,inset 0 -14px 0 #0000001f}.pet[data-shape=robot] .body::before{border-radius:4px;width:70px;height:16px;left:20px;top:12px;background:#ffffff24}
+.pet[data-shape=blob] .body{border-radius:54% 46% 40% 48%;animation:blobSquish 1.35s ease-in-out infinite}
+.pet[data-shape=frog] .ear,.pet[data-shape=bear] .ear{box-shadow:inset 4px 4px 0 #ffffff24}
+.pet[data-shape=cat] .body::after{content:"";position:absolute;right:-18px;bottom:8px;width:28px;height:30px;border:7px solid #4b2d77;border-left:0;border-bottom:0;border-radius:0 20px 0 0;transform:rotate(20deg)}
+.pet[data-shape=blob] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:-2px;height:18px;background:#0001;border-radius:50%;filter:blur(2px)}
+.pet[data-shape=robot] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:10px;height:9px;background:#4b2d7744;border-radius:2px;box-shadow:0 -48px 0 -1px #4b2d7744}
+.pet[data-shape=bunny] .mouth::after{content:"";position:absolute;top:5px;left:-1px;width:10px;height:9px;background:#fff;border-radius:0 0 3px 3px;box-shadow:6px 0 0 #fff}
+.pet[data-shape=dog] .body::after,.pet[data-shape=bear] .body::after{content:"";position:absolute;left:34px;top:58px;width:42px;height:28px;background:#fff5;border-radius:50%;z-index:0}
+.pet[data-shape=dog] .mouth,.pet[data-shape=bear] .mouth{z-index:1}
+.pet[data-shape=frog] .body::after{content:"";position:absolute;left:24px;top:70px;width:62px;height:16px;border-bottom:5px solid #4b2d77;border-radius:50%}
+.pet[data-shape=turtle] .body::after{content:"";position:absolute;inset:16px 18px 20px;border:4px dashed #4b2d77;border-radius:50%;opacity:.65}
 /* Expressions */
 .pet[data-expression=wink] .eye.r{height:4px;top:48px;border-radius:2px}
 .pet[data-expression=shades] .body::before{content:"";position:absolute;top:34px;left:14px;width:82px;height:18px;background:#111;border-radius:4px;box-shadow:0 2px 4px #0006;z-index:5}
@@ -52,6 +69,9 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 @keyframes breathe{50%{transform:scaleY(.96)}}
 @keyframes chew{50%{height:12px}}
 @keyframes wander{0%{translate:-45px 0}50%{translate:0 -15px}100%{translate:45px 0}}
+@keyframes tinyStepL{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(5deg)}}
+@keyframes tinyStepR{0%,100%{transform:translateY(-5px) rotate(5deg)}50%{transform:translateY(0) rotate(-2deg)}}
+@keyframes blobSquish{0%,100%{transform:scale(1,1)}50%{transform:scale(1.04,.96)}}
 @media(prefers-reduced-motion:reduce){.pet,.eye,.pet-stage.wandering .pet{animation:none!important}}
 
 #pipVideo{display:block;width:100%;max-height:260px;border-radius:14px;background:#17142a;margin:16px 0}.pip-note{font-size:12px!important}details summary{cursor:pointer}details a{color:#d6b6ff}
@@ -86,6 +106,7 @@ button:active{translate:0 2px;transform:none;border-bottom-width:1px}button:focu
 button.secondary,.modes button{background:#ebe5da;color:#252326;border-color:#c7beb1}
 .actions{gap:10px}.care-actions{margin:0}.care-actions button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:#e8e0f1}.care-actions button span{font-size:27px;line-height:1.1}.care-actions button:nth-child(2){background:#e1e7cf}.care-actions button:nth-child(3){background:#e7dcca}
 .little-actions{margin:12px 0 24px}.little-actions button{min-height:42px;padding:8px;font-size:12px;border:0;background:none;text-decoration:underline;text-underline-offset:4px}
+.needs-actions{margin:-4px 0 0}.needs-actions button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:#e7dcca}.needs-actions button span{font-size:27px;line-height:1.1}
 .overlay{background:none;border:0;border-top:1px solid #ddd5c8;border-radius:0;padding:22px 0;margin:0}.overlay h2{font-size:16px;margin:0 0 10px;letter-spacing:-.3px}.overlay p{color:#716a67;line-height:1.5;font-size:13px;margin:6px 0 12px}
 .floating-controls p{margin-bottom:10px}.modes button.selected{outline:0;background:#cab4ec;border-color:#252326}
 #lookPanel>.overlay{border-top:0;padding-top:0}label{font-weight:650;margin:16px 0 8px;font-size:13px}label output{font-weight:500;color:#716a67}
@@ -153,6 +174,8 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
  .care-actions{grid-column:4/span 3;margin:0}
  .care-actions button{min-height:78px}
  .little-actions{grid-column:4/span 3;margin:0}
+ .needs-actions{grid-column:4/span 3;margin:0}
+ .needs-actions button{min-height:78px}
  .visit-box{grid-column:1/-1}
  .floating-controls,#floatingVideoHost{display:none}
  #screen-looks,#screen-settings{max-width:860px;margin:0 auto}
@@ -250,7 +273,7 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 .app-footer nav a:hover{text-decoration:underline}
 .app-footer p{margin:0;color:#a9a0c0;font-size:11px}
 
-/* ── Fren Pocket Vault & $1 Mint Styles ────────────────────────── */
+/* ── Fren Pocket Vault & ETH Mint Styles ────────────────────────── */
 .fren-vault-card{background:#ffffff;border:1.5px solid #d4c8e8;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 12px rgba(133,93,205,0.08)}
 .vault-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .vault-badge{background:#855DCD;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:0.5px;text-transform:uppercase}
@@ -271,11 +294,71 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 .mint-btn:hover{box-shadow:0 6px 18px rgba(133,93,205,0.4);transform:translateY(-1px)}
 .mint-btn:active{transform:translateY(1px)}
 .mint-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.onchain-tools-card{background:#fff;border:1.5px solid #d4c8e8;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 12px rgba(133,93,205,0.08)}
+.onchain-tools-card h3{margin:0 0 4px;font-size:16px;color:#3a2068}
+.onchain-tools-card label{display:block;margin:10px 0 6px;font-size:12px;font-weight:700;color:#675f6d;text-transform:uppercase;letter-spacing:.5px}
+.onchain-tools-card input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #c7beb1;border-radius:8px;background:#fbf9f5;color:#252326}
+.onchain-tools-card .actions{margin-top:12px}
 
 .magic-link-box{background:#fdfae6;border:1px dashed #d1c164;border-radius:12px;padding:12px;margin:12px 0}
 .magic-link-box p{margin:0 0 8px;color:#5a5122}
 .magic-link-row{display:flex;gap:8px;align-items:center}
 .magic-link-input{flex:1;min-width:0;font-size:12px;padding:8px 10px;border:1px solid #dcd39a;border-radius:8px;background:#fff;color:#333}
+
+/* Testnet dark mode */
+:root{color:#f7f1ff;background:#17142a}
+body{background:radial-gradient(900px 520px at 50% -180px,#352a5b 0%,#17142a 58%,#110e21 100%);color:#f7f1ff}
+main{color:#f7f1ff}
+.wordmark{color:#fff}.wordmark span{color:#a474f1}.day-label{background:#211c39;color:#f7f1ff;border:1px solid #3c3155}
+.space-switcher,.tabbar{background:#211c39;border-color:#3c3155;box-shadow:0 10px 30px #09061280}
+.space-pill,.tabbar button,.tabbar a{color:#b8add3}
+.space-pill.active,.space-pill:hover:not(.active),.tabbar button[aria-selected=true],.tabbar a:hover{background:#332652;color:#fff}
+.screen>h1,.pet-name,h2,h3,label{color:#fff}.screen-intro,.stage-label,#mood,.overlay p,.small,footer,.stats label b,label output{color:#b8add3}
+.pet-stage{background-color:#130f25;background-image:radial-gradient(#3c3155 1px,transparent 1px)}
+.look-preview,.party-stage,.wallet-nft,.chat-message,.magic-link-box,.fren-vault-card,.mint-fren-card,.onchain-tools-card,.party-inspect-card{background:#211c39;color:#f7f1ff;border-color:#4a3b68;box-shadow:0 10px 30px #0906124d}
+.mint-fren-card{background:linear-gradient(135deg,#251c3d 0%,#12243e 100%)}
+.fren-vault-card{background:linear-gradient(135deg,#211c39,#17142a)}
+.vault-address-input,.magic-link-input,.chat-form input,.wallet-form input,.wallet-form textarea,.onchain-tools-card input,.party-controls input,select,input[type=color],#updateRepo,.name-form input{background:#120f22;color:#f7f1ff;border-color:#4a3b68}
+button.secondary,.modes button{background:#2d2445;color:#f7f1ff;border-color:#4a3b68}
+button{background:#a474f1;color:#120f22;border-color:#0d0a19}
+.vault-copy-btn{background:#332652;color:#f7f1ff;border-color:#5a4582}
+.vault-hint,.wallet-nft p,.visit-box p{color:#b8add3}
+.vault-chip{background:#173d30;color:#82eba1}.vault-badge{background:#855DCD;color:#fff}
+.mint-header h3{color:#f7f1ff}.mint-header .small{color:#cbb6ff}
+.onchain-tools-card h3{color:#f7f1ff}.onchain-tools-card label{color:#cbb6ff}
+.tabbar{border-top-color:#3c3155}.tabbar a{flex:1;border:0;border-radius:8px;background:none;font-size:11px;display:flex;align-items:center;flex-direction:column;gap:3px;min-height:50px;padding:7px;text-decoration:none;font-weight:700;justify-content:center}
+
+/* Collection-grade living sprite: clearer silhouette, arms, and a real stride cycle. */
+.pet{width:140px;height:158px;transform-origin:50% 100%}
+.pet .body{inset:38px 14px 18px;border-width:8px;border-radius:46% 44% 34% 38%;box-shadow:inset 12px -16px 0 #00000012,inset -10px 12px 0 #ffffff24}
+.pet .ear{z-index:1}.pet .body,.pet .foot,.pet .arm{z-index:2}
+.pet .eye,.pet .cheek,.pet .mouth{z-index:4}
+.arm{position:absolute;top:86px;width:18px;height:42px;background:var(--pet-color,#a474f1);border:7px solid #4b2d77;border-radius:999px;transform-origin:50% 8px;z-index:1}
+.arm.l{left:2px;rotate:20deg;animation:tinyArmLeft 1s ease-in-out infinite}
+.arm.r{right:2px;rotate:-20deg;animation:tinyArmRight 1s ease-in-out infinite}
+.foot{bottom:5px;border-radius:14px 14px 7px 7px;animation:tinyStep 1s ease-in-out infinite}
+.foot.l{left:30px}.foot.r{right:30px;animation-delay:.5s}
+.pet-stage.wandering .pet .body{animation:tinyBodySquash 1s ease-in-out infinite}
+.pet[data-shape=cat] .body{border-radius:48% 48% 34% 40%}.pet[data-shape=cat] .ear{top:8px}.pet[data-shape=cat] .body::after{right:-23px;bottom:11px;width:34px;height:42px}
+.pet[data-shape=blob] .body{inset:42px 10px 14px;border-radius:56% 48% 42% 50%;rotate:-2deg}
+.pet[data-shape=blob] .arm{display:none}
+.pet[data-shape=robot] .body{border-radius:10px;box-shadow:inset 0 -12px 0 #00000018,inset 0 13px 0 #ffffff24}.pet[data-shape=robot] .arm{border-radius:8px;height:34px}
+.pet[data-shape=bunny] .body{border-radius:50% 50% 32% 32%}.pet[data-shape=bunny] .ear{top:-12px}
+.pet[data-shape=dog] .body{border-radius:42% 50% 32% 44%;rotate:-1deg}.pet[data-shape=dog] .ear{z-index:3}
+.pet[data-shape=bear] .body{border-radius:48% 48% 36% 36%}.pet[data-shape=bear] .ear{z-index:3}
+.pet[data-shape=frog] .body{inset:49px 7px 17px;border-radius:54% 54% 42% 42%}.pet[data-shape=frog] .ear{z-index:3}
+.pet[data-shape=turtle] .body{inset:50px 5px 18px;border-radius:54% 54% 42% 42%;box-shadow:inset 0 0 0 7px #4b2d7748,inset 14px -14px 0 #00000012}
+.pet[data-shape=turtle] .arm{top:91px;height:28px}
+.pet[data-action=dance] .arm.l,.pet[data-action=wave] .arm.r{animation:tinyWave .45s ease-in-out infinite}
+@keyframes tinyStep{0%,100%{translate:0 0;scale:1 1}50%{translate:0 -8px;scale:.88 1.14}}
+@keyframes tinyArmLeft{50%{rotate:-18deg;translate:2px -3px}}
+@keyframes tinyArmRight{50%{rotate:18deg;translate:-2px -3px}}
+@keyframes tinyBodySquash{50%{scale:1.03 .98;translate:0 2px}}
+@keyframes tinyWave{50%{rotate:-55deg;translate:0 -7px}}
+@media(prefers-reduced-motion:reduce){.arm,.foot,.pet-stage.wandering .pet .body{animation:none!important}}
+.tabbar a span{font-size:24px;line-height:1}
+.update-banner{background:#24351f;border-color:#4d6f43;color:#f7f1ff}
+.desktop-titlebar .topbar{background:#17142a}
 
 
 

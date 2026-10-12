@@ -392,10 +392,9 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         r = await self.client.get('/api/nft/price', headers={'Origin': ORIGIN})
         self.assertEqual(r.status, 200)
         data = await r.json()
-        self.assertEqual(data['targetUsd'], 1.0)
-        self.assertGreater(data['priceUsd'], 0)
-        self.assertGreater(data['frensRequired'], 0)
-        self.assertGreater(data['creditsRequired'], 0)
+        self.assertEqual(data['symbol'], 'ETH')
+        self.assertGreater(data['ethRequired'], 0)
+        self.assertGreater(int(data['ethRequiredWei']), 0)
 
     async def test_wallet_mint_and_magic_link(self):
         a = await self.register('MintyFren')
@@ -403,7 +402,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         r_check = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={'token': a['token'], 'checkOnly': True})
         self.assertEqual(r_check.status, 200)
         check_data = await r_check.json()
-        self.assertIn('frensRequired', check_data)
+        self.assertIn('ethRequired', check_data)
         self.assertTrue(check_data['vaultAddress'].startswith('0x'))
 
         # Perform mint (with testnet free mint fallback enabled by default)
@@ -413,7 +412,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(mint_data['success'])
         token_id = mint_data['nft']['tokenId']
         self.assertGreaterEqual(token_id, 1)
-        self.assertLessEqual(token_id, 888)
+        self.assertLessEqual(token_id, 2664)
         self.assertEqual(mint_data['pet']['tokenId'], token_id)
 
         # Check that bankr_nfts returns the minted NFT

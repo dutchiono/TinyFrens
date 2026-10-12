@@ -226,9 +226,9 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
       }
       case 'mode': event.returnValue = JSON.stringify(store.mode(value)); broadcast(); break;
       case 'action': {
-        if (!['feed', 'play', 'rest', 'wave', 'dance', 'toy'].includes(value)) throw new Error('Invalid action');
+        if (!['feed', 'play', 'rest', 'clean', 'vitamin', 'wave', 'dance', 'toy'].includes(value)) throw new Error('Invalid action');
         const result = store.action(value); event.returnValue = JSON.stringify(result); broadcast(result);
-        if (!result.blocked) { if (value === 'rest') sleepingUntil = Date.now() + 15000; animate({ feed: 'eat', play: 'dance', rest: 'sleep', toy: 'toy' }[value] || value); }
+        if (!result.blocked) { if (result.animation === 'sleep') sleepingUntil = Date.now() + 15000; animate(result.animation || value); }
         break;
       }
       case 'menu': if (event.sender === pet.webContents) menuUntil = value === true ? Date.now() + 8500 : 0; event.returnValue = true; break;

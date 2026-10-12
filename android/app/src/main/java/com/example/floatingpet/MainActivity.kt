@@ -7,9 +7,13 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -21,6 +25,7 @@ class MainActivity : Activity() {
     private var latestUpdate: org.json.JSONObject? = null
     private var pendingApk: java.io.File? = null
     private val downloading = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         web = WebView(this).apply {
@@ -119,7 +124,9 @@ class MainActivity : Activity() {
             runOnUiThread { sendService("refresh") }
             return state.toString()
         }
-        @JavascriptInterface fun toy() { runOnUiThread { if(store.read().optBoolean("haptics",true))web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);sendService("toy") } }
+        @JavascriptInterface fun toy() { runOnUiThread { if(store.read().optBoolean("haptics",true))web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);playPetSound("toy");sendService("toy") } }
+        @JavascriptInterface fun sound(name: String) { runOnUiThread { playPetSound(name) } }
+        @JavascriptInterface fun notify(title: String, text: String) { runOnUiThread { postUpdateNotification(30, title.take(60), text.take(180)) } }
         @JavascriptInterface fun getState(): String = store.read().toString()
         @JavascriptInterface fun rename(name: String): String = store.rename(name).toString()
         @JavascriptInterface fun action(name: String): String {
@@ -224,6 +231,20 @@ class MainActivity : Activity() {
                 .setAutoCancel(true)
                 .build()
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(id, notification)
+        } catch (_: Exception) { }
+    }
+    private fun playPetSound(name: String) {
+        if (!store.read().optBoolean("sounds", true)) return
+        val tone = when (name) {
+            "rest", "sleep" -> ToneGenerator.TONE_PROP_BEEP
+            "play", "dance", "toy" -> ToneGenerator.TONE_PROP_ACK
+            "feed", "eat" -> ToneGenerator.TONE_PROP_BEEP2
+            else -> ToneGenerator.TONE_PROP_PROMPT
+        }
+        try {
+            val player = ToneGenerator(AudioManager.STREAM_MUSIC, 45)
+            player.startTone(tone, 120)
+            mainHandler.postDelayed({ try { player.release() } catch (_: Exception) { } }, 180)
         } catch (_: Exception) { }
     }
     private fun notifyUpdate(result: org.json.JSONObject) {

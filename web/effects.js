@@ -25,12 +25,15 @@
   $('petHaptics').disabled=!hapticSupported;
   if(!hapticSupported)$('effectsHelp').textContent+=' Haptic taps are unavailable on this device/browser.';
   const AudioCtor=window.AudioContext||window.webkitAudioContext;
-  const audioSupported=!!AudioCtor;
+  const nativeSound=native&&typeof PetAndroid.sound==='function';
+  const audioSupported=!!AudioCtor||nativeSound;
   $('petSounds').disabled=!audioSupported;
   if(!audioSupported)$('effectsHelp').textContent+=' Sounds are unavailable in this browser.';
   let audio;
   function sound(name,s) {
-    if(!audioSupported||s.sounds===false)return;
+    if(s.sounds===false)return;
+    if(nativeSound){try{PetAndroid.sound(name);return;}catch{}}
+    if(!AudioCtor)return;
     try{
       audio=audio||new AudioCtor();
       audio.resume?.();

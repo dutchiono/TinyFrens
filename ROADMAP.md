@@ -12,7 +12,7 @@ Weather, richer action-specific confetti/stars and arrival/goodbye effects. Pres
 
 ## Objects — planned
 
-Beds for naps, bowls for snacks and toys for play. Objects must trigger existing Feed/Play/Nap rules with the same costs, caps, animations and feedback. No hidden rewards from dragging/catching objects. The Android toy chase already exists; desktop has a cosmetic toy beside the pet, with a moving chase still planned.
+Beds for naps, bowls for food and toys for play. Objects must trigger existing Feed/Play/Nap rules with the same costs, caps, animations and feedback. No hidden rewards from dragging/catching objects. The Android toy chase already exists; desktop has a cosmetic toy beside the pet, with a moving chase still planned.
 
 ## Nearby friends
 

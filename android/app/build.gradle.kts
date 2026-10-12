@@ -33,5 +33,6 @@ android {
 
 dependencies {
  implementation("androidx.core:core:1.15.0")
+ implementation("org.mozilla:rhino:1.7.15")
  testImplementation("junit:junit:4.13.2")
 }

@@ -15,12 +15,12 @@ Everyone gets a companion the moment they open the Mini App. Yours is picked jus
 you (based on your Telegram account) and starts as a **Hatchling** on **Day 0**. Give it
 a name, pick a look, and it's yours. It remembers you every time you come back.
 
-Your fren has three needs, shown as **Snacks**, **Joy**, and **Energy**:
+Your fren has three needs, shown as **Food**, **Joy**, and **Energy**:
 
 | Action | What it does | When it's not available |
 |---|---|---|
-| 🍓 **Feed** | Snacks +25 (max 100) | Already full |
-| 🎾 **Play** | Joy +20, costs some snacks & energy | Too hungry or too tired |
+| 🍓 **Feed** | Food +25 (max 100) | Already full |
+| 🎾 **Play** | Joy +20, costs some food & energy | Too hungry or too tired |
 | ☾ **Nap** | Energy +25 (max 100) | Already wide awake |
 
 Wave 👋, Dance 💃 and Toy 🧸 are just for fun — they don't change the numbers. Over time
