@@ -326,7 +326,7 @@ def create_app(database=None, origins=None):
                     "hero-img": {
                         "type": "image",
                         "props": {
-                            "url": "https://tinyfrens.lol/icons/icon-512.png",
+                            "url": "https://tinyfrens.lol/icons/og-card.png",
                             "aspect": "16:9",
                             "title": "TinyFrens",
                             "subtitle": status_text
