@@ -37,9 +37,10 @@
       const response = await fetch('testnet-gallery.json', {cache:'no-store'});
       if (!response.ok) throw new Error('Snapshot request failed');
       const snapshot = await response.json();
-      if (snapshot.chainId !== 84532 || !Array.isArray(snapshot.tokens)) throw new Error('Invalid testnet snapshot');
+      if (snapshot.chainId !== 84532 || snapshot.collection.toLowerCase() !== '0x091fb40292925e822849ba415599939eec078b62' || !Array.isArray(snapshot.tokens)) throw new Error('Invalid robot testnet snapshot');
       $('snapshot').textContent = `${snapshot.tokens.length} minted NFTs · Snapshot ${new Date(snapshot.capturedAt).toLocaleString()} · Block ${snapshot.block.toLocaleString()}`;
       for (const token of snapshot.tokens) {
+        if (!token.metadata.attributes?.some(item => item.trait_type === 'Species' && item.value === 'Robot')) throw new Error('Non-robot metadata in robot collection');
         if (!token.metadata.image.startsWith('data:image/svg+xml;base64,')) throw new Error('Invalid on-chain artwork');
         const card = document.createElement('button'); card.type = 'button'; card.className = 'card';
         const image = document.createElement('img'); image.src = token.metadata.image;

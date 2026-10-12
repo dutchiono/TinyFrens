@@ -11,7 +11,7 @@ from eth_utils import keccak
 
 ROOT = Path(__file__).resolve().parents[1]
 RPC = 'https://sepolia.base.org'
-NFT = '0x695a9a01C4e4659327bBb4f157E5c08F05bDde2e'
+NFT = '0x091FB40292925E822849BA415599939eec078b62'
 STORAGE = '0x00000000DB40fcB9f4466330982372e27Fd7Bbf5'
 
 
@@ -27,11 +27,11 @@ def rpc(method, params):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--receipts', type=Path, help='Optional directory containing testnet-mint19-receipt-*.json')
+    parser.add_argument('--receipts', type=Path, help='Optional directory containing mint-receipt-*.json')
     args = parser.parse_args()
     mint_transactions = {}
     if args.receipts:
-        for path in args.receipts.glob('testnet-mint19-receipt-*.json'):
+        for path in args.receipts.glob('mint-receipt-*.json'):
             receipt = json.loads(path.read_text(encoding='utf-8-sig'))
             if receipt['status'] != '0x1':
                 raise RuntimeError(f'Unsuccessful receipt: {path.name}')
@@ -64,6 +64,12 @@ def main():
         metadata = json.loads(base64.b64decode(uri.split(',', 1)[1]))
         if not metadata.get('image', '').startswith('data:image/svg+xml;base64,'):
             raise RuntimeError(f'Token {token_id}: embedded SVG missing')
+        species = [item.get('value') for item in metadata.get('attributes', []) if item.get('trait_type') == 'Species']
+        if species != ['Robot']:
+            raise RuntimeError(f'Token {token_id}: expected robot-only collection, got {species}')
+        svg = base64.b64decode(metadata['image'].split(',', 1)[1]).decode()
+        if '@keyframes step-a' not in svg or '@keyframes arm-a' not in svg:
+            raise RuntimeError(f'Token {token_id}: robot walk animation missing')
         tokens.append(dict(id=token_id, owner=owner, storageKey='0x' + key.hex(), metadata=metadata,
                            mintTransaction=mint_transactions.get(token_id)))
     snapshot = dict(chainId=84532, network='Base Sepolia', collection=NFT, storage=STORAGE,
