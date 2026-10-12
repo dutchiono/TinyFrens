@@ -10,7 +10,7 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 
 ## Find TinyFrens
 
-[Website](https://tinyfrens.lol) · [Telegram](https://t.me/TinyFrensBot) · [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to)
+[Website](https://tinyfrens.lol) · [Telegram](https://t.me/TinyFrensBot) · [Farcaster](https://farcaster.xyz/tinyfrens) · [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to)
 
 ## Documentation
 

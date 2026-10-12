@@ -1,7 +1,30 @@
 'use strict';
 (() => {
   const log = $('chatLog'), form = $('chatForm'), input = $('chatInput'), status = $('chatStatus'), send = $('chatSend');
+  const modal = $('chatModal');
   const server = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+
+  // Chat is now a popup dialog opened by tapping the character (or the hint),
+  // not a dedicated tab.
+  function openChat() {
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add('chat-open');
+    try { input.focus(); } catch {}
+  }
+  function closeChat() {
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.classList.remove('chat-open');
+  }
+  $('chatClose')?.addEventListener('click', closeChat);
+  $('chatBackdrop')?.addEventListener('click', closeChat);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal && !modal.hidden) closeChat(); });
+  // Tapping the character (or the hint) opens the chat dialog.
+  $('pet')?.addEventListener('click', openChat);
+  $('chatHint')?.addEventListener('click', openChat);
+  window.TinyFrensChat = { open: openChat, close: closeChat };
+
   function line(kind, text) {
     const bubble = document.createElement('p');
     bubble.className = 'chat-message ' + kind;
