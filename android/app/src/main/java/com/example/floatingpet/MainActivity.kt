@@ -131,6 +131,24 @@ class MainActivity : Activity() {
                 if (PetOverlayService.running) startService(intent)
             }
         }
+        @JavascriptInterface fun startBattle(opponentJson: String, role: String) {
+            runOnUiThread {
+                val intent = Intent(this@MainActivity, PetOverlayService::class.java).apply {
+                    action = PetOverlayService.ACTION_START_BATTLE
+                    putExtra("opponent", opponentJson)
+                    putExtra("role", role)
+                }
+                if (PetOverlayService.running) startService(intent)
+            }
+        }
+        @JavascriptInterface fun endBattle() {
+            runOnUiThread {
+                val intent = Intent(this@MainActivity, PetOverlayService::class.java).apply {
+                    action = PetOverlayService.ACTION_END_BATTLE
+                }
+                if (PetOverlayService.running) startService(intent)
+            }
+        }
         @JavascriptInterface fun permissions(): String = org.json.JSONObject()
             .put("overlay", Settings.canDrawOverlays(this@MainActivity))
             .put("install", packageManager.canRequestPackageInstalls()).toString()

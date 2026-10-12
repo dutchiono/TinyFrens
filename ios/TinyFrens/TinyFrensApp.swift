@@ -4,12 +4,24 @@ import UIKit
 
 @main
 struct TinyFrensApp: App {
+    @State private var widgetScreen: String?
+    @State private var widgetRequestID = UUID()
     var body: some Scene {
-        WindowGroup { PetWebView().ignoresSafeArea(.container, edges: .bottom) }
+        WindowGroup {
+            PetWebView(widgetScreen: widgetScreen, widgetRequestID: widgetRequestID).ignoresSafeArea(.container, edges: .bottom)
+                .onOpenURL { url in
+                    guard url.scheme == "tinyfrens", let screen = url.host,
+                          ["pet", "care"].contains(screen) else { return }
+                    widgetScreen = screen
+                    widgetRequestID = UUID()
+                }
+        }
     }
 }
 
 struct PetWebView: UIViewRepresentable {
+    var widgetScreen: String?
+    var widgetRequestID: UUID
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -33,12 +45,31 @@ struct PetWebView: UIViewRepresentable {
         }
         return web
     }
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        guard let screen = widgetScreen else { return }
+        guard context.coordinator.lastWidgetRequestID != widgetRequestID else { return }
+        context.coordinator.lastWidgetRequestID = widgetRequestID
+        context.coordinator.openWidgetScreen(screen)
+    }
     func makeCoordinator() -> Coordinator { Coordinator() }
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
         weak var web: WKWebView?
         private var foregroundObserver: NSObjectProtocol?
         private var checking = false
+        var lastWidgetRequestID: UUID?
+        private var pendingWidgetScreen: String?
+        private var loaded = false
+        func openWidgetScreen(_ screen: String) {
+            guard ["pet", "care"].contains(screen) else { return }
+            pendingWidgetScreen = screen
+            guard loaded else { return }
+            web?.evaluateJavaScript("window.showScreen?.('\(screen)')", completionHandler: nil)
+            pendingWidgetScreen = nil
+        }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            loaded = true
+            if let screen = pendingWidgetScreen { openWidgetScreen(screen) }
+        }
         func attach(_ webView: WKWebView) {
             web = webView
             foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in

@@ -27,10 +27,13 @@ class TurtleStore(context: Context) {
     }
 
     fun request(server: String, path: String, body: JSONObject): JSONObject {
-        if (server == SERVER && path == "/native/remove-turtle") {
+        if (server == SERVER && path in setOf("/native/remove-turtle", "/native/remove-wallet")) {
             synchronized(lock) {
                 generation++
-                save(items().filter { it.optInt("tokenId") != body.optInt("tokenId") })
+                save(items().filter {
+                    if (path == "/native/remove-wallet") !it.optString("wallet", it.optString("originalOwner")).equals(body.optString("address"), true)
+                    else it.optInt("tokenId") != body.optInt("tokenId")
+                })
                 framesCache.clear()
             }
             return JSONObject().put("removed", true)

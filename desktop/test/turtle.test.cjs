@@ -74,3 +74,19 @@ test('companions persist together, remove individually and expire independently'
   reopened.remove(2);
   assert.equal(reopened.view().selected, false);
 });
+
+test('removing one wallet preserves companions belonging to other wallets', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-wallets-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  const first = '0x' + 'a'.repeat(40), second = '0x' + 'b'.repeat(40);
+  const store = new TurtleStore(path.join(dir, 'turtle.json'), async (_, options) => {
+    const {tokenId} = JSON.parse(options.body);
+    return {ok:true, text:async () => JSON.stringify({active:true, tokenId, wallet:tokenId === 1 ? first : second,
+      name:'Turtle', image:'data:image/png;base64,aW1hZ2U=', validUntil:Date.now()/1000+3600})};
+  });
+  await store.import(SERVER, {token:'secret', tokenId:1});
+  await store.import(SERVER, {token:'secret', tokenId:2});
+  store.removeWallet(first.toUpperCase());
+  assert.deepEqual(store.view().items.map(nft => nft.tokenId), [2]);
+  assert.equal(store.view().items[0].wallet, second);
+});

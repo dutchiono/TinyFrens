@@ -71,6 +71,7 @@ function syncCompanions() {
     if (entry.nft.validUntil !== nft.validUntil || entry.nft.image !== nft.image) {
       entry.nft = nft; entry.win.webContents.send('tinyfrens:turtle', {active:true, ...nft});
     }
+    entry.nft = nft;
   }
 }
 function moveCompanions(elapsed) {
@@ -85,7 +86,8 @@ function moveCompanions(elapsed) {
       entry.target = {x:area.x+Math.random()*(area.width-128),y:area.y+Math.random()*(area.height-128)};
     const dx=entry.target.x-entry.point.x,dy=entry.target.y-entry.point.y,distance=Math.hypot(dx,dy);
     const reduced=store.read().reduceMotion||systemReducedMotion;
-    const step=reduced?0:Math.min(distance,store.read().speed*elapsed);
+    const motion=entry.nft.motion || {mode:'roam',speed:60};
+    const step=reduced||motion.mode==='bubble'?0:Math.min(distance,motion.speed*elapsed);
     if(distance>0){entry.point.x+=dx/distance*step;entry.point.y+=dy/distance*step;}
     win.setPosition(Math.round(entry.point.x),Math.round(entry.point.y));
     win.webContents.send('tinyfrens:companion-motion', {walking:step>0,direction:dx<0?-1:1});
@@ -222,7 +224,7 @@ async function smokeTest() {
     assert.equal(pet.isVisible(), true);
     assert.equal(await js('typeof window.TinyFrensDesktop'), 'object');
     assert.equal(await js('typeof require'), 'undefined');
-    assert.equal(await js('document.getElementById("start").textContent'), 'Hide pet');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Hide NFTs');
     await js('document.getElementById("play").click()');
     await pause(100);
     assert.equal(store.read().energy, 68); assert.equal(store.read().hunger, 72);
@@ -239,7 +241,7 @@ async function smokeTest() {
     await pet.webContents.executeJavaScript('document.getElementById("closePet").click()');
     await pause(100);
     assert.equal(pet.isVisible(), false);
-    assert.equal(await js('document.getElementById("start").textContent'), 'Show pet');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Show NFTs');
     await js('document.getElementById("start").click()');
     await pause(100); assert.equal(pet.isVisible(), true);
     const before = pet.getBounds(), area = screen.getDisplayMatching(before).workArea;
@@ -319,6 +321,8 @@ ipcMain.handle('tinyfrens:check-update', async event => {
 });
 ipcMain.handle('tinyfrens:turtle-request', async (event, server, route, body) => {
   if (!trusted(event) || event.sender !== careWindow?.webContents) throw new Error('Untrusted turtle request');
+  if (route === '/native/companion-motion') { if (server !== SERVER) throw new Error('Unsupported turtle server'); const result = turtles.setMotion(body.tokenId, body.mode, body.speed); broadcastTurtle(); return result; }
+  if (route === '/native/remove-wallet') { if (server !== SERVER || !/^0x[0-9a-fA-F]{40}$/.test(body.address)) throw new Error('Invalid wallet'); turtles.removeWallet(body.address); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/remove-turtle') { if (server !== SERVER) throw new Error('Unsupported turtle server'); turtles.remove(body.tokenId); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/import-turtle') {
     if (server !== SERVER) throw new Error('Unsupported turtle server');

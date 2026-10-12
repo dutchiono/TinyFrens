@@ -65,8 +65,8 @@ styleSection.innerHTML = `
   <label for="petSize">Size <output id="sizeValue">80</output></label>
   <input id="petSize" type="range" min="56" max="128" value="80">
 
-  <label for="petSpeed">Wander speed <output id="speedValue">60</output></label>
-  <input id="petSpeed" type="range" min="20" max="140" value="60">
+  <!-- Imported NFTs have individual movement controls on Show NFTs. -->
+  <div hidden><output id="speedValue">60</output><input id="petSpeed" type="range" min="20" max="140" value="60" aria-label="Legacy pet speed"></div>
 
   <!-- On-chain Spec Compiler -->
   <div class="compiler-box">
@@ -77,11 +77,12 @@ styleSection.innerHTML = `
     <pre id="compilerOutput">{}</pre>
   </div>
 
-  <button type="button" id="studioMintButton" class="studio-mint-btn">✨ Mint Custom Fren to Base Sepolia</button>
+  <p class="small">Minting a custom TinyFren to your own wallet is not available yet. You can still save this look on your fren.</p>
+  <button type="button" id="studioSaveNftButton" class="secondary" style="margin-top:8px;width:100%;display:none;">💾 Save Look to Equipped NFT (50% Burn / 50% Treasury)</button>
 
   <div class="nft-sync-box" style="margin:20px 0 10px;padding:14px;background:#241d3d;border:1px solid #4a3a6c;border-radius:12px;">
     <label for="nftTokenInput" style="font-weight:700;margin:0 0 4px">Replicate Existing TinyFren NFT</label>
-    <p class="small" style="margin:2px 0 8px;color:#a496c8;">Enter an on-chain token ID (#1–#2664) to copy its exact traits.</p>
+    <p class="small" style="margin:2px 0 8px;color:#a496c8;">Enter a token ID (#1–#2664) to preview its robot-only BNKR look. Minted traits may differ.</p>
     <div class="actions" style="margin:0">
       <input id="nftTokenInput" type="number" min="1" max="2664" placeholder="Token # (1–2664)" style="background:#17142a;color:#fff;border-radius:8px;padding:8px;width:100%">
       <button id="syncNftButton" type="button" class="secondary" style="flex:none">Sync Look</button>
@@ -106,17 +107,15 @@ function normalizeShape(s) {
 }
 
 function nftTraits(tokenId) {
-  const SPECIES = ['cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle'];
-  const PALETTES = ['#a474f1', '#66c7d2', '#ffb95e', '#82eba1', '#ff82a7', '#4d96ff', '#3a2d52', '#ffd700'];
+  const PALETTES = ['#a474f1', '#66c7d2', '#ffb95e', '#82eba1', '#ff82a7', '#4d96ff', '#76638e', '#ffd700'];
   const EXPRS = ['happy', 'wink', 'shades', 'star_eyes'];
   const ACCS = ['none', 'party_hat', 'crown', 'halo', 'bow_tie', 'orb'];
-  let s = Number(BigInt(Number(tokenId) * 104729 + 7919) % 2147483647n);
-  function rand() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }
-  const species = SPECIES[(Number(tokenId) - 1) % 8];
-  const palRoll = rand() * 100;
-  const color = palRoll < 5 ? PALETTES[7] : palRoll < 20 ? PALETTES[6] : PALETTES[Math.floor(rand() * 6)];
-  const expr = EXPRS[Math.floor(rand() * EXPRS.length)];
-  const acc = ACCS[Math.floor(rand() * ACCS.length)];
+  const species = 'robot';
+  const artIndex = ((Number(tokenId) - 1) % 888 * 197 + 17) % 4608;
+  const color = PALETTES[artIndex % PALETTES.length];
+  const combination = Math.floor(artIndex / PALETTES.length);
+  const expr = EXPRS[combination % EXPRS.length];
+  const acc = ACCS[Math.floor(combination / 4) % ACCS.length];
   return {
     shape: species,
     color,
@@ -175,8 +174,16 @@ function stylePet(s) {
   preview.dataset.action = activePreviewAction === 'idle' ? '' : activePreviewAction;
   preview.style.animation = activePreviewAction === 'idle' ? 'bob 1.5s steps(2,end) infinite' : '';
   $('lookPreview').replaceChildren(preview);
-
   updateCompilerOutput({ shape, color, expression: expr, accessory: acc });
+  const saveBtn = document.getElementById('studioSaveNftButton');
+  if (saveBtn) {
+    if (s.tokenId) {
+      saveBtn.style.display = 'block';
+      saveBtn.textContent = '💾 Save Look to TinyFren #' + s.tokenId + ' (50% Burn / 50% Treasury)';
+    } else {
+      saveBtn.style.display = 'none';
+    }
+  }
 }
 
 function saveLook(reset) {
@@ -252,7 +259,7 @@ $('syncNftButton').onclick = () => {
   $('petExpression').value = t.expression;
   $('petAccessory').value = t.accessory;
   saveLook(false);
-  $('styleMessage').textContent = 'Replicated TinyFren #' + id + ' appearance!';
+  $('styleMessage').textContent = 'Previewed TinyFren #' + id + ' appearance. Load its on-chain metadata for the minted look.';
 };
 
 // Copy Spec
@@ -270,44 +277,42 @@ if (copySpecBtn) {
   };
 }
 
-// 1-Click Mint Custom Fren
-const studioMintBtn = document.getElementById('studioMintButton');
-if (studioMintBtn) {
-  studioMintBtn.onclick = async () => {
-    studioMintBtn.disabled = true;
-    $('styleMessage').textContent = 'Minting custom TinyFren on Base Sepolia...';
+const studioSaveBtn = document.getElementById('studioSaveNftButton');
+if (studioSaveBtn) {
+  studioSaveBtn.onclick = async () => {
+    const cur = read();
+    if (!cur.tokenId) {
+      $('styleMessage').textContent = 'Equip an NFT first to save custom look to it.';
+      return;
+    }
+    studioSaveBtn.disabled = true;
+    $('styleMessage').textContent = `Saving look to TinyFren #${cur.tokenId} (50% burn / 50% treasury)...`;
     try {
-      // Check if wallet mint function exists or call wallet endpoint
-      const mintBtn = document.getElementById('mintCustomNftButton');
-      if (mintBtn) {
-        mintBtn.click();
-        $('styleMessage').textContent = 'Check Fren Pocket Vault tab or status for confirmation!';
+      const server = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+      const idData = JSON.parse(localStorage.getItem('tinyfrens-identity') || '{}');
+      const token = idData.token;
+      if (!token) throw new Error('Connect your fren identity first');
+      const res = await fetch(server + '/api/wallet/save-nft-changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          tokenId: cur.tokenId,
+          customTraits: { color: cur.color, expression: cur.expression, accessory: cur.accessory },
+          name: cur.name
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        $('styleMessage').textContent = data.message || `🎉 Saved look to TinyFren #${cur.tokenId}!`;
+        animatePet('dance');
       } else {
-        const cur = read();
-        const server = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
-        const idData = JSON.parse(localStorage.getItem('tinyfrens-identity') || '{}');
-        const token = idData.token;
-        if (!token) throw new Error('Connect or initialize vault first');
-        const res = await fetch(server + '/api/wallet/mint', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({
-            customTraits: { shape: cur.shape, color: cur.color, expression: cur.expression, accessory: cur.accessory },
-            name: cur.name
-          })
-        });
-        const data = await res.json();
-        if (data.success && data.nft) {
-          $('styleMessage').textContent = '🎉 Minted TinyFren #' + data.nft.tokenId + ' on Base!';
-          animatePet('dance');
-        } else {
-          throw new Error(data.error || 'Minting error');
-        }
+        throw new Error(data.error || 'Could not save look to NFT');
       }
     } catch (err) {
-      $('styleMessage').textContent = err.message || 'Mint failed. Make sure your vault is funded.';
+      $('styleMessage').textContent = err.message || 'Save failed.';
     } finally {
-      studioMintBtn.disabled = false;
+      studioSaveBtn.disabled = false;
     }
   };
 }

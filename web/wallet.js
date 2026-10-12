@@ -4,12 +4,14 @@
   const refresh = $('walletRefreshNfts'), nftList = $('walletNfts');
   const vaultAddressInput = $('vaultAddressInput'), copyVaultAddress = $('copyVaultAddress'), vaultStatusChip = $('vaultStatusChip');
   const mintNftButton = $('mintNftButton'), mintCustomNftButton = $('mintCustomNftButton'), mintSubtext = $('mintSubtext');
-  const tokenIdInput = $('walletTokenId'), renameInput = $('walletRenameInput'), renameNftButton = $('walletRenameNft'), evolveNftButton = $('walletEvolveNft');
+  const mintModeEth = $('mintModeEth'), mintModeVault = $('mintModeVault'), mintModeExplanation = $('mintModeExplanation');
+  const tokenIdInput = $('walletTokenId'), renameInput = $('walletRenameInput'), renameNftButton = $('walletRenameNft'), evolveNftButton = $('walletEvolveNft'), walletSaveNft = $('walletSaveNft');
   const magicLinkButton = $('magicLinkButton'), magicLinkBox = $('magicLinkBox'), magicLinkInput = $('magicLinkInput'), copyMagicLink = $('copyMagicLink');
 
-  const server = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+  const server = () => String(window.TINYFRENS_SERVER || window.location.origin || '').replace(/\/$/, '');
   let wallet = null;
   let livePriceQuote = null;
+  let activeMintMode = 'eth';
 
   function petProfile() {
     const s = read();
@@ -26,6 +28,11 @@
   function identity() {
     const id = window.TinyFrensFriends?.identity?.();
     if (id?.token) return id;
+    try {
+      const endpoint = server();
+      const saved = JSON.parse(localStorage.getItem('tinyfrens-device:' + endpoint) || 'null');
+      if (saved?.token) return saved;
+    } catch (_) {}
     window.TinyFrensFriends?.connect?.();
     return null;
   }
@@ -69,30 +76,71 @@
     return data;
   }
 
+  function updateMintModeUi() {
+    if (mintModeEth && mintModeVault) {
+      if (activeMintMode === 'vault') {
+        mintModeVault.classList.add('active');
+        mintModeVault.style.background = '#7c5cbf';
+        mintModeVault.style.color = '#fff';
+        mintModeVault.style.borderColor = '#9d7feb';
+        mintModeEth.classList.remove('active');
+        mintModeEth.style.background = '#241d3d';
+        mintModeEth.style.color = '#c8b1fa';
+        mintModeEth.style.borderColor = '#4a3a6c';
+        const frensFmt = livePriceQuote?.vaultFrensHuman ? Number(livePriceQuote.vaultFrensHuman).toLocaleString() : '47,619,047';
+        if (mintNftButton) mintNftButton.textContent = `🏦 Mint Fren Vault · ${frensFmt} FRENS`;
+        if (mintSubtext) mintSubtext.textContent = `FRENS Piggybank Vault: 100% of collateral (${frensFmt} FRENS) locked in the NFT.`;
+        if (mintModeExplanation) mintModeExplanation.textContent = `Deposit ~0.002 ETH worth of FRENS (${frensFmt} FRENS) inside your companion. Unwrap it anytime to withdraw 100% back!`;
+      } else {
+        mintModeEth.classList.add('active');
+        mintModeEth.style.background = '#7c5cbf';
+        mintModeEth.style.color = '#fff';
+        mintModeEth.style.borderColor = '#9d7feb';
+        mintModeVault.classList.remove('active');
+        mintModeVault.style.background = '#241d3d';
+        mintModeVault.style.color = '#c8b1fa';
+        mintModeVault.style.borderColor = '#4a3a6c';
+        const ethFmt = livePriceQuote?.ethRequired ? Number(livePriceQuote.ethRequired).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0.001';
+        if (mintNftButton) mintNftButton.textContent = `✨ Mint TinyFren · ${ethFmt} ETH`;
+        if (mintSubtext) mintSubtext.textContent = `Official 1:1 on-chain companion paid outright with ${ethFmt} ETH on Base.`;
+        if (mintModeExplanation) mintModeExplanation.textContent = `Buy directly with ${ethFmt} ETH on Base.`;
+      }
+    }
+  }
+
+  if (mintModeEth) mintModeEth.onclick = () => { activeMintMode = 'eth'; updateMintModeUi(); };
+  if (mintModeVault) mintModeVault.onclick = () => { activeMintMode = 'vault'; updateMintModeUi(); };
+
   async function fetchPriceQuote() {
     try {
       const base = server();
-      if (!base) return;
-      const res = await fetch(base + '/api/nft/price');
+      const url = base ? base + '/api/nft/price' : '/api/nft/price';
+      const res = await fetch(url);
       if (!res.ok) return;
       livePriceQuote = await res.json();
-      if (mintNftButton && livePriceQuote.ethRequired) {
-        const ethFmt = Number(livePriceQuote.ethRequired).toLocaleString(undefined, {maximumFractionDigits: 6});
-        mintNftButton.textContent = `✨ Mint TinyFren · ${ethFmt} ETH`;
-      }
-      if (mintSubtext && livePriceQuote.ethRequired) {
-        const ethFmt = Number(livePriceQuote.ethRequired).toLocaleString(undefined, {maximumFractionDigits: 6});
-        mintSubtext.textContent = `Official on-chain mint paid in ETH on Base (${ethFmt} ETH).`;
-      }
+      updateMintModeUi();
     } catch (_) {}
   }
 
+  let walletLoadAttempts = 0;
   async function loadWallet() {
     if (status) status.textContent = 'Loading fren pocket vault...';
     try {
+      const id = identity();
+      if (!id) {
+        if (++walletLoadAttempts <= 10) {
+          setTimeout(loadWallet, 400);
+          return;
+        }
+      }
       showWallet(await post('/api/bankr/wallet', {pet: petProfile()}));
       if (status) status.textContent = 'Fren Pocket Vault connected on Base.';
+      await loadNfts();
     } catch (error) {
+      if (++walletLoadAttempts <= 8 && !identity()) {
+        setTimeout(loadWallet, 500);
+        return;
+      }
       if (status) status.textContent = error.message || 'Could not load fren vault.';
     }
     fetchPriceQuote();
@@ -131,6 +179,21 @@
       title.textContent = nftTitle(nft);
       const meta = document.createElement('p');
       meta.textContent = [nft.chain, nft.collection?.name, nft.tokenId ? '#' + nft.tokenId : ''].filter(Boolean).join(' · ');
+      card.append(title, meta);
+
+      if (nft.vaultBacked) {
+        const vaultBadge = document.createElement('span');
+        vaultBadge.className = 'vault-badge';
+        vaultBadge.style.cssText = 'background:#3b2361;color:#ffd700;border:1px solid #7c5cbf;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-block;margin:4px 0 6px;';
+        const frensAmt = nft.lockedFrens && nft.lockedFrens !== '0' ? (Number(nft.lockedFrens) / 1e18).toLocaleString(undefined, {maximumFractionDigits: 0}) : '47,619,047';
+        vaultBadge.textContent = `🏦 FRENS Vault Backed (${frensAmt} FRENS locked)`;
+        card.append(vaultBadge);
+      }
+
+      const actionsRow = document.createElement('div');
+      actionsRow.className = 'actions';
+      actionsRow.style.margin = '4px 0 0';
+
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = 'Wear this look';
@@ -144,7 +207,35 @@
           if (status) status.textContent = error.message || 'Could not transform your fren.';
         }
       };
-      card.append(title, meta, button);
+      actionsRow.append(button);
+
+      if (nft.vaultBacked) {
+        const unwrapBtn = document.createElement('button');
+        unwrapBtn.type = 'button';
+        unwrapBtn.className = 'secondary';
+        unwrapBtn.style.cssText = 'border-color:#e06c75;color:#ff8591;';
+        unwrapBtn.textContent = '🔨 Unwrap Fren';
+        unwrapBtn.title = 'Burns the NFT and returns 100% of locked FRENS to your wallet';
+        unwrapBtn.onclick = async () => {
+          if (!confirm(`Unwrap TinyFren #${nft.tokenId}? The NFT will be burned and 100% of the locked FRENS will be returned to your wallet.`)) return;
+          if (status) status.textContent = `Unwrapping TinyFren #${nft.tokenId}...`;
+          unwrapBtn.disabled = true;
+          try {
+            const uData = await post('/api/wallet/unwrap-nft', { tokenId: nft.tokenId });
+            if (status) status.textContent = uData.message || `Unwrapped TinyFren #${nft.tokenId}!`;
+            if (uData.pet) savePetLook(uData.pet);
+            await loadNfts();
+            window.animatePet?.('dance');
+          } catch (err) {
+            if (status) status.textContent = err.message || 'Could not unwrap Fren.';
+          } finally {
+            unwrapBtn.disabled = false;
+          }
+        };
+        actionsRow.append(unwrapBtn);
+      }
+
+      card.append(actionsRow);
       nftList.append(card);
     }
   }
@@ -178,19 +269,21 @@
   if (mintNftButton) {
     mintNftButton.onclick = async () => {
       mintNftButton.disabled = true;
-      if (status) status.textContent = 'Minting your TinyFren NFT in ETH on Base...';
+      const isVault = (activeMintMode === 'vault');
+      if (status) status.textContent = isVault ? 'Minting FRENS Piggybank Vault on Base...' : 'Minting your TinyFren NFT in ETH on Base...';
       try {
-        const data = await post('/api/wallet/mint', {});
+        const data = await post('/api/wallet/mint', { mode: activeMintMode });
         if (data.success && data.nft) {
           savePetLook(data.pet);
           if (tokenIdInput) tokenIdInput.value = String(data.nft.tokenId || '');
           if (renameInput) renameInput.value = cleanName(data.pet.name) || '';
-          if (status) status.textContent = `🎉 Minted TinyFren #${data.nft.tokenId}! Your fren is wearing their 1:1 on-chain look.`;
+          const mintLabel = isVault ? 'FRENS Piggybank Vault' : 'TinyFren';
+          if (status) status.textContent = `🎉 Minted ${mintLabel} #${data.nft.tokenId}! Your fren is wearing their 1:1 on-chain look.`;
           await loadNfts();
           window.animatePet?.('dance');
         }
       } catch (err) {
-        if (status) status.textContent = err.message || 'Minting error. Check ETH balance.';
+        if (status) status.textContent = err.message || 'Minting error. Check balance.';
       } finally {
         mintNftButton.disabled = false;
       }
@@ -201,9 +294,11 @@
     mintCustomNftButton.onclick = async () => {
       mintCustomNftButton.disabled = true;
       const cur = petProfile();
-      if (status) status.textContent = `Minting custom ${cur.shape} (${cur.expression}) in ETH on Base...`;
+      const isVault = (activeMintMode === 'vault');
+      if (status) status.textContent = `Minting custom ${cur.shape} (${cur.expression}) via ${isVault ? 'FRENS Vault' : 'ETH'} on Base...`;
       try {
         const data = await post('/api/wallet/mint', {
+          mode: activeMintMode,
           customTraits: {
             shape: cur.shape,
             color: cur.color,
@@ -221,9 +316,34 @@
           window.animatePet?.('dance');
         }
       } catch (err) {
-        if (status) status.textContent = err.message || 'Custom mint error. Check ETH balance.';
+        if (status) status.textContent = err.message || 'Custom mint error. Check balance.';
       } finally {
         mintCustomNftButton.disabled = false;
+      }
+    };
+  }
+
+  if (walletSaveNft) {
+    walletSaveNft.onclick = async () => {
+      const tokenId = currentTokenId();
+      if (!tokenId) { if (status) status.textContent = 'Pick the TinyFren token to save changes to first.'; return; }
+      walletSaveNft.disabled = true;
+      if (status) status.textContent = `Saving custom look to TinyFren #${tokenId} (50% burn / 50% treasury)...`;
+      try {
+        const cur = petProfile();
+        const data = await post('/api/wallet/save-nft-changes', {
+          tokenId,
+          name: renameInput?.value?.trim() || cur.name,
+          customTraits: { color: cur.color, expression: cur.expression, accessory: cur.accessory }
+        });
+        if (data.pet) savePetLook(data.pet);
+        if (status) status.textContent = data.message || `Saved changes to TinyFren #${tokenId}!`;
+        await loadNfts();
+        window.animatePet?.('dance');
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Could not save NFT changes.';
+      } finally {
+        walletSaveNft.disabled = false;
       }
     };
   }
@@ -329,6 +449,6 @@
   syncOnchainControls();
   const legacyTools = document.querySelector('#screen-wallet > details');
   legacyTools?.addEventListener('toggle', () => { if (legacyTools.open && !wallet) loadWallet(); });
-  window.addEventListener('tinyfrens-identity-ready', () => { if (legacyTools?.open) { loadWallet(); } });
+  window.addEventListener('tinyfrens-identity-ready', () => { if (legacyTools?.open) { walletLoadAttempts = 0; loadWallet(); } });
   window.addEventListener('focus', () => { if (legacyTools?.open && !wallet) loadWallet(); });
 })();

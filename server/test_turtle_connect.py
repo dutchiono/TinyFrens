@@ -81,6 +81,50 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['address'], self.account.address)
         self.assertIsNone(data['tokenId'])
 
+    async def test_multiple_wallets_discovery_and_targeted_disconnect(self):
+        other_wallet = Account.create()
+        for account in (other_wallet, self.account):
+            pairing = await (await self.post('start', {})).json()
+            challenge = await (await self.post('challenge', {'code': pairing['code'], 'address': account.address}, agent=True)).json()
+            signature = '0x' + account.sign_message(encode_defunct(text=challenge['message'])).signature.hex().removeprefix('0x')
+            self.assertEqual((await self.post('confirm', {'code': pairing['code'], 'challengeId': challenge['challengeId'], 'signature': signature}, agent=True)).status, 200)
+            self.assertEqual((await self.post('accept', {'code': pairing['code']})).status, 200)
+        async def api(path, **values):
+            return await self.client.post('/api/' + path, headers={'Origin': ORIGIN}, json={'token': self.phone['token'], **values})
+        status = await (await api('wallet-link/status')).json()
+        self.assertEqual(set(status['addresses']), {self.account.address, other_wallet.address})
+        displayed = await (await api('featured/hood-turtle', tokenId=7)).json()
+        self.assertTrue(displayed['active'])
+        self.assertEqual(displayed['wallet'], self.account.address)
+        async def holdings(request):
+            return web.json_response({'items': [{'id': '7', 'token': {'address_hash': '0xca28587b61eac19a87dfcfd9420870867a916675'}}]})
+        indexer_app = web.Application()
+        indexer_app.router.add_get('/addresses/{address}/nft', holdings)
+        indexer = TestServer(indexer_app)
+        await indexer.start_server()
+        try:
+            with mock.patch.dict(os.environ, {'ROBINHOOD_BLOCKSCOUT_API_URL': str(indexer.make_url('')).rstrip('/')}):
+                response = await api('wallet-link/nfts')
+                self.assertEqual(response.status, 200)
+                data = await response.json()
+                self.assertEqual(len(data['nfts']), 1)
+                self.assertEqual(data['nfts'][0]['wallet'], self.account.address)
+        finally:
+            await indexer.close()
+        removed = await (await api('wallet-link/disconnect', address=self.account.address)).json()
+        self.assertEqual(removed['addresses'], [other_wallet.address])
+        self.assertTrue(removed['linked'])
+        # Cached ownership for the removed address must not grant display.
+        displayed = await (await api('featured/hood-turtle', tokenId=7)).json()
+        self.assertFalse(displayed['active'])
+        status = await (await api('wallet-link/status')).json()
+        self.assertEqual(status['addresses'], [other_wallet.address])
+        # Direct extension signing adds the wallet back without replacing the other.
+        challenge = await (await api('wallet-link/challenge', address=self.account.address)).json()
+        signature = '0x' + self.account.sign_message(encode_defunct(text=challenge['message'])).signature.hex().removeprefix('0x')
+        confirmed = await (await api('wallet-link/confirm', signature=signature)).json()
+        self.assertEqual(set(confirmed['addresses']), {self.account.address, other_wallet.address})
+
     async def begin(self):
         response = await self.post('start', {})
         self.assertEqual(response.status, 200)

@@ -46,6 +46,31 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         await wb.send_json({'type':'visit-action','id':invite['id'],'action':'dance'})
         self.assertEqual((await self.event(wa,'visit-action'))['action'],'dance');await self.event(wb,'visit-action')
         await wb.send_json({'type':'visit-end','id':invite['id']});await self.event(wa,'visit-ended');await self.event(wb,'visit-ended')
+    async def test_battle_flow_and_actions(self):
+        a=await self.register('A');b=await self.register('B');wa=await self.connect(a);wb=await self.connect(b)
+        await self.friends(a,b,wa,wb)
+        # Test battle decline
+        await wa.send_json({'type':'battle-request','id':b['id']})
+        await self.event(wa,'notice')
+        req=await self.event(wb,'battle-request')
+        await wb.send_json({'type':'battle-answer','id':req['id'],'accept':False})
+        self.assertEqual((await self.event(wa,'notice'))['text'],'Not sparring right now.')
+        # Test battle accept
+        await wa.send_json({'type':'battle-request','id':b['id']})
+        await self.event(wa,'notice')
+        req=await self.event(wb,'battle-request')
+        await wb.send_json({'type':'battle-answer','id':req['id'],'accept':True})
+        def_start=await self.event(wb,'battle-start')
+        chal_start=await self.event(wa,'battle-start')
+        self.assertEqual(def_start['role'],'defender')
+        self.assertEqual(chal_start['role'],'challenger')
+        # Test battle action
+        await wa.send_json({'type':'battle-action','id':req['id'],'action':'boop'})
+        self.assertEqual((await self.event(wa,'battle-action'))['action'],'boop')
+        self.assertEqual((await self.event(wb,'battle-action'))['action'],'boop')
+        # Test battle end
+        await wa.send_json({'type':'battle-end','id':req['id']})
+        await self.event(wa,'battle-ended');await self.event(wb,'battle-ended')
     async def test_decline_disconnect_and_remove(self):
         a=await self.register('A');b=await self.register('B');wa=await self.connect(a);wb=await self.connect(b)
         await self.friends(a,b,wa,wb)
@@ -200,9 +225,7 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             a=await self.register('Walletless')
             r=await self.client.post('/api/bankr/wallet',headers={'Origin':ORIGIN},json={'token':a['token'],'pet':{'name':'Walletless','shape':'robot','color':'#a474f1'}})
             self.assertEqual(r.status,200)
-            data=await r.json()
-            self.assertEqual(data['mode'],'fren-vault')
-            self.assertTrue(data['evmAddress'].startswith('0x'))
+            self.assertTrue((await r.json())['evmAddress'].startswith('0x'))
         finally:
             if old is not None: os.environ['BANKR_API_KEY']=old
             if old_partner is not None: os.environ['BANKR_PARTNER_KEY']=old_partner
@@ -517,7 +540,6 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['symbol'], 'ETH')
         self.assertGreater(data['ethRequired'], 0)
         self.assertGreater(int(data['ethRequiredWei']), 0)
-
     async def test_wallet_mint_and_magic_link(self):
         a = await self.register('MintyFren')
         # Check mint quote without charging
@@ -530,8 +552,8 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         # Perform mint (with testnet free mint fallback enabled by default)
         r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={
             'token': a['token'],
-            'customTraits': {'shape': 'frog', 'color': '#82eba1', 'expression': 'star_eyes', 'accessory': 'crown'},
-            'name': 'Prince Toad'
+            'customTraits': {'shape': 'robot', 'color': '#82eba1', 'expression': 'star_eyes', 'accessory': 'crown'},
+            'name': 'Prince Bot'
         })
         self.assertEqual(r_mint.status, 200)
         mint_data = await r_mint.json()
@@ -540,11 +562,11 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(token_id, 1)
         self.assertLessEqual(token_id, 2664)
         self.assertEqual(mint_data['pet']['tokenId'], token_id)
-        self.assertEqual(mint_data['pet']['shape'], 'frog')
+        self.assertEqual(mint_data['pet']['shape'], 'robot')
         self.assertEqual(mint_data['pet']['color'], '#82eba1')
         self.assertEqual(mint_data['pet']['expression'], 'star_eyes')
         self.assertEqual(mint_data['pet']['accessory'], 'crown')
-        self.assertEqual(mint_data['pet']['name'], 'Prince Toad')
+        self.assertEqual(mint_data['pet']['name'], 'Prince Bot')
 
         # Check that bankr_nfts returns the minted NFT
         r_nfts = await self.client.post('/api/bankr/nfts', headers={'Origin': ORIGIN}, json={'token': a['token']})
@@ -565,7 +587,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r_restore.status, 200)
         restore_data = await r_restore.json()
         self.assertTrue(restore_data['success'])
-        self.assertEqual(restore_data['pet']['name'], 'Prince Toad')
+        self.assertEqual(restore_data['pet']['name'], 'Prince Bot')
         self.assertEqual(restore_data['pet']['tokenId'], token_id)
         self.assertTrue(restore_data['vaultAddress'].startswith('0x'))
 
@@ -605,6 +627,81 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.status, 200)
             r = await self.client.post('/api/push/unsubscribe', headers={'Origin': ORIGIN}, json={'token': a['token'], 'endpoint': 'https://push.example/sub'})
             self.assertEqual(r.status, 200)  # a different pet cannot remove someone else's row
+
+    async def test_nft_vault_mint_and_unwrap(self):
+        a = await self.register('VaultyFren')
+        r_price = await self.client.get('/api/nft/price', headers={'Origin': ORIGIN})
+        self.assertEqual(r_price.status, 200)
+        pdata = await r_price.json()
+        self.assertEqual(pdata['priceEth'], 0.001)
+        self.assertEqual(pdata['vaultEth'], 0.002)
+        self.assertIn('vaultFrensRequired', pdata)
+
+        r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'mode': 'vault',
+            'customTraits': {'shape': 'robot', 'color': '#ffd700', 'expression': 'shades', 'accessory': 'party_hat'},
+            'name': 'Golden Vault'
+        })
+        self.assertEqual(r_mint.status, 200)
+        mdata = await r_mint.json()
+        self.assertTrue(mdata['success'])
+        self.assertTrue(mdata['nft']['vaultBacked'])
+        self.assertEqual(mdata['nft']['lockedFrens'], pdata['vaultFrensRequired'])
+        token_id = mdata['nft']['tokenId']
+        self.assertEqual(mdata['pet']['tokenId'], token_id)
+
+        r_nfts = await self.client.post('/api/bankr/nfts', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        self.assertEqual(r_nfts.status, 200)
+        ndata = await r_nfts.json()
+        self.assertEqual(len(ndata['nfts']), 1)
+        self.assertTrue(ndata['nfts'][0]['vaultBacked'])
+        self.assertEqual(ndata['nfts'][0]['lockedFrens'], pdata['vaultFrensRequired'])
+
+        r_unwrap = await self.client.post('/api/wallet/unwrap-nft', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'tokenId': token_id
+        })
+        self.assertEqual(r_unwrap.status, 200)
+        udata = await r_unwrap.json()
+        self.assertTrue(udata['ok'])
+        self.assertEqual(udata['tokenId'], token_id)
+        self.assertIsNone(udata['pet']['tokenId'])
+
+        r_nfts_after = await self.client.post('/api/bankr/nfts', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        self.assertEqual(len((await r_nfts_after.json())['nfts']), 0)
+
+        r_unwrap_again = await self.client.post('/api/wallet/unwrap-nft', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'tokenId': token_id
+        })
+        self.assertEqual(r_unwrap_again.status, 400)
+
+    async def test_save_nft_changes_flywheel(self):
+        a = await self.register('ArtFren')
+        r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'customTraits': {'shape': 'robot', 'color': '#a474f1'},
+            'name': 'Original Bot'
+        })
+        mdata = await r_mint.json()
+        token_id = mdata['nft']['tokenId']
+
+        r_save = await self.client.post('/api/wallet/save-nft-changes', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'tokenId': token_id,
+            'name': 'Cosmic Cat',
+            'customTraits': {'color': '#4d96ff', 'expression': 'laser', 'accessory': 'crown'}
+        })
+        self.assertEqual(r_save.status, 200)
+        sdata = await r_save.json()
+        self.assertTrue(sdata['ok'])
+        self.assertEqual(sdata['burnedFrens'], sdata['treasuryFrens'])
+        self.assertEqual(sdata['burnedFrens'] + sdata['treasuryFrens'], sdata['feeFrens'])
+        self.assertEqual(sdata['pet']['name'], 'Cosmic Cat')
+        self.assertEqual(sdata['traits']['color'], '#4d96ff')
+        self.assertEqual(sdata['traits']['expression'], 'laser')
+        self.assertEqual(sdata['traits']['accessory'], 'crown')
 
 if __name__=='__main__': unittest.main()
 

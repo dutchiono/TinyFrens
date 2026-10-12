@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TinyFrens · iPhone widget preview</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#17142a;color:#f7f1ff;font:15px system-ui,-apple-system,sans-serif}main{max-width:780px;margin:auto;padding:32px 20px}h1{font-size:26px;margin:0 0 10px}p{color:#b8add3;line-height:1.6}label{display:block;margin:24px 0 8px;font-weight:650}select{background:#211c39;color:#f7f1ff;border:1px solid #63517c;border-radius:10px;padding:12px;font:inherit;max-width:100%;width:340px}a{color:#c9a5ff}a:focus-visible,select:focus-visible{outline:3px solid #c9a5ff;outline-offset:4px}.phone{width:min(100%,360px);margin:24px auto;border:5px solid #4a3b68;border-radius:42px;padding:20px 18px 28px;background:linear-gradient(160deg,#30234d,#17142a 65%);min-height:600px}.status{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin:0 8px 36px}.island{width:92px;height:22px;background:#100d1b;border-radius:20px;margin-top:-4px}.widget{display:flex;align-items:center;justify-content:center;gap:16px;background:#17122b;border-radius:24px;padding:16px;text-decoration:none;color:#f7f1ff;min-height:158px}.widget .portrait{flex:0 0 84px;text-align:center}.widget strong{display:block;font-size:16px}.widget small{display:block;font-size:12px;color:#d6cce9;margin-top:7px;line-height:1.4}.copy{max-width:150px}.open{font-size:12px;font-weight:700;color:#c9a5ff;margin-top:12px}.robot{position:relative;width:62px;height:54px;border-radius:6px;background:#a474f1;margin:14px auto 18px}.robot:before{content:"";position:absolute;top:18px;left:14px;width:9px;height:12px;border-radius:2px;background:#17122b;box-shadow:26px 0 #17122b}.robot:after{content:"";position:absolute;top:39px;left:23px;width:17px;height:3px;background:#17122b}.antenna{position:absolute;top:-12px;left:29px;width:4px;height:12px;background:inherit}.feet{position:absolute;bottom:-8px;left:14px;width:10px;height:9px;background:inherit;box-shadow:24px 0 #a474f1}.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 12px;margin-top:30px;text-align:center}.app span{display:grid;place-items:center;width:48px;height:48px;margin:auto auto 6px;border-radius:12px;background:#332652;border:1px solid #63517c;font-size:18px}.app small{font-size:11px;color:#d6cce9}.dock{margin-top:48px;padding:16px;display:flex;justify-content:space-around;border-radius:24px;background:#211c39}.dock span{font-size:20px}.clock{display:none;text-align:center;margin-bottom:28px}.clock strong{display:block;font-size:66px;letter-spacing:-3px}.clock span{color:#d6cce9}.phone[data-layout=small] .widget{width:148px;flex-direction:column;gap:0}.phone[data-layout=small] .copy{display:none}.phone[data-layout=small] .widget small{margin-top:4px}.phone[data-layout=lock] .clock{display:block}.phone[data-layout=lock] .apps,.phone[data-layout=lock] .dock{display:none}.phone[data-layout=lock] .widget{min-height:66px;background:#332652;border-radius:14px;justify-content:flex-start;padding:10px 14px}.phone[data-layout=lock] .robot{background:#f7f1ff;transform:scale(.6);margin:4px auto}.phone[data-layout=lock] .feet{box-shadow:24px 0 #f7f1ff}.phone[data-layout=lock] .portrait{flex-basis:42px}.phone[data-layout=lock] .portrait strong,.phone[data-layout=lock] .portrait small,.phone[data-layout=lock] .copy small,.phone[data-layout=lock] .open{display:none}.phone[data-layout=lock] .copy strong{font-size:15px}.phone[data-layout=lock] .copy:after{content:"Open to care";font-size:12px;color:#d6cce9}.caption{text-align:center;font-size:12px}footer{margin-top:24px;border-top:1px solid #4a3b68;padding-top:14px}
+</style>
+<main>
+  <h1>Your fren, on your iPhone.</h1>
+  <p>Layout preview — not an iOS simulator. This first widget opens TinyFrens for care; saved-pet syncing and care inside the widget are still to come.</p>
+  <label for="layout">Widget placement</label>
+  <select id="layout"><option value="medium">Home Screen · medium</option><option value="small">Home Screen · small</option><option value="lock">Lock Screen · rectangular</option></select>
+  <div class="phone" data-layout="medium">
+    <div class="status"><span>9:41</span><div class="island" aria-hidden="true"></div><span>▰</span></div>
+    <div class="clock"><span>Monday, October 12</span><strong>9:41</strong></div>
+    <a class="widget" href="../web/index.html#care" aria-label="Open TinyFrens care and extras">
+      <div class="portrait"><div class="robot" role="img" aria-label="Purple robot fren"><i class="antenna"></i><i class="feet"></i></div><strong>Hey, fren!</strong><small>Open to care</small></div>
+      <div class="copy"><strong>A little time together.</strong><small>Feed, play, or take a nap.</small><div class="open">Open to care →</div></div>
+    </a>
+    <div class="apps" aria-hidden="true"><div class="app"><span>◷</span><small>Clock</small></div><div class="app"><span>▦</span><small>Calendar</small></div><div class="app"><span>♫</span><small>Music</small></div><div class="app"><span>◎</span><small>Photos</small></div><div class="app"><span>✉</span><small>Mail</small></div><div class="app"><span>☁</span><small>Weather</small></div><div class="app"><span>☷</span><small>Notes</small></div><div class="app"><span>⚙</span><small>Settings</small></div></div>
+    <div class="dock" aria-hidden="true"><span>☎</span><span>◉</span><span>✉</span><span>♫</span></div>
+  </div>
+  <p class="caption" id="caption" aria-live="polite">Medium Home Screen widget · tap to open care</p>
+  <footer><p>Real widget rendering and installation need a Mac with Xcode or an iPhone with a signed app. The actual system may adjust fonts, spacing, and colors.</p></footer>
+</main>
+<script>
+  const layout = document.getElementById('layout');
+  layout.addEventListener('change', () => {
+    document.querySelector('.phone').dataset.layout = layout.value;
+    document.getElementById('caption').textContent = layout.selectedOptions[0].textContent + ' · tap to open care';
+    document.querySelector('.copy strong').textContent = layout.value === 'lock' ? 'TinyFrens' : 'A little time together.';
+    document.querySelector('.widget').href = layout.value === 'small' ? '../web/index.html#pet' : '../web/index.html#care';
+    document.querySelector('.widget').setAttribute('aria-label', layout.value === 'small' ? 'Open TinyFrens' : 'Open TinyFrens care and extras');
+  });
+</script>
+</html>

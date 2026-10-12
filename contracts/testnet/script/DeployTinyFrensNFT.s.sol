@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {TinyFrensNFT} from "../../TinyFrensNFT.sol";
+import {TinyFrensArt} from "../../TinyFrensArt.sol";
+import {TinyFrensSprite} from "../../TinyFrensSprite.sol";
 
 /// @notice Deploys the real TinyFrensNFT collection to a testnet (Base Sepolia).
 ///         100% on-chain generative art; tokenURI embeds SVG as a data URI, so it
@@ -23,13 +25,21 @@ contract DeployTinyFrensNFT is Script {
         uint256 mintCount = vm.envOr("MINT_CREATOR_RESERVE", uint256(20));
 
         vm.startBroadcast(key);
-        nft = new TinyFrensNFT();
+        TinyFrensSprite sprite = new TinyFrensSprite();
+        TinyFrensArt art = new TinyFrensArt(address(sprite));
+        nft = new TinyFrensNFT(address(art));
+        address frensToken = vm.envOr("FRENS_TOKEN", address(0));
+        if (frensToken != address(0)) {
+            nft.setFrensToken(frensToken);
+        }
         if (mintCount > 0) {
             nft.mintToCreator(mintCount, deployer);
         }
         vm.stopBroadcast();
 
         console2.log("nftAddress", address(nft));
+        console2.log("artAddress", address(nft.artRenderer()));
+        console2.log("spriteAddress", address(TinyFrensArt(address(nft.artRenderer())).spriteRenderer()));
         console2.log("nftMinted", mintCount);
     }
 }

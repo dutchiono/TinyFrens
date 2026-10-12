@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17142a">
+<title>Vote on Next Collections — TinyFrens</title>
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<style>
+  .vote-container {
+    max-width: 580px;
+    margin: auto;
+    padding: 24px 18px 48px;
+  }
+  .vote-header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .badge-frens {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(164, 116, 241, 0.15);
+    border: 1px solid rgba(164, 116, 241, 0.35);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbb6ff;
+    margin-bottom: 8px;
+  }
+  .ballot-card {
+    background: linear-gradient(160deg, #2b1f45, #1b1632);
+    border: 1px solid #4a3a68;
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+  .ballot-badge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .source-chip {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .source-bankr {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+  }
+  .source-opensea {
+    background: rgba(32, 129, 226, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(32, 129, 226, 0.4);
+  }
+  .tier-chip {
+    font-size: 10px;
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .ballot-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    color: #f7f1ff;
+  }
+  .ballot-desc {
+    font-size: 12px;
+    color: #a9a0c0;
+    margin-bottom: 12px;
+  }
+  .timer-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    padding: 3px 8px;
+    border-radius: 12px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 10px;
+    margin: 12px 0;
+  }
+  .stat-box {
+    text-align: center;
+  }
+  .stat-box span {
+    display: block;
+    font-size: 10px;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+  .stat-box strong {
+    font-size: 14px;
+    color: #f1f5f9;
+  }
+  .burn-boost-glow {
+    color: #f97316 !important;
+  }
+  .vote-action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .btn-hold-vote {
+    flex: 1;
+    background: #7c5cbf;
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-hold-vote:hover {
+    background: #9d7feb;
+  }
+  .btn-burn-vote {
+    flex: 1;
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(234, 88, 12, 0.35);
+  }
+  .btn-burn-vote:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.55);
+  }
+  .burn-modal-box {
+    background: #1e1735;
+    border: 1px solid #ff7849;
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 12px;
+  }
+  .burn-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .burn-slider-row input[type="range"] {
+    flex: 1;
+    accent-color: #ea580c;
+  }
+  .burn-amount-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ff9800;
+  }
+  .burn-flame-note {
+    font-size: 11px;
+    color: #fca5a5;
+    margin: 6px 0;
+  }
+</style>
+</head>
+<body>
+<main class="vote-container">
+  <div style="margin-bottom: 12px;">
+    <a href="index.html#wallet" style="color: #cbb6ff; text-decoration: none; font-size: 13px;">← Back to TinyFrens</a>
+  </div>
+
+  <header class="vote-header">
+    <div class="badge-frens">
+      <span>🪙 FRENS Community Governance</span>
+    </div>
+    <h1 style="font-size: 26px; margin: 4px 0 8px 0;">Vote on Next Collections</h1>
+    <p style="font-size: 13px; color: #a9a0c0; margin: 0;">
+      Holders shape what we animate next. Hold FRENS to cast baseline votes, or <strong>Burn FRENS</strong> to ignite a <strong>5x Frenzy Multiplier</strong>!
+    </p>
+  </header>
+
+  <!-- Connected Wallet Bar -->
+  <section class="overlay" style="padding: 14px; margin-bottom: 16px; border-radius: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Your FRENS Balance</div>
+        <div id="userFrensDisplay" style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Connect Wallet</div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div id="permanentBoostBadge" style="display: none; background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; color: #f97316;">
+          ⭐ <span id="permanentBoostPct">+0%</span> Permanent Boost
+        </div>
+        <button id="btnConnectVoteWallet" style="padding: 8px 14px; font-size: 12px; border-radius: 8px;">Connect Wallet</button>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; flex-wrap: wrap; gap: 4px;">
+      <div id="thresholdNotice" style="font-size: 10px; color: #fbbf24;">
+        Required threshold to vote: <strong>100,000 FRENS</strong>. Contract: <code style="color:#cbb6ff;">0x1A96...9ba3</code>
+      </div>
+      <div id="userLifetimeBurnedNotice" style="font-size: 10px; color: #fca5a5;">
+        Lifetime Burned: <strong id="userLifetimeBurnedVal">0 FRENS</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- Proposals Container -->
+  <div id="ballotsList">
+    <!-- Ballot cards rendered here dynamically -->
+  </div>
+</main>
+
+<script src="vote.js"></script>
+</body>
+</html>

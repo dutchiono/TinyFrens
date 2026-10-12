@@ -446,13 +446,168 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .gallery-callout-btn:hover{background:#9d72e8;transform:translateY(-1px);color:#fff}
 @media(max-width:480px){.gallery-callout-card{flex-direction:column;align-items:flex-start}.gallery-callout-btn{width:100%;justify-content:center}}
 
+/* Battle & Spar Arena */
+.battle-arena-card{background:linear-gradient(145deg,#231c38 0%,#181329 100%);border:2px solid #a474f1;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);margin-top:20px;padding:16px}
+.battle-arena-card h2{color:#f5efff;font-size:16px;margin:0 0 12px;text-align:center}
+.battle-stage{display:flex;align-items:center;justify-content:space-around;height:160px;background:radial-gradient(ellipse at bottom,#332356 0%,#1a142e 70%);border-radius:12px;border:1px solid #4a3875;position:relative;overflow:hidden;margin-bottom:12px}
+.battle-fren-wrapper{display:flex;flex-direction:column;align-items:center;gap:6px;z-index:2}
+.battle-fren-wrapper .pet{scale:.8}
+.battle-right .pet{transform:scaleX(-1)}
+.battle-vs-badge{background:linear-gradient(135deg,#ff4757,#ff6b81);color:#fff;font-weight:900;font-size:14px;padding:4px 10px;border-radius:12px;box-shadow:0 0 12px rgba(255,71,87,0.6);animation:vs-pulse 1.2s infinite ease-in-out;z-index:3}
+@keyframes vs-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.battle-name-tag{font-size:11px;font-weight:700;color:#e8e0f1;background:rgba(20,15,35,0.7);padding:2px 8px;border-radius:8px;border:1px solid rgba(164,116,241,0.3)}
+.battle-status-note{font-size:13px;font-weight:700;color:#ffeaa7;text-align:center;margin:8px 0;min-height:20px}
+
+
 .featured-turtle[data-action="dance"] img,.featured-turtle[data-action="wave"] img{animation:turtle-celebrate .6s steps(3,end) infinite alternate}.featured-turtle[data-action="eat"] img{animation:turtle-eat .4s steps(2,end) infinite alternate}.featured-turtle[data-action="sleep"] img{animation:none;opacity:.7}@keyframes turtle-celebrate{from{transform:rotate(-5deg)}to{transform:translateY(-8px) rotate(5deg)}}@keyframes turtle-eat{to{transform:translateY(3px) scale(1.03,.97)}}html[data-reduced-motion="true"] .featured-turtle img{animation:none!important}@media(prefers-reduced-motion:reduce){.featured-turtle img{animation:none!important}}
 
 .collection-companion{position:absolute;width:112px;height:112px;object-fit:contain;image-rendering:pixelated;pointer-events:none;animation:none}.companion-controls{flex-wrap:wrap}.companion-controls button{font-size:12px}
 
-/* Keep desktop cards in the same purple theme as mobile screens. */
+/* Keep the app's desktop cards in the same purple theme as its mobile screens. */
 #screen-pet .pet-card,.stats{background:#211c39;border-color:#4a3b68;color:#f7f1ff}
 #screen-pet .pet-name{color:#f7f1ff}
 .stats label{color:#b8add3}
 .gallery-callout-btn{background:#a474f1;border-color:#a474f1;color:#120f22}
 .gallery-callout-btn:hover{background:#c9a5ff;color:#120f22}
+
+/* Import and display are the primary loop; spaces & tools are neatly organized in More. */
+.primary-tabs{display:flex;flex:1;gap:6px}
+.tabbar{align-items:center}
+.tabbar .primary-tabs button{flex:1;white-space:nowrap;font-size:13px;font-weight:750}
+.more-menu{position:relative;flex:0 0 auto;padding:0;border:0}
+.more-menu>summary{
+  cursor:pointer;
+  list-style:none;
+  padding:10px 14px;
+  border-radius:10px;
+  background:#261f3e;
+  border:1px solid #4a3b68;
+  color:#d6ccff;
+  font-weight:750;
+  font-size:13px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  transition:all .15s ease;
+  user-select:none;
+}
+.more-menu>summary::-webkit-details-marker{display:none}
+.more-menu>summary:hover{background:#362a59;color:#fff;border-color:#7c5cbf}
+.more-menu[open]>summary{background:#a474f1;color:#17142a;border-color:#a474f1;box-shadow:0 0 14px rgba(164,116,241,0.45)}
+.more-options{
+  position:absolute;
+  right:0;
+  bottom:calc(100% + 14px);
+  width:260px;
+  max-width:85vw;
+  padding:8px;
+  background:#1f1935;
+  border:1px solid #544177;
+  border-radius:16px;
+  box-shadow:0 12px 36px rgba(0,0,0,0.65), 0 0 1px rgba(255,255,255,0.2) inset;
+  z-index:100;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.more-menu:not([open]) .more-options{display:none}
+.more-menu-header{
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.8px;
+  color:#9e92be;
+  padding:4px 8px 6px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  margin-bottom:3px;
+}
+.tabbar .more-options .more-menu-item{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:10px !important;
+  width:100% !important;
+  min-height:42px !important;
+  padding:7px 10px !important;
+  border-radius:10px !important;
+  background:transparent !important;
+  border:0 !important;
+  color:#f1ebff !important;
+  text-decoration:none !important;
+  text-align:left !important;
+  font-size:13px !important;
+  font-weight:600 !important;
+  box-sizing:border-box !important;
+  cursor:pointer !important;
+  transition:background .15s ease, transform .1s ease !important;
+}
+.tabbar .more-options .more-menu-item:hover,
+.tabbar .more-options .more-menu-item[aria-current=page]{
+  background:#322654 !important;
+  color:#fff !important;
+}
+.more-menu-icon{
+  font-size:18px !important;
+  line-height:1 !important;
+  width:22px !important;
+  text-align:center !important;
+  flex-shrink:0 !important;
+}
+.more-menu-text{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:1px !important;
+  flex:1 !important;
+}
+.more-menu-label{
+  font-size:12.5px !important;
+  font-weight:750 !important;
+  color:#f7f1ff !important;
+  line-height:1.2 !important;
+}
+.more-menu-sub{
+  font-size:10px !important;
+  font-weight:500 !important;
+  color:#a89dc2 !important;
+  line-height:1.2 !important;
+}
+.more-menu-badge{
+  font-size:9px !important;
+  font-weight:800 !important;
+  background:rgba(234, 88, 12, 0.25) !important;
+  border:1px solid rgba(234, 88, 12, 0.5) !important;
+  color:#ff9800 !important;
+  padding:2px 6px !important;
+  border-radius:6px !important;
+  letter-spacing:0.5px !important;
+}
+.more-menu summary:focus-visible{outline:2px solid #c9a5ff;outline-offset:2px}
+#screen-pet .floating-controls{display:block;grid-column:1/-1;margin:0 0 16px}
+#screen-pet .pet-card{grid-column:1/-1;min-height:0}
+#screen-pet .name-row,#screen-pet .stage-label,#screen-pet #mood,#screen-pet #chatHint{display:none}
+#screen-care .stats{margin:24px 0;padding:16px;border:1px solid #4a3b68;border-radius:12px}
+#screen-care .stats label b{color:#f7f1ff}
+#screen-care .care-actions button,#screen-care .needs-actions button{background:#332652;color:#f7f1ff;border-color:#63517c}
+#screen-care .little-actions{flex-wrap:wrap}
+#screen-care .little-actions button{color:#c8b1fa}
+.companion-empty{text-align:center;color:#b8add3;padding:24px;position:relative;z-index:1}
+.companion-empty a{display:inline-block;margin-top:12px;color:#c9a5ff}
+@media(min-width:860px){.tabbar{width:420px;max-width:calc(100% - 32px)}.more-options{top:calc(100% + 12px);bottom:auto}}
+
+.more-menu{padding:0;border:0}
+.more-menu:not([open]) .more-options{display:none}
+.party-social{margin-top:24px;border:1px solid #4a3b68;border-radius:12px;padding:16px;color:#f7f1ff}
+.party-social>summary{cursor:pointer}
+.visit-box,#visitInvite{background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;margin-top:16px}
+.visit-box p,.visit-box .small,.friends-panel p{color:#b8add3}
+.visit-box h2,.friends-panel h3,.friends-panel label{color:#f7f1ff}
+.visit-box input,.friends-panel input{background:#120f22;color:#f7f1ff;border:1px solid #63517c;border-radius:8px;padding:12px}
+.friends-panel,.friend-card{border-color:#4a3b68}
+.linked-wallet-row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:12px 0;padding:12px;background:#120f22;border:1px solid #4a3b68;border-radius:10px}
+.linked-wallet-row span{min-width:0;overflow-wrap:anywhere;font:12px ui-monospace,monospace;color:#f7f1ff}
+.linked-wallet-row button{flex-shrink:0;padding:8px 12px;min-height:40px}
+
+/* Care and app notices share the existing purple surfaces and readable text. */
+.update-banner{background:#211c39;color:#f7f1ff;border-color:#4a3b68}
+.update-banner p{color:#b8add3}

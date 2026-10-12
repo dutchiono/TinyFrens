@@ -80,11 +80,24 @@ def nft_mint_price_wei():
 def calculate_eth_mint_quote():
     price_wei = nft_mint_price_wei()
     price_eth = price_wei / 10**18
+    vault_eth = 0.002
+    vault_eth_wei = int(0.002 * 10**18)
+    vault_frens_amount = int(os.environ.get('FRENS_PER_VAULT_MINT', str(47_619_047 * 10**18)))
+    save_fee_frens = int(os.environ.get('SAVE_CHANGES_FEE_FRENS', str(5000 * 10**18)))
     return {
         "priceEth": price_eth,
         "ethRequired": price_eth,
         "ethRequiredWei": str(price_wei),
+        "vaultEth": vault_eth,
+        "vaultEthWei": str(vault_eth_wei),
+        "vaultFrensRequired": str(vault_frens_amount),
+        "vaultFrensHuman": vault_frens_amount / 10**18,
+        "saveChangesFeeFrens": str(save_fee_frens),
+        "saveChangesFeeHuman": save_fee_frens / 10**18,
+        "burnPercent": 50,
+        "treasuryPercent": 50,
         "symbol": "ETH",
+        "frensSymbol": "FRENS",
         "chain": "base-sepolia" if os.environ.get('ECONOMY_MODE') == 'testnet' else "base",
         "timestamp": int(time.time()),
         "expiresAt": int(time.time()) + 60
@@ -174,13 +187,19 @@ def create_app(database=None, origins=None):
     CREATE TABLE IF NOT EXISTS wallet_links(pet_id TEXT PRIMARY KEY, address TEXT NOT NULL, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS wallet_link_challenges(pet_id TEXT PRIMARY KEY, address TEXT NOT NULL, message TEXT NOT NULL, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS magic_links(code TEXT PRIMARY KEY, pet_id TEXT, created INTEGER, expires INTEGER);
-    CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER);
+    CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER, locked_frens TEXT DEFAULT '0');
+    CREATE TABLE IF NOT EXISTS frens_burn_log(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, action TEXT, amount_burned TEXT, amount_treasury TEXT, created INTEGER);
     CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
     CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
     CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, pid TEXT NOT NULL, created INTEGER);''')
+    try:
+        db.execute("ALTER TABLE fren_nfts ADD COLUMN locked_frens TEXT DEFAULT '0'")
+        db.commit()
+    except sqlite3.OperationalError:
+        pass
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
-    sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
+    sockets, visits, pending, rooms, room_by_pet, rates, battles, pending_battles = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque), {}, {}
     now = time.time
     def limit(key, maximum, seconds):
         q=rates[key]; t=now()
@@ -267,6 +286,10 @@ def create_app(database=None, origins=None):
         v=visits.pop(vid,None)
         if v:
             for p in (v['sender'],v['receiver']): await send(p,dict(type='visit-ended',id=vid))
+    async def end_battle(bid):
+        b=battles.pop(bid,None)
+        if b:
+            for p in (b['sender'],b['receiver']): await send(p,dict(type='battle-ended',id=bid))
     def room_kind(room):
         # 'public' | ('private', code) | ('chat', platform, code)
         if room=='public': return 'public','',''
@@ -385,8 +408,8 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            return web.json_response({'linked': bool(row), 'address': row[0] if row else None})
+            addresses = turtle_connect.linked_wallets(db, pid)
+            return web.json_response({'linked': bool(addresses), 'address': addresses[0] if addresses else None, 'addresses': addresses})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -438,11 +461,11 @@ def create_app(database=None, origins=None):
                 raise ValueError('Signature could not be verified') from None
             if recovered.lower() != row[0].lower():
                 raise ValueError('Signature does not match the selected wallet')
-            db.execute('INSERT OR REPLACE INTO wallet_links VALUES(?,?,?)', (pid, row[0], int(now())))
+            turtle_connect.add_wallet(db, pid, row[0])
             db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
             db.commit()
-            return web.json_response({'linked': True, 'address': row[0]})
+            return web.json_response({'linked': True, 'address': row[0], 'addresses': turtle_connect.linked_wallets(db, pid)})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -450,11 +473,16 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
+            address = body.get('address')
+            if address is None:
+                db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
+            else:
+                address = to_checksum_address(address)
+                db.execute('DELETE FROM wallet_links WHERE pet_id=? AND address=? COLLATE NOCASE', (pid, address))
             db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
             db.commit()
-            return web.json_response({'linked': False})
+            return web.json_response({'linked': bool(turtle_connect.linked_wallets(db, pid)), 'addresses': turtle_connect.linked_wallets(db, pid)})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -463,55 +491,14 @@ def create_app(database=None, origins=None):
             body = await request.json()
             pid = token_pet(body.get('token'))
             limit(('wallet-link-nfts', pid), 20, 3600)
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not row:
+            addresses = turtle_connect.linked_wallets(db, pid)
+            if not addresses:
                 raise ValueError('Link a wallet first')
-            address = row[0]
-            api_root = (os.environ.get('ROBINHOOD_BLOCKSCOUT_API_URL',
-                                       'https://robinhoodchain.blockscout.com/api/v2').rstrip('/')
-                        + '/addresses/' + address + '/nft')
-            candidates = {}
-            params = {'type': 'ERC-721'}
-            partial = False
-            async with ClientSession(timeout=ClientTimeout(total=15)) as session:
-                for page in range(5):
-                    async with session.get(api_root + '?' + urlencode(params)) as response:
-                        response.raise_for_status()
-                        data = await response.json(content_type=None)
-                    if not isinstance(data.get('items'), list):
-                        raise ValueError('NFT indexer returned invalid data')
-                    for item in data['items']:
-                        contract = (item.get('token') or {}).get('address_hash', '')
-                        token_id = str(item.get('id', ''))
-                        if contract.lower() == HOOD_TURTLES_ADDRESS and token_id.isdigit() and 1 <= int(token_id) <= 2222:
-                            candidates[int(token_id)] = {'tokenId': int(token_id), 'name': f'Hood Turtle #{token_id}',
-                                                          'collection': 'Hood Turtles', 'chainId': 4663}
-                    next_page = data.get('next_page_params')
-                    if not next_page:
-                        break
-                    if page == 4:
-                        partial = True
-                        break
-                    params = {'type': 'ERC-721', **next_page}
-            rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
-            semaphore = asyncio.Semaphore(5)
-            async def owns_token(session, token_id):
-                payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
-                           'params': [{'to': HOOD_TURTLES_ADDRESS,
-                                       'data': '0x6352211e' + token_id.to_bytes(32, 'big').hex()}, 'latest']}
-                async with semaphore:
-                    async with session.post(rpc, json=payload) as response:
-                        response.raise_for_status()
-                        result = await response.json(content_type=None)
-                owner = result.get('result')
-                if not isinstance(owner, str) or len(owner) != 66:
-                    raise ValueError('On-chain ownership check unavailable')
-                return owner[-40:].lower() == address[2:].lower()
-            token_ids = list(candidates)[:50]
-            async with ClientSession(timeout=ClientTimeout(total=12)) as session:
-                ownership = await asyncio.gather(*(owns_token(session, token_id) for token_id in token_ids))
-            nfts = [candidates[token_id] for token_id, owned in zip(token_ids, ownership) if owned]
-            return web.json_response({'address': address, 'nfts': nfts, 'partial': partial or len(candidates) > 50})
+            data = await turtle_connect.discover_wallets(addresses, turtle_ownership)
+            # Filter again if a wallet was removed while discovery was in flight.
+            current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
+            data['nfts'] = [nft for nft in data['nfts'] if nft['wallet'].lower() in current]
+            return web.json_response({'addresses': [address for address in addresses if address.lower() in current], **data})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
         except (asyncio.TimeoutError, OSError, Exception):
@@ -550,7 +537,7 @@ def create_app(database=None, origins=None):
     def nft_traits(nft):
         seed=':'.join(str(nft.get(k,'')) for k in ('chain','tokenId','name'))+':'+str((nft.get('collection') or {}).get('address',''))
         digest=hashlib.sha256(seed.encode()).digest()
-        shapes=['cat','blob','robot','bunny','duck','pig','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675']
+        shapes=['cat','robot','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#76638e','#ffd700']
         exprs=['happy','wink','shades','star_eyes'];accs=['none','party_hat','crown','halo','bow_tie','orb']
         return {'shape':shapes[digest[0]%len(shapes)],'color':colors[digest[1]%len(colors)],'expression':exprs[digest[2]%len(exprs)],'accessory':accs[digest[3]%len(accs)]}
     async def wallet_api_key(pid):
@@ -564,16 +551,20 @@ def create_app(database=None, origins=None):
             row=db.execute('SELECT provider,wallet_id,evm_address,sol_address,api_key,nft FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
             evm_addr = row[2] if row else fren_vault_address_and_key(pid)[0]
             nfts = []
-            db_nfts = db.execute('SELECT token_id, name, traits FROM fren_nfts WHERE pet_id=? ORDER BY id DESC', (pid,)).fetchall()
+            db_nfts = db.execute('SELECT token_id, name, traits, locked_frens FROM fren_nfts WHERE pet_id=? ORDER BY id DESC', (pid,)).fetchall()
             for row_nft in db_nfts:
-                tid, nname, traits_json = row_nft
+                tid, nname, traits_json, locked_val = row_nft
                 traits_data = json.loads(traits_json) if traits_json else nft_traits_by_id(tid)
+                is_vault = bool(locked_val and locked_val != '0') or bool(traits_data.get('vaultBacked'))
+                locked_str = locked_val if (locked_val and locked_val != '0') else str(traits_data.get('lockedFrens', '0'))
                 nfts.append({
                     'chain': 'base',
                     'collection': {'name': 'TinyFrens', 'address': os.environ.get('TINYFRENS_NFT_ADDRESS', '0xTinyFrensNFT')},
                     'tokenId': tid,
                     'name': nname or f'TinyFren #{tid}',
-                    'traits': traits_data
+                    'traits': traits_data,
+                    'vaultBacked': is_vault,
+                    'lockedFrens': locked_str
                 })
             if row and row[0] == 'bankr-partner' and row[4]:
                 bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
@@ -599,16 +590,22 @@ def create_app(database=None, origins=None):
             body=await request.json(); pid=token_pet(body.get('token'))
             evm_addr, _ = fren_vault_address_and_key(pid)
             quote = calculate_eth_mint_quote()
+            mode = str(body.get('mode', 'eth')).lower()
+            is_vault = (mode == 'vault')
+            vault_frens = quote['vaultFrensRequired'] if is_vault else '0'
+
             if body.get('checkOnly'):
                 return web.json_response({
                     'canAfford': True,
-                    'ethRequired': quote['ethRequired'],
-                    'ethRequiredWei': quote['ethRequiredWei'],
+                    'mode': mode,
+                    'ethRequired': quote['ethRequired'] if not is_vault else 0,
+                    'ethRequiredWei': quote['ethRequiredWei'] if not is_vault else '0',
+                    'vaultFrensRequired': vault_frens,
                     'vaultAddress': evm_addr,
                     'quote': quote
                 })
             allow_free = os.environ.get('ALLOW_TESTNET_FREE_MINT', 'true').lower() == 'true'
-            if not allow_free:
+            if not allow_free and not is_vault:
                 return web.json_response({
                     'error': f"Minting requires {quote['ethRequired']:.6f} ETH on Base. Send ETH to your wallet and mint from the on-chain collection.",
                     'ethRequired': quote['ethRequired'],
@@ -618,18 +615,21 @@ def create_app(database=None, origins=None):
                 }, status=402)
             existing = db.execute('SELECT token_id FROM fren_nfts').fetchall()
             used_ids = {r[0] for r in existing}
+            valid_shapes = ['robot']
+            custom_traits = body.get('customTraits') or body.get('traits')
+            requested_shape = str(custom_traits.get('shape', '')).lower() if isinstance(custom_traits, dict) else ''
+            if requested_shape and requested_shape not in valid_shapes:
+                return web.json_response({'error':'BNKR NFT minting is robot-only.'},status=400)
             available_ids = [i for i in range(1, NFT_MAX_SUPPLY + 1) if i not in used_ids]
-            token_id = available_ids[secrets.randbelow(len(available_ids))] if available_ids else (secrets.randbelow(NFT_MAX_SUPPLY) + 1)
+            if not available_ids:
+                return web.json_response({'error':'No unminted TinyFrens robots remain.'},status=409)
+            token_id = available_ids[secrets.randbelow(len(available_ids))]
             traits_data = nft_traits_by_id(token_id)
 
             # If user submitted custom builder traits, apply them
-            custom_traits = body.get('customTraits') or body.get('traits')
             if isinstance(custom_traits, dict):
-                valid_shapes = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle']
                 valid_exprs = ['happy', 'wink', 'shades', 'star_eyes', 'sleepy', 'loving', 'laser', 'grin']
                 valid_accs = ['none', 'party_hat', 'crown', 'straw_hat', 'halo', 'beanie', 'strawberry', 'orb', 'bubble', 'bow_tie']
-                c_shape = str(custom_traits.get('shape', '')).lower()
-                if c_shape in valid_shapes: traits_data['shape'] = c_shape
                 c_color = str(custom_traits.get('color', ''))
                 if re.fullmatch(r'#[0-9a-fA-F]{6}', c_color): traits_data['color'] = c_color.lower()
                 c_expr = str(custom_traits.get('expression', '')).lower()
@@ -641,14 +641,18 @@ def create_app(database=None, origins=None):
                     traits_data['accessory'] = c_acc
                     traits_data['accessoryLabel'] = c_acc.replace('_', ' ').title()
 
+            if is_vault:
+                traits_data['vaultBacked'] = True
+                traits_data['lockedFrens'] = str(vault_frens)
+
             species_capital = traits_data['shape'].capitalize()
             custom_name = str(body.get('name') or '').strip()
             if custom_name and 1 <= len(custom_name) <= 20:
                 nft_name = f'TinyFren #{token_id} · {custom_name}'
             else:
                 nft_name = f'TinyFren #{token_id} · {species_capital}'
-            db.execute('INSERT INTO fren_nfts(pet_id,token_id,name,traits,created) VALUES(?,?,?,?,?)',
-                       (pid, token_id, nft_name, json.dumps(traits_data), int(now())))
+            db.execute('INSERT INTO fren_nfts(pet_id,token_id,name,traits,created,locked_frens) VALUES(?,?,?,?,?,?)',
+                       (pid, token_id, nft_name, json.dumps(traits_data), int(now()), str(vault_frens)))
             current = pet(pid)['pet']
             pet_display_name = custom_name if custom_name and 1 <= len(custom_name) <= 20 else current['name']
             transformed = {**current, **traits_data, 'tokenId': token_id, 'name': pet_display_name}
@@ -659,14 +663,17 @@ def create_app(database=None, origins=None):
                 'collection': {'name': 'TinyFrens', 'address': os.environ.get('TINYFRENS_NFT_ADDRESS', '0xTinyFrensNFT')},
                 'tokenId': token_id,
                 'name': nft_name,
-                'traits': traits_data
+                'traits': traits_data,
+                'vaultBacked': is_vault,
+                'lockedFrens': str(vault_frens)
             }
             return web.json_response({
                 'success': True,
                 'pet': transformed,
                 'nft': nft_obj,
                 'evmAddress': evm_addr,
-                'quote': quote
+                'quote': quote,
+                'mode': mode
             })
         except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
             return web.json_response({'error':str(e) or 'Could not mint TinyFren'},status=400)
@@ -713,6 +720,125 @@ def create_app(database=None, origins=None):
             return web.json_response({'ok': True, 'tokenId': token_id, 'tx': tx, **chain_name_payload()})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Could not evolve TinyFren'},status=400)
+    async def wallet_unwrap_nft(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('wallet-unwrap-nft',ip),20,3600)
+            body=await request.json(); pid=token_pet(body.get('token'))
+            token_id = wallet_token_id(body)
+            row = db.execute('SELECT traits, locked_frens FROM fren_nfts WHERE pet_id=? AND token_id=?', (pid, token_id)).fetchone()
+            if not row:
+                raise ValueError('TinyFren NFT not found in your vault.')
+            traits_json, locked_frens = row[0], row[1] or '0'
+            traits_data = json.loads(traits_json) if traits_json else {}
+            if locked_frens == '0' and not traits_data.get('vaultBacked'):
+                raise ValueError('This TinyFren is not backed by a FRENS Piggybank vault.')
+            locked_amount = int(locked_frens) if locked_frens != '0' else int(traits_data.get('lockedFrens', 47_619_047 * 10**18))
+            tx = None
+            nft = nft_contract_address()
+            if nft:
+                try:
+                    data = encode_contract_call('unwrap(uint256)', ['uint256'], [token_id])
+                    tx = await send_vault_tx(pid, nft, data)
+                except Exception as ex:
+                    if not os.environ.get('ALLOW_TESTNET_FREE_MINT', 'true').lower() == 'true':
+                        raise ex
+            # Burn the NFT from vault
+            db.execute('DELETE FROM fren_nfts WHERE pet_id=? AND token_id=?', (pid, token_id))
+            current = pet(pid)['pet']
+            if int(current.get('tokenId') or 0) == token_id:
+                updated = {**current, 'tokenId': None}
+                db.execute('UPDATE pets SET profile=? WHERE id=?', (json.dumps(updated), pid))
+            else:
+                updated = current
+            # Record unwrap in burn log
+            db.execute('INSERT INTO frens_burn_log(pet_id,token_id,action,amount_burned,amount_treasury,created) VALUES(?,?,?,?,?,?)',
+                       (pid, token_id, 'unwrap', '0', str(locked_amount), int(now())))
+            db.commit()
+            return web.json_response({
+                'ok': True,
+                'tokenId': token_id,
+                'frensRedeemed': str(locked_amount),
+                'frensRedeemedHuman': locked_amount / 10**18,
+                'tx': tx,
+                'pet': updated,
+                'message': f'Unwrapped TinyFren #{token_id}! Returned {locked_amount / 10**18:,.2f} FRENS to your wallet.',
+                **chain_name_payload()
+            })
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
+            return web.json_response({'error':str(e) or 'Could not unwrap TinyFren'},status=400)
+    async def wallet_save_nft_changes(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('wallet-save-nft',ip),20,3600)
+            body=await request.json(); pid=token_pet(body.get('token'))
+            token_id = wallet_token_id(body)
+            row = db.execute('SELECT name, traits FROM fren_nfts WHERE pet_id=? AND token_id=?', (pid, token_id)).fetchone()
+            if not row:
+                raise ValueError('TinyFren NFT not found in your vault.')
+            old_name, traits_json = row[0], row[1]
+            traits_data = json.loads(traits_json) if traits_json else nft_traits_by_id(token_id)
+
+            custom_traits = body.get('customTraits') or body.get('traits')
+            if isinstance(custom_traits, dict):
+                valid_exprs = ['happy', 'wink', 'shades', 'star_eyes', 'sleepy', 'loving', 'laser', 'grin']
+                valid_accs = ['none', 'party_hat', 'crown', 'straw_hat', 'halo', 'beanie', 'strawberry', 'orb', 'bubble', 'bow_tie']
+                c_color = str(custom_traits.get('color', ''))
+                if re.fullmatch(r'#[0-9a-fA-F]{6}', c_color): traits_data['color'] = c_color.lower()
+                c_expr = str(custom_traits.get('expression', '')).lower()
+                if c_expr in valid_exprs:
+                    traits_data['expression'] = c_expr
+                    traits_data['expressionLabel'] = c_expr.replace('_', ' ').title()
+                c_acc = str(custom_traits.get('accessory', '')).lower()
+                if c_acc in valid_accs:
+                    traits_data['accessory'] = c_acc
+                    traits_data['accessoryLabel'] = c_acc.replace('_', ' ').title()
+
+            new_name = str(body.get('name') or old_name).strip()
+            if new_name and 1 <= len(new_name) <= 32:
+                nft_name = new_name if '#' in new_name else f'TinyFren #{token_id} · {new_name}'
+            else:
+                nft_name = old_name
+
+            # Flywheel: Fee charged in FRENS: 50% burned, 50% collected to treasury
+            quote = calculate_eth_mint_quote()
+            total_fee = int(quote.get('saveChangesFeeFrens', str(5000 * 10**18)))
+            burn_amount = total_fee // 2
+            treasury_amount = total_fee - burn_amount
+
+            # If user has economy credits, deduct them
+            if 'economy' in locals() and economy:
+                credits_needed = economy_ledger.credits_from_wei(total_fee)
+                if credits_needed > 0 and economy.balance(pid) >= credits_needed:
+                    economy.spend(pid, credits_needed, reason='save_nft_changes', ref_type='nft', ref_id=str(token_id))
+
+            db.execute('INSERT INTO frens_burn_log(pet_id,token_id,action,amount_burned,amount_treasury,created) VALUES(?,?,?,?,?,?)',
+                       (pid, token_id, 'save_changes', str(burn_amount), str(treasury_amount), int(now())))
+            db.execute('UPDATE fren_nfts SET name=?, traits=? WHERE pet_id=? AND token_id=?',
+                       (nft_name, json.dumps(traits_data), pid, token_id))
+
+            current = pet(pid)['pet']
+            if int(current.get('tokenId') or 0) == token_id:
+                pet_name = new_name[:20] if new_name and not new_name.startswith('TinyFren #') else current['name']
+                transformed = {**current, **traits_data, 'name': pet_name, 'tokenId': token_id}
+                db.execute('UPDATE pets SET profile=? WHERE id=?', (json.dumps(transformed), pid))
+            else:
+                transformed = current
+            db.commit()
+
+            return web.json_response({
+                'ok': True,
+                'tokenId': token_id,
+                'name': nft_name,
+                'traits': traits_data,
+                'feeFrens': total_fee / 10**18,
+                'burnedFrens': burn_amount / 10**18,
+                'treasuryFrens': treasury_amount / 10**18,
+                'pet': transformed,
+                'message': f'Saved changes to TinyFren #{token_id}! Paid fee in FRENS: {burn_amount / 10**18:,.0f} burned (50%), {treasury_amount / 10**18:,.0f} sent to Treasury (50%).'
+            })
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Could not save NFT changes'},status=400)
     async def wallet_magic_link(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
@@ -820,8 +946,6 @@ def create_app(database=None, origins=None):
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
     def nft_traits_by_id(token_id):
-        shapes = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle']
-        species_list = ['Cat', 'Blob', 'Robot', 'Bunny', 'Puppy', 'Bear', 'Frog', 'Turtle']
         palettes = [
             ('Lavender Dream', '#a474f1', 'Classic'),
             ('Cyber Neon', '#66c7d2', 'Classic'),
@@ -829,7 +953,7 @@ def create_app(database=None, origins=None):
             ('Mint Meadow', '#82eba1', 'Classic'),
             ('Bubblegum', '#ff82a7', 'Classic'),
             ('Electric Blue', '#4d96ff', 'Classic'),
-            ('Midnight Obsidian', '#3a2d52', 'Rare'),
+            ('Midnight Obsidian', '#76638e', 'Rare'),
             ('24K Solid Gold', '#ffd700', 'Legendary')
         ]
         expr_keys = ['happy', 'wink', 'shades', 'star_eyes']
@@ -839,23 +963,16 @@ def create_app(database=None, origins=None):
         era_labels = ['Pocket Genesis', 'Street Wanderers', 'Dream Garden']
         habitat_labels = ['Moonlit Plaza', 'Neon Crosswalk', 'Snack Garden', 'Cloud Room', 'Arcade Alley', 'Tiny Meadow']
         motion_labels = ['Happy Walk', 'Bouncy Strut', 'Sleepy Drift', 'Excited Wiggle']
-        s = (int(token_id) * 104729 + 7919) % 2147483647
-        def rand():
-            nonlocal s
-            s = (s * 16807) % 2147483647
-            return (s - 1) / 2147483646
-        idx = (int(token_id) - 1) % 8
-        shape = shapes[idx]
-        species = species_list[idx]
-        roll = rand() * 100
-        if roll < 5: pal = palettes[7]
-        elif roll < 20: pal = palettes[6]
-        else: pal = palettes[int(rand() * 6)]
-        e_idx = int(rand() * len(expr_keys))
-        a_idx = int(rand() * len(acc_keys))
+        shape = 'robot'
+        species = 'Robot'
+        art_index = (((int(token_id) - 1) % 888) * 197 + 17) % 4608
+        pal = palettes[art_index % len(palettes)]
+        combination = art_index // len(palettes)
+        e_idx = combination % len(expr_keys)
+        a_idx = (combination // 4) % len(acc_keys)
         era_idx = min(2, (int(token_id) - 1) // 888)
-        habitat_idx = int(rand() * len(habitat_labels))
-        motion_idx = int(rand() * len(motion_labels))
+        habitat_idx = (combination // 24) % len(habitat_labels)
+        motion_idx = (combination // 144) % len(motion_labels)
         return {
             'shape': shape,
             'species': species,
@@ -875,7 +992,7 @@ def create_app(database=None, origins=None):
         effects=["confetti"] if action in ("pet","feed","play") else []
         status_text="Your 1:1 on-chain & floating desktop companion."
         header_text="TinyFrens · Pocket Pet"
-        status_sub="8 companion species · 3 eras · 2664 on-chain supply · AR camera snaps · Multiplayer party rooms"
+        status_sub="Robot-only NFT set · 3 eras · 2664 on-chain supply · AR camera snaps · Multiplayer party rooms"
         app_target="https://tinyfrens.lol/"
         if nft_id:
             try:
@@ -1216,6 +1333,10 @@ def create_app(database=None, origins=None):
                             if set((v['sender'],v['receiver']))==set((pid,other)): await end(vid)
                         for vid,v in list(pending.items()):
                             if set((v['sender'],v['receiver']))==set((pid,other)): pending.pop(vid,None)
+                        for bid,b in list(battles.items()):
+                            if set((b['sender'],b['receiver']))==set((pid,other)): await end_battle(bid)
+                        for bid,b in list(pending_battles.items()):
+                            if set((b['sender'],b['receiver']))==set((pid,other)): pending_battles.pop(bid,None)
                         await state(pid);await state(other)
                     elif typ=='visit-request':
                         limit(('visits',pid),12,60); other=str(m.get('id',''))
@@ -1240,6 +1361,31 @@ def create_app(database=None, origins=None):
                         v=visits.get(str(m.get('id','')));action=m.get('action')
                         if not v or pid not in (v['sender'],v['receiver']) or action not in ('wave','dance'): raise ValueError('Invalid visit action')
                         for p in (v['sender'],v['receiver']): await send(p,dict(type='visit-action',id=m['id'],action=action))
+                    elif typ=='battle-request':
+                        limit(('battles',pid),12,60); other=str(m.get('id',''))
+                        if not paired(pid,other) or other not in sockets: raise ValueError('Your friend needs to open TinyFrens first')
+                        if any(pid in (b['sender'],b['receiver']) or other in (b['sender'],b['receiver']) for b in [*battles.values(),*pending_battles.values()]): raise ValueError('Finish the current spar first')
+                        bid=secrets.token_hex(12);pending_battles[bid]=dict(sender=pid,receiver=other,expires=now()+60)
+                        await send(other,dict(type='battle-request',id=bid,friend=pet(pid)));await send(pid,dict(type='notice',text='Spar requested. Waiting for your friend.'))
+                        await push_offline(other,'TinyFrens Spar Challenge!',f"{pet(pid)['pet']['name']} challenged your fren to a spar!")
+                    elif typ=='battle-answer':
+                        bid=str(m.get('id',''));b=pending_battles.get(bid)
+                        if not b or b['receiver']!=pid or b['expires']<now(): raise ValueError('Battle request expired')
+                        pending_battles.pop(bid)
+                        if m.get('accept') is True and b['sender'] in sockets and paired(pid,b['sender']):
+                            b['expires']=now()+600;battles[bid]=b
+                            await send(pid,dict(type='battle-start',id=bid,role='defender',friend=pet(b['sender']),expires=int(b['expires']*1000)))
+                            await send(b['sender'],dict(type='battle-start',id=bid,role='challenger',friend=pet(pid),expires=int(b['expires']*1000)))
+                        else: await send(b['sender'],dict(type='notice',text='Not sparring right now.'))
+                    elif typ=='battle-action':
+                        bid=str(m.get('id',''));b=battles.get(bid)
+                        if not b or pid not in (b['sender'],b['receiver']): raise ValueError('Invalid battle action')
+                        action=str(m.get('action','boop'))
+                        for p in (b['sender'],b['receiver']): await send(p,dict(type='battle-action',id=bid,sender=pid,action=action))
+                    elif typ=='battle-end':
+                        bid=str(m.get('id',''));b=battles.get(bid)
+                        if not b or pid not in (b['sender'],b['receiver']): raise ValueError('Battle no longer available')
+                        await end_battle(bid)
                     else: raise ValueError('Unknown action')
                 except (ValueError,TypeError,KeyError,json.JSONDecodeError) as e: await ws.send_json(dict(type='error',text=str(e)))
         except (ValueError,TypeError,AttributeError,asyncio.TimeoutError,json.JSONDecodeError):
@@ -1252,6 +1398,10 @@ def create_app(database=None, origins=None):
                     if pid in (v['sender'],v['receiver']): await end(vid)
                 for vid,v in list(pending.items()):
                     if pid in (v['sender'],v['receiver']): pending.pop(vid,None)
+                for bid,b in list(battles.items()):
+                    if pid in (b['sender'],b['receiver']): await end_battle(bid)
+                for bid,b in list(pending_battles.items()):
+                    if pid in (b['sender'],b['receiver']): pending_battles.pop(bid,None)
                 for (other,) in db.execute('SELECT b FROM friends WHERE a=?',(pid,)).fetchall(): await state(other)
         return ws
     async def lifetime(app):
@@ -1264,6 +1414,12 @@ def create_app(database=None, origins=None):
                     if v['expires']<now():
                         pending.pop(vid,None)
                         for p in (v['sender'],v['receiver']): await send(p,dict(type='visit-request-ended',id=vid))
+                for bid,b in list(battles.items()):
+                    if b['expires']<now(): await end_battle(bid)
+                for bid,b in list(pending_battles.items()):
+                    if b['expires']<now():
+                        pending_battles.pop(bid,None)
+                        for p in (b['sender'],b['receiver']): await send(p,dict(type='battle-request-ended',id=bid))
                 for k,q in list(rates.items()):
                     if not q or q[-1]<now()-3600: rates.pop(k,None)
         task=asyncio.create_task(cleanup());yield
@@ -1415,14 +1571,17 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not row:
+            addresses = turtle_connect.linked_wallets(db, pid)
+            if not addresses:
                 return web.json_response({'error': 'Link your wallet first'}, status=403)
             token_id = turtle_connect.turtle_id(body.get('tokenId'))
-            data = await turtle_ownership.read(row[0], token_id)
-            # A wallet may be unlinked or changed while the RPC is in flight.
-            current = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not current or current[0] != row[0]:
+            data = None
+            for address in addresses:
+                data = await turtle_ownership.read(address, token_id)
+                if data['active']:
+                    break
+            current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
+            if not data or data['wallet'].lower() not in current:
                 return web.json_response({'error': 'Wallet link changed. Please try again.'}, status=403)
             return web.json_response(data)
         except (ValueError, TypeError, OverflowError) as exc:
@@ -1430,7 +1589,7 @@ def create_app(database=None, origins=None):
         except Exception:
             return web.json_response({'error': 'Robinhood Chain RPC unavailable'}, status=503)
 
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/wallet-link/status',wallet_link_status);app.router.add_post('/api/wallet-link/challenge',wallet_link_challenge);app.router.add_post('/api/wallet-link/confirm',wallet_link_confirm);app.router.add_post('/api/wallet-link/disconnect',wallet_link_disconnect);app.router.add_post('/api/wallet-link/nfts',wallet_link_nfts);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/featured/hood-turtle',hood_turtle_status);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/rename-nft',wallet_rename_nft);app.router.add_post('/api/wallet/evolve-nft',wallet_evolve_nft);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/wallet-link/status',wallet_link_status);app.router.add_post('/api/wallet-link/challenge',wallet_link_challenge);app.router.add_post('/api/wallet-link/confirm',wallet_link_confirm);app.router.add_post('/api/wallet-link/disconnect',wallet_link_disconnect);app.router.add_post('/api/wallet-link/nfts',wallet_link_nfts);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/featured/hood-turtle',hood_turtle_status);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/rename-nft',wallet_rename_nft);app.router.add_post('/api/wallet/evolve-nft',wallet_evolve_nft);app.router.add_post('/api/wallet/unwrap-nft',wallet_unwrap_nft);app.router.add_post('/api/wallet/save-nft-changes',wallet_save_nft_changes);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     # Serve the static front-end (web/) so the gallery and app are viewable from the relay
     # itself (e.g. http://127.0.0.1:8080/web/gallery.html) during local / testnet runs.

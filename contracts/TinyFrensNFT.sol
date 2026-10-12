@@ -3,9 +3,10 @@ pragma solidity ^0.8.20;
 
 import { NetIntegratedERC721A } from "./NetIntegratedERC721A.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { LibPRNG } from "solady/utils/LibPRNG.sol";
 import { Base64 } from "solady/utils/Base64.sol";
-import { ITinyFrensArt, TinyFrensArt, Traits } from "./TinyFrensArt.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ITinyFrensArt, Traits } from "./TinyFrensArt.sol";
 
 interface INetStorage {
     function put(bytes32 key, string calldata text, bytes calldata data) external;
@@ -13,13 +14,16 @@ interface INetStorage {
 }
 
 /// @title TinyFrensNFT
-/// @notice Curated 100% on-chain vector companion collection matching TinyFrens in-game floating pets.
-///         Auto-posts mints and transfers to Net Protocol.
+/// @notice Curated on-chain companion collection with FRENS Piggybank Vault backing.
+///         Auto-posts mints, transfers, and burns to Net Protocol.
 contract TinyFrensNFT is NetIntegratedERC721A {
     using LibString for uint256;
-    using LibPRNG for LibPRNG.PRNG;
+    using SafeERC20 for IERC20;
 
     ITinyFrensArt public immutable artRenderer;
+    IERC20 public frensToken;
+    uint256 public frensPerVaultMint;
+    mapping(uint256 => uint256) public lockedFrens;
 
     mapping(uint256 => string) private _customName;
     mapping(uint256 => uint8) private _evolution;
@@ -29,22 +33,89 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     event TinyFrenRenamed(uint256 indexed tokenId, string name);
     event TinyFrenEvolved(uint256 indexed tokenId, uint8 stage);
     event TinyFrenNetStorageSynced(uint256 indexed tokenId, address indexed operator, bytes32 indexed key);
+    event TinyFrenVaultMinted(uint256 indexed tokenId, address indexed owner, uint256 frensLocked);
+    event TinyFrenUnwrapped(uint256 indexed tokenId, address indexed owner, uint256 frensRedeemed);
+    event FrensPerVaultMintUpdated(uint256 frensPerVaultMint);
+    event FrensTokenUpdated(address frensToken);
 
     error InvalidPetName();
     error MaxEvolutionReached();
     error NotTokenOwner();
+    error NoLockedFrens();
+    error InsufficientFrensDeposit();
+    error ZeroAddress();
 
-    constructor()
+    constructor(address artRenderer_)
         NetIntegratedERC721A(
             "TinyFrens", // name
             "FREN",      // symbol
             0.001 ether, // price (0.001 ETH)
-            2664,        // maxSupply (333 per species)
+            2664,        // maxSupply
             20,          // maxMintsPerWallet
             20           // creatorReserve
         )
     {
-        artRenderer = new TinyFrensArt();
+        require(artRenderer_.code.length > 0, "Missing art renderer");
+        artRenderer = ITinyFrensArt(artRenderer_);
+        frensToken = IERC20(0x1A96226727a1D0a46334b3A4b3878B32B7659ba3);
+        frensPerVaultMint = 47_619_047 * 10**18; // ~0.002 ETH worth of FRENS
+    }
+
+    function setFrensToken(address newToken) external onlyDeployer {
+        if (newToken == address(0)) revert ZeroAddress();
+        frensToken = IERC20(newToken);
+        emit FrensTokenUpdated(newToken);
+    }
+
+    function setFrensPerVaultMint(uint256 newAmount) external onlyDeployer {
+        frensPerVaultMint = newAmount;
+        emit FrensPerVaultMintUpdated(newAmount);
+    }
+
+    /// @notice Mint Fren Vault loaded with FRENS tokens (0.002 ETH worth of FRENS)
+    function mintWithVault(uint256 amount, uint256 frensPerToken) external {
+        if (address(frensToken) == address(0)) revert ZeroAddress();
+        if (frensPerVaultMint != 0 && frensPerToken < frensPerVaultMint) revert InsufficientFrensDeposit();
+        if (
+            maxMintsPerWallet != 0 &&
+            _numberMinted(msg.sender) + amount > maxMintsPerWallet
+        ) revert MaxMintsPerWalletReached();
+
+        uint256 totalFrens = amount * frensPerToken;
+        frensToken.safeTransferFrom(msg.sender, address(this), totalFrens);
+
+        uint256 startTokenId = _nextTokenId();
+        _mintSeeded(msg.sender, amount);
+
+        unchecked {
+            for (uint256 i; i < amount; ++i) {
+                uint256 tid = startTokenId + i;
+                lockedFrens[tid] = frensPerToken;
+                emit TinyFrenVaultMinted(tid, msg.sender, frensPerToken);
+            }
+        }
+    }
+
+    /// @notice Deposit additional FRENS collateral into an existing Fren NFT
+    function depositFrens(uint256 tokenId, uint256 amount) external {
+        if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
+        if (amount == 0) revert InsufficientFrensDeposit();
+        frensToken.safeTransferFrom(msg.sender, address(this), amount);
+        lockedFrens[tokenId] += amount;
+        emit TinyFrenVaultMinted(tokenId, ownerOf(tokenId), lockedFrens[tokenId]);
+    }
+
+    /// @notice Unwrap Fren Vault: burns NFT and returns 100% of locked FRENS to the owner
+    function unwrap(uint256 tokenId) external {
+        _requireTokenOwner(tokenId);
+        uint256 locked = lockedFrens[tokenId];
+        if (locked == 0) revert NoLockedFrens();
+
+        delete lockedFrens[tokenId];
+        _burn(tokenId);
+        frensToken.safeTransfer(msg.sender, locked);
+
+        emit TinyFrenUnwrapped(tokenId, msg.sender, locked);
     }
 
     function tokenName(uint256 tokenId) public view returns (string memory) {
@@ -124,39 +195,23 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         emit TinyFrenNetStorageSynced(tokenId, address(this), key);
     }
 
-    function _traits(uint256 tokenId) internal view returns (Traits memory t) {
-        LibPRNG.PRNG memory p;
-        p.seed(uint256(_tokenToSeed[tokenId]));
+    function _traits(uint256 tokenId) internal pure returns (Traits memory t) {
+        // BNKR launch is a focused robot-only collection across three 888-token eras.
+        t.species = 0;
 
-        // Exactly 333 of each species across 2664 supply
-        t.species = uint8((tokenId - 1) % 8);
-
-        // Curated rarity distribution for palettes
-        uint256 palRoll = p.uniform(100);
-        if (palRoll < 5) {
-            t.palette = 7; // 24K Solid Gold (Legendary)
-        } else if (palRoll < 20) {
-            t.palette = 6; // Midnight Obsidian (Rare)
-        } else {
-            t.palette = uint8(p.uniform(6)); // Classic colorways
-        }
-
-        t.expr = uint8(p.uniform(4));
-        t.acc = uint8(p.uniform(6));
         t.era = uint8((tokenId - 1) / 888);
-        t.habitat = uint8(p.uniform(6));
-        t.motion = uint8(p.uniform(4));
+        uint256 cohortIndex = (tokenId - 1) % 888;
+        uint256 artIndex = (cohortIndex * 197 + 17) % 4608;
+        t.palette = uint8(artIndex % 8);
+        uint256 combination = artIndex / 8;
+        t.expr = uint8(combination % 4);
+        t.acc = uint8((combination / 4) % 6);
+        t.habitat = uint8((combination / 24) % 6);
+        t.motion = uint8((combination / 144) % 4);
     }
 
-    function _speciesName(uint8 s) internal pure returns (string memory) {
-        if (s == 0) return "Cat";
-        if (s == 1) return "Blob";
-        if (s == 2) return "Robot";
-        if (s == 3) return "Bunny";
-        if (s == 4) return "Duck";
-        if (s == 5) return "Pig";
-        if (s == 6) return "Frog";
-        return "Turtle";
+    function _speciesName(uint8) internal pure returns (string memory) {
+        return "Robot";
     }
 
     function _paletteData(uint8 p) internal pure returns (
@@ -166,14 +221,14 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         string memory name,
         string memory tier
     ) {
-        if (p == 0) return ("#a474f1", "#4b2d77", "#17142a", "Lavender Dream", "Classic");
-        if (p == 1) return ("#66c7d2", "#235960", "#0d1117", "Cyber Neon", "Classic");
-        if (p == 2) return ("#ffb95e", "#7a4e12", "#fff7ed", "Sunny Amber", "Classic");
-        if (p == 3) return ("#82eba1", "#235f37", "#e8f5e9", "Mint Meadow", "Classic");
-        if (p == 4) return ("#ff82a7", "#6f233a", "#fdf2f8", "Bubblegum", "Classic");
-        if (p == 5) return ("#4d96ff", "#1b3f75", "#f0f9ff", "Electric Blue", "Classic");
-        if (p == 6) return ("#3a2d52", "#1e162d", "#211c39", "Midnight Obsidian", "Rare");
-        return ("#ffd700", "#b7791f", "#2d132c", "24K Solid Gold", "Legendary");
+        if (p == 0) return ("#a474f1", "#302048", "#17142a", "Lavender Dream", "Classic");
+        if (p == 1) return ("#66c7d2", "#183d4d", "#102c38", "Cyber Neon", "Classic");
+        if (p == 2) return ("#ffb95e", "#623b29", "#382a38", "Sunny Amber", "Classic");
+        if (p == 3) return ("#82eba1", "#24533f", "#193c3a", "Mint Meadow", "Classic");
+        if (p == 4) return ("#ff82a7", "#632b48", "#3b213b", "Bubblegum", "Classic");
+        if (p == 5) return ("#4d96ff", "#263a6a", "#182d50", "Electric Blue", "Classic");
+        if (p == 6) return ("#76638e", "#241d38", "#211c39", "Midnight Obsidian", "Rare");
+        return ("#ffd700", "#6c421c", "#2d2238", "24K Solid Gold", "Legendary");
     }
 
     function _exprName(uint8 e) internal pure returns (string memory) {
@@ -214,7 +269,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return "Excited Wiggle";
     }
 
-    /// @notice Pixel & Vector twin of in-game floating companion (128x148)
+    /// @notice 64x64 grid-drawn animated companion.
     function art(uint256 tokenId) public view returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         return artRenderer.render(_traits(tokenId), _evolution[tokenId]);
@@ -223,6 +278,16 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     function _attributes(uint256 tokenId) internal view returns (string memory) {
         Traits memory t = _traits(tokenId);
         (, , , string memory palName, string memory tier) = _paletteData(t.palette);
+
+        uint256 locked = lockedFrens[tokenId];
+        string memory vaultAttrs = "";
+        if (locked > 0) {
+            vaultAttrs = string.concat(
+                ',{"trait_type":"Vault Backed","value":"FRENS Piggybank"},{"trait_type":"Locked FRENS (Wei)","value":"',
+                locked.toString(),
+                '"}'
+            );
+        }
 
         return string.concat(
             '[{"trait_type":"Species","value":"', _speciesName(t.species),
@@ -234,7 +299,9 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             '"},{"trait_type":"Habitat","value":"', _habitatName(t.habitat),
             '"},{"trait_type":"Motion","value":"', _motionName(t.motion),
             '"},{"trait_type":"Evolution","value":"Stage ', uint256(_evolution[tokenId]).toString(),
-            '"}]'
+            '"}',
+            vaultAttrs,
+            ']'
         );
     }
 

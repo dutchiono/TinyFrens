@@ -25,6 +25,15 @@
     if (!response.ok) throw new Error(data.error || 'Turtle connection unavailable');
     return data;
   };
+  window.removeImportedWallet = async address => {
+    const native = window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest;
+    if (native) await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/remove-wallet', {address});
+    const belongs = nft => (nft.wallet || nft.originalOwner || '').toLowerCase() === address.toLowerCase();
+    let saved = []; try { saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]'); } catch {}
+    localStorage.setItem('tinyfrens-companions', JSON.stringify(saved.filter(nft => !belongs(nft))));
+    try { if (belongs(JSON.parse(localStorage.getItem('tinyfrens-hood-turtle') || '{}'))) localStorage.removeItem('tinyfrens-hood-turtle'); } catch {}
+    window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
+  };
   window.clearImportedTurtle = () => {
     window.PetAndroid?.clearTurtle?.();
     window.TinyFrensDesktop?.clearTurtle?.();

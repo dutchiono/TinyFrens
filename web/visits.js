@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
- const box=document.createElement('section');box.className='visit-box';box.innerHTML='<h2>Friends can visit</h2><p>Send a little hello to someone you know. They choose whether to let your fren visit.</p><button id="shareVisit">Send a visit invite</button><input id="visitLink" readonly aria-label="Visit invite link" hidden><p id="visitStatus" role="status"></p><p class="small">Invites share your pet’s name and look for 30 minutes. Your pet stays here. Bluetooth discovery is not included yet.</p>';
- $('screen-pet').append(box);
+ const box=document.createElement('section');box.className='visit-box';box.innerHTML='<h2>Friends can visit</h2><p>Share an invite. Your friend accepts before the visit starts.</p><button id="shareVisit">Send a visit invite</button><input id="visitLink" readonly aria-label="Visit invite link" hidden><p id="visitStatus" role="status"></p><p class="small">Invites share your pet’s name and look for 30 minutes. Visits expire after 30 minutes.</p>';
+ const social=document.createElement('details');social.className='party-social';social.innerHTML='<summary>Friends and visits</summary>';social.append(box);$('screen-party').append(social);
  function decode(value){
   if(!value||value.length>1600)throw new Error('Invalid invite');
   const bytes=Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
@@ -12,6 +12,7 @@
   return {name:cleanName(data.name)||'A fren',shape:normShape,color:data.color,expression:data.expression||'happy',accessory:data.accessory||'none',tokenId:data.tokenId||null,expires:data.expires,v:1};
  }
  function guest(data,options={}){
+  social.open=true;
   if(data.shape==='mascot')data={...data,shape:'robot'};
   $('guestVisit')?.remove();
   const card=document.createElement('section');card.id='guestVisit';card.className='visit-box';
@@ -35,7 +36,7 @@
    const title=document.createElement('h2');title.textContent=data.name+(data.tokenId?' (#'+data.tokenId+')':'')+' wants to visit';
    const yes=document.createElement('button');yes.textContent='Let them visit';yes.onclick=()=>{invite.remove();guest(data);};
    const no=document.createElement('button');no.textContent='Not now';no.className='secondary';no.onclick=()=>invite.remove();
-   const actions=document.createElement('div');actions.className='actions';actions.append(yes,no);invite.append(title,actions);$('screen-pet').prepend(invite);
+   const actions=document.createElement('div');actions.className='actions';actions.append(yes,no);invite.append(title,actions);social.open=true;social.prepend(invite);
   }catch{$('visitStatus').textContent='This invite has expired or doesn’t look right. Ask for a new one.';}
  }else{
   try{const saved=sessionStorage.getItem('tinyfrens-guest');if(saved){const data=JSON.parse(saved);if(data.expires>Date.now())guest(data);else sessionStorage.removeItem('tinyfrens-guest');}}catch{}

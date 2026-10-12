@@ -30,7 +30,7 @@ The web app's Wallet tab uses a read-only, non-custodial link. On first use, the
 
 `POST /api/wallet-link/status`, `/challenge`, `/confirm`, `/disconnect`, and `/nfts` require the fren's device token. The NFT endpoint queries Robinhood Blockscout for candidate holdings and rechecks Hood Turtles ownership on-chain. It is limited to five indexer pages and reports `partial` if more remain. `ROBINHOOD_RPC_URL` and `ROBINHOOD_BLOCKSCOUT_API_URL` optionally override the public endpoints. Hood Turtles is the only supported external collection for now.
 
-The older Bankr/pocket-vault API routes remain for existing users and recovery. The web app keeps those tools in a collapsed legacy section and does not provision a vault during the new Hood Turtle import flow. Do not send NFTs to an old vault address as part of the new link flow. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
+The older Bankr/pocket-vault API routes remain for existing users and recovery, but the web app no longer creates or displays a fren-owned wallet. New vault creation and legacy minting are disabled by default; only a deliberate `ENABLE_LEGACY_VAULT_CREATION=true` re-enables them for migration/testing. Do not send NFTs to an old vault address as part of the new link flow. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
 ## Hood Turtles featured access
 
