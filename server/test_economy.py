@@ -174,7 +174,7 @@ def build_app():
         token_pet=lambda t: tokens[t],
         limit=lambda *a: None,
         settings=settings,
-        allocator=lambda pid: ("0x" + "ab" * 20, None),
+        allocator=lambda pid, token=None: ("0x" + "ab" * 20, None),
     )
     return app, db
 
@@ -252,7 +252,7 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
             token_pet=lambda t: "pet-1",
             limit=lambda *a: None,
             settings=lambda: {"enabled": False, "mode": None},
-            allocator=lambda pid: ("0x" + "ab" * 20, None),
+            allocator=lambda pid, token=None: ("0x" + "ab" * 20, None),
         )
         client = TestClient(TestServer(app2))
         await client.start_server()
@@ -279,6 +279,54 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.status, 503)
         finally:
             await client.close()
+
+    async def test_failing_allocator_returns_503(self):
+        async def broken(pid, token=None):
+            raise RuntimeError("rpc down")
+
+        app = web.Application()
+        econ.attach(
+            app,
+            sqlite3.connect(":memory:"),
+            token_pet=lambda t: "pet-1",
+            limit=lambda *a: None,
+            settings=lambda: {"enabled": True, "chainId": 84532, "frensToken": "0x" + "11" * 20},
+            allocator=broken,
+        )
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            r = await client.post("/api/deposits/open", json={"token": "tok", "package": 10})
+            self.assertEqual(r.status, 503)
+        finally:
+            await client.close()
+
+    async def test_async_allocator_injects_session_id(self):
+        async def assign(pid, token=None):
+            return ("0x" + "cd" * 20, token, "0x" + "aa" * 32)
+
+        app = web.Application()
+        db = sqlite3.connect(":memory:")
+        econ.attach(
+            app,
+            db,
+            token_pet=lambda t: "pet-1",
+            limit=lambda *a: None,
+            settings=lambda: {"enabled": True, "chainId": 84532, "frensToken": "0x" + "11" * 20},
+            allocator=assign,
+        )
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            r = await client.post("/api/deposits/open", json={"token": "tok", "package": 10})
+            self.assertEqual(r.status, 200)
+            data = await r.json()
+            self.assertEqual(data["depositId"], "0x" + "aa" * 32)
+            self.assertEqual(data["address"], "0x" + "cd" * 20)
+            self.assertEqual(data["token"], "0x" + "11" * 20)
+        finally:
+            await client.close()
+            db.close()
 
 
 ORIGIN = "https://tinyfrens.lol"

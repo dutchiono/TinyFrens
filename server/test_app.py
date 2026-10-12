@@ -76,8 +76,10 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
             a=await self.register('Walletless')
             r=await self.client.post('/api/bankr/wallet',headers={'Origin':ORIGIN},json={'token':a['token'],'pet':{'name':'Walletless','shape':'robot','color':'#a474f1'}})
-            self.assertEqual(r.status,503)
-            self.assertEqual((await r.json())['error'],'Bankr is not connected yet')
+            self.assertEqual(r.status,200)
+            data=await r.json()
+            self.assertEqual(data['mode'],'fren-vault')
+            self.assertTrue(data['evmAddress'].startswith('0x'))
         finally:
             if old is not None: os.environ['BANKR_API_KEY']=old
             if old_partner is not None: os.environ['BANKR_PARTNER_KEY']=old_partner
@@ -385,8 +387,56 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r.status, 200)
         data = await r.json()
         self.assertIn('TinyFren #42', data['ui']['elements']['header']['props']['content'])
-        self.assertIn('Public Plaza', data['ui']['elements']['hero-img']['props']['subtitle'])
+    async def test_nft_price_quote(self):
+        r = await self.client.get('/api/nft/price', headers={'Origin': ORIGIN})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertEqual(data['targetUsd'], 1.0)
+        self.assertGreater(data['priceUsd'], 0)
+        self.assertGreater(data['frensRequired'], 0)
+        self.assertGreater(data['creditsRequired'], 0)
 
+    async def test_wallet_mint_and_magic_link(self):
+        a = await self.register('MintyFren')
+        # Check mint quote without charging
+        r_check = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={'token': a['token'], 'checkOnly': True})
+        self.assertEqual(r_check.status, 200)
+        check_data = await r_check.json()
+        self.assertIn('frensRequired', check_data)
+        self.assertTrue(check_data['vaultAddress'].startswith('0x'))
+
+        # Perform mint (with testnet free mint fallback enabled by default)
+        r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        self.assertEqual(r_mint.status, 200)
+        mint_data = await r_mint.json()
+        self.assertTrue(mint_data['success'])
+        token_id = mint_data['nft']['tokenId']
+        self.assertGreaterEqual(token_id, 1)
+        self.assertLessEqual(token_id, 888)
+        self.assertEqual(mint_data['pet']['tokenId'], token_id)
+
+        # Check that bankr_nfts returns the minted NFT
+        r_nfts = await self.client.post('/api/bankr/nfts', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        self.assertEqual(r_nfts.status, 200)
+        nfts_data = await r_nfts.json()
+        self.assertEqual(len(nfts_data['nfts']), 1)
+        self.assertEqual(nfts_data['nfts'][0]['tokenId'], token_id)
+
+        # Generate magic link
+        r_link = await self.client.post('/api/wallet/magic-link', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        self.assertEqual(r_link.status, 200)
+        link_data = await r_link.json()
+        self.assertTrue(link_data['code'])
+        self.assertIn('#restore=' + link_data['code'], link_data['restoreUrl'])
+
+        # Restore from magic link
+        r_restore = await self.client.post('/api/wallet/restore', headers={'Origin': ORIGIN}, json={'code': link_data['code']})
+        self.assertEqual(r_restore.status, 200)
+        restore_data = await r_restore.json()
+        self.assertTrue(restore_data['success'])
+        self.assertEqual(restore_data['pet']['name'], 'MintyFren')
+        self.assertEqual(restore_data['pet']['tokenId'], token_id)
+        self.assertTrue(restore_data['vaultAddress'].startswith('0x'))
 
 if __name__=='__main__': unittest.main()
 

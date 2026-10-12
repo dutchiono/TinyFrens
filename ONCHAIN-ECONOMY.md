@@ -137,9 +137,12 @@ Tie-break: use existing `pet_id` hash, not wallet address, so credits work befor
 | `POST /api/deposits/confirm` | ✅ Indexer callback; idempotent; optional `X-Indexer-Secret` guard. 409 on reuse/expiry, 404 unknown. |
 | `POST /api/credits/balance` | ✅ Requires `token`; returns `{ balance, history }`. |
 
-`Economy.attach()` wires these in `create_app` (`server/app.py`). The deposit address pool is
-configured out-of-band via `DEPOSIT_SESSION_ADDRESSES` (comma-separated clones); wiring a live
-`DepositRouter.createSession` signer is the remaining step for fully automatic addressing.
+`Economy.attach()` wires these in `create_app` (`server/app.py`). Two allocator modes:
+
+- **Live on-chain (recommended)**: set `DEPOSIT_ROUTER_PROXY` + `GAME_CONTROLLER_PRIVATE_KEY` + `BASE_RPC_URL`; the server calls `DepositRouter.createSession` per open via `server/deposit_allocator.py` (`DepositRouterAllocator`, signed EIP-1559 tx, proven end-to-end against anvil in `server/test_deposit_allocator.py`).
+- **Static pool (fallback)**: comma-separated clones in `DEPOSIT_SESSION_ADDRESSES`, handed out by `AddressPool` when no live router is configured.
+
+Deposit packages: 10 / 50 / 100 FRENS → 100 credits/FRENS.
 
 Wallet tab UX: "Add credits" → pick package → show QR + copy + countdown → "Waiting for payment…" with auto-complete.
 

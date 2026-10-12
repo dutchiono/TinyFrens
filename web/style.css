@@ -246,6 +246,34 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 .app-footer nav a:hover{text-decoration:underline}
 .app-footer p{margin:0;color:#a9a0c0;font-size:11px}
 
+/* ── Fren Pocket Vault & $1 Mint Styles ────────────────────────── */
+.fren-vault-card{background:#ffffff;border:1.5px solid #d4c8e8;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 12px rgba(133,93,205,0.08)}
+.vault-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.vault-badge{background:#855DCD;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:0.5px;text-transform:uppercase}
+.vault-chip{background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px}
+.vault-label{font-size:12px;font-weight:700;color:#675f6d;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.vault-address-row{display:flex;gap:8px;align-items:center}
+.vault-address-input{flex:1;min-width:0;font-family:monospace;font-size:13px;padding:10px 12px;border:1px solid #c7beb1;border-radius:8px;background:#fbf9f5;color:#252326;outline:none}
+.vault-copy-btn{padding:8px 14px;background:#f0eaf8;color:#5d3a8e;border:1px solid #d4c8e8;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.vault-copy-btn:hover{background:#e3d8f2}
+.vault-hint{margin:8px 0 0;font-size:12px;color:#7e7484;line-height:1.4}
+
+.mint-fren-card{background:linear-gradient(135deg,#f9f5ff 0%,#f0f8ff 100%);border:1.5px solid #c2b0e6;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 12px rgba(133,93,205,0.1)}
+.mint-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px}
+.mint-header h3{margin:0 0 4px;font-size:16px;color:#3a2068}
+.mint-header .small{margin:0;color:#6d637c;font-size:12px}
+.mint-price{background:#ffeb3b;color:#4a3f00;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;letter-spacing:0.5px;white-space:nowrap}
+.mint-btn{width:100%;background:linear-gradient(135deg,#855DCD 0%,#6942ad 100%);color:#fff;font-size:15px;font-weight:700;padding:12px 16px;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 14px rgba(133,93,205,0.3);transition:transform 0.1s ease,box-shadow 0.1s ease}
+.mint-btn:hover{box-shadow:0 6px 18px rgba(133,93,205,0.4);transform:translateY(-1px)}
+.mint-btn:active{transform:translateY(1px)}
+.mint-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+
+.magic-link-box{background:#fdfae6;border:1px dashed #d1c164;border-radius:12px;padding:12px;margin:12px 0}
+.magic-link-box p{margin:0 0 8px;color:#5a5122}
+.magic-link-row{display:flex;gap:8px;align-items:center}
+.magic-link-input{flex:1;min-width:0;font-size:12px;padding:8px 10px;border:1px solid #dcd39a;border-radius:8px;background:#fff;color:#333}
+
+
 
 
 
