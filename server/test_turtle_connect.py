@@ -66,6 +66,21 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         return await self.client.post('/api/turtle-connect/' + name, json=payload,
                                       headers={} if agent else {'Origin': ORIGIN})
 
+    async def test_wallet_wide_pairing_does_not_require_a_token(self):
+        response = await self.post('start', {})
+        pairing = await response.json()
+        response = await self.post('challenge', {'code': pairing['code'], 'address': self.account.address}, agent=True)
+        self.assertEqual(response.status, 200)
+        challenge = await response.json()
+        signature = '0x' + self.account.sign_message(encode_defunct(text=challenge['message'])).signature.hex().removeprefix('0x')
+        response = await self.post('confirm', {'code': pairing['code'], 'challengeId': challenge['challengeId'], 'signature': signature}, agent=True)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.calls, 0)
+        response = await self.post('accept', {'code': pairing['code']})
+        data = await response.json()
+        self.assertEqual(data['address'], self.account.address)
+        self.assertIsNone(data['tokenId'])
+
     async def begin(self):
         response = await self.post('start', {})
         self.assertEqual(response.status, 200)

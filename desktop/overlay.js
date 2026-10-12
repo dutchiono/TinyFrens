@@ -3,15 +3,23 @@
   const bridge = window.TinyFrensDesktop, pet = document.getElementById('pet'), bubbles = document.getElementById('bubbles'), close = document.getElementById('closePet'), hint = document.getElementById('hint'), toy = document.getElementById('toy');
   let menuTimer, hintTimer, actionTimer, toyTimer, leaveTimer, pointer = null, lastState;
   const turtle = document.createElement('img'); turtle.className = 'overlay-turtle'; pet.append(turtle);
+  let turtleWalking = false;
+  bridge.onCompanionMotion(value => { turtleWalking = value.walking; if (value.direction) turtle.style.transform = `scaleX(${value.direction})`; });
   let turtleData = JSON.parse(bridge.getTurtle());
   function renderTurtle(data = turtleData) {
     turtleData = data;
     pet.dataset.turtle = String(data.selected);
-    turtle.hidden = !data.active || Date.now() >= data.validUntil * 1000;
-    if (!turtle.hidden) { if (turtle.getAttribute('src') !== data.image) turtle.src = data.image; turtle.alt = data.name; }
+    turtle.hidden = !data.active || !data.companion || Date.now() >= data.validUntil * 1000;
+    if (!turtle.hidden) { const image = data.companion?.idle || data.image; if (turtle.getAttribute('src') !== image) turtle.src = image; turtle.alt = data.name; }
     else turtle.removeAttribute('src');
   }
   bridge.onTurtle(renderTurtle); renderTurtle(); setInterval(() => renderTurtle(), 1000);
+  setInterval(() => {
+    const art = turtleData.companion;
+    if (!art || !art.frames?.length || turtle.hidden) return;
+    const reduced = lastState?.reduceMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    turtle.src = reduced || !turtleWalking ? art.idle : art.frames[Math.floor(Date.now() / art.frameMs) % art.frames.length];
+  }, 160);
   function hitRegions() {
     bridge.regions([pet, ...(!bubbles.hidden ? [...bubbles.querySelectorAll('button'), close] : []), ...(!toy.hidden ? [toy] : [])].map(el => {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };

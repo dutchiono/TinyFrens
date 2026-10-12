@@ -7,8 +7,8 @@ const PATHS = new Set(['/api/register', '/api/wallet-link/status', '/api/wallet-
 
 class TurtleStore {
   constructor(file, fetcher = fetch, clock = Date.now) {
-    this.file = file; this.fetch = fetcher; this.clock = clock; this.selected = null; this.generation = 0;
-    try { this.selected = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
+    this.file = file; this.fetch = fetcher; this.clock = clock; this.selected = []; this.generation = 0;
+    try { const saved = JSON.parse(fs.readFileSync(file, 'utf8')); this.selected = Array.isArray(saved) ? saved : saved ? [saved] : []; } catch {}
   }
   async request(server, path, body) {
     if (server !== SERVER || !PATHS.has(path) || !body || typeof body !== 'object' || JSON.stringify(body).length > 4096) throw new Error('Unsupported turtle request');
@@ -24,33 +24,41 @@ class TurtleStore {
     fs.writeFileSync(this.file + '.tmp', JSON.stringify(this.selected), {mode:0o600});
     fs.renameSync(this.file + '.tmp', this.file);
   }
-  clear() { this.generation++; this.selected = null; this.save(); }
+  clear() { this.generation++; this.selected = []; this.save(); }
+  remove(tokenId) { this.generation++; this.selected = this.selected.filter(nft => nft.tokenId !== tokenId); this.save(); }
   view() {
-    if (!this.selected) return {selected:false, active:false};
-    const {tokenId, name, image, validUntil} = this.selected;
-    if (!Number.isFinite(validUntil) || this.clock() >= validUntil * 1000) return {selected:true, active:false};
-    return {selected:true, active:true, tokenId, name, image, validUntil};
+    if (!this.selected.length) return {selected:false, active:false};
+    const items = this.selected.filter(nft => Number.isFinite(nft.validUntil) && this.clock() < nft.validUntil * 1000)
+      .map(({deviceToken, ...nft}) => nft);
+    if (!items.length) return {selected:true, active:false};
+    return {...items[0], selected:true, active:true, items};
   }
   async import(server, body) {
-    const generation = ++this.generation;
+    const generation = this.generation;
     const data = await this.request(server, '/api/featured/hood-turtle', body);
     if (!data.active) throw new Error('This wallet no longer owns that turtle');
     if (!Number.isInteger(data.tokenId) || data.tokenId !== body.tokenId || !Number.isFinite(data.validUntil) ||
         data.validUntil * 1000 <= this.clock() || data.validUntil * 1000 > this.clock() + 86_405_000 ||
         typeof data.image !== 'string' || !/^data:image\/(svg\+xml|png);base64,/.test(data.image)) throw new Error('Invalid turtle artwork or verification');
     if (generation !== this.generation) throw new Error('Turtle selection changed');
-    this.selected = {...data, deviceToken:body.token}; this.save();
+    const remaining = this.selected.filter(nft => nft.tokenId !== data.tokenId);
+    if (remaining.length >= 5) throw new Error('Show up to five companions. Remove one first.');
+    this.selected = [...remaining, {...data, deviceToken:body.token}]; this.save();
     return this.view();
   }
   async renew() {
-    if (!this.selected || this.view().active || this.renewing || this.clock() < (this.retryAt || 0)) return false;
+    const due = this.selected.filter(nft => this.clock() >= nft.validUntil * 1000);
+    if (!due.length || this.renewing || this.clock() < (this.retryAt || 0)) return false;
     this.renewing = true; this.retryAt = this.clock() + 60000;
-    const current = this.selected;
+    let updated = false;
     try {
-      await this.import(SERVER, {token:current.deviceToken, tokenId:current.tokenId});
-      return true;
-    } catch { return false; }
-    finally { this.renewing = false; }
+      for (const nft of due) {
+        if (!this.selected.includes(nft)) continue;
+        try { await this.import(SERVER, {token:nft.deviceToken, tokenId:nft.tokenId}); updated = true; }
+        catch { /* Expired companions stay hidden; retry after one minute. */ }
+      }
+      return updated;
+    } finally { this.renewing = false; }
   }
 }
 module.exports = {TurtleStore, SERVER};

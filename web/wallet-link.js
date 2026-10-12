@@ -5,7 +5,7 @@
     <section class="overlay wallet-link-panel" style="margin-top:0;">
       <h3>Connect your wallet</h3>
       <p class="small">Sign one plain-text message to link an external Web3 address to this fren. No gas, approvals, transfers, seed phrases, or spending permissions. Your external NFTs stay in your wallet.</p>
-      <p id="linkedWallet" class="wallet-link-address" style="font-family:monospace;word-break:break-all;color:#c8b1fa;"></p>
+      <p id="linkedWallet" class="wallet-link-address" style="font-family:monospace;word-break:break-all;color:inherit;"></p>
       <div class="actions">
         <button type="button" id="linkWallet">Link external wallet</button>
         <button type="button" id="unlinkWallet" class="secondary" hidden>Disconnect</button>
@@ -13,8 +13,8 @@
       <p id="walletLinkStatus" role="status"></p>
     </section>
     <section class="overlay wallet-link-panel">
-      <h3>Your Hood Turtles</h3>
-      <p class="small">Currently supports Hood Turtles on Robinhood Chain. We check current on-chain ownership before showing a match.</p>
+      <h3>Your supported NFTs</h3>
+      <p class="small">Hood Turtles are available now. This wallet link also covers collections we support later. Choose multiple companions from your wallet.</p>
       <button type="button" id="scanWallet" class="secondary" disabled>Refresh external NFTs</button>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
@@ -91,7 +91,7 @@
   linkButton.addEventListener('click', async () => {
     linkButton.disabled = true;
     try {
-      if (!window.ethereum) throw new Error('No Web3 wallet extension detected in this browser. To link an external wallet, open this page in MetaMask, Coinbase Wallet, or a Web3 browser.');
+      if (!window.ethereum?.request) { location.href = 'hood-turtles.html'; return; }
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const address = accounts?.[0];
       if (!address) throw new Error('No wallet selected.');

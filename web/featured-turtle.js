@@ -1,92 +1,92 @@
 (() => {
-  const storageKey = 'tinyfrens-hood-turtle';
-  const stage = document.getElementById('stage');
-  const pet = document.getElementById('pet');
+  const key = 'tinyfrens-companions';
+  const stage = document.getElementById('stage'), pet = document.getElementById('pet');
   if (!stage || !pet) return;
-  const display = document.createElement('div');
-  display.className = 'featured-turtle';
-  display.hidden = true;
-  const image = document.createElement('img');
-  image.alt = 'Loaded Hood Turtle';
-  const label = document.createElement('span');
-  display.append(image, label);
-  stage.append(display);
-  const unload = document.createElement('button');
-  unload.type = 'button';
-  unload.className = 'secondary featured-unload';
-  unload.textContent = 'Unload Hood Turtle';
-  unload.hidden = true;
-  stage.after(unload);
-  unload.addEventListener('click', () => {
-    localStorage.removeItem(storageKey);
-    window.clearImportedTurtle?.();
-    clear();
-  });
-
-  function clear() {
-    display.hidden = true;
-    image.removeAttribute('src');
-    pet.style.visibility = '';
-    unload.hidden = true;
-  }
-
-  let validUntil = 0;
-  new MutationObserver(() => { display.dataset.action = pet.dataset.action || ''; }).observe(pet, { attributes: true, attributeFilter: ['data-action'] });
-
-  async function refresh() {
-    let saved;
-    try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch { clear(); return; }
-    if (!saved || !Number.isInteger(saved.tokenId) || saved.tokenId < 1 || saved.tokenId > 2222) {
-      clear();
-      return;
-    }
-    const base = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+  const sprites = new Map();
+  const controls = document.createElement('div');
+  controls.className = 'actions companion-controls'; stage.after(controls);
+  let items = [], refreshing = false;
+  function saved() {
     try {
-      if (window.PetAndroid?.getTurtle) {
-        const data = JSON.parse(PetAndroid.getTurtle());
-        if (!data.active) { clear(); return; }
-        show(data);
-        return;
+      const list = JSON.parse(localStorage.getItem(key) || 'null');
+      const legacy = JSON.parse(localStorage.getItem('tinyfrens-hood-turtle') || 'null');
+      return Array.isArray(list) ? list : legacy ? [legacy] : [];
+    } catch { return []; }
+  }
+  async function remove(id) {
+    if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest)
+      await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/remove-turtle', {tokenId:id});
+    items = saved().filter(nft => nft.tokenId !== id);
+    localStorage.setItem(key, JSON.stringify(items));
+    localStorage.removeItem('tinyfrens-hood-turtle');
+    render();
+  }
+  function render() {
+    const active = items.filter(nft => nft.active !== false && nft.companion?.adapter === 'hood-turtles-v1' && Date.now() < nft.validUntil * 1000);
+    pet.style.visibility = active.length ? 'hidden' : '';
+    const ids = new Set(active.map(nft => nft.tokenId));
+    for (const [id, sprite] of sprites) if (!ids.has(id)) { sprite.element.remove(); sprites.delete(id); }
+    controls.replaceChildren();
+    for (const nft of active) {
+      if (!sprites.has(nft.tokenId)) {
+        const element = document.createElement('img');
+        element.className = 'collection-companion'; element.alt = nft.name;
+        stage.append(element);
+        sprites.set(nft.tokenId, {element, x:Math.random() * .6 + .1, direction:1, nft});
       }
-      if (window.TinyFrensDesktop?.getTurtle) {
-        const data = JSON.parse(TinyFrensDesktop.getTurtle());
-        if (!data.active) { clear(); return; }
-        show(data); return;
-      }
-      if (display.hidden && saved.image && Date.now() < saved.validUntil * 1000) show(saved);
-      const storedIdentity = JSON.parse(localStorage.getItem('tinyfrens-device:' + base) || 'null');
-      const token = window.TinyFrensFriends?.identity?.()?.token || storedIdentity?.token;
-      if (!token) throw new Error('Fren identity unavailable');
-      const data = await window.TinyFrensTurtleAPI(base, '/api/featured/hood-turtle', { token, tokenId: saved.tokenId });
-      if (localStorage.getItem(storageKey) !== JSON.stringify(saved)) return;
-      if (!data.active || (!data.image?.startsWith('data:image/svg+xml;base64,') &&
-                           !data.image?.startsWith('data:image/png;base64,'))) {
-        clear();
-        return;
-      }
-      show(data);
-      localStorage.setItem(storageKey, JSON.stringify({tokenId:data.tokenId, image:data.image, name:data.name, validUntil:data.validUntil}));
-    } catch {
-      if (Date.now() >= validUntil) clear();
+      sprites.get(nft.tokenId).nft = nft;
+      const button = document.createElement('button'); button.className = 'secondary';
+      button.textContent = 'Remove ' + nft.name;
+      button.onclick = () => remove(nft.tokenId).catch(error => { button.textContent = error.message; });
+      controls.append(button);
     }
   }
-
-  function show(data) {
-      validUntil = Number(data.validUntil) * 1000;
-      if (!Number.isFinite(validUntil) || Date.now() >= validUntil) { clear(); return; }
-      image.src = data.image;
-      image.alt = data.name;
-      label.textContent = `${data.name} · Featured`;
-      display.hidden = false;
-      pet.style.visibility = 'hidden';
-      unload.hidden = false;
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const native = window.PetAndroid || window.TinyFrensDesktop;
+      if (native?.getTurtle) {
+        const data = JSON.parse(native.getTurtle());
+        items = data.items || (data.active ? [data] : []);
+        render(); return;
+      }
+      items = saved(); render();
+      const base = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+      const identity = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base) || 'null');
+      if (!identity?.token) return;
+      for (const nft of [...items]) {
+        const data = await window.TinyFrensTurtleAPI(base, '/api/featured/hood-turtle', {token:identity.token, tokenId:nft.tokenId});
+        const current = saved();
+        const index = current.findIndex(item => item.tokenId === nft.tokenId);
+        if (index < 0) continue;
+        if (data.active) current[index] = data; else current.splice(index, 1);
+        localStorage.setItem(key, JSON.stringify(current)); items = current; render();
+      }
+    } catch { render(); }
+    finally { refreshing = false; }
   }
-
+  let last = 0;
+  function tick(time) {
+    const dt = Math.min((time - last) / 1000, .1); last = time;
+    const reduced = document.documentElement.dataset.reducedMotion === 'true' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let i = 0;
+    for (const sprite of sprites.values()) {
+      const {element, nft} = sprite;
+      if (Date.now() >= nft.validUntil * 1000) { element.hidden = true; continue; }
+      if (!reduced) sprite.x += dt * .045 * sprite.direction;
+      if (sprite.x > .8) sprite.direction = -1; if (sprite.x < .02) sprite.direction = 1;
+      const frame = reduced ? nft.companion.idle : nft.companion.frames[Math.floor(time / nft.companion.frameMs) % nft.companion.frames.length];
+      if (element.getAttribute('src') !== frame) element.src = frame;
+      element.style.left = sprite.x * 100 + '%';
+      element.style.bottom = (14 + i++ * 12) + '%';
+      element.style.transform = `scaleX(${sprite.direction})`;
+    }
+    requestAnimationFrame(tick);
+  }
   window.TinyFrensDesktop?.onTurtle?.(refresh);
-  refresh();
-  setInterval(() => { if (Date.now() >= validUntil) clear(); }, 1000);
-  setInterval(() => { if (!document.hidden) refresh(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-  window.addEventListener('storage', event => { if (event.key === storageKey) refresh(); });
+  window.addEventListener('storage', refresh);
   window.addEventListener('tinyfrens-wallet-link-changed', refresh);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  refresh(); setInterval(refresh, 60000); requestAnimationFrame(tick);
 })();

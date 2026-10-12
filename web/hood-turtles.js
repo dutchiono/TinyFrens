@@ -20,8 +20,9 @@ async function check() {
   if (!result.image?.startsWith('data:image/svg+xml;base64,') && !result.image?.startsWith('data:image/png;base64,')) {
     message('Ownership verified, but the original artwork could not be loaded.'); return;
   }
-  latest = result; $('art').src = result.image; $('art').alt = result.name; $('art').hidden = false; $('load').disabled = false;
-  message('Your original turtle is ready. Ownership renews every 24 hours.');
+  if (!result.companion) { message('This turtle’s artwork needs a supported animation rig before it can join your space.'); return; }
+  latest = result; $('art').src = result.companion?.idle || result.image; $('art').alt = result.name; $('art').hidden = false; $('load').disabled = false;
+  message('Your turtle companion is ready. Ownership renews every 24 hours.');
 }
 async function loadLinkedWallet() {
   const result = await post('/api/wallet-link/status');
@@ -29,10 +30,11 @@ async function loadLinkedWallet() {
   $('check').disabled = !result.address;
   if (!result.address) return;
   $('turtlePanel').hidden = false;
-  if ($('tokenId').value) { await check(); return; }
+  
   message('Finding your Hood Turtles…');
   const holdings = await post('/api/wallet-link/nfts');
   $('turtleChoices').replaceChildren();
+  if ($('tokenId').value && holdings.nfts.some(nft => nft.tokenId === Number($('tokenId').value))) await check();
   if (holdings.nfts.length === 1) { $('tokenId').value = holdings.nfts[0].tokenId; await check(); return; }
   message(holdings.nfts.length ? 'Choose your turtle.' : 'No Hood Turtles found in this wallet.');
   for (const nft of holdings.nfts) {
@@ -48,7 +50,11 @@ async function importTurtle() {
     if (!latest?.active || latest.tokenId !== tokenId() || Date.now() >= latest.validUntil * 1000) return;
     $('load').disabled = true;
     if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId: latest.tokenId});
-    localStorage.setItem(storageKey, JSON.stringify({tokenId: latest.tokenId, image: latest.image, name: latest.name, validUntil: latest.validUntil}));
+    const selected = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(nft => nft.tokenId !== latest.tokenId);
+    if (selected.length >= 5) throw new Error('You can show up to five companions. Remove one from your space first.');
+    selected.push(latest);
+    localStorage.setItem('tinyfrens-companions', JSON.stringify(selected));
+    localStorage.setItem(storageKey, JSON.stringify(latest));
     location.href = './index.html#pet';
   } catch (error) { message(error); $('load').disabled = false; }
 }
@@ -73,7 +79,7 @@ async function pollPairing() {
   clearTimeout(pollTimer);
   if (!pairing || document.hidden) return;
   if (Date.now() >= pairing.expires * 1000) {
-    $('acceptPairing').hidden = true; message('This code expired. Tap Connect with Bankr for a new one.', $('pairingStatus')); pairing = null; return;
+    $('acceptPairing').hidden = true; message('This code expired. Tap Create a new code for a new one.', $('pairingStatus')); pairing = null; return;
   }
   if (busy) return;
   busy = true; const current = pairing;
@@ -81,7 +87,7 @@ async function pollPairing() {
     const result = await post('/api/turtle-connect/status', {code: current.code});
     if (pairing !== current) return;
     $('acceptPairing').hidden = !result.verified;
-    message(result.verified ? `Bankr verified ${result.wallet} and Hood Turtle #${result.tokenId}. Accept only if these are yours.` : 'Waiting for Bankr to sign your connection message…', $('pairingStatus'));
+    message(result.verified ? `Bankr verified wallet ${result.wallet}. Accept only if this is yours.` : 'Waiting for Bankr to sign your connection message…', $('pairingStatus'));
   } catch (error) { if (pairing === current) { $('acceptPairing').hidden = true; message(error, $('pairingStatus')); } }
   finally { busy = false; if (pairing && !document.hidden) pollTimer = setTimeout(pollPairing, 4000); }
 }
@@ -92,7 +98,7 @@ async function startPairing() {
     await ensureIdentity();
     pairing = await post('/api/turtle-connect/start'); $('pairing').hidden = false;
     $('pairingCode').textContent = pairing.code.match(/.{1,4}/g).join('-');
-    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to put my Hood Turtle in TinyFrens. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
+    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
     message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your verified wallet and turtle.', $('connectionStatus')); await pollPairing();
   } catch (error) { message(error, $('connectionStatus')); }
   finally { $('connectBankr').disabled = false; $('connectBankr').hidden = false; }
@@ -106,7 +112,7 @@ $('acceptPairing').addEventListener('click', async () => {
   if (!pairing) return; $('acceptPairing').disabled = true;
   try {
     const result = await post('/api/turtle-connect/accept', {code: pairing.code});
-    pairing = null; clearTimeout(pollTimer); $('pairing').hidden = true; $('tokenId').value = result.tokenId;
+    pairing = null; clearTimeout(pollTimer); $('pairing').hidden = true; $('tokenId').value = result.tokenId || '';
     window.clearImportedTurtle?.();
     message('Your Bankr wallet is connected to this device.', $('connectionStatus')); await loadLinkedWallet();
     if (latest?.active) await importTurtle();

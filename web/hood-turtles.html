@@ -21,23 +21,23 @@
 <p>This code connects Bankr to TinyFrens on this device.</p>
 <div id="pairing" hidden>
 <p>Your pairing code: <strong id="pairingCode"></strong></p>
-<ol><li>Copy the prompt below and tweet it to @bankrbot, or send it in Bankr chat.</li><li>Let Bankr verify your wallet and chosen turtle.</li><li>Return here and accept the connection. The code expires in 10 minutes.</li></ol>
+<ol><li>Copy the prompt below and tweet it to @bankrbot, or send it in Bankr chat.</li><li>Let Bankr verify your wallet.</li><li>Return here and accept the connection. The code expires in 10 minutes.</li></ol>
 <label for="bankrPrompt">Your tweet</label><textarea id="bankrPrompt" readonly></textarea>
 <p><small><a href="https://tinyfrens.lol/import/skill.md" target="_blank" rel="noopener noreferrer">Skill instructions ↗</a></small></p>
 <div class="actions"><button id="copyPrompt" class="secondary">Copy tweet</button><a href="https://bankr.bot/terminal" target="_blank" rel="noopener noreferrer">Open Bankr ↗</a></div>
-<p id="pairingStatus" role="status"></p><button id="acceptPairing" hidden>Import this turtle</button>
+<p id="pairingStatus" role="status"></p><button id="acceptPairing" hidden>Accept wallet link</button>
 </div>
 <p id="connectionStatus" role="status">Preparing this device…</p>
 <button id="connectBankr" class="secondary" hidden>Create a new code</button>
-<details><summary>Use another wallet</summary><p>Connect from a browser with your wallet extension.</p><button id="connectWallet" class="secondary">Connect my wallet</button></details>
+<details><summary>Use another wallet</summary><p>Connect from a browser with your wallet extension.</p><button id="connectWallet" class="secondary">Link my wallet</button></details>
 </section>
 <section id="turtlePanel" class="panel" hidden>
-<h2>Your turtle</h2><input id="tokenId" type="hidden"><div id="turtleChoices" class="choices"></div>
+<h2>Choose your companions</h2><input id="tokenId" type="hidden"><div id="turtleChoices" class="choices"></div>
 <div class="actions"><button id="check" class="secondary" hidden>Refresh turtle</button></div>
 <p id="wallet"></p><p id="status" role="status"></p>
-<p><a href="./#wallet">Manage linked wallet →</a></p>
+<p><a href="index.html#wallet">Manage linked wallet →</a></p>
 <img id="art" alt="Your Hood Turtle NFT" hidden>
-<div class="actions"><button id="load" disabled>Import my turtle</button></div>
+<div class="actions"><button id="load" disabled>Add to my space</button></div>
 </section>
 <details><summary>Ownership and device details</summary><p><small>Ownership renews every 24 hours. Selling can take up to 24 hours to remove access; an expired check requires internet. No transfer or approval. Independent integration, not affiliated with Hood Turtles.</small></p>
 <p id="deviceHelp"><small>Import inside the Android or desktop app to use its floating overlay. In a browser, your turtle lives inside TinyFrens. Native iPhone support is being built for an App Store release; the turtle stays inside the app. Pair separately on each device. Clearing app/browser data requires pairing again; care saves do not yet sync between devices.</small></p>

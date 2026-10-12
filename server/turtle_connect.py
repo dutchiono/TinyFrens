@@ -11,6 +11,7 @@ from aiohttp import ClientSession, ClientTimeout, web
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_checksum_address
+from hood_turtle_art import with_companion
 
 COLLECTION = '0xca28587b61eac19a87dfcfd9420870867a916675'
 CHAIN_ID = 4663
@@ -44,7 +45,7 @@ class TurtleOwnership:
             row = self.db.execute('SELECT checked,payload FROM turtle_ownership WHERE wallet=? AND token_id=?',
                                   (wallet, token_id)).fetchone()
             if not force and row and row[0] <= time.time() < row[0] + OWNERSHIP_TTL:
-                return json.loads(row[1])
+                return with_companion(json.loads(row[1]))
             rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
             async with ClientSession(timeout=ClientTimeout(total=15)) as session:
                 async def call(selector):
@@ -87,7 +88,7 @@ class TurtleOwnership:
                 self.db.execute('INSERT INTO turtle_ownership VALUES(?,?,?,?)',
                                 (wallet, token_id, checked, json.dumps(result)))
             self.db.commit()
-            return result
+            return with_companion(result)
 
 
 def install(app, db, token_pet, limit, ownership):
@@ -125,11 +126,12 @@ def install(app, db, token_pet, limit, ownership):
         if not re.fullmatch(r'0x[0-9a-fA-F]{40}', address):
             raise ValueError('Valid Ethereum wallet address required')
         address = to_checksum_address(address)
-        tid = turtle_id(body.get('tokenId'))
+        tid = turtle_id(body['tokenId']) if body.get('tokenId') is not None else None
         challenge_id = secrets.token_urlsafe(32)
+        scope = str(tid) if tid is not None else 'All supported collections'
         message = (f'TinyFrens read-only phone pairing\nDomain: tinyfrens.lol\n'
                    f'Wallet: {address}\nCollection: {COLLECTION}\nChain ID: {CHAIN_ID}\n'
-                   f'Token: {tid}\nPairing: {code}\nNonce: {challenge_id}\nExpires: {int(row[1])}\n\n'
+                   f'Token: {scope}\nPairing: {code}\nNonce: {challenge_id}\nExpires: {int(row[1])}\n\n'
                    'Connect this wallet to the waiting TinyFrens device only after it accepts. '
                    'This does not authorize transactions, transfers, approvals, or spending.')
         db.execute('UPDATE turtle_pairings SET challenge_id=?,address=?,token_id=?,message=? WHERE code=?',
@@ -150,9 +152,10 @@ def install(app, db, token_pet, limit, ownership):
             raise ValueError('Signature could not be verified') from None
         if signer.lower() != row[3].lower():
             raise ValueError('Signature does not match the selected wallet')
-        data = await ownership.read(row[3], row[4], force=True)
-        if not data['active']:
-            raise ValueError('This wallet does not currently own that Hood Turtle')
+        if row[4] is not None:
+            data = await ownership.read(row[3], row[4], force=True)
+            if not data['active']:
+                raise ValueError('This wallet does not currently own that Hood Turtle')
         changed = db.execute('UPDATE turtle_pairings SET verified=1 WHERE code=? AND challenge_id=? '
                              'AND verified=0 AND expires>?', (code, row[2], time.time())).rowcount
         db.commit()

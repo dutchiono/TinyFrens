@@ -29,6 +29,7 @@
     window.PetAndroid?.clearTurtle?.();
     window.TinyFrensDesktop?.clearTurtle?.();
     localStorage.removeItem('tinyfrens-hood-turtle');
+    localStorage.removeItem('tinyfrens-companions');
     window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
   };
 })();

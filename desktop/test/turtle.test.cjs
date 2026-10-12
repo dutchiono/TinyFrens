@@ -51,3 +51,26 @@ test('native relay rejects arbitrary servers and paths; clearing cancels an in-f
   await assert.rejects(importing, /selection changed/);
   assert.equal(store.view().selected, false);
 });
+
+test('companions persist together, remove individually and expire independently', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-multiple-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  let now = 1_800_000_000_000;
+  const file = path.join(dir, 'turtle.json');
+  const store = new TurtleStore(file, async (_, options) => {
+    const {tokenId} = JSON.parse(options.body);
+    return {ok:true, text:async () => JSON.stringify({active:true, tokenId,
+      name:`Turtle ${tokenId}`, image:'data:image/png;base64,aW1hZ2U=', validUntil:now/1000 + tokenId*100})};
+  }, () => now);
+  await store.import(SERVER, {token:'secret', tokenId:1});
+  await store.import(SERVER, {token:'secret', tokenId:2});
+  assert.deepEqual(store.view().items.map(nft => nft.tokenId), [1,2]);
+  assert.equal(JSON.stringify(store.view()).includes('secret'), false);
+  now += 101000;
+  assert.deepEqual(store.view().items.map(nft => nft.tokenId), [2]);
+  store.remove(1);
+  const reopened = new TurtleStore(file, undefined, () => now);
+  assert.deepEqual(reopened.view().items.map(nft => nft.tokenId), [2]);
+  reopened.remove(2);
+  assert.equal(reopened.view().selected, false);
+});

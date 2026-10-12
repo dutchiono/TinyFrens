@@ -23,6 +23,7 @@ class PetView(context: Context) : View(context) {
  var reducedMotion = false
  var turtleSelected = false
  var turtleBitmap: Bitmap? = null
+ var turtleFrames: List<Bitmap> = emptyList()
  var bodyColor = Color.rgb(164, 116, 241)
  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
  private var dx = 0f
@@ -62,12 +63,10 @@ class PetView(context: Context) : View(context) {
  override fun onDraw(c: Canvas) {
   super.onDraw(c)
   if (turtleSelected) {
-   val bitmap = turtleBitmap ?: return
-   val phase = if (reducedMotion) 0f else frame * .18f
-   val bounce = if (reducedMotion || mood == "sleep") 0f else abs(sin(phase)) * (if (mood == "walk" || mood == "dance") .06f else .015f) * height
+   val walking = !reducedMotion && mood in listOf("walk", "dance")
+   val bitmap = turtleFrames.getOrNull(if (walking) (frame / 3) % turtleFrames.size.coerceAtLeast(1) else 0) ?: turtleBitmap ?: return
    c.save()
-   c.translate(0f, -bounce)
-   if (!reducedMotion && mood in listOf("wave", "dance", "happy")) c.rotate(sin(phase) * 6, width / 2f, height * .75f)
+   if (direction < 0) c.scale(-1f, 1f, width / 2f, height / 2f)
    val inset = width * .06f
    val scale = minOf((width - inset * 2) / bitmap.width, (height - inset * 2) / bitmap.height)
    val w = bitmap.width * scale; val h = bitmap.height * scale

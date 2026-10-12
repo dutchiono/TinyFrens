@@ -60,3 +60,14 @@ Bankr supports user-installed skills and personal_sign via its Wallet API. API s
 References: https://docs.bankr.bot/skills/in-bankr/from-github/ and https://docs.bankr.bot/wallet-api/sign/
 
 The existing production relay was older than the repository. The live rollout added only turtle connection/ownership routes to that deployed version, preserving existing handlers, with an app backup and a SQLite snapshot before restart. Hosting the website does not deploy the Python relay.
+
+
+## Collection adapters
+
+Wallet pairing links a public address once, independently of any token. Supported holdings are discovered after acceptance; importing each companion verifies ownership with a 24-hour lease. Adding a collection must not require users to pair again.
+
+Each collection needs an explicit art adapter and its own reviewed animation rules. `server/hood_turtle_art.py` handles only the official Hood Turtle 32×32 SVG layout: backgrounds precede the tail landmark; the remaining rectangles contain the character and accessories. Four walk frames articulate the legs and attached footwear. The stationary frame preserves the original character rectangles. Unknown layouts fail closed; do not substitute a bobbing rectangular NFT.
+
+Current Hood Turtle animation scope: stationary pose and four-frame walking. No custom sleep, eating, turning, or wave poses yet. Fixtures cover three actual collection tokens with different backgrounds and traits; this is not an exhaustive audit of all 2,222 tokens. Add fixture coverage for new layouts before enabling them.
+
+Android, browser and desktop retain up to five selected Hood Turtles. Each selected token retains its own expiry and must renew independently. Removal does not disconnect the wallet. Disconnect clears selections. Android extra companions have independent overlay windows with drag; desktop extra windows currently pass clicks through, with removal in the main app.

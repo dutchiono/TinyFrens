@@ -24,6 +24,7 @@ class PetOverlayService:Service(){
   var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
  }
  private val guestPets=mutableListOf<GuestPet>()
+ private val ownedPets=mutableListOf<GuestPet>()
  private lateinit var wm:WindowManager
  private var closeButton:View?=null;private var caption:TextView?=null;private var menuAbove=false
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var chatPanel:View?=null;private var toy:View?=null
@@ -50,7 +51,7 @@ class PetOverlayService:Service(){
  private fun update(v:View,p:WindowManager.LayoutParams){try{wm.updateViewLayout(v,p)}catch(_:Exception){if(!Settings.canDrawOverlays(this))stopSelf()}}
  private fun reducedMotion()=state.optBoolean("reduceMotion")||Settings.Global.getFloat(contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
  private fun hideWithFade(){
-  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects();clearGuests()
+  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects();clearGuests();clearOwnedPets()
   val v=pet
   if(v!=null&&state.optBoolean("fade",true)&&!reducedMotion())v.animate().alpha(0f).setDuration(220).withEndAction{stopSelf()}.start()else stopSelf()
  }
@@ -73,7 +74,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap()
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
@@ -99,15 +100,16 @@ class PetOverlayService:Service(){
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
     if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
    };v.invalidate()
-   if(!reducedMotion()&&guestPets.isNotEmpty()){
+   if((guestPets+ownedPets).isNotEmpty()){
     val(bx,by)=bounds()
-    for(g in guestPets){
-     if(clock>g.nextMove){
+    for(g in guestPets+ownedPets){
+     g.view.frame=frame;g.view.reducedMotion=reducedMotion()
+     if(!g.view.dragging&&!reducedMotion()&&clock>g.nextMove){
       g.tx=Random.nextFloat()*bx;g.ty=Random.nextFloat()*by
       g.nextMove=clock+Random.nextLong(3000,7000)
       g.view.mood=if(Random.nextInt(3)==0)"wave" else "walk"
      }
-     if(g.view.mood=="walk"){
+     if(!g.view.dragging&&!reducedMotion()&&g.view.mood=="walk"){
       val s=PetMotion.move(g.x,g.y,g.tx,g.ty,45f*resources.displayMetrics.density,.05f,bx,by)
       g.direction=if(s.x>=g.x)1 else -1;g.view.direction=g.direction
       g.x=s.x;g.y=s.y;g.params.x=g.x.roundToInt();g.params.y=g.y.roundToInt()
@@ -138,6 +140,24 @@ class PetOverlayService:Service(){
   if(i?.action==ACTION_SET_GUESTS){updateGuests(i.getStringExtra("guests")?:"[]");return START_STICKY}
   if(i?.getStringExtra("command")=="toy")spawnToy()
   return START_STICKY
+ }
+ private fun clearOwnedPets(){for(g in ownedPets)removeGuest(g);ownedPets.clear()}
+ private fun syncOwnedPets(){
+  val active=turtles.all().drop(1)
+  val ids=active.map{it.optInt("tokenId")}.toSet()
+  for(g in ownedPets.toList())if(g.tokenId !in ids){removeGuest(g);ownedPets.remove(g)}
+  val(bx,by)=bounds()
+  for(nft in active){
+   val id=nft.optInt("tokenId");val existing=ownedPets.find{it.tokenId==id}
+   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);continue}
+   val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
+   gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.reducedMotion=reducedMotion()
+   val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
+   gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
+   gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}
+   gv.onTap={say(g.name)}
+   try{wm.addView(gv,gp);ownedPets.add(g)}catch(_:Exception){}
+  }
  }
  private fun removeGuest(g:GuestPet){try{wm.removeView(g.view)}catch(_:Exception){}}
  private fun clearGuests(){for(g in guestPets)removeGuest(g);guestPets.clear()}
@@ -347,7 +367,7 @@ class PetOverlayService:Service(){
  }
  private fun savePosition(){position.edit().putInt("x",x.toInt()).putInt("y",y.toInt()).apply()}
  override fun onConfigurationChanged(c:Configuration){super.onConfigurationChanged(c);removeMenu();removeToy();clamp();pet?.let{v->params?.let{p->update(v,p)}};nextDecision=0}
- override fun onDestroy(){running=false;pet?.animate()?.cancel();removeEffects();handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeChat();removeToy();clearGuests();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
+ override fun onDestroy(){running=false;pet?.animate()?.cancel();removeEffects();handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeChat();removeToy();clearGuests();clearOwnedPets();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
  override fun onBind(i:Intent?):IBinder?=null
 }
 
