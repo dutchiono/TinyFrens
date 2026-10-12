@@ -1,9 +1,9 @@
 ---
 name: tinyfrens-connect
-description: Connect a user's Hood Turtle NFT to their waiting TinyFrens phone, desktop, or browser using a pairing code and a read-only wallet signature. Use for importing a Hood Turtle into TinyFrens, not purchasing, transferring, minting, or deploying NFTs.
+description: Link a user's wallet to their waiting TinyFrens phone, desktop, or browser for supported NFT companions using a pairing code and a read-only wallet signature. Use for connecting a wallet and importing supported NFTs into TinyFrens, not purchasing, transferring, minting, or deploying NFTs.
 ---
 
-# Connect a Hood Turtle to TinyFrens
+# Connect a wallet to TinyFrens
 
 TinyFrens API: `https://tinyfrens.miono.live`. Phone setup: `https://tinyfrens.lol/web/hood-turtles.html`.
 Public skill URL: `https://tinyfrens.lol/import/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
@@ -11,7 +11,7 @@ Collection: `0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain, chain
 
 ## Phone pairing
 
-1. Ask the user to open the setup page **on the destination device**, or open “Link with Bankr” in TinyFrens. The page creates a 12-character code and a ready-to-copy tweet automatically. If no code was supplied, give the setup link and wait. Do not create a replacement device.
+1. Ask the user to open the setup page **on the destination device**, or open “Connect my wallet” in TinyFrens. The page creates a 12-character code and a ready-to-copy tweet automatically. If no code was supplied, give the setup link and wait. Do not create a replacement device.
 2. Read the user's authenticated Bankr EVM wallet address. This links the wallet for all supported collections, including future additions; do not ask for a token number or choose a single NFT.
 3. POST JSON to `/api/turtle-connect/challenge`: `{"code":"DEVICE_CODE","address":"USER_WALLET"}`. No TinyFrens API key or device credential is needed. Hyphens are accepted. On expiry, ask for a fresh code from the device.
 4. Inspect the returned `message`: it must identify TinyFrens, domain `tinyfrens.lol`, the selected wallet, pairing code, nonce, expiry and read-only device linking. Sign the **exact returned text** with `personal_sign`. Never sign a transaction or spending approval.

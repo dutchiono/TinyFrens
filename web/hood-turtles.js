@@ -30,7 +30,7 @@ async function loadLinkedWallet() {
   $('check').disabled = !result.address;
   if (!result.address) return;
   $('turtlePanel').hidden = false;
-  
+
   message('Finding your Hood Turtles…');
   const holdings = await post('/api/wallet-link/nfts');
   $('turtleChoices').replaceChildren();
@@ -98,8 +98,8 @@ async function startPairing() {
     await ensureIdentity();
     pairing = await post('/api/turtle-connect/start'); $('pairing').hidden = false;
     $('pairingCode').textContent = pairing.code.match(/.{1,4}/g).join('-');
-    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
-    message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your verified wallet and turtle.', $('connectionStatus')); await pollPairing();
+    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${$('pairingCode').textContent}. Keep my NFTs in my wallet.`;
+    message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your wallet link and choose companions.', $('connectionStatus')); await pollPairing();
   } catch (error) { message(error, $('connectionStatus')); }
   finally { $('connectBankr').disabled = false; $('connectBankr').hidden = false; }
 }

@@ -108,9 +108,9 @@ function openApp() {
   if (!careWindow || careWindow.isDestroyed()) {
     // Windows: frameless window with native caption buttons tinted to the app; the app header acts as the title bar.
     const chrome = process.platform === 'win32'
-      ? { titleBarStyle: 'hidden', titleBarOverlay: { color: '#f5f1e8', symbolColor: '#252326', height: 40 } }
+      ? { titleBarStyle: 'hidden', titleBarOverlay: { color: '#17142a', symbolColor: '#f7f1ff', height: 40 } }
       : {};
-    careWindow = new BrowserWindow({ width: 510, height: 810, minWidth: 360, minHeight: 550, title: 'TinyFrens', backgroundColor: '#f5f1e8', show: false, ...chrome, webPreferences: preferences() });
+    careWindow = new BrowserWindow({ width: 510, height: 810, minWidth: 360, minHeight: 550, title: 'TinyFrens', backgroundColor: '#17142a', show: false, ...chrome, webPreferences: preferences() });
     careWindow.removeMenu();
     secureWindow(careWindow, path.join(__dirname, 'web/index.html')).catch(() => {});
     careWindow.once('ready-to-show', () => careWindow.show());

@@ -7,7 +7,7 @@
       <p class="small">Sign one plain-text message to link an external Web3 address to this fren. No gas, approvals, transfers, seed phrases, or spending permissions. Your external NFTs stay in your wallet.</p>
       <p id="linkedWallet" class="wallet-link-address" style="font-family:monospace;word-break:break-all;color:inherit;"></p>
       <div class="actions">
-        <button type="button" id="linkWallet">Link external wallet</button>
+        <button type="button" id="linkWallet">Connect my wallet</button>
         <button type="button" id="unlinkWallet" class="secondary" hidden>Disconnect</button>
       </div>
       <p id="walletLinkStatus" role="status"></p>
@@ -45,7 +45,7 @@
   function showLink(address) {
     linkedAddress = address;
     linkedWallet.textContent = address ? `Linked: ${address}` : 'No wallet linked yet.';
-    linkButton.textContent = address ? 'Change wallet' : 'Link my wallet';
+    linkButton.textContent = address ? 'Change wallet' : 'Connect my wallet';
     unlinkButton.hidden = !address;
     scanButton.disabled = !address;
     if (!address) matches.replaceChildren();
