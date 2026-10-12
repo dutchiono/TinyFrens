@@ -3,8 +3,8 @@
   "network": "Base Sepolia",
   "collection": "0x091FB40292925E822849BA415599939eec078b62",
   "storage": "0x00000000DB40fcB9f4466330982372e27Fd7Bbf5",
-  "block": 48037704,
-  "capturedAt": "2026-10-12T22:21:44.863162+00:00",
+  "block": 48037798,
+  "capturedAt": "2026-10-12T22:24:52.574464+00:00",
   "tokens": [
     {
       "id": 1,
@@ -939,7 +939,7 @@
     },
     {
       "id": 20,
-      "owner": "0x1ee653b8c242c149a04cb04fe416c4035345f4ed",
+      "owner": "0x8dfbdeec8c5d4970bb5f481c6ec7f73fa1c65be5",
       "storageKey": "0x61ff18b6e026718d7e654b25c9ce064e22576d37f6e65b055e800cfe37bb2db7",
       "metadata": {
         "name": "TinyFren #20",
