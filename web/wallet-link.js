@@ -22,9 +22,9 @@
       </div>
     </section></details>
     <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
-      <h3>Your supported NFTs</h3>
-      <p class="small">Hood Turtles are available now. This wallet link also covers collections we support later. Choose multiple companions from your wallet.</p>
-      <button type="button" id="scanWallet" class="secondary" disabled>Refresh external NFTs</button>
+      <h3>Your NFTs across EVM chains</h3>
+      <p class="small">Discover ERC-721 and ERC-1155 holdings on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain and Robinhood Chain. Only Hood Turtles can currently become animated companions.</p>
+      <button type="button" id="scanWallet" class="secondary" disabled>Scan NFTs on device</button>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
     </section>
@@ -84,48 +84,55 @@
   async function scan() {
     if (!linkedAddresses.length) return;
     scanButton.disabled = true;
-    scanStatus.textContent = 'Checking supported NFTs…';
+    scanStatus.textContent = 'Scanning NFT holdings on your device…';
     try {
-      const data = await post('/api/wallet-link/nfts');
+      const data = await window.TinyFrensNFTDiscovery.discover(linkedAddresses, (done,total) => {
+        scanStatus.textContent = 'Scanning ' + done + '/' + total + ' wallet/chain combinations…';
+      });
       matches.replaceChildren();
       for (const nft of data.nfts) {
         const card = document.createElement('article');
         card.className = 'wallet-nft';
+        if (nft.image) {
+          const art = document.createElement('img');
+          art.src = nft.image; art.alt = nft.name; art.className = 'wallet-nft-art';
+          art.loading = 'lazy'; art.referrerPolicy = 'no-referrer';
+          art.onerror = () => art.remove();
+          card.append(art);
+        }
         const title = document.createElement('strong');
         title.textContent = nft.name;
         const detail = document.createElement('p');
-        detail.textContent = `${nft.collection} · ${nft.wallet.slice(0,6)}…${nft.wallet.slice(-4)}`;
-        const link = document.createElement('button');
-        link.type = 'button'; link.textContent = 'Show NFT';
-        link.onclick = async () => {
-          link.disabled = true;
-          try {
-            const verified = await post('/api/featured/hood-turtle', {tokenId:nft.tokenId});
-            if (!verified.active || !verified.companion || Date.now() >= verified.validUntil * 1000) throw new Error('This NFT is not ready to show. Refresh your collection and try again.');
-            const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => item.tokenId !== verified.tokenId);
-            if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
-            if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId});
-            saved.push(verified); localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
-            window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
-            window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'});
-            link.textContent = 'Showing';
-          } catch (error) { scanStatus.textContent = error.message; }
-          finally { link.disabled = false; }
-        };
-        card.append(title, detail, link);
+        detail.textContent = nft.chain + ' · ' + nft.collection + ' · ' + nft.standard + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
+        card.append(title,detail);
+        if (nft.hoodTurtle) {
+          const link = document.createElement('button');
+          link.type = 'button'; link.textContent = 'Show companion';
+          link.onclick = async () => {
+            link.disabled = true;
+            try {
+              const verified = await post('/api/featured/hood-turtle', {tokenId:nft.tokenId});
+              if (!verified.active || !verified.companion || Date.now() >= verified.validUntil * 1000) throw new Error('Ownership could not be verified. Try again.');
+              const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => !(item.tokenId === verified.tokenId && item.originalAddress === verified.originalAddress));
+              if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
+              if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId});
+              saved.push(verified);
+              localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
+              window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
+              window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'});
+              link.textContent = 'Showing';
+            } catch (error) { scanStatus.textContent = error.message; }
+            finally { link.disabled = false; }
+          };
+          card.append(link);
+        }
         matches.append(card);
-        // Original art appears as it loads; loading a preview never imports it.
-        post('/api/featured/hood-turtle', {tokenId:nft.tokenId}).then(verified => {
-          const source = verified.companion?.idle || verified.image;
-          if (!verified.active || !/^data:image\/(svg\+xml|png);base64,/.test(source || '') || !card.isConnected) return;
-          const art = document.createElement('img'); art.src = source; art.alt = nft.name; art.className = 'wallet-nft-art';
-          card.prepend(art);
-        }).catch(() => {});
       }
-      scanStatus.textContent = data.nfts.length
-        ? `${data.nfts.length} supported NFT${data.nfts.length === 1 ? '' : 's'} found.${data.partial ? ' More may exist; scan is limited to the first five indexer pages.' : ''}`
-        : `No supported NFTs found in this wallet.${data.partial ? ' Scan was partial; some NFTs may not be listed.' : ''}`;
-    } catch (error) {
+      const failed = data.errors.length;
+      scanStatus.textContent = data.nfts.length + ' NFT(s) found across supported EVM chains.' +
+        (data.partial ? ' Partial scan: ' + failed + ' indexer request(s) failed or pages were limited.' : '') +
+        (failed ? ' ' + data.errors.slice(0,2).join('; ') : '');
+    } catch(error) {
       scanStatus.textContent = error.message;
     } finally {
       scanButton.disabled = !linkedAddresses.length;
