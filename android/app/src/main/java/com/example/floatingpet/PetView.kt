@@ -88,14 +88,21 @@ class PetView(context: Context) : View(context) {
   }
   val bounce = when (mood) {
    "walk" -> abs(sin(phase)) * 1.8f
-   "dance", "happy" -> abs(sin(phase)) * 4f
+   "dance", "happy", "battle_win" -> abs(sin(phase)) * 4f
+   "battle_hop" -> abs(sin(phase * 1.6f)) * 3.5f
+   "battle_charge" -> abs(sin(phase * 2f)) * 2f
+   "battle_boop" -> abs(sin(phase * 3f)) * 4.5f
+   "battle_dizzy" -> 0.5f
    "eat" -> sin(phase) * .8f
    else -> sin(phase * .25f) * .5f
   }
-  val step = if (mood == "walk" || mood == "dance") sin(phase) * 2f else 0f
+  val step = if (mood == "walk" || mood == "dance" || mood == "battle_win") sin(phase) * 2f else 0f
   oval(c, 8f, 34.2f, 24f, 3.3f, Color.argb(45, 0, 0, 0))
   c.save(); c.translate(0f, -bounce)
-  if (mood == "dance" && !reducedMotion) c.rotate(sin(phase) * 12, 20f, 25f)
+  if ((mood == "dance" || mood == "battle_win") && !reducedMotion) c.rotate(sin(phase) * 12, 20f, 25f)
+  if (mood == "battle_charge" && !reducedMotion) c.rotate((if (direction >= 0) 10f else -10f), 20f, 25f)
+  if (mood == "battle_boop" && !reducedMotion) c.rotate((if (direction >= 0) -14f else 14f), 20f, 25f)
+  if (mood == "battle_dizzy") c.translate(0f, 2.5f)
   if (mood == "sleep") c.translate(0f, 2f)
 
   paint.shader = LinearGradient(
@@ -204,6 +211,12 @@ class PetView(context: Context) : View(context) {
    c.drawRoundRect(13f + look, 17.6f, 17.2f + look, 23f, 1.3f, 1.3f, paint)
    c.drawRoundRect(22.8f + look, 17.6f, 27f + look, 23f, 1.3f, 1.3f, paint)
    rect(c, 14f + look, 18.2f, 1.5f, 3.5f, Color.WHITE); rect(c, 23.8f + look, 18.2f, 1.5f, 3.5f, Color.WHITE)
+  } else if (mood == "battle_dizzy") {
+   paint.color = dark; paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.3f
+   val a = (frame * 15f) % 360f
+   c.drawArc(12.5f + look, 17.5f, 17.5f + look, 22.5f, a, 280f, false, paint)
+   c.drawArc(22.5f + look, 17.5f, 27.5f + look, 22.5f, -a, 280f, false, paint)
+   paint.style = Paint.Style.FILL
   } else {
    c.drawRoundRect(13f + look, 17.6f, 17.2f + look, 23f, 1.3f, 1.3f, paint.apply { color = dark })
    c.drawRoundRect(22.8f + look, 17.6f, 27f + look, 23f, 1.3f, 1.3f, paint.apply { color = dark })
@@ -252,14 +265,22 @@ class PetView(context: Context) : View(context) {
     paint.color = Color.WHITE; c.drawCircle(33f, 25f, 1.1f, paint)
    }
   }
-  if (mood == "wave" || mood == "dance") { round(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, bodyColor); strokeRound(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, dark, 1.2f) }
+  if (mood == "wave" || mood == "dance" || mood == "battle_win") { round(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, bodyColor); strokeRound(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, dark, 1.2f) }
   if (stage >= 1) { oval(c, 5.4f, 25.3f, 4.2f, 4.2f, bodyColor); strokePath(c, Path().apply { addCircle(7.5f, 27.4f, 2.1f, Path.Direction.CW) }, dark, 1f) }
   if (stage >= 2) rect(c, 19f, 7.6f, 2f, 4f, Color.rgb(255, 219, 105))
   c.restore()
   if (mood == "eat") { rect(c, 17f, 30f, 6f, 5f, Color.rgb(240, 80, 119)); rect(c, 19f, 28f, 2f, 2f, Color.GREEN) }
-  if (mood in listOf("sleep", "happy", "dance", "wave")) {
+  if (mood in listOf("sleep", "happy", "dance", "wave", "battle_win", "battle_boop", "battle_dizzy")) {
    paint.color = Color.WHITE; paint.textSize = 6f; paint.typeface = Typeface.DEFAULT_BOLD
-   c.drawText(when (mood) { "sleep" -> "zZ"; "wave" -> "hi!"; else -> "<3" }, 26f, 8f + sin(phase), paint)
+   val tag = when (mood) {
+    "sleep" -> "zZ"
+    "wave" -> "hi!"
+    "battle_win" -> "★"
+    "battle_boop" -> "!"
+    "battle_dizzy" -> "@ @"
+    else -> "<3"
+   }
+   c.drawText(tag, 26f, 8f + sin(phase), paint)
   }
   c.restore()
  }

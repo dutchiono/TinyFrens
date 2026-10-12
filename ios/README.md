@@ -6,6 +6,14 @@ The Hood Turtle source flow opens **Import Hood Turtle** inside the app, creates
 
 ## GitHub builds
 
+## Widget preview on Windows
+
+Apple's iPhone Simulator is part of Xcode on macOS; it cannot run natively on Windows. From the repository root, run `python -m http.server 8876 --bind 127.0.0.1` and open `http://127.0.0.1:8876/ios/widget-preview.html` to compare small/medium Home Screen and rectangular Lock Screen layouts. This is a browser design preview, not native iOS rendering.
+
+The native widget supports small/medium Home Screen and circular/rectangular Lock Screen placements. It currently shows a static mascot; taps open the app, and the medium care link and rectangular widget open Care and extras. Live saved-pet syncing and in-widget care are not implemented. Build and validate the Swift code and actual widget layout with Xcode before distributing.
+
+## GitHub builds
+
 The iOS build workflow uses a macOS runner and XcodeGen to generate the Xcode project. It builds both a simulator app and an unsigned device archive. Download artifacts from Actions → iOS build. The unsigned archive is a compile artifact, **not an installable IPA**.
 
 ## Run on your iPhone

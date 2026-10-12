@@ -18,13 +18,20 @@ class PetOverlayService:Service(){
   @Volatile var running=false
   const val ACTION_HIDE="com.example.floatingpet.HIDE"
   const val ACTION_SET_GUESTS="com.example.floatingpet.SET_GUESTS"
+  const val ACTION_START_BATTLE="com.example.floatingpet.START_BATTLE"
+  const val ACTION_END_BATTLE="com.example.floatingpet.END_BATTLE"
   private const val CHAT_SERVER="https://tinyfrens.miono.live"
  }
  class GuestPet(val view:PetView,val params:WindowManager.LayoutParams,var name:String,var shape:String,var color:Int,var tokenId:Int){
+  var mode="roam";var speed=60
   var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
  }
  private val guestPets=mutableListOf<GuestPet>()
  private val ownedPets=mutableListOf<GuestPet>()
+ private var primaryMotion:org.json.JSONObject?=null
+ private var battleOpponent:GuestPet?=null
+ private var battleRunnable:Runnable?=null
+ private var isBattling=false
  private lateinit var wm:WindowManager
  private var closeButton:View?=null;private var caption:TextView?=null;private var menuAbove=false
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var chatPanel:View?=null;private var toy:View?=null
@@ -51,7 +58,7 @@ class PetOverlayService:Service(){
  private fun update(v:View,p:WindowManager.LayoutParams){try{wm.updateViewLayout(v,p)}catch(_:Exception){if(!Settings.canDrawOverlays(this))stopSelf()}}
  private fun reducedMotion()=state.optBoolean("reduceMotion")||Settings.Global.getFloat(contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
  private fun hideWithFade(){
-  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects();clearGuests();clearOwnedPets()
+  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects();clearGuests();clearOwnedPets();endBattleSequence()
   val v=pet
   if(v!=null&&state.optBoolean("fade",true)&&!reducedMotion())v.animate().alpha(0f).setDuration(220).withEndAction{stopSelf()}.start()else stopSelf()
  }
@@ -74,7 +81,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();syncOwnedPets()
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
@@ -87,7 +94,14 @@ class PetOverlayService:Service(){
   if(screenOn){
    val now=System.currentTimeMillis();val clock=SystemClock.elapsedRealtime()
    if(now-lastRead>500){state=store.read();lastRead=now;style()}
-   v.mode=state.optString("mode","roam");v.stage=state.optInt("stage");v.frame=frame++
+   v.mode=primaryMotion?.optString("mode","roam")?:state.optString("mode","roam");v.stage=state.optInt("stage");v.frame=frame++
+   if(isBattling){
+    v.invalidate()
+    battleOpponent?.view?.frame=frame
+    battleOpponent?.view?.invalidate()
+    handler.postDelayed(this,if(screenOn)50 else 1000)
+    return
+   }
    val forced=state.optLong("actionUntil")>now
    if(clock>nextDecision&&!forced&&menu==null){
     if(toy!=null){behavior="walk";nextDecision=clock+12000}
@@ -96,7 +110,7 @@ class PetOverlayService:Service(){
    }
    v.mood=when{forced->state.optString("action","idle");state.optInt("energy",80)<15->"sleep";v.dragging||menu!=null->"happy";v.mode=="bubble"->"idle";else->behavior}
    if(v.mode=="roam"&&!reducedMotion()&&!v.dragging&&menu==null&&v.mood=="walk"){
-    val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,state.optInt("speed",60)*resources.displayMetrics.density,.05f,bx,by)
+    val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,(primaryMotion?.optInt("speed",60)?:state.optInt("speed",60))*resources.displayMetrics.density,.05f,bx,by)
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
     if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
    };v.invalidate()
@@ -104,13 +118,14 @@ class PetOverlayService:Service(){
     val(bx,by)=bounds()
     for(g in guestPets+ownedPets){
      g.view.frame=frame;g.view.reducedMotion=reducedMotion()
+     if(g.mode=="bubble"){g.view.mood="idle";g.view.invalidate();continue}
      if(!g.view.dragging&&!reducedMotion()&&clock>g.nextMove){
       g.tx=Random.nextFloat()*bx;g.ty=Random.nextFloat()*by
       g.nextMove=clock+Random.nextLong(3000,7000)
       g.view.mood=if(Random.nextInt(3)==0)"wave" else "walk"
      }
      if(!g.view.dragging&&!reducedMotion()&&g.view.mood=="walk"){
-      val s=PetMotion.move(g.x,g.y,g.tx,g.ty,45f*resources.displayMetrics.density,.05f,bx,by)
+      val s=PetMotion.move(g.x,g.y,g.tx,g.ty,g.speed*resources.displayMetrics.density,.05f,bx,by)
       g.direction=if(s.x>=g.x)1 else -1;g.view.direction=g.direction
       g.x=s.x;g.y=s.y;g.params.x=g.x.roundToInt();g.params.y=g.y.roundToInt()
       update(g.view,g.params)
@@ -138,6 +153,13 @@ class PetOverlayService:Service(){
   if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY}
   if(pet==null)createOverlay();state=store.read();lastRead=0;style()
   if(i?.action==ACTION_SET_GUESTS){updateGuests(i.getStringExtra("guests")?:"[]");return START_STICKY}
+  if(i?.action==ACTION_START_BATTLE){
+   val opp=i.getStringExtra("opponent")?:"{}"
+   val role=i.getStringExtra("role")?:"challenger"
+   startBattleSequence(opp,role)
+   return START_STICKY
+  }
+  if(i?.action==ACTION_END_BATTLE){endBattleSequence();return START_STICKY}
   if(i?.getStringExtra("command")=="toy")spawnToy()
   return START_STICKY
  }
@@ -149,10 +171,11 @@ class PetOverlayService:Service(){
   val(bx,by)=bounds()
   for(nft in active){
    val id=nft.optInt("tokenId");val existing=ownedPets.find{it.tokenId==id}
-   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);continue}
+   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
    val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
    gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.reducedMotion=reducedMotion()
    val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
+   g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60
    gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
    gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}
    gv.onTap={say(g.name)}
@@ -192,6 +215,102 @@ class PetOverlayService:Service(){
     try{wm.addView(gv,gp);guestPets.add(guest)}catch(_:Exception){}
    }
   }
+ }
+ private fun endBattleSequence(){
+  battleRunnable?.let{handler.removeCallbacks(it)}
+  battleRunnable=null
+  isBattling=false
+  battleOpponent?.let{try{wm.removeView(it.view)}catch(_:Exception){}}
+  battleOpponent=null
+  pet?.mood="idle"
+  behavior="idle"
+  nextDecision=SystemClock.elapsedRealtime()+1500
+ }
+ private fun startBattleSequence(oppJson:String,role:String){
+  if(pet==null)createOverlay()
+  val v=pet?:return;val p=params?:return
+  endBattleSequence();clearGuests();removeMenu();removeChat()
+  val obj=try{org.json.JSONObject(oppJson)}catch(_:Exception){org.json.JSONObject()}
+  val oppName=obj.optString("name","A fren")
+  val oppShape=obj.optString("shape","cat")
+  val oppColor=try{Color.parseColor(obj.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
+  val oppTokenId=obj.optInt("tokenId",0)
+  val(bx,by)=bounds();val size=p.width
+  val gv=PetView(this);val gp=overlay(size,size)
+  gv.shape=oppShape;gv.bodyColor=oppColor
+  gv.expression=obj.optString("expression","happy")
+  gv.accessory=obj.optString("accessory","none")
+  gv.alpha=0.95f
+  val isChallenger=role=="challenger"
+  val spacing=dp(76).toFloat()
+  val startX=x
+  if(isChallenger){
+   x=x.coerceIn(0f,(bx-spacing).coerceAtLeast(0f))
+   val oppX=(x+spacing).coerceIn(0f,bx)
+   v.direction=1;gv.direction=-1
+   gp.x=oppX.roundToInt();gp.y=y.roundToInt()
+   battleOpponent=GuestPet(gv,gp,oppName,oppShape,oppColor,oppTokenId).apply{this.x=oppX;this.y=y;this.tx=oppX;this.ty=y;this.direction=-1}
+   say("Visiting $oppName for a spar!",2000)
+  }else{
+   x=x.coerceIn(spacing,bx)
+   val oppX=(x-spacing).coerceIn(0f,bx)
+   v.direction=-1;gv.direction=1
+   gp.x=oppX.roundToInt();gp.y=y.roundToInt()
+   battleOpponent=GuestPet(gv,gp,oppName,oppShape,oppColor,oppTokenId).apply{this.x=oppX;this.y=y;this.tx=oppX;this.ty=y;this.direction=1}
+   say("$oppName arrived to spar!",2000)
+  }
+  p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
+  try{wm.addView(gv,gp)}catch(_:Exception){}
+  isBattling=true
+  val startOppX=battleOpponent?.x?:x
+  var step=0
+  val runner=object:Runnable{
+   override fun run(){
+    if(!isBattling||battleOpponent==null)return
+    val opp=battleOpponent?:return;val home=pet?:return;val homeP=params?:return
+    when(step){
+     0->{
+      home.mood="battle_hop";opp.view.mood="battle_hop"
+      playPetSound("play");step++;handler.postDelayed(this,1400)
+     }
+     1->{
+      home.mood="battle_charge";opp.view.mood="battle_charge"
+      val chargeOffset=dp(24).toFloat()
+      x=if(home.direction>=0)startX+chargeOffset else startX-chargeOffset
+      homeP.x=x.roundToInt();update(home,homeP)
+      opp.x=if(opp.direction>=0)startOppX+chargeOffset else startOppX-chargeOffset
+      opp.params.x=opp.x.roundToInt();update(opp.view,opp.params)
+      step++;handler.postDelayed(this,1000)
+     }
+     2->{
+      home.mood="battle_boop";opp.view.mood="battle_boop"
+      careEffect();say("💥 BOOP!",1200);playPetSound("tap")
+      if(state.optBoolean("haptics",true))home.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+      x=startX;homeP.x=x.roundToInt();update(home,homeP)
+      opp.x=startOppX;opp.params.x=opp.x.roundToInt();update(opp.view,opp.params)
+      step++;handler.postDelayed(this,1500)
+     }
+     3->{
+      val oppAction=when(opp.shape){"robot"->"Laser Zaps!";"duck"->"Flap Slap!";"bunny"->"Mega Hop!";"cat"->"Pounce!";"pig"->"Snort Bump!";"frog"->"Tongue Flick!";else->"Bouncy Boop!"}
+      say("$oppName used $oppAction",1600)
+      opp.view.mood="dance";home.mood="battle_hop"
+      playPetSound("play");step++;handler.postDelayed(this,1800)
+     }
+     4->{
+      val homeWins=isChallenger||Random.nextBoolean()
+      if(homeWins){home.mood="battle_win";opp.view.mood="battle_dizzy";say("Victory dance! +Joy ✨",2200)}
+      else{home.mood="battle_dizzy";opp.view.mood="battle_win";say("Dizzy spin! Good spar! +Joy ✨",2200)}
+      careEffect();try{store.act("play")}catch(_:Exception){}
+      step++;handler.postDelayed(this,2600)
+     }
+     5->{
+      home.mood="wave";opp.view.mood="wave";say("GG fren! See ya!",1800)
+      opp.view.animate().alpha(0f).translationY(-dp(25).toFloat()).setDuration(800).withEndAction{endBattleSequence()}.start()
+     }
+    }
+   }
+  }
+  battleRunnable=runner;handler.post(runner)
  }
  private fun overlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
   WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}

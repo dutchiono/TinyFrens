@@ -6,6 +6,33 @@ const os = require('node:os');
 const path = require('node:path');
 const {TurtleStore, SERVER} = require('../turtle.cjs');
 
+test('each companion keeps its own movement through reopening and ownership renewal', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-motion-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  let now = 1_800_000_000_000;
+  const file = path.join(dir, 'turtle.json');
+  const fetcher = async (_, options) => {
+    const {tokenId} = JSON.parse(options.body);
+    return {ok:true, text:async () => JSON.stringify({active:true, tokenId,
+      image:'data:image/png;base64,aW1hZ2U=', validUntil:now/1000 + 3600})};
+  };
+  const store = new TurtleStore(file, fetcher, () => now);
+  await store.import(SERVER, {token:'secret', tokenId:1});
+  await store.import(SERVER, {token:'secret', tokenId:2});
+  store.setMotion(1, 'bubble', 40);
+  store.setMotion(2, 'roam', 120);
+  assert.throws(() => store.setMotion(1, 'invalid', 60), /Invalid/);
+  assert.throws(() => store.setMotion(1, 'roam', 141), /Invalid/);
+  assert.throws(() => store.setMotion(3, 'roam', 60), /not found/);
+  const reopened = new TurtleStore(file, fetcher, () => now);
+  const expected = [{mode:'bubble', speed:40}, {mode:'roam', speed:120}];
+  assert.deepEqual(reopened.view().items.map(nft => nft.motion), expected);
+  now += 3600_000;
+  assert.equal(await reopened.renew(), true);
+  assert.deepEqual(reopened.view().items.map(nft => nft.tokenId), [1, 2]);
+  assert.deepEqual(reopened.view().items.map(nft => nft.motion), expected);
+});
+
 test('verified turtle persists without exposing the device credential and expires before renewal', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-turtle-'));
   t.after(() => fs.rmSync(dir, {recursive:true, force:true}));

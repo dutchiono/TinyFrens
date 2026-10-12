@@ -72,6 +72,7 @@ function Enable-LocalFoundryBin() {
     if (Test-Path (Join-Path $bin 'forge.exe')) { $env:PATH = "$bin;$env:PATH"; return $true }
     return $false
 }
+Enable-LocalFoundryBin | Out-Null
 
 function Test-FoundryReady() {
     $forge = Get-Command forge -ErrorAction SilentlyContinue
@@ -111,7 +112,7 @@ function Resolve-Deployer {
     if ($script:Deployer) { return $script:Deployer }
     if (-not $env:PRIVATE_KEY -and (Test-Path $DeployerFile)) {
         $line = Get-Content $DeployerFile -Raw
-        if ($line -match '(?m)^PRIVATE_KEY=(0x[a-fA-F0-9]+)$') { $env:PRIVATE_KEY = $Matches[1] }
+        if ($line -match '(?m)^PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]+)') { $env:PRIVATE_KEY = $Matches[1] }
     }
     if ($env:PRIVATE_KEY) { $script:Deployer = Get-DeployerAddress }
     if (-not $script:Deployer) { throw 'No deployer key. Run from Step 2 first.' }
@@ -151,8 +152,8 @@ function Get-ConsoleValue([string]$Output, [string]$Key) {
 }
 
 function Invoke-ForgeScript([string]$Script) {
-    Write-Host "  forge script $Script --broadcast" -ForegroundColor DarkGray
-    $out = & forge script $Script --rpc-url $RpcUrl --broadcast 2>&1 | Out-String
+    Write-Host "  forge script $Script --broadcast --slow" -ForegroundColor DarkGray
+    $out = & forge script $Script --rpc-url $RpcUrl --broadcast --slow 2>&1 | Out-String
     Write-Host $out
     if ($LASTEXITCODE -ne 0) { throw "forge script failed ($Script):`n$out" }
     return $out
@@ -185,9 +186,15 @@ function Wait-AllMined([string]$ScriptName) {
 }
 
 function Assert-Live([string]$Address, [string]$Label) {
-    $code = (cast code $Address --rpc-url $RpcUrl 2>&1 | Out-String).Trim()
-    if ($code -eq '0x' -or $code.Length -lt 4) { throw "$Label at $Address has no code on-chain" }
-    Write-Host "  $Label live at $Address" -ForegroundColor DarkGray
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        $code = (cast code $Address --rpc-url $RpcUrl 2>&1 | Out-String).Trim()
+        if ($code -ne '0x' -and $code.Length -ge 4) {
+            Write-Host "  $Label live at $Address" -ForegroundColor DarkGray
+            return
+        }
+        Start-Sleep -Seconds 2
+    }
+    throw "$Label at $Address has no code on-chain"
 }
 
 # --- verification (separate from broadcast; waits for explorer) -------------
@@ -247,7 +254,7 @@ function Step-2-Wallet {
     } elseif (Test-Path $DeployerFile) {
         Write-Host "  Loading private key from $DeployerFile (gitignored)"
         $line = Get-Content $DeployerFile -Raw
-        if ($line -match '(?m)^PRIVATE_KEY=(0x[a-fA-F0-9]+)$') { $env:PRIVATE_KEY = $Matches[1] }
+        if ($line -match '(?m)^PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]+)') { $env:PRIVATE_KEY = $Matches[1] }
         else { throw "Expected PRIVATE_KEY=0x... in $DeployerFile" }
     } elseif (-not $SkipWalletCreate) {
         Write-Host '  Creating a NEW testnet-only wallet (saved under .secrets/, never commit).'
@@ -379,6 +386,10 @@ function Step-9-DeployNFT {
     Resolve-Deployer | Out-Null
     $existing = Get-JobValue 'tinyFrensNft'
     if ($existing) { Write-Host "  Reusing TinyFrensNFT from job file: $existing" -ForegroundColor DarkGray; return }
+    if (-not $env:FRENS_TOKEN) {
+        $tok = if ($script:Token) { $script:Token } else { Get-JobValue 'testFrens' }
+        if ($tok) { $env:FRENS_TOKEN = $tok }
+    }
     $out = Invoke-ForgeScript 'contracts/testnet/script/DeployTinyFrensNFT.s.sol:DeployTinyFrensNFT'
     Wait-AllMined 'DeployTinyFrensNFT.s.sol'
     $nft = Get-ConsoleValue $out 'nftAddress'

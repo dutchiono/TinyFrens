@@ -11,7 +11,37 @@ struct FrenProvider: TimelineProvider {
 }
 struct FrenWidgetView: View {
     var entry: FrenEntry
+    @Environment(\.widgetFamily) private var family
+    @ViewBuilder
     var body: some View {
+        if family == .accessoryCircular {
+            ZStack {
+                AccessoryWidgetBackground()
+                Image(systemName: "face.smiling").font(.title)
+            }.widgetURL(URL(string: "tinyfrens://pet"))
+        } else if family == .accessoryRectangular {
+            HStack(spacing: 8) {
+                Image(systemName: "face.smiling").font(.title)
+                VStack(alignment: .leading) {
+                    Text("TinyFrens").font(.headline)
+                    Text("Open to care").font(.caption)
+                }
+            }.widgetURL(URL(string: "tinyfrens://care"))
+        } else if family == .systemMedium {
+            HStack(spacing: 20) {
+                smallView
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("A little time together.").font(.headline)
+                    Text("Feed, play, or take a nap.").font(.caption).foregroundColor(.white.opacity(0.8))
+                    Link("Open to care →", destination: URL(string: "tinyfrens://care")!)
+                        .font(.caption.weight(.semibold)).foregroundColor(Color(red: 0.79, green: 0.65, blue: 1))
+                }
+            }.foregroundColor(.white).widgetURL(URL(string: "tinyfrens://pet"))
+        } else {
+            smallView.widgetURL(URL(string: "tinyfrens://pet"))
+        }
+    }
+    private var smallView: some View {
         ZStack {
             Color(red: 0.09, green: 0.07, blue: 0.17)
             VStack(spacing: 8) {
@@ -31,9 +61,9 @@ struct FrenWidgetView: View {
                     }.offset(y: 30)
                 }.frame(width: 76, height: 76).accessibilityLabel("TinyFrens simple robot")
                 Text("Hey, fren!").font(.headline).foregroundColor(.white)
-                Text("Tap to play").font(.caption).foregroundColor(.white.opacity(0.8))
+                Text("Open to care").font(.caption).foregroundColor(.white.opacity(0.8))
             }.padding()
-        }.widgetURL(URL(string: "tinyfrens://pet"))
+        }
     }
 }
 @main
@@ -46,8 +76,8 @@ struct TinyFrensWidget: Widget {
             } else { FrenWidgetView(entry: entry) }
         }
         .configurationDisplayName("TinyFrens")
-        .description("A friendly hello. Tap to open your pet.")
-        .supportedFamilies([.systemSmall])
+        .description("A friendly hello on your Home or Lock Screen. Tap to open TinyFrens.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }
 

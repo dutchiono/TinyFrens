@@ -71,6 +71,7 @@ function syncCompanions() {
     if (entry.nft.validUntil !== nft.validUntil || entry.nft.image !== nft.image) {
       entry.nft = nft; entry.win.webContents.send('tinyfrens:turtle', {active:true, ...nft});
     }
+    entry.nft = nft;
   }
 }
 function moveCompanions(elapsed) {
@@ -85,7 +86,8 @@ function moveCompanions(elapsed) {
       entry.target = {x:area.x+Math.random()*(area.width-128),y:area.y+Math.random()*(area.height-128)};
     const dx=entry.target.x-entry.point.x,dy=entry.target.y-entry.point.y,distance=Math.hypot(dx,dy);
     const reduced=store.read().reduceMotion||systemReducedMotion;
-    const step=reduced?0:Math.min(distance,store.read().speed*elapsed);
+    const motion=entry.nft.motion || {mode:'roam',speed:60};
+    const step=reduced||motion.mode==='bubble'?0:Math.min(distance,motion.speed*elapsed);
     if(distance>0){entry.point.x+=dx/distance*step;entry.point.y+=dy/distance*step;}
     win.setPosition(Math.round(entry.point.x),Math.round(entry.point.y));
     win.webContents.send('tinyfrens:companion-motion', {walking:step>0,direction:dx<0?-1:1});
@@ -146,7 +148,8 @@ function moveTick() {
   if (ignore !== ignoring) { pet.setIgnoreMouseEvents(ignore, { forward: true }); ignoring = ignore; }
   if (drag || over || now < menuUntil || now < sleepingUntil) return;
   const state = store.read();
-  if (state.mode !== 'roam' || state.energy < 15 || state.reduceMotion || systemReducedMotion) return;
+  const motion = turtles.view().items?.[0]?.motion || state;
+  if (motion.mode !== 'roam' || state.energy < 15 || state.reduceMotion || systemReducedMotion) return;
   const area = screen.getDisplayMatching(bounds).workArea;
   if (!moving) moving = { x: bounds.x, y: bounds.y };
   if (now > nextTarget) {
@@ -154,7 +157,7 @@ function moveTick() {
     nextTarget = now + 2500 + Math.random() * 4000;
   }
   if (!target) return;
-  const dx = target.x - moving.x, dy = target.y - moving.y, distance = Math.hypot(dx, dy), step = state.speed * elapsed;
+  const dx = target.x - moving.x, dy = target.y - moving.y, distance = Math.hypot(dx, dy), step = motion.speed * elapsed;
   if (distance < 2) { target = null; return; }
   moving = clampPosition({ x: moving.x + dx / distance * Math.min(step, distance), y: moving.y + dy / distance * Math.min(step, distance) }, area, WIDTH, HEIGHT);
   pet.setPosition(moving.x, moving.y);
@@ -319,6 +322,7 @@ ipcMain.handle('tinyfrens:check-update', async event => {
 });
 ipcMain.handle('tinyfrens:turtle-request', async (event, server, route, body) => {
   if (!trusted(event) || event.sender !== careWindow?.webContents) throw new Error('Untrusted turtle request');
+  if (route === '/native/companion-motion') { if (server !== SERVER) throw new Error('Unsupported turtle server'); const result = turtles.setMotion(body.tokenId, body.mode, body.speed); broadcastTurtle(); return result; }
   if (route === '/native/remove-wallet') { if (server !== SERVER || !/^0x[0-9a-fA-F]{40}$/.test(body.address)) throw new Error('Invalid wallet'); turtles.removeWallet(body.address); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/remove-turtle') { if (server !== SERVER) throw new Error('Unsupported turtle server'); turtles.remove(body.tokenId); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/import-turtle') {

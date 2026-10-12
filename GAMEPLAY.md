@@ -42,6 +42,19 @@ Source: https://developers.google.com/nearby/connections/overview
 
 The optional relay in `server/` provides permanent eight-character codes, accepted friendship, presence and live visitor profiles. Add friend requires the other person to accept. Ask to visit requires a separate acceptance; both apps must be connected. Wave/Dance synchronize without care rewards. Changes to the visiting pet name/look synchronize. Either person can end; disconnect ends it too. Guest never replaces owner saves. Visitors currently appear inside the app, not Android overlay/iOS PiP/widgets. Nearby radio discovery is not implemented; it must enter this same consent flow. See `server/README.md` for deployment.
 
+## Spars & Battles (Floating Phone Hover Clash)
+
+Friends can challenge each other to a friendly "fightski fight" / spar right from the Friends panel or Public Plaza.
+
+- **Consent & Connection:** Spars require reciprocal friend consent over the relay WebSocket; both apps must be online.
+- **Home vs. Away Perspective:**
+  - **Away (Challenger):** Your fren travels to challenge your friend, positioned on the left facing right.
+  - **Home (Defender):** Your fren defends their home turf, positioned on the right facing left.
+- **On Android Floating Overlay:**
+  - The spar plays out directly on the floating phone overlay hovering above whatever app is on screen!
+  - Both frens square up (`battle_hop`), charge forward with a head-boop collision (`💥 BOOP!`), execute playful trait antics (lasers, flaps, pounces, hops), followed by dizzy swirl eyes (`@_@`) and a celebratory victory dance with sparkles.
+- **Friendly & Safe:** Spars are slapstick, cozy fun with zero negative penalties or pet injury. Both participants gain a Joy boost (+15 Joy) for playing together!
+
 ## Appearance
 
 Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately.

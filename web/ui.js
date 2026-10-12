@@ -11,7 +11,7 @@ window.showScreen=name=>{
   plazaBtn.classList.toggle('active',isPlaza);plazaBtn.setAttribute('aria-checked',String(isPlaza));
  }
  if(name==='party'&&(document.getElementById('visitRequests')?.children.length||document.getElementById('guestVisit'))){const social=document.querySelector('.party-social');if(social)social.open=true;}
- const more=document.getElementById('moreMenu');if(more){more.open=false;more.querySelector('summary').textContent='☰';}
+ const more=document.getElementById('moreMenu');if(more){more.open=false;}
  history.replaceState(null,'','#'+name);window.scrollTo(0,0);
 };
 for(const tab of document.querySelectorAll('[data-screen]')){

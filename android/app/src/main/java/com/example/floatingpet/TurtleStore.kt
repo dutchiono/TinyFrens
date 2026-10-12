@@ -27,6 +27,18 @@ class TurtleStore(context: Context) {
     }
 
     fun request(server: String, path: String, body: JSONObject): JSONObject {
+        if (server == SERVER && path == "/native/companion-motion") {
+            val mode = body.optString("mode"); val speed = body.optInt("speed", 0)
+            require(mode in setOf("roam", "bubble") && speed in 20..140) { "Invalid companion movement" }
+            synchronized(lock) {
+                val selected = items()
+                val nft = selected.firstOrNull { it.optInt("tokenId") == body.optInt("tokenId") }
+                    ?: throw IllegalArgumentException("Companion not found")
+                nft.put("motion", JSONObject().put("mode", mode).put("speed", speed))
+                save(selected)
+            }
+            return JSONObject(view())
+        }
         if (server == SERVER && path in setOf("/native/remove-turtle", "/native/remove-wallet")) {
             synchronized(lock) {
                 generation++
@@ -111,9 +123,11 @@ class TurtleStore(context: Context) {
         result.put("token", token)
         synchronized(lock) {
             require(ticket == generation) { "Turtle selection changed. Please retry." }
-            val selected = items().filter { it.optInt("tokenId") != tokenId }
-            require(selected.size < 5) { "Show up to five companions. Remove one first." }
-            save(selected + result)
+            val selected = items()
+            val old = selected.firstOrNull { it.optInt("tokenId") == tokenId }
+            require(old != null || selected.size < 5) { "Show up to five companions. Remove one first." }
+            result.put("motion", old?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
+            save(if (old == null) selected + result else selected.map { if (it === old) result else it })
         }
         return result
     }
@@ -157,9 +171,12 @@ class TurtleStore(context: Context) {
                         .put("token", old.optString("token")).put("tokenId", old.optInt("tokenId")))
                     synchronized(lock) {
                         if (ticket == generation) {
-                            val remaining = items().filter { it.optInt("tokenId") != old.optInt("tokenId") }
-                            if (valid(result)) save(remaining + result.put("token", old.optString("token")))
-                            else save(remaining)
+                            val current = items()
+                            val existing = current.firstOrNull { it.optInt("tokenId") == old.optInt("tokenId") }
+                            if (valid(result)) {
+                                result.put("token", old.optString("token")).put("motion", existing?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
+                                save(current.map { if (it === existing) result else it })
+                            } else save(current.filter { it !== existing })
                         }
                     }
                 }

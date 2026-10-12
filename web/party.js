@@ -242,6 +242,15 @@
   $('inspectActionBerry')?.addEventListener('click', () => sendPartyAction('berry'));
   $('inspectActionPet')?.addEventListener('click', () => sendPartyAction('pet'));
   $('inspectActionWave')?.addEventListener('click', () => sendPartyAction('wave'));
+  $('inspectActionSpar')?.addEventListener('click', () => {
+    if (!inspectTarget) return;
+    const api = window.TinyFrensFriends;
+    if (api && api.connected()) {
+      api.requestBattle?.(inspectTarget.id) || api.send?.({ type: 'battle-request', id: inspectTarget.id });
+      if (status) status.textContent = 'Spar requested with ' + (cleanName(inspectTarget.pet?.name) || 'fren') + '!';
+    }
+    closeInspect();
+  });
   closeInspectBtn?.addEventListener('click', closeInspect);
   inspectModal?.addEventListener('click', (e) => {
     if (e.target === inspectModal) closeInspect();
