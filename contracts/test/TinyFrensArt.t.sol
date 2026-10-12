@@ -50,12 +50,12 @@ contract TinyFrensArtTest is Test {
         // SHA-256 fixtures from web/nft-art.mjs renderNftArt for these six trait sets.
         // Covers every accessory and habitat, plus all motion and expression values.
         bytes32[6] memory expected = [
-            bytes32(0x1036e09ea99a09be7da2e0452ebc158c4fcabc6f3474360c3265be4f6c8cdf51),
-            bytes32(0x70a3557c2a6e48135960b6f924ca449b1bed4de9106a3738e59225d686907ebb),
-            bytes32(0xbc13cbc01dd883efc19d3950c5ea502cae64802b711abb057547c669ec529cc7),
-            bytes32(0xf7fe89030898baf83fc71aff88b14a139e2df37679ea9765b1b573b5ac238c15),
-            bytes32(0x77628b4b27b728fa1c4e2ce59a12af0397b831060b279a8a18eaf34c8f6b01e4),
-            bytes32(0xb2e33a093c7a54085cec1f03ab0238f585b772a6c0bca994f650db2eba35f211)
+            bytes32(0xed3b7bc7397706f91c8ddc1d2a3d5fe42bb356f55610c231d981b371f7156f06),
+            bytes32(0xa54e50bc600ec481e77d9a20751e0040933b4d898ee82cde0625db54675f93dd),
+            bytes32(0x37f52225f8cc98951349295ae2b03bd8ca041613918feddd21e92aeabdc29f94),
+            bytes32(0x51301874911e22705511d6001af0619e0b7f6b4eb3bf151d666be9efb2a1368b),
+            bytes32(0x4d0d04916debb83dc3b5c9d4aacb54621eb3c4f999968aec52dc80c172bca079),
+            bytes32(0x11bfc19db2de4ce25a41db238452c39bfb50002f3465aa2eafb26c4bf5bb28af)
         ];
         for (uint8 i; i < 6; i++) {
             Traits memory traits = Traits(0, i, i % 4, i, i % 3, i, i % 4);

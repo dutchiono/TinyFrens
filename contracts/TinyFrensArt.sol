@@ -117,8 +117,8 @@ contract TinyFrensArt is ITinyFrensArt {
     function render(Traits calldata traits, uint8 stage) external view override returns (string memory) {
         (string memory body, string memory ink, string memory bg) = _palette(traits.palette);
         string memory sprite = spriteRenderer.render(traits.species, body, ink, traits.expr);
-        string memory duration = traits.motion == 1 ? "0.72s" : traits.motion == 2 ? "1.6s" :
-            traits.motion == 3 ? "0.56s" : "0.96s";
+        string memory duration = traits.motion == 1 ? "0.8471s" : traits.motion == 2 ? "1.8824s" :
+            traits.motion == 3 ? "0.6588s" : "1.1294s";
         string memory style = string.concat(
             '<style>.body{animation:bob ', duration, ' steps(1) infinite}',
             '.foot-a{animation:step-a ', duration, ' steps(1) infinite}',
