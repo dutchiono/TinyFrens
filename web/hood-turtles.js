@@ -85,7 +85,7 @@ async function pollPairing() {
   } catch (error) { if (pairing === current) { $('acceptPairing').hidden = true; message(error, $('pairingStatus')); } }
   finally { busy = false; if (pairing && !document.hidden) pollTimer = setTimeout(pollPairing, 4000); }
 }
-$('connectBankr').addEventListener('click', async () => {
+async function startPairing() {
   $('connectBankr').disabled = true; pairing = null; clearTimeout(pollTimer); $('acceptPairing').hidden = true;
   try {
     message('Creating your connection code…', $('connectionStatus'));
@@ -95,8 +95,9 @@ $('connectBankr').addEventListener('click', async () => {
     $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/skill.md to put my Hood Turtle on this TinyFrens device. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
     message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your verified wallet and turtle.', $('connectionStatus')); await pollPairing();
   } catch (error) { message(error, $('connectionStatus')); }
-  finally { $('connectBankr').disabled = false; }
-});
+  finally { $('connectBankr').disabled = false; $('connectBankr').hidden = false; }
+}
+$('connectBankr').addEventListener('click', startPairing);
 $('copyPrompt').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('bankrPrompt').value); message('Prompt copied.', $('pairingStatus')); }
   catch { $('bankrPrompt').focus(); $('bankrPrompt').select(); message('Select and copy the prompt above.', $('pairingStatus')); }
@@ -130,5 +131,10 @@ async function initIdentity() {
     localStorage.setItem(key, JSON.stringify(identity));
   }
 }
-ensureIdentity().then(() => { message('Ready to connect.', $('connectionStatus')); return loadLinkedWallet(); })
-  .catch(error => message('Connection unavailable. Tap Connect with Bankr to retry. ' + error.message, $('connectionStatus')));
+ensureIdentity().then(async () => {
+  await startPairing();
+  try { await loadLinkedWallet(); } catch (error) { message(error); }
+}).catch(error => {
+  $('connectBankr').hidden = false;
+  message('Could not create your code. Tap Create a new code to retry. ' + error.message, $('connectionStatus'));
+});

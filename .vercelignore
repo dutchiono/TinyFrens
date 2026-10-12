@@ -13,7 +13,7 @@ ios
 lib
 out
 server
-skills
+skills/*
 snap
 dist
 *.md
@@ -25,3 +25,5 @@ remappings.txt
 settings.gradle.kts
 scripts/*
 !scripts/build-site.mjs
+!skills/tinyfrens-connect/
+!skills/tinyfrens-connect/SKILL.md

@@ -17,9 +17,8 @@
 <h1>Bring your turtle along.</h1>
 <p>Connect with Bankr, send one message, and bring your Hood Turtle into TinyFrens. It stays in your wallet.</p>
 <section class="panel" aria-labelledby="connectTitle">
-<h2 id="connectTitle">Connect this device</h2>
-<p>Get a connection code for this device. Bankr finds the turtle in your wallet.</p>
-<div class="connection"><button id="connectBankr">Connect with Bankr</button></div><details><summary>Use another wallet</summary><p>Connect from a browser with your wallet extension.</p><button id="connectWallet" class="secondary">Connect my wallet</button></details>
+<h2 id="connectTitle">Send this to Bankr</h2>
+<p>This code connects Bankr to TinyFrens on this device.</p>
 <div id="pairing" hidden>
 <p>Your pairing code: <strong id="pairingCode"></strong></p>
 <ol><li>Copy the prompt below and tweet it to @bankrbot, or send it in Bankr chat.</li><li>Let Bankr verify your wallet and chosen turtle.</li><li>Return here and accept the connection. The code expires in 10 minutes.</li></ol>
@@ -29,6 +28,8 @@
 <p id="pairingStatus" role="status"></p><button id="acceptPairing" hidden>Import this turtle</button>
 </div>
 <p id="connectionStatus" role="status">Preparing this device…</p>
+<button id="connectBankr" class="secondary" hidden>Create a new code</button>
+<details><summary>Use another wallet</summary><p>Connect from a browser with your wallet extension.</p><button id="connectWallet" class="secondary">Connect my wallet</button></details>
 </section>
 <section id="turtlePanel" class="panel" hidden>
 <h2>Your turtle</h2><input id="tokenId" type="hidden"><div id="turtleChoices" class="choices"></div>
