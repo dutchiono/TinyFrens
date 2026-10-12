@@ -8,14 +8,43 @@ import {TinyFrensSprite} from "../TinyFrensSprite.sol";
 import {TestFRENS} from "../testnet/TestFRENS.sol";
 import {LibString} from "solady/utils/LibString.sol";
 
+contract MockNetProtocol {
+    bool public fail;
+    function setFail(bool value) external { fail = value; }
+    function sendMessage(string calldata, string calldata, bytes calldata) external view {
+        require(!fail, "Net message rejected");
+    }
+    function sendMessageViaApp(address, string calldata, string calldata, bytes calldata) external view {
+        require(!fail, "Net message rejected");
+    }
+}
+
+contract MockNetStorage {
+    mapping(bytes32 => mapping(address => bytes)) private stored;
+    bool public fail;
+    function setFail(bool value) external { fail = value; }
+    function put(bytes32 key, string calldata, bytes calldata data) external {
+        require(!fail, "Net Storage write rejected");
+        stored[key][msg.sender] = data;
+    }
+    function get(bytes32 key, address operator) external view returns (string memory, bytes memory) {
+        require(!fail, "Net Storage read rejected");
+        return ("", stored[key][operator]);
+    }
+}
+
 contract TinyFrensNFTTest is Test {
     using LibString for string;
     TinyFrensNFT internal nft;
     TestFRENS internal token;
+    address internal constant NET_ADDRESS = 0x00000000B24D62781dB359b07880a105cD0b64e6;
+    address internal constant NET_STORAGE_ADDRESS = 0x00000000DB40fcB9f4466330982372e27Fd7Bbf5;
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
 
     function setUp() public {
+        vm.etch(NET_ADDRESS, address(new MockNetProtocol()).code);
+        vm.etch(NET_STORAGE_ADDRESS, address(new MockNetStorage()).code);
         token = new TestFRENS(address(this));
         TinyFrensSprite sprite = new TinyFrensSprite();
         TinyFrensArt art = new TinyFrensArt(address(sprite));
@@ -24,6 +53,44 @@ contract TinyFrensNFTTest is Test {
         vm.deal(alice, 1 ether);
         token.mint(alice, 1_000_000_000 * 10**18);
         token.mint(bob, 1_000_000_000 * 10**18);
+    }
+
+    function testDeploymentRequiresNet() public {
+        address renderer = address(nft.artRenderer());
+        vm.etch(NET_ADDRESS, "");
+        vm.expectRevert();
+        new TinyFrensNFT(renderer);
+    }
+
+    function testDeploymentRequiresNetStorage() public {
+        address renderer = address(nft.artRenderer());
+        vm.etch(NET_STORAGE_ADDRESS, "");
+        vm.expectRevert(TinyFrensNFT.NetStorageUnavailable.selector);
+        new TinyFrensNFT(renderer);
+    }
+
+    function testNetMessageFailureRevertsMint() public {
+        MockNetProtocol(NET_ADDRESS).setFail(true);
+        vm.prank(alice);
+        vm.expectRevert();
+        nft.mint{value: 0.001 ether}(1);
+        assertEq(nft.totalSupply(), 0);
+    }
+
+    function testNetStorageFailureRevertsMint() public {
+        MockNetStorage(NET_STORAGE_ADDRESS).setFail(true);
+        vm.prank(alice);
+        vm.expectRevert();
+        nft.mint{value: 0.001 ether}(1);
+        assertEq(nft.totalSupply(), 0);
+    }
+
+    function testStoredMetadataIsRequired() public {
+        vm.prank(alice);
+        nft.mint{value: 0.001 ether}(1);
+        MockNetStorage(NET_STORAGE_ADDRESS).setFail(true);
+        vm.expectRevert();
+        nft.tokenURI(1);
     }
 
     function testMintPriceIsEth() public {
@@ -113,6 +180,8 @@ contract TinyFrensNFTTest is Test {
 
         assertEq(nft.ownerOf(1), alice);
         assertEq(nft.lockedFrens(1), frensRequired);
+        // Storage is refreshed after vault collateral is assigned.
+        assertEq(bytes(nft.tokenURI(1)).length > 0, true);
         assertEq(token.balanceOf(address(nft)), frensRequired);
 
         string memory uri = nft.tokenURI(1);

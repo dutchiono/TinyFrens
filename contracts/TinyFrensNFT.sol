@@ -44,6 +44,8 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     error NoLockedFrens();
     error InsufficientFrensDeposit();
     error ZeroAddress();
+    error NetStorageUnavailable();
+    error NetStorageMetadataMissing();
 
     constructor(address artRenderer_)
         NetIntegratedERC721A(
@@ -56,6 +58,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         )
     {
         require(artRenderer_.code.length > 0, "Missing art renderer");
+        if (address(NET_STORAGE).code.length == 0) revert NetStorageUnavailable();
         artRenderer = ITinyFrensArt(artRenderer_);
         frensToken = IERC20(0x1A96226727a1D0a46334b3A4b3878B32B7659ba3);
         frensPerVaultMint = 47_619_047 * 10**18; // ~0.002 ETH worth of FRENS
@@ -91,6 +94,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             for (uint256 i; i < amount; ++i) {
                 uint256 tid = startTokenId + i;
                 lockedFrens[tid] = frensPerToken;
+                _syncNetStorage(tid);
                 emit TinyFrenVaultMinted(tid, msg.sender, frensPerToken);
             }
         }
@@ -102,6 +106,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         if (amount == 0) revert InsufficientFrensDeposit();
         frensToken.safeTransferFrom(msg.sender, address(this), amount);
         lockedFrens[tokenId] += amount;
+        _syncNetStorage(tokenId);
         emit TinyFrenVaultMinted(tokenId, ownerOf(tokenId), lockedFrens[tokenId]);
     }
 
@@ -172,7 +177,6 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     }
 
     function _afterMintSeeded(uint256 startTokenId, uint256 amount) internal override {
-        if (address(NET_STORAGE).code.length == 0) return;
         unchecked {
             for (uint256 i; i < amount; ++i) {
                 _syncNetStorage(startTokenId + i);
@@ -189,7 +193,6 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     }
 
     function _syncNetStorage(uint256 tokenId) internal {
-        if (address(NET_STORAGE).code.length == 0) return;
         bytes32 key = _netStorageKey(tokenId);
         NET_STORAGE.put(key, _netStorageText(tokenId), bytes(_generatedTokenURI(tokenId)));
         emit TinyFrenNetStorageSynced(tokenId, address(this), key);
@@ -308,13 +311,9 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
-        if (address(NET_STORAGE).code.length > 0) {
-            try NET_STORAGE.get(_netStorageKey(tokenId), address(this)) returns (string memory, bytes memory data) {
-                if (data.length != 0) return string(data);
-            } catch {}
-        }
-
-        return _generatedTokenURI(tokenId);
+        (, bytes memory data) = NET_STORAGE.get(_netStorageKey(tokenId), address(this));
+        if (data.length == 0) revert NetStorageMetadataMissing();
+        return string(data);
     }
 
     function _generatedTokenURI(uint256 tokenId) internal view returns (string memory) {
