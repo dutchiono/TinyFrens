@@ -1,4 +1,8 @@
 import { renderNftArt } from "./nft-art.mjs";
+import { ROBOT_COLLECTION } from "./robot-collection.mjs";
+
+document.querySelector("h1").textContent = ROBOT_COLLECTION.name;
+document.title = `${ROBOT_COLLECTION.name} · Art preview`;
 
 const base = { species: 0, palette: 0, expr: 0, acc: 0, era: 0, habitat: 0, motion: 0 };
 const cards = [];

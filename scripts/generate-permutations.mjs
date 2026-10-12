@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NFT_PALETTES, NFT_SPECIES, renderNftArt } from "../web/nft-art.mjs";
+import { ROBOT_COLLECTION, robotTokenName } from "../web/robot-collection.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 
@@ -40,8 +41,11 @@ function exportSamples() {
     const traits = generateTraits(tokenId);
     const species = SPECIES[traits.species];
     const metadata = {
-      name: `TinyFren #${tokenId} (${species.name})`,
+      name: robotTokenName(tokenId),
+      description: ROBOT_COLLECTION.description,
       attributes: [
+        { trait_type: "Series", value: ROBOT_COLLECTION.series },
+        { trait_type: "Edition", value: `v${ROBOT_COLLECTION.version}` },
         { trait_type: "Species", value: species.name },
         { trait_type: "Palette", value: PALETTES[traits.palette].name },
         { trait_type: "Rarity Tier", value: PALETTES[traits.palette].tier },

@@ -7,6 +7,7 @@ import {TinyFrensArt} from "../TinyFrensArt.sol";
 import {TinyFrensSprite} from "../TinyFrensSprite.sol";
 import {TestFRENS} from "../testnet/TestFRENS.sol";
 import {LibString} from "solady/utils/LibString.sol";
+import {Base64} from "solady/utils/Base64.sol";
 
 contract MockNetProtocol {
     bool public fail;
@@ -100,6 +101,23 @@ contract TinyFrensNFTTest is Test {
         assertEq(nft.ownerOf(1), alice);
     }
 
+    function testRobotsEditionIdentityMatchesStoredMetadata() public {
+        assertEq(nft.name(), "TinyFrens: Robots v1");
+        assertEq(nft.symbol(), "TFROB1");
+        assertEq(nft.COLLECTION_ID(), "tinyfrens-robots-v1");
+        assertEq(nft.COLLECTION_VERSION(), 1);
+        vm.prank(alice);
+        nft.mint{value: 0.001 ether}(1);
+        assertEq(nft.tokenName(1), "TinyFrens Robot v1 #1");
+        string memory json = string(Base64.decode(nft.tokenURI(1).slice(29)));
+        assertTrue(json.contains('"name":"TinyFrens Robot v1 #1"'));
+        assertTrue(json.contains('"trait_type":"Series","value":"Robots"'));
+        assertTrue(json.contains('"trait_type":"Edition","value":"v1"'));
+        string memory collection = string(Base64.decode(nft.contractURI().slice(29)));
+        assertTrue(collection.contains('"name":"TinyFrens: Robots v1"'));
+        assertTrue(collection.contains(nft.COLLECTION_DESCRIPTION()));
+    }
+
     function testRobotOnlyArtHasWalkFrames() public {
         vm.prank(alice);
         nft.mint{value: 0.004 ether}(4);
@@ -125,7 +143,7 @@ contract TinyFrensNFTTest is Test {
         (address operator, bytes32 key, string memory text) = nft.netStoragePointer(1);
         assertEq(operator, address(nft));
         assertTrue(key != bytes32(0));
-        assertEq(text, "TinyFrens tokenURI #1");
+        assertEq(text, "TinyFrens: Robots v1 tokenURI #1");
 
         vm.prank(alice);
         nft.rename(1, "Lil Button");

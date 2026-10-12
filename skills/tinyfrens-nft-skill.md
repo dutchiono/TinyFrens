@@ -1,16 +1,19 @@
 ---
-name: tinyfrens-nft
-description: Prepare, deploy, and verify the robot-only TinyFrens BNKR pixel NFT collection on a supported EVM chain with Net Protocol integration.
+name: tinyfrens-robots-v1
+description: Prepare, deploy, and verify TinyFrens: Robots v1, the robot-only BNKR pixel NFT collection, on a supported EVM chain with Net Protocol integration.
 metadata: {"bankr":{"emoji":"🐾","requires":{"bins":["forge","cast"]}}}
 ---
 
-# TinyFrens NFT collection
+# TinyFrens: Robots v1
 
 The source of truth is this repository's `contracts/TinyFrensNFT.sol`, `contracts/TinyFrensArt.sol`, `contracts/TinyFrensSprite.sol`, and `contracts/NetIntegratedERC721A.sol`. Use those exact files and the pinned dependencies in `lib/`; never copy an older embedded contract from a skill response. `web/nft-art.mjs` powers the preview gallery. Minted `tokenURI` and `art()` are authoritative.
 
 | Parameter | Value |
 |---|---|
-| Collection | TinyFrens (`FREN`) |
+| Brand | TinyFrens |
+| Collection | TinyFrens: Robots v1 (`TFROB1`) |
+| Collection ID | `tinyfrens-robots-v1` |
+| Default token name | TinyFrens Robot v1 #1 |
 | Supply | 2,664 total robot NFTs across three 888-token eras |
 | Mint price | 0.001 ETH |
 | Wallet limit | 20 |
@@ -19,6 +22,8 @@ The source of truth is this repository's `contracts/TinyFrensNFT.sol`, `contract
 | Traits | 8 palettes, 4 expressions, 6 accessories, 6 habitats, 4 motion timings, 3 eras |
 
 SVG is the on-chain file format. The geometry is drawn on an integer pixel grid with crisp edges. CSS animation in SVG works in the browser gallery; marketplace thumbnail and animation support must be checked against an actual mint before claiming compatibility.
+
+Collection naming and edition rules are in `contracts/config/COLLECTIONS.md`. Confirm `name()`, `symbol()`, `COLLECTION_ID()`, `COLLECTION_VERSION()`, `contractURI()`, and stored token metadata match the selected edition after deployment. Earlier testnet deployments retain their original identity; this source revision does not rename them. A future collection needs its own explicit identity and deployment, not a repurposed robot contract.
 
 ## Prepare
 

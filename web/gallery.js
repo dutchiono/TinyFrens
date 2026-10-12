@@ -1,4 +1,5 @@
 import { NFT_PALETTES, NFT_SHAPES, NFT_SPECIES, renderNftArt } from "./nft-art.mjs";
+import { ROBOT_COLLECTION, robotTokenName } from "./robot-collection.mjs";
 
 const MAX_SUPPLY = 2664;
 const EXPR = ["Classic Happy", "Playful Wink", "Cool Shades", "Star Eyes"];
@@ -23,6 +24,8 @@ function traitsFor(tokenId) {
 
 function attributes(traits) {
   return [
+    ["Series", ROBOT_COLLECTION.series],
+    ["Edition", `v${ROBOT_COLLECTION.version}`],
     ["Species", NFT_SPECIES[traits.species]],
     ["Palette", NFT_PALETTES[traits.palette][3]],
     ["Rarity Tier", NFT_PALETTES[traits.palette][4]],
@@ -71,7 +74,7 @@ function setOnchainCard(card, tokenId, metadata) {
   if (metadata.image) {
     const image = document.createElement("img");
     image.src = metadata.image;
-    image.alt = `TinyFren #${tokenId}`;
+    image.alt = metadata.name || `Token #${tokenId}`;
     card.querySelector("svg")?.replaceWith(image);
   }
   card.querySelector(".id").textContent = `#${tokenId} · ${metadata.name || NFT_SPECIES[traitsFor(tokenId).species]}`;
@@ -115,7 +118,7 @@ function openModal(tokenId) {
   document.getElementById("modalArt").innerHTML = metadata?.image
     ? `<img src="${metadata.image}" alt="TinyFren #${tokenId}"/>`
     : renderNftArt(traits);
-  document.title = metadata?.name || `TinyFren #${tokenId}`;
+  document.title = metadata?.name || robotTokenName(tokenId);
   document.getElementById("modalTitle").textContent = document.title;
   document.getElementById("modalSub").textContent = metadata?.description || `${NFT_SPECIES[traits.species]} · preview`;
   const traitsElement = document.getElementById("modalTraits");

@@ -20,6 +20,13 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     using LibString for uint256;
     using SafeERC20 for IERC20;
 
+    string public constant COLLECTION_ID = "tinyfrens-robots-v1";
+    string public constant COLLECTION_NAME = "TinyFrens: Robots v1";
+    string public constant COLLECTION_SYMBOL = "TFROB1";
+    string public constant TOKEN_NAME_PREFIX = "TinyFrens Robot v1 #";
+    string public constant COLLECTION_DESCRIPTION = "TinyFrens: Robots v1. An on-chain robot companion collection with animated pixel artwork.";
+    uint8 public constant COLLECTION_VERSION = 1;
+
     ITinyFrensArt public immutable artRenderer;
     IERC20 public frensToken;
     uint256 public frensPerVaultMint;
@@ -49,8 +56,8 @@ contract TinyFrensNFT is NetIntegratedERC721A {
 
     constructor(address artRenderer_)
         NetIntegratedERC721A(
-            "TinyFrens", // name
-            "FREN",      // symbol
+            COLLECTION_NAME,
+            COLLECTION_SYMBOL,
             0.001 ether, // price (0.001 ETH)
             2664,        // maxSupply
             20,          // maxMintsPerWallet
@@ -127,7 +134,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         string memory custom = _customName[tokenId];
         if (bytes(custom).length != 0) return custom;
-        return string.concat("TinyFren #", tokenId.toString());
+        return string.concat(TOKEN_NAME_PREFIX, tokenId.toString());
     }
 
     function evolutionStage(uint256 tokenId) public view returns (uint8) {
@@ -189,7 +196,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     }
 
     function _netStorageText(uint256 tokenId) internal pure returns (string memory) {
-        return string.concat("TinyFrens tokenURI #", tokenId.toString());
+        return string.concat(COLLECTION_NAME, " tokenURI #", tokenId.toString());
     }
 
     function _syncNetStorage(uint256 tokenId) internal {
@@ -293,7 +300,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         }
 
         return string.concat(
-            '[{"trait_type":"Species","value":"', _speciesName(t.species),
+            '[{"trait_type":"Series","value":"Robots"},{"trait_type":"Edition","value":"v1"},{"trait_type":"Species","value":"', _speciesName(t.species),
             '"},{"trait_type":"Palette","value":"', palName,
             '"},{"trait_type":"Rarity Tier","value":"', tier,
             '"},{"trait_type":"Expression","value":"', _exprName(t.expr),
@@ -316,11 +323,18 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return string(data);
     }
 
+    function contractURI() external pure returns (string memory) {
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(string.concat(
+            '{"name":"', COLLECTION_NAME, '","description":"', COLLECTION_DESCRIPTION,
+            '","external_link":"https://tinyfrens.lol"}'
+        ))));
+    }
+
     function _generatedTokenURI(uint256 tokenId) internal view returns (string memory) {
         string memory image = Base64.encode(bytes(art(tokenId)));
         string memory json = string.concat(
             '{"name":"', tokenName(tokenId),
-            '","description":"TinyFrens 1:1 on-chain companion. A little company. A little chaos. Your tiny fren.",',
+            '","description":"', COLLECTION_DESCRIPTION, '",',
             '"image":"data:image/svg+xml;base64,', image, '",',
             '"attributes":', _attributes(tokenId),
             '}'

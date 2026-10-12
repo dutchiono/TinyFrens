@@ -5,6 +5,17 @@ import { renderNftArt } from "../web/nft-art.mjs";
 import { ROBOT_SCENES } from "../web/robot-scenes.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { ROBOT_COLLECTION } from "../web/robot-collection.mjs";
+
+test("launch collection identity matches the browser and export identity", () => {
+  const source = readFileSync(new URL("../contracts/TinyFrensNFT.sol", import.meta.url), "utf8");
+  for (const [field, key] of [["COLLECTION_ID", "id"], ["COLLECTION_NAME", "name"], ["COLLECTION_SYMBOL", "symbol"], ["TOKEN_NAME_PREFIX", "tokenPrefix"], ["COLLECTION_DESCRIPTION", "description"]]) {
+    const value = source.match(new RegExp(`string public constant ${field} = "([^"]+)";`));
+    assert.equal(value?.[1], ROBOT_COLLECTION[key], field);
+  }
+  assert.equal(Number(source.match(/COLLECTION_VERSION = (\d+);/)?.[1]), ROBOT_COLLECTION.version);
+});
 
 test("packed contract scenes match the browser source", () => {
   execFileSync(process.execPath, [fileURLToPath(new URL("./sync-robot-scenes.mjs", import.meta.url)), "--check"], { stdio: "pipe" });

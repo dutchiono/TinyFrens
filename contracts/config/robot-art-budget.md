@@ -7,8 +7,10 @@ Measured October 12, 2026. This artwork is a preview/source revision, not a repl
 | Art renderer runtime bytes | 16,072 | 19,765 |
 | Remaining below 24,576-byte runtime limit | 8,504 | 4,811 |
 | SVG bytes, fork-minted tokens 1–6 | 4,142–4,658 | 5,484–6,160 |
-| Stored tokenURI bytes, same tokens | 8,177–9,105 | 10,561–11,777 |
-| Single creator-mint execution gas, same tokens | 2,969,116–3,177,890 | 3,703,261–4,013,074 |
+| Stored tokenURI bytes, same tokens | 8,177–9,105 | 10,685–11,905 |
+| Single creator-mint execution gas, same tokens | 2,969,116–3,177,890 | 3,735,323–4,045,153 |
+
+Detailed measurements include the Robots v1 collection identity and Series/Edition metadata traits. Artwork itself is unchanged by the identity update.
 
 The detailed SVG sweep covers all 4,608 palette/expression/accessory/habitat/motion combinations with the largest era marker and evolution decorations. Sizes range from 5,613 to 6,522 bytes, averaging 6,101 bytes. Stored metadata is larger because the SVG is base64 encoded inside JSON, which is then base64 encoded again.
 
