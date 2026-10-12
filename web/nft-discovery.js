@@ -83,7 +83,7 @@
     await Promise.all(Array.from({length:Math.min(4,jobs.length)},worker));
     if (!results.length) throw new Error('All NFT indexers failed: ' + errors.slice(0,3).join('; '));
     const unique = new Map();
-    for (const result of results) for (const nft of result.nfts) unique.set(nft.chainId + ':' + nft.contract.toLowerCase() + ':' + nft.tokenId, nft);
+    for (const result of results) for (const nft of result.nfts) unique.set(nft.wallet.toLowerCase() + ':' + nft.chainId + ':' + nft.contract.toLowerCase() + ':' + nft.tokenId, nft);
     return {nfts:[...unique.values()], errors, partial:errors.length > 0 || results.some(r=>r.partial)};
   }
   window.TinyFrensNFTDiscovery = {discover, chains:CHAINS};
