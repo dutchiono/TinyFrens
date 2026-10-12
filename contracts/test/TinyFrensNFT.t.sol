@@ -56,15 +56,17 @@ contract TinyFrensNFTTest is Test {
     }
 
     function testDeploymentRequiresNet() public {
+        address renderer = address(nft.artRenderer());
         vm.etch(NET_ADDRESS, "");
         vm.expectRevert();
-        new TinyFrensNFT(address(nft.artRenderer()));
+        new TinyFrensNFT(renderer);
     }
 
     function testDeploymentRequiresNetStorage() public {
+        address renderer = address(nft.artRenderer());
         vm.etch(NET_STORAGE_ADDRESS, "");
         vm.expectRevert(TinyFrensNFT.NetStorageUnavailable.selector);
-        new TinyFrensNFT(address(nft.artRenderer()));
+        new TinyFrensNFT(renderer);
     }
 
     function testNetMessageFailureRevertsMint() public {
