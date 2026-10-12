@@ -1,6 +1,6 @@
 # Hood Turtles connection and import
 
-Source implementation, October 12, 2026. The relay connection endpoints are deployed, and the public skill is served at https://tinyfrens.lol/skill.md. Updated installed builds are required for native use.
+Source implementation, October 12, 2026. The relay connection endpoints are deployed, and the public skill is served at https://tinyfrens.lol/import/skill.md. Updated installed builds are required for native use.
 
 ## Product direction
 

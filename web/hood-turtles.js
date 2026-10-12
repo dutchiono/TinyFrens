@@ -92,14 +92,14 @@ async function startPairing() {
     await ensureIdentity();
     pairing = await post('/api/turtle-connect/start'); $('pairing').hidden = false;
     $('pairingCode').textContent = pairing.code.match(/.{1,4}/g).join('-');
-    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/skill.md to put my Hood Turtle on this TinyFrens device. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
+    $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to put my Hood Turtle in TinyFrens. My connect code is ${$('pairingCode').textContent}. Keep the NFT in my wallet.`;
     message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your verified wallet and turtle.', $('connectionStatus')); await pollPairing();
   } catch (error) { message(error, $('connectionStatus')); }
   finally { $('connectBankr').disabled = false; $('connectBankr').hidden = false; }
 }
 $('connectBankr').addEventListener('click', startPairing);
 $('copyPrompt').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText($('bankrPrompt').value); message('Prompt copied.', $('pairingStatus')); }
+  try { await navigator.clipboard.writeText($('bankrPrompt').value); message('Tweet copied. Paste it into X and post to @bankrbot.', $('pairingStatus')); }
   catch { $('bankrPrompt').focus(); $('bankrPrompt').select(); message('Select and copy the prompt above.', $('pairingStatus')); }
 });
 $('acceptPairing').addEventListener('click', async () => {

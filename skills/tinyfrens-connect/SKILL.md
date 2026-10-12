@@ -6,7 +6,7 @@ description: Connect a user's Hood Turtle NFT to their waiting TinyFrens phone, 
 # Connect a Hood Turtle to TinyFrens
 
 TinyFrens API: `https://tinyfrens.miono.live`. Phone setup: `https://tinyfrens.lol/web/hood-turtles.html`.
-Public skill URL: `https://tinyfrens.lol/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
+Public skill URL: `https://tinyfrens.lol/import/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
 Collection: `0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain, chain ID **4663**. Token IDs 1–2222. Do not use Base holdings or the original TinyFrens minting contracts.
 
 ## Phone pairing

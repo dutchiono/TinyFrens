@@ -21,12 +21,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare welcome site and pet
         run: |
-          mkdir -p public/site public/web public/play
+          mkdir -p public/site public/web public/play public/import
           cp index.html public/index.html
           cp -R site/. public/site/
           cp -R web/. public/web/
           cp -R play/. public/play/
           cp skills/tinyfrens-connect/SKILL.md public/skill.md
+          cp skills/tinyfrens-connect/SKILL.md public/import/skill.md
           touch public/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

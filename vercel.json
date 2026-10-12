@@ -6,7 +6,7 @@
   "installCommand": "",
   "headers": [
     {
-      "source": "/skill.md",
+      "source": "/import/skill.md",
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
         { "key": "Cache-Control", "value": "public, max-age=300" }
@@ -38,6 +38,9 @@
         { "key": "Link", "value": "<https://www.tinyfrens.lol/snap>; rel=\"alternate\"; type=\"application/vnd.farcaster.snap+json\"" }
       ]
     }
+  ],
+  "redirects": [
+    { "source": "/skill.md", "destination": "/import/skill.md", "permanent": true }
   ],
   "rewrites": [
     {
