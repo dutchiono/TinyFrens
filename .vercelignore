@@ -13,10 +13,8 @@ ios
 lib
 out
 server
-skills/*
 snap
 dist
-*.md
 build.gradle.kts
 foundry.lock
 foundry.toml
