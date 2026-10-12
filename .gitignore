@@ -16,3 +16,5 @@ broadcast/
 lib/
 .secrets/
 .tools/
+node_modules/
+**/node_modules/
