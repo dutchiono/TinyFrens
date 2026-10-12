@@ -278,7 +278,8 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             );
             bodyRadius = 'rx="8" ry="8"';
             speciesSvg = string.concat(
-                '<rect x="20" y="120" width="88" height="10" rx="2" fill="', dark, '" opacity="0.28"/>',
+                '<path d="M32 61 H96" stroke="', dark, '" stroke-width="3" opacity=".35"/>',
+                '<path d="M24 121 H104" stroke="', dark, '" stroke-width="10" stroke-linecap="round" opacity=".35"/>',
                 '<circle cx="22" cy="82" r="5" fill="', dark, '"/><circle cx="106" cy="82" r="5" fill="', dark, '"/>'
             );
         } else if (t.species == 3) { // Bunny
@@ -331,7 +332,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             '<path d="M78 129 C83 121 92 121 98 128 C102 129 104 131 104 134 L104 137 H78 Z" fill="', dark, '"/>'
         );
         string memory bodySvg = t.species == 1 ? speciesSvg : (
-            t.species == 2 ? string.concat('<rect x="12" y="34" width="104" height="98" ', bodyRadius, ' fill="url(#body)" stroke="', dark, '" stroke-width="8"/>') :
+            t.species == 2 ? string.concat('<path d="M28 50 C28 38 38 31 64 32 C90 31 100 38 100 50 L100 71 C100 84 90 91 64 91 C38 91 28 84 28 71 Z" fill="url(#body)" stroke="', dark, '" stroke-width="8"/><path d="M22 86 C22 73 36 67 64 68 C92 67 106 73 106 86 L101 112 C98 128 84 136 64 135 C44 136 30 128 27 112 Z" fill="url(#body)" stroke="', dark, '" stroke-width="8"/>') :
             t.species == 3 ? string.concat('<path d="M28 70 C24 46 40 30 64 34 C88 30 104 46 100 70 L98 100 C96 124 82 136 64 134 C46 136 32 124 30 100 Z" fill="url(#body)" stroke="', dark, '" stroke-width="8"/>') :
             t.species == 4 ? string.concat('<path d="M18 72 C18 50 34 37 59 38 H76 C96 38 110 53 108 76 L103 104 C99 126 82 137 60 133 C36 135 20 120 18 96 Z" fill="url(#body)" stroke="', dark, '" stroke-width="8"/>') :
             t.species == 5 ? string.concat('<path d="M20 72 C18 48 36 34 64 35 C92 34 110 48 108 72 L106 98 C104 124 88 138 64 135 C40 138 24 124 22 98 Z" fill="url(#body)" stroke="', dark, '" stroke-width="8"/>') :

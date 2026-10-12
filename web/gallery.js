@@ -86,7 +86,7 @@
     } else if (t.species === 2) {
       ears = `<rect x="60" y="8" width="8" height="24" fill="${dark}"/><circle cx="64" cy="8" r="6" fill="${body}" stroke="${dark}" stroke-width="3"/>`;
       bodyRadius = 'rx="8" ry="8"';
-      species = `<rect x="20" y="120" width="88" height="10" rx="2" fill="${dark}" opacity="0.28"/><circle cx="22" cy="82" r="5" fill="${dark}"/><circle cx="106" cy="82" r="5" fill="${dark}"/>`;
+      species = `<path d="M32 61 H96" stroke="${dark}" stroke-width="3" opacity=".35"/><path d="M24 121 H104" stroke="${dark}" stroke-width="10" stroke-linecap="round" opacity=".35"/><circle cx="22" cy="82" r="5" fill="${dark}"/><circle cx="106" cy="82" r="5" fill="${dark}"/>`;
     } else if (t.species === 3) {
       ears = `<rect x="26" y="2" width="20" height="50" rx="10" fill="${body}" stroke="${dark}" stroke-width="7"/><rect x="82" y="2" width="20" height="50" rx="10" fill="${body}" stroke="${dark}" stroke-width="7"/>`;
       species = `<rect x="58" y="101" width="5" height="9" rx="1" fill="#fff"/><rect x="65" y="101" width="5" height="9" rx="1" fill="#fff"/>`;
@@ -128,7 +128,7 @@
     const bodyLayer = t.species === 1
       ? species
       : t.species === 2
-        ? `<rect x="12" y="34" width="104" height="98" ${bodyRadius} fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
+        ? `<path d="M28 50 C28 38 38 31 64 32 C90 31 100 38 100 50 L100 71 C100 84 90 91 64 91 C38 91 28 84 28 71 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><path d="M22 86 C22 73 36 67 64 68 C92 67 106 73 106 86 L101 112 C98 128 84 136 64 135 C44 136 30 128 27 112 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
         : t.species === 3
           ? `<path d="M28 70 C24 46 40 30 64 34 C88 30 104 46 100 70 L98 100 C96 124 82 136 64 134 C46 136 32 124 30 100 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
           : t.species === 4
