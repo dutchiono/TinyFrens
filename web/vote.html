@@ -11,7 +11,7 @@
   .vote-container {
     max-width: 580px;
     margin: auto;
-    padding: 24px 18px 48px;
+    padding: 24px 18px 110px;
   }
   .vote-header {
     text-align: center;
@@ -187,13 +187,12 @@
   }
 </style>
 </head>
-<body><aside role="status" style="margin:20px auto;padding:18px;max-width:900px;background:#211c39;color:#f7f1ff;border:1px solid #a474f1;border-radius:12px"><strong>Collection voting preview</strong><p>These are example proposals and sample totals. Live voting and token burning are not connected yet. No votes or burns can be submitted here.</p></aside>
+<body>
 <main class="vote-container">
-  <div style="margin-bottom: 12px;">
-    <a href="index.html#wallet" style="color: #cbb6ff; text-decoration: none; font-size: 13px;">← Back to TinyFrens</a>
-  </div>
+<header class="topbar"><a class="wordmark" href="index.html#pet">tinyfrens<span aria-hidden="true">●</span></a></header>
+<aside role="status" style="margin:20px auto;padding:18px;max-width:900px;background:#211c39;color:#f7f1ff;border:1px solid #a474f1;border-radius:12px"><strong>Collection voting preview</strong><p>These are example proposals and sample totals. Live voting and token burning are not connected yet. No votes or burns can be submitted here.</p></aside>
 
-  <header class="vote-header">
+<header class="vote-header">
     <div class="badge-frens">
       <span>🪙 FRENS Community Governance</span>
     </div>
@@ -231,8 +230,11 @@
   <div id="ballotsList">
     <!-- Ballot cards rendered here dynamically -->
   </div>
+
+<nav id="mainNavigation" class="tabbar" aria-label="Main navigation"></nav>
 </main>
 
+<script src="navigation.js"></script>
 <script src="vote.js"></script>
 </body>
 </html>
