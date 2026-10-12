@@ -440,6 +440,7 @@ function Step-11-Env {
     }
     Set-EnvVars $envFile $map
     Write-Host "  Wrote economy + NFT vars to $envFile" -ForegroundColor Green
+    Write-Host '  (python app.py loads server/.env automatically on startup.)' -ForegroundColor DarkGray
     Write-Host '  To go live with deposits later, add (uncomment in .env):' -ForegroundColor DarkGray
     Write-Host '    DEPOSIT_ROUTER_PROXY=' + $job.routerProxy -ForegroundColor DarkGray
     Write-Host '    GAME_CONTROLLER_PRIVATE_KEY=<your deployer key>' -ForegroundColor DarkGray
@@ -459,19 +460,20 @@ function Step-12-ServerTests {
 function Step-13-Smoke {
     Write-Host '[Step 13] Smoke check the running server (optional)' -ForegroundColor Yellow
     Write-Host @'
-  Start the relay in a NEW window:
+  Start the relay in a NEW window (it now auto-loads server/.env):
     cd server
     pip install -r requirements.txt
     python app.py
 
-  Then check:
-    Invoke-RestMethod http://127.0.0.1:8080/api/economy/status | ConvertTo-Json
+  Then check (the relay only answers allowed Origins, so send one):
+    Invoke-RestMethod http://127.0.0.1:8080/api/economy/status -Headers @{Origin="https://tinyfrens.lol"} | ConvertTo-Json
     Invoke-RestMethod http://127.0.0.1:8080/api/nft/uri?tokenId=1 | ConvertTo-Json
 
   Expect economy enabled:true (mode testnet) and nft/uri minted:true for a creator-reserve token.
+  Gallery: http://127.0.0.1:8080/web/gallery.html
 '@
     try {
-        $status = Invoke-RestMethod -Uri 'http://127.0.0.1:8080/api/economy/status' -Method Get -TimeoutSec 4
+        $status = Invoke-RestMethod -Uri 'http://127.0.0.1:8080/api/economy/status' -Method Get -Headers @{Origin='https://tinyfrens.lol'} -TimeoutSec 4
         Write-Host "  Server up. enabled=$($status.enabled) mode=$($status.mode)" -ForegroundColor Green
     } catch {
         Write-Host '  Server not running yet (start it, then re-run -From 13 if you want the check).' -ForegroundColor DarkGray
@@ -481,7 +483,7 @@ function Step-13-Smoke {
 function Step-14-Share {
     Write-Host '[Step 14] Where to view the collection' -ForegroundColor Yellow
     $job = Get-Job
-    Write-Host "  In-app gallery:   http://127.0.0.1:8080/gallery.html?nft=$($job.tinyFrensNft)" -ForegroundColor Cyan
+    Write-Host "  In-app gallery:   http://127.0.0.1:8080/web/gallery.html?nft=$($job.tinyFrensNft)" -ForegroundColor Cyan
     Write-Host "  Blockscout NFT:   https://base-sepolia.blockscout.com/token/$($job.tinyFrensNft)" -ForegroundColor Cyan
     Write-Host '  OpenSea does not index Base Sepolia, so Blockscout is the on-chain viewer.' -ForegroundColor DarkGray
 }
@@ -543,7 +545,7 @@ Write-Host @'
   [ ] TestFRENS + economy + TinyFrensNFT deployed (.secrets/testnet-deployment.json)
   [ ] Contracts verified on Basescan Sepolia (or re-run -From 10)
   [ ] server/.env has ECONOMY_MODE=testnet, FRENS_TOKEN, TINYFRENS_NFT_ADDRESS
-  [ ] Gallery:  http://127.0.0.1:8080/gallery.html?nft=<nftAddress>
+  [ ] Gallery:  http://127.0.0.1:8080/web/gallery.html?nft=<nftAddress>
   [ ] Blockscout: https://base-sepolia.blockscout.com/token/<nftAddress>
 
   Re-run anytime: .\scripts\testnet-economy-runbook.ps1 -SkipWalletCreate

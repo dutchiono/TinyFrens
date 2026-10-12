@@ -8,6 +8,27 @@
 - Asset: **Sepolia ETH** (free from faucets)
 - Mainnet FRENS `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` is unrelated to this faucet step
 
+## Operator handoff (what to run)
+
+Prerequisites: Windows + PowerShell 7, ~0.01 Base Sepolia ETH on **your** deployer, and (optional,
+for contract verification) a Basescan Sepolia API key.
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\testnet-economy-runbook.ps1                 # interactive, waits for each receipt
+# resume later with:  .\scripts\testnet-economy-runbook.ps1 -From <step> -SkipWalletCreate
+```
+
+Success signals:
+
+- Step 5: `70 tests passed, 0 failed`
+- Steps 6/8/9: each logs `<name> live at 0x...` after a `status=0x1` receipt
+- Step 11: writes `server/.env` (auto-loaded by `python app.py`)
+- Step 12: `Ran 72 tests ... OK`
+- Step 13: `enabled=True mode=testnet` (send `-Headers @{Origin="https://tinyfrens.lol"}` — the relay only answers allowed Origins)
+
+Everything is idempotent via `.secrets/testnet-deployment.json`; re-running never redeploys.
+
 ## One command (recommended)
 
 From repo root in PowerShell:
@@ -144,6 +165,11 @@ $env:TINYFRENS_NFT_ADDRESS = "0xDeployedTinyFrensNFT"   # enables /api/nft/uri +
 python app.py
 ```
 
+`python app.py` also auto-loads `server/.env` on startup, so config written by the runbook
+(Step 11) is picked up without exporting variables by hand. The relay answers `GET /api/*` only
+for allowed Origins, so add `-Headers @{Origin="https://tinyfrens.lol"}` when smoke-testing with
+`Invoke-RestMethod`.
+
 New window:
 
 ```powershell
@@ -172,10 +198,10 @@ python -m unittest discover -s . -v
    ```
 
 2. **Local gallery** (`web/gallery.html`) — previews all 888 pieces client-side and can load the
-   exact on-chain art per token:
+   exact on-chain art per token. The relay serves `web/` under `/web/`:
 
    ```text
-   http://127.0.0.1:8080/gallery.html?nft=<nftAddress>
+   http://127.0.0.1:8080/web/gallery.html?nft=<nftAddress>
    ```
 
    Pass `?nft=` (or paste the address in the box) to lock it to your collection. "Load on-chain"
@@ -187,7 +213,8 @@ python -m unittest discover -s . -v
    ```
 
    The endpoint returns `{tokenId, minted, uri, collection}`; `minted` is `true` for the 20
-   creator-reserve tokens until public minting begins.
+   creator-reserve tokens until public minting begins. Served locally the gallery talks to the
+   same-origin relay automatically; override with `?api=http://host:port` if needed.
 
 Basescan Sepolia shows the token page but **blanks SVG thumbnails** (its viewer does not render
 `data:image/svg+xml`), so prefer Blockscout or the local gallery.

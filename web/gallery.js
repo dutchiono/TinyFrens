@@ -124,6 +124,10 @@
   const cards = [];
 
   const params = new URLSearchParams(location.search);
+  // API base: ?api= override wins; otherwise stay same-origin on localhost (the relay
+  // serves this page under /web/), else use the app's configured server (production).
+  const isLocal = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+  const apiBase = (params.get("api") || (isLocal ? "" : (window.TINYFRENS_SERVER || ""))).replace(/\/$/, "");
   if (params.get("nft")) addrInput.value = params.get("nft");
   else if (localStorage.getItem("tf_nft")) addrInput.value = localStorage.getItem("tf_nft");
 
@@ -188,7 +192,7 @@
       while (next <= MAX_SUPPLY) {
         const id = next++;
         try {
-          const r = await fetch(`/api/nft/uri?tokenId=${id}`);
+          const r = await fetch(`${apiBase}/api/nft/uri?tokenId=${id}`);
           const data = await r.json();
           if (data.minted && data.uri) {
             const json = decodeTokenUri(data.uri);

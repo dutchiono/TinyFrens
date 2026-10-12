@@ -190,9 +190,10 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
-        is_public=request.path in public_paths or is_snap_req
+        # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
+        is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
         if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
@@ -1057,6 +1058,29 @@ def create_app(database=None, origins=None):
 
     app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
+    # Serve the static front-end (web/) so the gallery and app are viewable from the relay
+    # itself (e.g. http://127.0.0.1:8080/web/gallery.html) during local / testnet runs.
+    _web_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'web')
+    if os.path.isdir(_web_root):
+        app.router.add_static('/web/',_web_root,show_index=False)
     return app
 
-if __name__=='__main__': web.run_app(create_app(),host=os.environ.get('HOST','0.0.0.0'),port=int(os.environ.get('PORT','8080')),access_log=None)
+def _load_dotenv(path):
+    try:
+        with open(path,encoding='utf-8') as fh:
+            for line in fh:
+                line=line.strip()
+                if not line or line.startswith('#') or '=' not in line: continue
+                key,_,val=line.partition('=')
+                key=key.strip(); val=val.strip().strip('"').strip("'")
+                if key and key not in os.environ: os.environ[key]=val
+    except OSError:
+        pass
+
+if __name__=='__main__':
+    # Load server/.env (then repo .env) so the runbook's Step 11 config takes effect.
+    # Done only for direct runs so the unittest suite stays isolated from a local .env.
+    _here=os.path.dirname(os.path.abspath(__file__))
+    _load_dotenv(os.path.join(_here,'.env'))
+    _load_dotenv(os.path.join(os.path.dirname(_here),'.env'))
+    web.run_app(create_app(),host=os.environ.get('HOST','0.0.0.0'),port=int(os.environ.get('PORT','8080')),access_log=None)
