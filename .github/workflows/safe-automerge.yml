@@ -1,0 +1,32 @@
+name: Enable safe PR auto-merge
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  enable-auto-merge:
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == 'dutchiono' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check paths and request native GitHub auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The PR's contents are never checked out or executed in this privileged workflow.
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename')
+          # Contract, backend, CI, authentication, deployment and payment changes require review.
+          if grep -Eq '^(contracts/|server/|\.github/|scripts/|snap/|android/|ios/|desktop/|skills/|lib/|foundry\.|vercel\.json|web/(wallet|wallet-link|turtle-api|nft-discovery|sw)\.js)' <<< "$files"; then
+            echo "Sensitive paths changed: manual review required."
+            exit 0
+          fi
+          echo "Enabling native GitHub auto-merge for non-sensitive changes."
+          gh pr merge "$PR" --repo "$REPO" --squash --auto
