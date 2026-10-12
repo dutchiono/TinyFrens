@@ -2,10 +2,14 @@
 /**
  * TinyFrens Farcaster Mini App SDK & Client Adapter
  * Conforms to Farcaster Frames v2 / Mini App specification.
+ * Guides: https://miniapps.farcaster.xyz/docs/guides/loading
+ *         https://miniapps.farcaster.xyz/docs/guides/sharing
  */
 (() => {
   let context = null;
   let inFarcaster = false;
+  let fcSdk = window.farcaster?.sdk || null;
+  let isReadyCalled = false;
 
   // Detect Farcaster iframe / webview environment
   try {
@@ -38,7 +42,6 @@
           params
         }));
       }
-      // Timeout fallback
       setTimeout(() => {
         if (pendingCalls.has(id)) {
           pendingCalls.delete(id);
@@ -48,12 +51,11 @@
     });
   }
 
-  // Handle incoming messages from Farcaster parent container
+  // Handle incoming messages from Farcaster host
   window.addEventListener('message', (event) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
 
-    // Check for JSON-RPC response
     if (data.id && pendingCalls.has(data.id)) {
       const resolve = pendingCalls.get(data.id);
       pendingCalls.delete(data.id);
@@ -61,7 +63,6 @@
       return;
     }
 
-    // Context broadcast from Farcaster host
     if (data.type === 'fc:frame:context' || data.method === 'fc:frame:context') {
       context = data.params || data.context || data;
       inFarcaster = true;
@@ -69,22 +70,98 @@
     }
   });
 
-  async function init() {
-    // Check if official @farcaster/frame-sdk is loaded on window
-    if (window.farcaster?.sdk?.actions?.ready) {
+  async function loadSdk() {
+    if (fcSdk) return fcSdk;
+    if (window.farcaster?.sdk) {
+      fcSdk = window.farcaster.sdk;
+      return fcSdk;
+    }
+    try {
+      const mod = await import('https://esm.sh/@farcaster/miniapp-sdk');
+      fcSdk = mod.sdk || mod.default?.sdk || mod.default;
+    } catch {
       try {
-        await window.farcaster.sdk.actions.ready();
-        context = await window.farcaster.sdk.context;
-        inFarcaster = true;
-        return;
+        const mod = await import('https://esm.sh/@farcaster/frame-sdk@0.2.0');
+        fcSdk = mod.sdk || mod.default?.sdk || mod.default;
       } catch (err) {
-        console.warn('Farcaster SDK init error:', err);
+        console.warn('Frame SDK CDN import fallback:', err.message);
+      }
+    }
+    if (fcSdk?.context) {
+      try {
+        const ctx = await fcSdk.context;
+        if (ctx) {
+          context = ctx;
+          inFarcaster = true;
+          window.dispatchEvent(new CustomEvent('farcaster-context', { detail: context }));
+        }
+      } catch {
+        // Context might resolve later
+      }
+    }
+    return fcSdk;
+  }
+
+  /**
+   * Signal to Farcaster client that UI is loaded and ready.
+   * Hides the native splash screen and web loading overlay.
+   */
+  async function ready(options = { disableNativeGestures: false }) {
+    if (isReadyCalled) return;
+    isReadyCalled = true;
+
+    // Call official SDK action
+    if (fcSdk?.actions?.ready) {
+      try {
+        await fcSdk.actions.ready(options);
+      } catch (err) {
+        console.warn('sdk.actions.ready() call failed:', err);
+      }
+    } else if (window.farcaster?.sdk?.actions?.ready) {
+      try {
+        await window.farcaster.sdk.actions.ready(options);
+      } catch (err) {
+        console.warn('window.farcaster.sdk.actions.ready() failed:', err);
       }
     }
 
-    // Otherwise use standard postMessage handshake
+    // Secondary postMessage handshake for iframe / webview hosts
     if (inFarcaster) {
-      sendRpc('fc:frame:ready');
+      sendRpc('fc:frame:ready', options);
+      sendRpc('miniapp:ready', options);
+    }
+
+    // Dismiss loading overlay smoothly
+    const loading = document.getElementById('fcLoadingScreen');
+    if (loading) {
+      loading.classList.add('fc-loading-done');
+      setTimeout(() => {
+        try { loading.remove(); } catch {}
+      }, 500);
+    }
+  }
+
+  async function init() {
+    // Safety fallback: ensure splash is never stuck if network or CDN stalls
+    const safetyTimer = setTimeout(() => {
+      ready();
+    }, 1500);
+
+    await loadSdk();
+
+    // Auto-call ready once interface and pet are rendered
+    const callReadyWhenReady = () => {
+      // Small 250ms tick to ensure CSS animations & layout are painted smoothly
+      setTimeout(() => {
+        clearTimeout(safetyTimer);
+        ready();
+      }, 250);
+    };
+
+    if (document.readyState === 'complete') {
+      callReadyWhenReady();
+    } else {
+      window.addEventListener('load', callReadyWhenReady, { once: true });
     }
   }
 
@@ -99,9 +176,9 @@
   function composeCast({ text = '', embeds = [] }) {
     const embedList = Array.isArray(embeds) ? embeds : [embeds].filter(Boolean);
 
-    // 1. If running inside Farcaster client with native action
-    if (window.farcaster?.sdk?.actions?.composeCast) {
-      return window.farcaster.sdk.actions.composeCast({
+    // 1. Native SDK action if present
+    if (fcSdk?.actions?.composeCast) {
+      return fcSdk.actions.composeCast({
         text,
         embeds: embedList
       });
@@ -112,7 +189,7 @@
       return;
     }
 
-    // 2. Browser fallback: open Warpcast composer intent
+    // 2. Web fallback: open Warpcast composer
     const params = new URLSearchParams();
     if (text) params.set('text', text);
     for (const url of embedList) {
@@ -123,8 +200,8 @@
   }
 
   function openUrl(url) {
-    if (window.farcaster?.sdk?.actions?.openUrl) {
-      return window.farcaster.sdk.actions.openUrl(url);
+    if (fcSdk?.actions?.openUrl) {
+      return fcSdk.actions.openUrl(url);
     }
     if (inFarcaster) {
       sendRpc('fc:frame:openUrl', { url });
@@ -134,8 +211,8 @@
   }
 
   function close() {
-    if (window.farcaster?.sdk?.actions?.close) {
-      return window.farcaster.sdk.actions.close();
+    if (fcSdk?.actions?.close) {
+      return fcSdk.actions.close();
     }
     if (inFarcaster) {
       sendRpc('fc:frame:close');
@@ -144,6 +221,7 @@
 
   window.TinyFrensFC = {
     init,
+    ready,
     isMiniApp,
     getUser,
     composeCast,
