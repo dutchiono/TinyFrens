@@ -64,7 +64,7 @@
     const pal = PALETTE[t.palette];
     const body = pal[0], dark = pal[1], bg = pal[2];
     let ears = "", shell = "", species = "", limbs = "", shine = "";
-    let habitat = "", motionValues = "0 0;0 -3;0 0", motionDur = "1.4s";
+    let habitat = "";
 
     if (t.habitat === 0) habitat = `<circle cx="18" cy="22" r="3" fill="#fff" opacity=".7"/><circle cx="102" cy="31" r="2" fill="#fff" opacity=".55"/><path d="M12 126 H116" stroke="#fff" stroke-width="2" opacity=".12"/>`;
     else if (t.habitat === 1) habitat = `<path d="M0 120 H128" stroke="#00d2d3" stroke-width="4" opacity=".32"/><path d="M8 132 H38 M54 132 H84 M100 132 H126" stroke="#fff" stroke-width="4" opacity=".22"/><circle cx="108" cy="22" r="7" fill="#ff82a7" opacity=".5"/>`;
@@ -72,10 +72,6 @@
     else if (t.habitat === 3) habitat = `<ellipse cx="30" cy="28" rx="18" ry="7" fill="#fff" opacity=".22"/><ellipse cx="92" cy="42" rx="22" ry="8" fill="#fff" opacity=".18"/><path d="M0 130 C20 124 42 128 64 123 C86 118 108 124 128 119 V148 H0 Z" fill="#fff" opacity=".12"/>`;
     else if (t.habitat === 4) habitat = `<rect x="8" y="16" width="18" height="18" rx="4" fill="#ffd700" opacity=".32"/><rect x="102" y="20" width="14" height="30" rx="4" fill="#66c7d2" opacity=".28"/><path d="M8 128 H120" stroke="#ffd700" stroke-width="3" stroke-dasharray="8 7" opacity=".32"/>`;
     else habitat = `<path d="M0 126 Q32 112 64 124 T128 122 V148 H0 Z" fill="#82eba1" opacity=".24"/><circle cx="24" cy="112" r="4" fill="#ffd700" opacity=".7"/><circle cx="112" cy="108" r="3" fill="#ffd700" opacity=".65"/>`;
-
-    if (t.motion === 1) { motionValues = "0 0;0 -7;0 0"; motionDur = "0.8s"; }
-    else if (t.motion === 2) { motionValues = "0 0;1 -2;0 0"; motionDur = "2.4s"; }
-    else if (t.motion === 3) { motionValues = "0 0;-2 -4;2 -4;0 0"; motionDur = "0.9s"; }
 
     if (t.species === 0) {
       ears = `<path d="M18 45 L34 6 L54 43 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M74 43 L94 6 L110 45 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M29 34 L36 17 L45 35 Z M83 35 L92 17 L99 34 Z" fill="#ffb6c8" opacity=".78"/><path d="M102 105 C132 98 130 64 103 75 C122 79 121 99 102 97" fill="none" stroke="${dark}" stroke-width="8" stroke-linecap="round"/>`;
@@ -155,7 +151,7 @@
                   ? shell
                   : `<path d="M22 68 C19 44 38 30 64 34 C90 30 109 44 106 68 L102 101 C100 125 84 137 62 133 C38 137 22 122 22 98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`;
     const speciesLayer = species;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 148" width="128" height="148">${defs}<rect width="128" height="148" fill="${bg}"/>${habitat}<ellipse cx="64" cy="137" rx="45" ry="8" fill="${dark}" opacity=".24"/><g><animateTransform attributeName="transform" type="translate" values="${motionValues}" dur="${motionDur}" repeatCount="indefinite"/>${ears}${limbs}${bodyLayer}${shine}<rect x="18" y="88" width="14" height="8" rx="4" fill="#ff82a7"/><rect x="96" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>${eyes}<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>${speciesLayer}${acc}</g></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 148" width="128" height="148">${defs}<rect width="128" height="148" fill="${bg}"/>${habitat}<ellipse cx="64" cy="137" rx="45" ry="8" fill="${dark}" opacity=".24"/><g>${ears}${limbs}${bodyLayer}${shine}<rect x="18" y="88" width="14" height="8" rx="4" fill="#ff82a7"/><rect x="96" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>${eyes}<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>${speciesLayer}${acc}</g></svg>`;
   }
 
   function attributes(t) {

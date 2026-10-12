@@ -111,10 +111,6 @@ export function renderSVG(traits) {
   else if (habitatId === 3) habitatLayer = `<ellipse cx="30" cy="28" rx="18" ry="7" fill="#fff" opacity=".22"/><ellipse cx="92" cy="42" rx="22" ry="8" fill="#fff" opacity=".18"/><path d="M0 130 C20 124 42 128 64 123 C86 118 108 124 128 119 V148 H0 Z" fill="#fff" opacity=".12"/>`;
   else if (habitatId === 4) habitatLayer = `<rect x="8" y="16" width="18" height="18" rx="4" fill="#ffd700" opacity=".32"/><rect x="102" y="20" width="14" height="30" rx="4" fill="#66c7d2" opacity=".28"/><path d="M8 128 H120" stroke="#ffd700" stroke-width="3" stroke-dasharray="8 7" opacity=".32"/>`;
   else habitatLayer = `<path d="M0 126 Q32 112 64 124 T128 122 V148 H0 Z" fill="#82eba1" opacity=".24"/><circle cx="24" cy="112" r="4" fill="#ffd700" opacity=".7"/><circle cx="112" cy="108" r="3" fill="#ffd700" opacity=".65"/>`;
-  const motionId = MOTIONS.indexOf(motion);
-  const motionValues = motionId === 1 ? '0 0;0 -7;0 0' : motionId === 2 ? '0 0;1 -2;0 0' : motionId === 3 ? '0 0;-2 -4;2 -4;0 0' : '0 0;0 -3;0 0';
-  const motionDur = motionId === 1 ? '0.8s' : motionId === 2 ? '2.4s' : motionId === 3 ? '0.9s' : '1.4s';
-
   switch (species.id) {
     case 'cat':
       ears = `
@@ -283,7 +279,6 @@ export function renderSVG(traits) {
     ${habitatLayer}
     <ellipse cx="64" cy="137" rx="45" ry="8" fill="${dark}" opacity=".24"/>
     <g>
-      <animateTransform attributeName="transform" type="translate" values="${motionValues}" dur="${motionDur}" repeatCount="indefinite"/>
       <!-- Ears / head gear -->
       ${ears}
       <!-- Walking limbs -->

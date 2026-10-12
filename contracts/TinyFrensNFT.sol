@@ -230,8 +230,6 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         string memory limbsSvg = "";
         string memory shineSvg = "";
         string memory habitatSvg = "";
-        string memory motionValues = "0 0;0 -3;0 0";
-        string memory motionDur = "1.4s";
 
         if (t.habitat == 0) {
             habitatSvg = '<circle cx="18" cy="22" r="3" fill="#fff" opacity=".7"/><circle cx="102" cy="31" r="2" fill="#fff" opacity=".55"/><path d="M12 126 H116" stroke="#fff" stroke-width="2" opacity=".12"/>';
@@ -245,17 +243,6 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             habitatSvg = '<rect x="8" y="16" width="18" height="18" rx="4" fill="#ffd700" opacity=".32"/><rect x="102" y="20" width="14" height="30" rx="4" fill="#66c7d2" opacity=".28"/><path d="M8 128 H120" stroke="#ffd700" stroke-width="3" stroke-dasharray="8 7" opacity=".32"/>';
         } else {
             habitatSvg = '<path d="M0 126 Q32 112 64 124 T128 122 V148 H0 Z" fill="#82eba1" opacity=".24"/><circle cx="24" cy="112" r="4" fill="#ffd700" opacity=".7"/><circle cx="112" cy="108" r="3" fill="#ffd700" opacity=".65"/>';
-        }
-
-        if (t.motion == 1) {
-            motionValues = "0 0;0 -7;0 0";
-            motionDur = "0.8s";
-        } else if (t.motion == 2) {
-            motionValues = "0 0;1 -2;0 0";
-            motionDur = "2.4s";
-        } else if (t.motion == 3) {
-            motionValues = "0 0;-2 -4;2 -4;0 0";
-            motionDur = "0.9s";
         }
 
         if (t.species == 0) { // Cat
@@ -440,7 +427,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             habitatSvg,
             '<ellipse cx="64" cy="137" rx="45" ry="8" fill="', dark, '" opacity=".24"/>',
             evolutionSvg,
-            '<g><animateTransform attributeName="transform" type="translate" values="', motionValues, '" dur="', motionDur, '" repeatCount="indefinite"/>'
+            '<g>'
         );
         string memory characterSvg = string.concat(
             earsSvg,
