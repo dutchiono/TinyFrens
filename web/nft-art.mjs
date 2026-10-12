@@ -15,20 +15,120 @@ const box = (x, y, width, height, color) =>
   `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}"/>`;
 
 function habitat(index, background) {
-  const scene = box(0, 0, 64, 64, background) + box(0, 49, 64, 15, "#263446");
   switch (index) {
-    case 0: return scene + box(7, 9, 2, 2, "#f3e9b6") + box(50, 16, 1, 1, "#f3e9b6") + box(0, 50, 64, 2, "#536480");
-    case 1: return scene + box(4, 9, 9, 21, "#1a314c") + box(49, 7, 10, 25, "#203452") +
-      box(6, 13, 3, 3, "#f597b8") + box(52, 11, 3, 3, "#69e5dc") +
-      box(2, 55, 14, 2, "#65d5cd") + box(29, 55, 14, 2, "#65d5cd");
-    case 2: return scene + box(0, 47, 64, 17, "#305444") + box(5, 47, 3, 3, "#f5b258") +
-      box(54, 45, 3, 3, "#f597b8") + box(7, 44, 1, 3, "#80cf83") + box(55, 43, 1, 3, "#80cf83");
-    case 3: return scene + box(5, 12, 15, 3, "#c4a2ce") + box(39, 17, 16, 3, "#c4a2ce") +
-      box(9, 10, 7, 3, "#c4a2ce") + box(44, 15, 7, 3, "#c4a2ce") + box(0, 52, 64, 2, "#817197");
-    case 4: return scene + box(4, 8, 11, 18, "#352944") + box(49, 10, 10, 16, "#352944") +
-      box(6, 10, 7, 3, "#eebf60") + box(51, 12, 6, 3, "#7bdde2") + box(0, 54, 64, 2, "#a761a0");
-    default: return scene + box(0, 48, 64, 16, "#3a6247") + box(9, 43, 2, 5, "#94bc64") +
-      box(8, 42, 4, 2, "#eecb73") + box(52, 44, 2, 4, "#94bc64") + box(51, 43, 4, 2, "#ee92a7");
+    case 0: return box(0, 0, 64, 64, background) +
+      box(0, 49, 64, 15, "#283047") +
+      box(0, 49, 64, 2, "#69718d") +
+      box(0, 59, 64, 1, "#444a65") +
+      box(8, 51, 1, 8, "#444a65") +
+      box(48, 51, 1, 8, "#444a65") +
+      box(24, 60, 1, 4, "#444a65") +
+      box(49, 8, 9, 9, "#f3e9b6") +
+      box(47, 6, 8, 8, background) +
+      box(6, 14, 2, 2, "#c4b7e9") +
+      box(14, 7, 1, 1, "#c4b7e9") +
+      box(39, 5, 2, 2, "#c4b7e9") +
+      box(59, 28, 1, 1, "#c4b7e9") +
+      box(3, 36, 8, 13, "#22283d") +
+      box(53, 39, 11, 10, "#22283d") +
+      box(5, 39, 2, 3, "#8b7cb4") +
+      box(57, 42, 2, 3, "#8b7cb4");
+    case 1: return box(0, 0, 64, 64, background) +
+      box(0, 48, 64, 16, "#202d42") +
+      box(1, 19, 10, 29, "#263652") +
+      box(4, 15, 7, 4, "#263652") +
+      box(52, 11, 12, 37, "#263652") +
+      box(3, 23, 3, 4, "#e8a0cc") +
+      box(7, 32, 3, 4, "#e8a0cc") +
+      box(54, 16, 3, 4, "#64d9db") +
+      box(59, 24, 3, 4, "#64d9db") +
+      box(54, 33, 3, 4, "#64d9db") +
+      box(0, 48, 64, 2, "#9770ac") +
+      box(3, 54, 9, 3, "#b9b2cf") +
+      box(17, 54, 9, 3, "#b9b2cf") +
+      box(31, 54, 9, 3, "#b9b2cf") +
+      box(45, 54, 9, 3, "#b9b2cf") +
+      box(59, 54, 5, 3, "#b9b2cf") +
+      box(4, 60, 11, 1, "#5fa6b1") +
+      box(49, 61, 9, 1, "#c180ae") +
+      box(3, 8, 14, 3, "#e783b5");
+    case 2: return box(0, 0, 64, 64, background) +
+      box(0, 47, 64, 17, "#305444") +
+      box(0, 47, 64, 2, "#76a56d") +
+      box(0, 59, 64, 5, "#253e36") +
+      box(2, 25, 9, 22, "#654a46") +
+      box(0, 21, 13, 5, "#aa7476") +
+      box(2, 21, 3, 5, "#f1d1aa") +
+      box(8, 21, 3, 5, "#f1d1aa") +
+      box(3, 30, 6, 7, "#e9be77") +
+      box(4, 32, 4, 3, "#dc8069") +
+      box(54, 38, 8, 9, "#81594a") +
+      box(53, 37, 10, 2, "#b38664") +
+      box(56, 31, 2, 6, "#81bf7c") +
+      box(53, 30, 4, 3, "#81bf7c") +
+      box(57, 28, 4, 3, "#81bf7c") +
+      box(58, 26, 2, 2, "#f2a4bb") +
+      box(7, 52, 3, 2, "#b0c67c") +
+      box(52, 54, 3, 2, "#b0c67c") +
+      box(13, 61, 7, 1, "#6b7753");
+    case 3: return box(0, 0, 64, 64, background) +
+      box(0, 0, 64, 3, "#6b5b86") +
+      box(3, 3, 2, 46, "#6b5b86") +
+      box(59, 3, 2, 46, "#6b5b86") +
+      box(5, 5, 54, 1, "#a994bf") +
+      box(5, 27, 54, 2, "#6b5b86") +
+      box(12, 5, 2, 22, "#6b5b86") +
+      box(49, 5, 2, 22, "#6b5b86") +
+      box(6, 15, 13, 3, "#e2cde4") +
+      box(9, 13, 6, 2, "#e2cde4") +
+      box(42, 10, 15, 3, "#e2cde4") +
+      box(46, 8, 7, 2, "#e2cde4") +
+      box(0, 49, 64, 15, "#554968") +
+      box(0, 49, 64, 2, "#bca0c5") +
+      box(0, 57, 64, 1, "#807090") +
+      box(9, 51, 1, 6, "#807090") +
+      box(54, 51, 1, 6, "#807090") +
+      box(30, 58, 1, 6, "#807090");
+    case 4: return box(0, 0, 64, 64, background) +
+      box(0, 49, 64, 15, "#30233f") +
+      box(0, 49, 64, 2, "#bd729e") +
+      box(1, 24, 10, 25, "#211b35") +
+      box(2, 25, 8, 3, "#efbb68") +
+      box(3, 30, 6, 8, "#639eae") +
+      box(4, 32, 2, 2, "#a7f2dc") +
+      box(2, 40, 8, 2, "#9f70b4") +
+      box(4, 39, 2, 1, "#f4b6d4") +
+      box(53, 21, 10, 28, "#211b35") +
+      box(54, 22, 8, 3, "#a284ed") +
+      box(55, 27, 6, 9, "#a56099") +
+      box(56, 29, 3, 3, "#f4c678") +
+      box(54, 39, 8, 2, "#639eae") +
+      box(57, 38, 2, 1, "#a7f2dc") +
+      box(8, 8, 48, 2, "#775393") +
+      box(13, 12, 8, 2, "#ef93bf") +
+      box(43, 12, 8, 2, "#8de0dc") +
+      box(6, 56, 8, 1, "#644369") +
+      box(50, 59, 8, 1, "#644369");
+    default: return box(0, 0, 64, 64, background) +
+      box(0, 43, 64, 21, "#416b55") +
+      box(0, 44, 64, 4, "#719563") +
+      box(0, 51, 64, 13, "#335444") +
+      box(0, 53, 64, 1, "#557953") +
+      box(3, 12, 12, 3, "#ccbdce") +
+      box(6, 10, 6, 2, "#ccbdce") +
+      box(47, 7, 14, 3, "#ccbdce") +
+      box(51, 5, 6, 2, "#ccbdce") +
+      box(2, 35, 5, 10, "#294b40") +
+      box(0, 30, 9, 7, "#5a8456") +
+      box(54, 32, 7, 13, "#294b40") +
+      box(51, 27, 13, 8, "#5a8456") +
+      box(8, 48, 1, 5, "#9bb96c") +
+      box(6, 47, 5, 2, "#e7ba78") +
+      box(8, 47, 1, 1, "#ffe3ae") +
+      box(55, 49, 1, 5, "#9bb96c") +
+      box(53, 48, 5, 2, "#db97b6") +
+      box(6, 59, 3, 1, "#86a064") +
+      box(48, 58, 4, 1, "#86a064");
   }
 }
 
@@ -62,7 +162,7 @@ function cat(body, ink, expression) {
 }
 
 function robot(body, ink, expression) {
-  return box(31, 10, 2, 5, ink) + box(29, 8, 6, 3, "#f0bd5e") + box(31, 7, 2, 1, "#ffe078") +
+  return `<g class="body">` +
     box(17, 18, 30, 24, ink) + box(19, 20, 26, 20, body) +
     box(16, 24, 3, 8, "#6bdce3") + box(45, 24, 3, 8, "#6bdce3") +
     box(22, 23, 20, 12, "#192a41") + eyes(expression, 26, 36, 27, "#79e3e3") +
@@ -70,7 +170,7 @@ function robot(body, ink, expression) {
     box(21, 41, 22, 4, ink) + box(23, 41, 18, 2, "#2b4767") +
     `<g class="arm-a">${box(12, 27, 5, 11, ink)}${box(13, 30, 3, 6, body)}${box(11, 38, 5, 3, "#f0bd5e")}</g>` +
     `<g class="arm-b">${box(47, 27, 5, 11, ink)}${box(48, 30, 3, 6, body)}${box(48, 38, 5, 3, "#f0bd5e")}</g>` +
-    feet(1, ink, body);
+    `</g>` + feet(1, ink, body);
 }
 
 function frog(body, ink, expression) {
@@ -95,22 +195,44 @@ function turtle(body, ink, expression) {
     feet(3, ink, "#91d890");
 }
 
-function accessory(index, species) {
-  const top = 15;
-  const center = 32;
-  if (index === 1) return box(center - 5, top - 4, 10, 2, "#f16d72") +
-    box(center - 3, top - 8, 6, 4, "#f16d72") + box(center - 1, top - 10, 2, 2, "#ffe078");
-  if (index === 2) return box(center - 6, top - 4, 12, 3, "#e6b84b") +
-    box(center - 5, top - 8, 2, 4, "#e6b84b") + box(center - 1, top - 9, 2, 5, "#e6b84b") +
-    box(center + 3, top - 8, 2, 4, "#e6b84b");
-  if (index === 3) return box(center - 7, top - 8, 14, 2, "#fbe9aa") +
-    box(center - 7, top - 7, 2, 2, "#fbe9aa") + box(center + 5, top - 7, 2, 2, "#fbe9aa");
-  if (index === 4) {
-    const neck = 41;
-    return box(center - 4, neck, 3, 3, "#ec6c7c") +
-      box(center + 1, neck, 3, 3, "#ec6c7c") + box(center - 1, neck + 1, 2, 2, "#f9d77d");
-  }
-  if (index === 5) return box(49, 37, 5, 5, "#69dce3") + box(50, 38, 2, 2, "#ffffff");
+function accessory(index) {
+  if (index === 0) return box(31, 12, 2, 6, "#302048") +
+    box(29, 10, 6, 3, "#f0bd5e") +
+    box(31, 9, 2, 1, "#ffe078");
+  if (index === 1) return box(23, 16, 18, 2, "#8c405f") +
+    box(25, 13, 14, 3, "#f16d8c") +
+    box(27, 10, 10, 3, "#f16d8c") +
+    box(29, 7, 6, 3, "#f16d8c") +
+    box(31, 5, 2, 2, "#ffe078") +
+    box(27, 14, 3, 2, "#ffe078") +
+    box(32, 10, 3, 2, "#ffe078") +
+    box(34, 14, 3, 2, "#c5acff");
+  if (index === 2) return box(22, 15, 20, 3, "#b47c32") +
+    box(23, 9, 4, 6, "#f5cb67") +
+    box(30, 7, 4, 8, "#f5cb67") +
+    box(37, 9, 4, 6, "#f5cb67") +
+    box(24, 15, 16, 2, "#ffe6a0") +
+    box(26, 15, 2, 2, "#c58cf0") +
+    box(31, 15, 2, 2, "#ed87a5") +
+    box(36, 15, 2, 2, "#84dbd3");
+  if (index === 3) return box(24, 9, 16, 2, "#b98d47") +
+    box(22, 11, 4, 2, "#fbe9aa") +
+    box(38, 11, 4, 2, "#fbe9aa") +
+    box(25, 13, 14, 2, "#fbe9aa") +
+    box(25, 8, 14, 1, "#fff5d0");
+  if (index === 4) return box(31, 12, 2, 6, "#302048") +
+    box(29, 10, 6, 3, "#f0bd5e") +
+    box(31, 9, 2, 1, "#ffe078") +
+    box(27, 41, 4, 3, "#ec6c7c") +
+    box(33, 41, 4, 3, "#ec6c7c") +
+    box(31, 42, 2, 2, "#f9d77d");
+  if (index === 5) return box(31, 12, 2, 6, "#302048") +
+    box(29, 10, 6, 3, "#f0bd5e") +
+    box(31, 9, 2, 1, "#ffe078") +
+    box(52, 33, 7, 7, "#327e9c") +
+    box(53, 34, 5, 5, "#69dce3") +
+    box(54, 34, 2, 2, "#ffffff") +
+    box(54, 41, 3, 1, "#458793");
   return "";
 }
 
@@ -124,8 +246,8 @@ function eraMark(era) {
 export function renderNftArt(traits, stage = 0) {
   const [body, ink, background] = NFT_PALETTES[traits.palette];
   const sprite = robot(body, ink, traits.expr);
-  const duration = ["0.72s", "0.48s", "1.1s", "0.4s"][traits.motion];
-  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-b ${duration} steps(1) infinite}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-b ${duration} steps(1) infinite}@keyframes bob{0%,100%{transform:translateY(0)}25%,75%{transform:translateY(-1px)}50%{transform:translateY(-2px)}}@keyframes step-a{0%,100%{transform:translate(0,0)}25%{transform:translate(2px,-2px)}50%{transform:translate(0,0)}75%{transform:translate(-2px,0)}}@keyframes step-b{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,0)}50%{transform:translate(0,0)}75%{transform:translate(2px,-2px)}}@keyframes arm-a{0%,100%{transform:translate(0,0)}25%,75%{transform:translate(0,2px)}50%{transform:translate(-1px,0)}}@keyframes arm-b{0%,100%{transform:translate(0,2px)}25%,75%{transform:translate(0,0)}50%{transform:translate(1px,2px)}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b{animation:none}}</style>`;
+  const duration = ["0.96s", "0.72s", "1.6s", "0.56s"][traits.motion];
+  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-b ${duration} steps(1) infinite}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-b ${duration} steps(1) infinite}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes step-b{0%,100%{transform:translate(2px,0)}12.5%{transform:translate(1px,0)}25%{transform:translate(0,0)}37.5%{transform:translate(-1px,0)}50%{transform:translate(-1px,0)}62.5%{transform:translate(0,-1px)}75%{transform:translate(1px,-2px)}87.5%{transform:translate(2px,-1px)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}@keyframes arm-b{0%,100%{transform:translate(-1px,0)}25%{transform:translate(1px,-1px)}50%{transform:translate(1px,0)}75%{transform:translate(-1px,1px)}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b{animation:none}}</style>`;
   const evolution = stage ? box(4, 4, 2, 2, "#ffe078") + box(57, 9, 2, 2, "#ffe078") : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${habitat(traits.habitat, background)}${eraMark(traits.era)}${box(17, 50, 32, 2, "#17212d")}<g class="body">${sprite}${accessory(traits.acc, traits.species)}</g>${evolution}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${habitat(traits.habitat, background)}${eraMark(traits.era)}${box(17, 50, 32, 2, "#17212d")}${sprite}<g class="body">${accessory(traits.acc)}</g>${evolution}</svg>`;
 }

@@ -50,7 +50,7 @@ contract TinyFrensSprite {
 
     function _robot(string memory body, string memory ink, uint8 expression) internal pure returns (string memory) {
         return string.concat(
-            _box(31, 10, 2, 5, ink), _box(29, 8, 6, 3, "#f0bd5e"), _box(31, 7, 2, 1, "#ffe078"),
+            '<g class="body">',
             _box(17, 18, 30, 24, ink), _box(19, 20, 26, 20, body),
             _box(16, 24, 3, 8, "#6bdce3"), _box(45, 24, 3, 8, "#6bdce3"),
             _box(22, 23, 20, 12, "#192a41"), _eyes(expression, 26, 36, 27, "#79e3e3"),
@@ -58,7 +58,7 @@ contract TinyFrensSprite {
             _box(21, 41, 22, 4, ink), _box(23, 41, 18, 2, "#2b4767"),
             '<g class="arm-a">', _box(12, 27, 5, 11, ink), _box(13, 30, 3, 6, body), _box(11, 38, 5, 3, "#f0bd5e"), '</g>',
             '<g class="arm-b">', _box(47, 27, 5, 11, ink), _box(48, 30, 3, 6, body), _box(48, 38, 5, 3, "#f0bd5e"), '</g>',
-            _feet(1, ink, body)
+            '</g>', _feet(1, ink, body)
         );
     }
 
