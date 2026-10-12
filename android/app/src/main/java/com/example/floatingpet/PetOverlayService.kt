@@ -23,10 +23,12 @@ class PetOverlayService:Service(){
   private const val CHAT_SERVER="https://tinyfrens.miono.live"
  }
  class GuestPet(val view:PetView,val params:WindowManager.LayoutParams,var name:String,var shape:String,var color:Int,var tokenId:Int){
+  var mode="roam";var speed=60
   var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
  }
  private val guestPets=mutableListOf<GuestPet>()
  private val ownedPets=mutableListOf<GuestPet>()
+ private var primaryMotion:org.json.JSONObject?=null
  private var battleOpponent:GuestPet?=null
  private var battleRunnable:Runnable?=null
  private var isBattling=false
@@ -79,7 +81,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();syncOwnedPets()
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
@@ -92,7 +94,7 @@ class PetOverlayService:Service(){
   if(screenOn){
    val now=System.currentTimeMillis();val clock=SystemClock.elapsedRealtime()
    if(now-lastRead>500){state=store.read();lastRead=now;style()}
-   v.mode=state.optString("mode","roam");v.stage=state.optInt("stage");v.frame=frame++
+   v.mode=primaryMotion?.optString("mode","roam")?:state.optString("mode","roam");v.stage=state.optInt("stage");v.frame=frame++
    if(isBattling){
     v.invalidate()
     battleOpponent?.view?.frame=frame
@@ -108,7 +110,7 @@ class PetOverlayService:Service(){
    }
    v.mood=when{forced->state.optString("action","idle");state.optInt("energy",80)<15->"sleep";v.dragging||menu!=null->"happy";v.mode=="bubble"->"idle";else->behavior}
    if(v.mode=="roam"&&!reducedMotion()&&!v.dragging&&menu==null&&v.mood=="walk"){
-    val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,state.optInt("speed",60)*resources.displayMetrics.density,.05f,bx,by)
+    val(bx,by)=bounds();val s=PetMotion.move(x,y,tx,ty,(primaryMotion?.optInt("speed",60)?:state.optInt("speed",60))*resources.displayMetrics.density,.05f,bx,by)
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
     if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
    };v.invalidate()
@@ -116,13 +118,14 @@ class PetOverlayService:Service(){
     val(bx,by)=bounds()
     for(g in guestPets+ownedPets){
      g.view.frame=frame;g.view.reducedMotion=reducedMotion()
+     if(g.mode=="bubble"){g.view.mood="idle";g.view.invalidate();continue}
      if(!g.view.dragging&&!reducedMotion()&&clock>g.nextMove){
       g.tx=Random.nextFloat()*bx;g.ty=Random.nextFloat()*by
       g.nextMove=clock+Random.nextLong(3000,7000)
       g.view.mood=if(Random.nextInt(3)==0)"wave" else "walk"
      }
      if(!g.view.dragging&&!reducedMotion()&&g.view.mood=="walk"){
-      val s=PetMotion.move(g.x,g.y,g.tx,g.ty,45f*resources.displayMetrics.density,.05f,bx,by)
+      val s=PetMotion.move(g.x,g.y,g.tx,g.ty,g.speed*resources.displayMetrics.density,.05f,bx,by)
       g.direction=if(s.x>=g.x)1 else -1;g.view.direction=g.direction
       g.x=s.x;g.y=s.y;g.params.x=g.x.roundToInt();g.params.y=g.y.roundToInt()
       update(g.view,g.params)
@@ -168,10 +171,11 @@ class PetOverlayService:Service(){
   val(bx,by)=bounds()
   for(nft in active){
    val id=nft.optInt("tokenId");val existing=ownedPets.find{it.tokenId==id}
-   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);continue}
+   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
    val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
    gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.reducedMotion=reducedMotion()
    val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
+   g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60
    gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
    gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}
    gv.onTap={say(g.name)}

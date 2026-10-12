@@ -148,7 +148,8 @@ function moveTick() {
   if (ignore !== ignoring) { pet.setIgnoreMouseEvents(ignore, { forward: true }); ignoring = ignore; }
   if (drag || over || now < menuUntil || now < sleepingUntil) return;
   const state = store.read();
-  if (state.mode !== 'roam' || state.energy < 15 || state.reduceMotion || systemReducedMotion) return;
+  const motion = turtles.view().items?.[0]?.motion || state;
+  if (motion.mode !== 'roam' || state.energy < 15 || state.reduceMotion || systemReducedMotion) return;
   const area = screen.getDisplayMatching(bounds).workArea;
   if (!moving) moving = { x: bounds.x, y: bounds.y };
   if (now > nextTarget) {
@@ -156,7 +157,7 @@ function moveTick() {
     nextTarget = now + 2500 + Math.random() * 4000;
   }
   if (!target) return;
-  const dx = target.x - moving.x, dy = target.y - moving.y, distance = Math.hypot(dx, dy), step = state.speed * elapsed;
+  const dx = target.x - moving.x, dy = target.y - moving.y, distance = Math.hypot(dx, dy), step = motion.speed * elapsed;
   if (distance < 2) { target = null; return; }
   moving = clampPosition({ x: moving.x + dx / distance * Math.min(step, distance), y: moving.y + dy / distance * Math.min(step, distance) }, area, WIDTH, HEIGHT);
   pet.setPosition(moving.x, moving.y);

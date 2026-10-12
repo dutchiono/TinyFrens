@@ -611,3 +611,10 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 /* Care and app notices share the existing purple surfaces and readable text. */
 .update-banner{background:#211c39;color:#f7f1ff;border-color:#4a3b68}
 .update-banner p{color:#b8add3}
+.companion-controls{display:grid;gap:12px;text-align:left}
+.companion-settings{padding:16px;background:#211c39;border:1px solid #4a3b68;border-radius:12px}
+.companion-settings h3{margin:0 0 12px;font-size:15px}
+.companion-settings label{display:block;color:#b8add3;margin:8px 0}
+.companion-settings select,.companion-settings input{display:block;margin:8px 0 0}
+.companion-settings select{color:#f7f1ff;background:#120f22;border-color:#63517c}
+.companion-settings .small{margin:8px 0 0}
