@@ -20,8 +20,8 @@ function add(group, label, overrides) {
   cards.push({ image, traits: { ...base, ...overrides } });
 }
 
-["Antenna", "Party hat", "Crown", "Halo", "Bow tie", "Floating orb"].forEach((label, acc) => add("accessories", label, { acc }));
-["Moonlit plaza", "Neon crosswalk", "Snack garden", "Cloud room", "Arcade alley", "Tiny meadow"].forEach((label, habitat) => add("habitats", label, { habitat, palette: habitat, acc: 2 }));
+["Antenna", "Pilot helmet", "Crown", "Halo", "Bow tie", "Floating orb"].forEach((label, acc) => add("accessories", label, { acc }));
+["Moonlit plaza", "Neon crosswalk", "Snack garden", "Cloud terrace", "Arcade alley", "Tiny meadow"].forEach((label, habitat) => add("habitats", label, { habitat, palette: habitat, acc: 2 }));
 ["Happy walk", "Bouncy strut", "Sleepy drift", "Excited wiggle"].forEach((label, motion) => add("walks", label, { motion, habitat: 1, palette: 1 }));
 
 function draw() {

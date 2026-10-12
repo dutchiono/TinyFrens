@@ -18,7 +18,7 @@ The source of truth is this repository's `contracts/TinyFrensNFT.sol`, `contract
 | Mint price | 0.001 ETH |
 | Wallet limit | 20 |
 | Creator reserve | 20 |
-| Art | On-chain 64×64 pixel-drawn SVG with animated body and alternating feet |
+| Art | On-chain 128×128 pixel scene with integer-grid character tiles, animated body and alternating feet |
 | Traits | 8 palettes, 4 expressions, 6 accessories, 6 habitats, 4 motion timings, 3 eras |
 
 SVG is the on-chain file format. The geometry is drawn on an integer pixel grid with crisp edges. CSS animation in SVG works in the browser gallery; marketplace thumbnail and animation support must be checked against an actual mint before claiming compatibility.

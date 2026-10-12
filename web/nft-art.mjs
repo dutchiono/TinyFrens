@@ -13,8 +13,13 @@ export const NFT_PALETTES = [
   ["#ffd700", "#6c421c", "#2d2238", "24K Solid Gold", "Legendary"],
 ];
 
-const box = (x, y, width, height, color) =>
-  `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}"/>`;
+// Rebuild character tiles on integer native pixels; background tiles already use 128px coordinates.
+const box = (x, y, width, height, color) => {
+  const left = Math.floor(x * 3 / 2), top = Math.floor(y * 3 / 2);
+  const w = Math.floor((x + width) * 3 / 2) - left;
+  const h = Math.floor((y + height) * 3 / 2) - top;
+  return `<path fill="${color}" d="M${left} ${top}h${w}v${h}H${left}z"/>`;
+};
 
 
 function eyes(expression, left, right, y, ink) {
@@ -87,14 +92,14 @@ function accessory(index) {
   if (index === 0) return box(31, 12, 2, 6, "#302048") +
     box(29, 10, 6, 3, "#f0bd5e") +
     box(31, 9, 2, 1, "#ffe078");
-  if (index === 1) return box(23, 16, 18, 2, "#8c405f") +
-    box(25, 13, 14, 3, "#f16d8c") +
-    box(27, 10, 10, 3, "#f16d8c") +
-    box(29, 7, 6, 3, "#f16d8c") +
-    box(31, 5, 2, 2, "#ffe078") +
-    box(27, 14, 3, 2, "#ffe078") +
-    box(32, 10, 3, 2, "#ffe078") +
-    box(34, 14, 3, 2, "#c5acff");
+  if (index === 1) return box(20, 16, 24, 2, "#24344f") +
+    box(22, 12, 20, 4, "#6e8da9") +
+    box(25, 10, 14, 2, "#a9c7d6") +
+    box(23, 12, 3, 3, "#d1e3e8") +
+    box(26, 13, 13, 2, "#4bd2dc") +
+    box(27, 13, 5, 1, "#c1f6ef") +
+    box(31, 10, 2, 2, "#f1d18a") +
+    box(39, 15, 3, 1, "#324f6c");
   if (index === 2) return box(22, 15, 20, 3, "#b47c32") +
     box(23, 9, 4, 6, "#f5cb67") +
     box(30, 7, 4, 8, "#f5cb67") +
@@ -135,7 +140,8 @@ export function renderNftArt(traits, stage = 0) {
   const [body, ink, background] = NFT_PALETTES[traits.palette];
   const sprite = robot(body, ink, traits.expr);
   const duration = ["1.1294s", "0.8471s", "1.8824s", "0.6588s"][traits.motion];
-  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-b ${duration} steps(1) infinite}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-b ${duration} steps(1) infinite}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes step-b{0%,100%{transform:translate(2px,0)}12.5%{transform:translate(1px,0)}25%{transform:translate(0,0)}37.5%{transform:translate(-1px,0)}50%{transform:translate(-1px,0)}62.5%{transform:translate(0,-1px)}75%{transform:translate(1px,-2px)}87.5%{transform:translate(2px,-1px)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}@keyframes arm-b{0%,100%{transform:translate(-1px,0)}25%{transform:translate(1px,-1px)}50%{transform:translate(1px,0)}75%{transform:translate(-1px,1px)}}.drift{animation:breeze 18s steps(12) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes breeze{from{transform:translateX(-2px)}to{transform:translateX(2px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow{animation:none}}</style>`;
+  const phase = ["-0.5647s", "-0.42355s", "-0.9412s", "-0.3294s"][traits.motion];
+  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-a ${duration} steps(1) infinite;animation-delay:${phase}}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-a ${duration} steps(1) infinite;animation-delay:${phase}}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}.drift{animation:breeze 18s steps(12) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes breeze{from{transform:translateX(-2px)}to{transform:translateX(2px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow{animation:none}}</style>`;
   const evolution = stage ? box(4, 4, 2, 2, "#ffe078") + box(57, 9, 2, 2, "#ffe078") : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${renderScene(traits.habitat, background)}${eraMark(traits.era)}<g class="shadow">${box(17, 50, 32, 2, "#17212d")}</g>${sprite}<g class="body">${accessory(traits.acc)}</g>${evolution}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${renderScene(traits.habitat, background)}${eraMark(traits.era)}<g transform="translate(16 30)"><g class="shadow">${box(17, 50, 32, 2, "#17212d")}</g>${sprite}<g class="body">${accessory(traits.acc)}</g></g>${evolution}</svg>`;
 }

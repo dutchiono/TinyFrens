@@ -4,17 +4,17 @@ Measured October 12, 2026. This artwork is a preview/source revision, not a repl
 
 | Measurement | Earlier preview | Detailed animated scenery |
 | --- | ---: | ---: |
-| Art renderer runtime bytes | 16,072 | 19,765 |
-| Remaining below 24,576-byte runtime limit | 8,504 | 4,811 |
-| SVG bytes, fork-minted tokens 1–6 | 4,142–4,658 | 5,484–6,160 |
-| Stored tokenURI bytes, same tokens | 8,177–9,105 | 10,685–11,905 |
-| Single creator-mint execution gas, same tokens | 2,969,116–3,177,890 | 3,735,323–4,045,153 |
+| Art renderer runtime bytes | 16,072 | 21,607 |
+| Remaining below 24,576-byte runtime limit | 8,504 | 2,969 |
+| SVG bytes, fork-minted tokens 1–6 | 4,142–4,658 | 4,651–6,499 |
+| Stored tokenURI bytes, same tokens | 8,177–9,105 | 9,209–12,513 |
+| Single creator-mint execution gas, same tokens | 2,969,116–3,177,890 | 3,351,583–4,434,588 |
 
-Detailed measurements include the Robots v1 collection identity and Series/Edition metadata traits. Artwork itself is unchanged by the identity update.
+Detailed measurements include the Robots v1 collection identity and Series/Edition metadata traits, the native 128-pixel scene grid, Pilot Helmet and redesigned Cloud Terrace. Cloud Terrace is the first detailed scene pass; the other five scenes retain their earlier compositions at the larger grid size.
 
-The detailed SVG sweep covers all 4,608 palette/expression/accessory/habitat/motion combinations with the largest era marker and evolution decorations. Sizes range from 5,613 to 6,522 bytes, averaging 6,101 bytes. Stored metadata is larger because the SVG is base64 encoded inside JSON, which is then base64 encoded again.
+The detailed SVG sweep covers all 4,608 palette/expression/accessory/habitat/motion combinations with the largest era marker and evolution decorations. Sizes range from 4,769 to 6,660 bytes, averaging 5,430 bytes. Stored metadata is larger because the SVG is base64 encoded inside JSON, which is then base64 encoded again.
 
-Background tiles use compact seven-byte coordinate/color records in contract code. Consecutive tiles sharing a fill are emitted as one SVG path. Animated layers reuse CSS keyframes rather than storing rendered video frames. Walking remains 15% slower than the first refined preview.
+Background tiles use compact seven-byte coordinate/color records in contract code. Consecutive tiles sharing a fill are emitted as one SVG path. Character tiles use compact paths on integer pixel coordinates. Opposite limbs share keyframes with half-cycle offsets; scenery also reuses CSS keyframes rather than storing rendered video frames. Walking remains 15% slower than the first refined preview.
 
 ## Reproduce
 

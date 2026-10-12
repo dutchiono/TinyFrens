@@ -18,16 +18,16 @@ contract TinyFrensArtTest is Test {
         assertLe(address(art).code.length, 22000, "Keep room below EIP-170's 24576-byte limit");
     }
 
-    function testHatsReplaceAntennaAndMeetHead() public view {
+    function testHeadwearReplacesAntennaAndMeetsHead() public view {
         Traits memory traits;
-        string memory antenna = '<rect x="31" y="12" width="2" height="6"';
+        string memory antenna = 'd="M46 18h3v9H46z"';
         assertTrue(art.render(traits, 0).contains(antenna));
         for (uint8 accessory = 1; accessory <= 3; accessory++) {
             traits.acc = accessory;
             string memory svg = art.render(traits, 0);
             assertFalse(svg.contains(antenna));
-            if (accessory == 1) assertTrue(svg.contains('<rect x="23" y="16" width="18" height="2"'));
-            if (accessory == 2) assertTrue(svg.contains('<rect x="22" y="15" width="20" height="3"'));
+            if (accessory == 1) assertTrue(svg.contains('d="M30 24h36v3H30z"'));
+            if (accessory == 2) assertTrue(svg.contains('d="M33 22h30v5H33z"'));
         }
     }
 
@@ -54,12 +54,12 @@ contract TinyFrensArtTest is Test {
         // SHA-256 fixtures from web/nft-art.mjs renderNftArt for these six trait sets.
         // Covers every accessory and habitat, plus all motion and expression values.
         bytes32[6] memory expected = [
-            bytes32(0x4d0b7e1603f63f5238e97cff8e9f41d9d20c48434be80d0712ec761b70752402),
-            bytes32(0x9ee7059871ede3b246da37f041c5213c084eeeb94b1283bc1151e1136204e47e),
-            bytes32(0xf4e471e48f665e0ce0ef768392aa1824fa0bfbec8dd87ee8fcf345a74dd85065),
-            bytes32(0x275fb707a0b3afa0dd77ed292db243635ec9c717979cca6ab9582571671f0e9e),
-            bytes32(0x8f706c0bea6e73d893a436e73db5ab3512dfd3e25d1f53b62dfa36b8cd0be378),
-            bytes32(0x9e9b73483c54ddc34cf9be9d3016849f579e63d253bd8c5fea8e119bbb8b7343)
+            bytes32(0xf855bc670dafa86da0bf5cc1ba8e7d39f9da0cf63dd8dfa66aaae50b39601f0b),
+            bytes32(0xd81e593a2c08cfd726c69945d3bb97c10452079ac730e2dd9827861132d60577),
+            bytes32(0x11b4bdf1f7004ab6a0e95c12761bb37289600a24141b5b247636e083d0fc3cc4),
+            bytes32(0x7199c645497ffc699464afea0109dfd4650b6da3593f5a8121cbf23788f563ce),
+            bytes32(0x86c7528e64b6d8902e2c6c5fe1ef05a020e9a0f8115bd67c150d969f50dfb468),
+            bytes32(0xea6d8d4edcf708d182f4376e9ee1bdc29648692e421fa2c28409253722962ea7)
         ];
         for (uint8 i; i < 6; i++) {
             Traits memory traits = Traits(0, i, i % 4, i, i % 3, i, i % 4);

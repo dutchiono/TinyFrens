@@ -10,9 +10,9 @@ export const TOTAL_SUPPLY = 2664;
 export const SPECIES = NFT_SPECIES.map((name) => ({ id: name.toLowerCase(), name }));
 export const PALETTES = NFT_PALETTES.map(([body, dark, bg, name, tier]) => ({ body, dark, bg, name, tier }));
 export const EXPRESSIONS = ["Classic Happy", "Playful Wink", "Cool Shades", "Star Eyes"];
-export const ACCESSORIES = ["None", "Party Hat", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
+export const ACCESSORIES = ["None", "Pilot Helmet", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
 export const ERAS = ["Pocket Genesis", "Street Wanderers", "Dream Garden"];
-export const HABITATS = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Room", "Arcade Alley", "Tiny Meadow"];
+export const HABITATS = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Terrace", "Arcade Alley", "Tiny Meadow"];
 export const MOTIONS = ["Happy Walk", "Bouncy Strut", "Sleepy Drift", "Excited Wiggle"];
 
 export function generateTraits(tokenId) {

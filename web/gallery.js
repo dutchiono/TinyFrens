@@ -3,9 +3,9 @@ import { ROBOT_COLLECTION, robotTokenName } from "./robot-collection.mjs";
 
 const MAX_SUPPLY = 2664;
 const EXPR = ["Classic Happy", "Playful Wink", "Cool Shades", "Star Eyes"];
-const ACC = ["None", "Party Hat", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
+const ACC = ["None", "Pilot Helmet", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
 const ERA = ["Pocket Genesis", "Street Wanderers", "Dream Garden"];
-const HABITAT = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Room", "Arcade Alley", "Tiny Meadow"];
+const HABITAT = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Terrace", "Arcade Alley", "Tiny Meadow"];
 const MOTION = ["Happy Walk", "Bouncy Strut", "Sleepy Drift", "Excited Wiggle"];
 
 function traitsFor(tokenId) {

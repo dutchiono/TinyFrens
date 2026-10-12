@@ -9,8 +9,12 @@ contract TinyFrensSprite {
     function _box(uint256 x, uint256 y, uint256 width, uint256 height, string memory color)
         internal pure returns (string memory)
     {
-        return string.concat('<rect x="', x.toString(), '" y="', y.toString(), '" width="',
-            width.toString(), '" height="', height.toString(), '" fill="', color, '"/>');
+        width = (x + width) * 3 / 2 - x * 3 / 2;
+        height = (y + height) * 3 / 2 - y * 3 / 2;
+        x = x * 3 / 2;
+        y = y * 3 / 2;
+        return string.concat('<path fill="', color, '" d="M', x.toString(), ' ', y.toString(),
+            'h', width.toString(), 'v', height.toString(), 'H', x.toString(), 'z"/>');
     }
 
     function _eyes(uint8 expression, uint256 left, uint256 right, uint256 y, string memory ink)

@@ -25,7 +25,7 @@ test("scene tiles fit the pixel canvas", () => {
   for (const layers of ROBOT_SCENES) for (const { tiles } of layers) {
     for (const [x, y, w, h, color] of tiles) {
       assert.ok([x, y, w, h].every(Number.isInteger));
-      assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 64 && y + h <= 64);
+      assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 128 && y + h <= 128);
       assert.ok(color === null || /^#[0-9a-f]{6}$/.test(color));
     }
   }

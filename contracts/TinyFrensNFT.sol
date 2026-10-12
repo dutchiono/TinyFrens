@@ -250,7 +250,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
 
     function _accName(uint8 a) internal pure returns (string memory) {
         if (a == 0) return "None";
-        if (a == 1) return "Party Hat";
+        if (a == 1) return "Pilot Helmet";
         if (a == 2) return "Royal Crown";
         if (a == 3) return "Angel Halo";
         if (a == 4) return "Dapper Bow Tie";
@@ -267,7 +267,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         if (h == 0) return "Moonlit Plaza";
         if (h == 1) return "Neon Crosswalk";
         if (h == 2) return "Snack Garden";
-        if (h == 3) return "Cloud Room";
+        if (h == 3) return "Cloud Terrace";
         if (h == 4) return "Arcade Alley";
         return "Tiny Meadow";
     }
@@ -279,7 +279,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return "Excited Wiggle";
     }
 
-    /// @notice 64x64 grid-drawn animated companion.
+    /// @notice 128x128 grid-drawn animated companion scene.
     function art(uint256 tokenId) public view returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         return artRenderer.render(_traits(tokenId), _evolution[tokenId]);

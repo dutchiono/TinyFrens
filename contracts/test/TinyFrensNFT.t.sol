@@ -132,7 +132,7 @@ contract TinyFrensNFTTest is Test {
             assertTrue(artwork.contains('class="arm-b"'));
             assertTrue(artwork.contains("@keyframes step-a"));
             assertTrue(artwork.contains("@keyframes arm-a"));
-            assertTrue(artwork.contains("<rect"));
+            assertTrue(artwork.contains("<path"));
         }
     }
 
