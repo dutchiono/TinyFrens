@@ -18,6 +18,12 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\testnet-economy-runbook.ps1
 ```
 
+If Foundry is not installed globally, the runbook **auto-downloads** it into `.tools\foundry` (~120 MB) via `install-foundry-windows.ps1`. Or run that script alone first:
+
+```powershell
+.\scripts\install-foundry-windows.ps1
+```
+
 The script stops at each step until you press Enter. Step 2 prints:
 
 ```text
@@ -41,16 +47,17 @@ Never commit `PRIVATE_KEY`. Local saves go under `.secrets/` (gitignored).
 <details>
 <summary>Expand full manual steps</summary>
 
-### 1 — Install Foundry
+### 1 — Install Foundry (Windows)
 
-Git Bash or WSL:
-
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
+```powershell
+cd C:\Users\epj33\Documents\Playground\TinyFrens
+.\scripts\install-foundry-windows.ps1
+$env:PATH = "$PWD\.tools\foundry;$env:PATH"
+forge --version
+cast --version
 ```
 
-Reopen PowerShell; `forge --version` should work.
+Alternative: Git Bash / WSL with `foundryup` from https://book.getfoundry.sh/getting-started/installation
 
 ### 2 — Repo + wallet
 

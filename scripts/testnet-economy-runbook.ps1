@@ -18,7 +18,8 @@
 #>
 param(
     [switch]$SkipWalletCreate,
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [switch]$SkipFoundryInstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,9 +38,43 @@ function Pause-Step([string]$Message) {
     Read-Host $Message
 }
 
+function Enable-LocalFoundryBin() {
+    $bin = Join-Path $RepoRoot '.tools\foundry'
+    if (Test-Path (Join-Path $bin 'forge.exe')) {
+        $env:PATH = "$bin;$env:PATH"
+        return $true
+    }
+    return $false
+}
+
+function Test-FoundryReady() {
+    $forge = Get-Command forge -ErrorAction SilentlyContinue
+    $cast = Get-Command cast -ErrorAction SilentlyContinue
+    if (-not $forge -or -not $cast) { return $false }
+    try {
+        $v = (& forge --version 2>&1 | Out-String).Trim()
+        return $v.Length -gt 0
+    } catch { return $false }
+}
+
+function Ensure-Foundry() {
+    Enable-LocalFoundryBin | Out-Null
+    if (Test-FoundryReady) { return }
+    if ($SkipFoundryInstall) {
+        throw 'Foundry (forge + cast) not available. Run .\scripts\install-foundry-windows.ps1 or install foundryup, then retry.'
+    }
+    Write-Host '  Foundry not on PATH. Installing repo-local copy (~120 MB download)...' -ForegroundColor Yellow
+    & (Join-Path $RepoRoot 'scripts\install-foundry-windows.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'install-foundry-windows.ps1 failed' }
+    Enable-LocalFoundryBin | Out-Null
+    if (-not (Test-FoundryReady)) {
+        throw 'Foundry still missing after install. Close PowerShell, reopen, run install-foundry-windows.ps1 manually.'
+    }
+}
+
 function Require-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-        throw "Missing '$Name' on PATH. Complete the install step for it first."
+        throw "Missing '$Name' on PATH. Run .\scripts\install-foundry-windows.ps1 first."
     }
 }
 
@@ -54,7 +89,7 @@ function Get-DeployerAddress() {
 Write-Host @'
 
 ================================================================================
-  TinyFrens — Base Sepolia testnet runbook
+  TinyFrens - Base Sepolia testnet runbook
 ================================================================================
 
   WHERE TO SEND ETH (testnet only):
@@ -69,20 +104,7 @@ Write-Host @'
 
 # --- Step 1: Foundry ---
 Write-Host '[Step 1/10] Foundry (forge + cast)' -ForegroundColor Yellow
-if (-not (Get-Command forge -ErrorAction SilentlyContinue)) {
-    Write-Host @'
-  Foundry is not installed. On Windows, use ONE of:
-
-  A) Git Bash or WSL, then:
-       curl -L https://foundry.paradigm.xyz | bash
-       foundryup
-
-  B) See: https://book.getfoundry.sh/getting-started/installation
-
-  Close and reopen PowerShell after install so forge/cast are on PATH.
-'@
-    Pause-Step 'Press Enter after forge works (or Ctrl+C to exit)'
-}
+Ensure-Foundry
 Require-Command forge
 Require-Command cast
 Write-Host "  forge: $((forge --version 2>&1 | Select-Object -First 1))"
