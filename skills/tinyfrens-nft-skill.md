@@ -1,6 +1,6 @@
 ---
 name: tinyfrens-robots-v1
-description: Prepare, deploy, and verify TinyFrens: Robots v1, the robot-only BNKR pixel NFT collection, on a supported EVM chain with Net Protocol integration.
+description: "Prepare, deploy, and verify TinyFrens: Robots v1, the robot-only BNKR pixel NFT collection, on a supported EVM chain with Net Protocol integration."
 metadata: {"bankr":{"emoji":"🐾","requires":{"bins":["forge","cast"]}}}
 ---
 
