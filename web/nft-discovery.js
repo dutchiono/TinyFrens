@@ -2,15 +2,13 @@
 (() => {
   'use strict';
   const CHAINS = [
-    {id:1, name:'Ethereum', api:'https://eth.blockscout.com/api/v2'},
-    {id:8453, name:'Base', api:'https://base.blockscout.com/api/v2'},
-    {id:42161, name:'Arbitrum', api:'https://arbitrum.blockscout.com/api/v2'},
-    {id:10, name:'Optimism', api:'https://optimism.blockscout.com/api/v2'},
-    {id:137, name:'Polygon', api:'https://polygon.blockscout.com/api/v2'},
-    {id:56, name:'BNB Chain', api:'https://bsc.blockscout.com/api/v2'},
     {id:4663, name:'Robinhood Chain', api:'https://robinhoodchain.blockscout.com/api/v2'}
   ];
   const HOOD_TURTLES = '0xca28587b61eac19a87dfcfd9420870867a916675';
+  // Only collections with a companion adapter in the released relay belong here.
+  const SUPPORTED_COLLECTIONS = [{chainId:4663, contract:HOOD_TURTLES}];
+  const isSupported = nft => SUPPORTED_COLLECTIONS.some(collection =>
+    nft.chainId === collection.chainId && String(nft.contract || '').toLowerCase() === collection.contract);
   const addressOK = address => /^0x[a-fA-F0-9]{40}$/.test(address);
   function metadata(item) {
     const value = item.metadata;
@@ -38,7 +36,7 @@
         const token = entry.token || {};
         const contract = token.address_hash || token.address || '';
         const tokenId = String(entry.id ?? '');
-        if (!addressOK(contract) || !/^\d+$/.test(tokenId)) continue;
+        if (!addressOK(contract) || !/^\d+$/.test(tokenId) || !isSupported({chainId:chain.id, contract})) continue;
         const standard = String(token.type || 'ERC-721').toUpperCase();
         const meta = metadata(entry);
         const key = chain.id + ':' + contract.toLowerCase() + ':' + tokenId;
@@ -86,5 +84,5 @@
     for (const result of results) for (const nft of result.nfts) unique.set(nft.wallet.toLowerCase() + ':' + nft.chainId + ':' + nft.contract.toLowerCase() + ':' + nft.tokenId, nft);
     return {nfts:[...unique.values()], errors, partial:errors.length > 0 || results.some(r=>r.partial)};
   }
-  window.TinyFrensNFTDiscovery = {discover, chains:CHAINS};
+  window.TinyFrensNFTDiscovery = {discover, chains:CHAINS, isSupported};
 })();

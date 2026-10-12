@@ -22,9 +22,9 @@
       </div>
     </section></details>
     <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
-      <h3>Your NFTs across EVM chains</h3>
-      <p class="small">Discover ERC-721 and ERC-1155 holdings on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain and Robinhood Chain. Only Hood Turtles can currently become animated companions.</p>
-      <button type="button" id="scanWallet" class="secondary" disabled>Scan NFTs on device</button>
+      <h3>Your supported NFTs</h3>
+      <p class="small">NFTs from collections available as TinyFrens companions appear here.</p>
+      <button type="button" id="scanWallet" class="secondary" disabled>Refresh NFTs</button>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
     </section>
@@ -84,13 +84,14 @@
   async function scan() {
     if (!linkedAddresses.length) return;
     scanButton.disabled = true;
-    scanStatus.textContent = 'Scanning NFT holdings on your device…';
+    scanStatus.textContent = 'Finding NFTs from available collections…';
     try {
       const data = await window.TinyFrensNFTDiscovery.discover(linkedAddresses, (done,total) => {
-        scanStatus.textContent = 'Scanning ' + done + '/' + total + ' wallet/chain combinations…';
+        scanStatus.textContent = 'Checking linked wallets…';
       });
       matches.replaceChildren();
-      for (const nft of data.nfts) {
+      const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);
+      for (const nft of supported) {
         const card = document.createElement('article');
         card.className = 'wallet-nft';
         if (nft.image) {
@@ -129,7 +130,7 @@
         matches.append(card);
       }
       const failed = data.errors.length;
-      scanStatus.textContent = data.nfts.length + ' NFT(s) found across supported EVM chains.' +
+      scanStatus.textContent = (supported.length ? supported.length + ' supported NFT(s) found.' : 'No NFTs from available collections found in your linked wallets.') +
         (data.partial ? ' Partial scan: ' + failed + ' indexer request(s) failed or pages were limited.' : '') +
         (failed ? ' ' + data.errors.slice(0,2).join('; ') : '');
     } catch(error) {
