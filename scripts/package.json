@@ -1,0 +1,10 @@
+{
+  "name": "tinyfrens-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@farcaster/hub-nodejs": "^0.12.0",
+    "@neynar/nodejs-sdk": "^2.0.0",
+    "viem": "^2.0.0"
+  }
+}
