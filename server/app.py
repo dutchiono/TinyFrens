@@ -1545,6 +1545,8 @@ def create_app(database=None, origins=None):
 
     turtle_ownership = turtle_connect.TurtleOwnership(db)
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
+    import collection_suggestions
+    collection_suggestions.install(app, db, token_pet, limit)
     turtle_previews = {}
 
     async def hood_turtle_preview(request):
