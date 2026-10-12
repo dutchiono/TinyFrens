@@ -1,0 +1,18 @@
+{
+  "name": "tinyfrens-snap",
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@farcaster/snap": "^2.0.0",
+    "@farcaster/snap-hono": "^2.0.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

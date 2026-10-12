@@ -115,5 +115,110 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         await ws.close();ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});self.sockets.append(ws)
         await ws.send_json({'type':'auth','token':a['token']});state=await self.event(ws,'state')
         self.assertEqual(state['self']['code'],a['code']);self.assertEqual(state['self']['pet']['name'],'Renamed')
+    async def test_farcaster_manifest_returns_json_and_cors(self):
+        r=await self.client.get('/.well-known/farcaster.json')
+        self.assertEqual(r.status,200)
+        self.assertEqual(r.headers.get('Access-Control-Allow-Origin'),'*')
+        data=await r.json()
+        self.assertIn('frame',data)
+        self.assertEqual(data['frame']['name'],'TinyFrens')
+        self.assertEqual(data['frame']['version'],'1')
+    async def test_farcaster_snap_endpoints_and_content_negotiation(self):
+        r=await self.client.get('/api/snap')
+        self.assertEqual(r.status,200)
+        self.assertIn('application/vnd.farcaster.snap+json',r.headers.get('Content-Type',''))
+        data=await r.json()
+        self.assertEqual(data['version'],'2.0')
+        self.assertEqual(data['ui']['root'],'page')
+        self.assertIn('btn-pet',data['ui']['elements'])
+
+        # Interactive POST with action
+        r2=await self.client.post('/api/snap/interact?action=pet')
+        self.assertEqual(r2.status,200)
+        data2=await r2.json()
+        self.assertEqual(data2['version'],'2.0')
+        self.assertIn('confetti',data2.get('effects',[]))
+
+        # Content negotiation on /snap
+        r3=await self.client.get('/snap',headers={'Accept':'application/vnd.farcaster.snap+json'})
+        self.assertEqual(r3.status,200)
+        data3=await r3.json()
+        self.assertEqual(data3['version'],'2.0')
+    async def test_economy_status_off_by_default(self):
+        saved={k:os.environ.get(k) for k in ('ECONOMY_MODE','FRENS_TOKEN','CHAIN_ID')}
+        for key in saved: os.environ.pop(key,None)
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            self.assertEqual(r.status,200)
+            data=await r.json()
+            self.assertFalse(data['enabled'])
+            self.assertIsNone(data['mode'])
+            self.assertEqual(data['productionToken'].lower(),'0x1a96226727a1d0a46334b3a4b3878b32b7659ba3')
+        finally:
+            for key,value in saved.items():
+                if value is None: os.environ.pop(key,None)
+                else: os.environ[key]=value
+    async def test_economy_status_testnet_when_configured(self):
+        saved={k:os.environ.get(k) for k in ('ECONOMY_MODE','FRENS_TOKEN','CHAIN_ID')}
+        os.environ['ECONOMY_MODE']='testnet'
+        os.environ['FRENS_TOKEN']='0x'+'ab'*20
+        os.environ['CHAIN_ID']='84532'
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            data=await r.json()
+            self.assertTrue(data['enabled'])
+            self.assertEqual(data['mode'],'testnet')
+            self.assertEqual(data['chainId'],84532)
+        finally:
+            for key,value in saved.items():
+                if value is None: os.environ.pop(key,None)
+                else: os.environ[key]=value
+    async def test_economy_status_production_token_never_enables_server(self):
+        saved=os.environ.get('ECONOMY_MODE')
+        os.environ['ECONOMY_MODE']='production'
+        try:
+            r=await self.client.get('/api/economy/status',headers={'Origin':ORIGIN})
+            data=await r.json()
+            self.assertFalse(data['enabled'])
+            self.assertEqual(data['mode'],'production')
+            self.assertEqual(data['frensToken'].lower(),'0x1a96226727a1d0a46334b3a4b3878b32b7659ba3')
+            self.assertIn('testnet',data.get('note','').lower())
+        finally:
+            if saved is None: os.environ.pop('ECONOMY_MODE',None)
+            else: os.environ['ECONOMY_MODE']=saved
+    async def test_farcaster_webhook_and_notify_status(self):
+        r_hook=await self.client.post('/api/farcaster/webhook',json={'event':'frame_added'})
+        self.assertEqual(r_hook.status,200)
+        self.assertTrue((await r_hook.json()).get('received'))
+
+        # Notify without NEYNAR_API_KEY returns 503
+        saved_key=os.environ.pop('NEYNAR_API_KEY',None)
+        try:
+            r_notify=await self.client.post('/api/farcaster/notify',json={'title':'Hungry!','body':'Feed your fren'})
+            self.assertEqual(r_notify.status,503)
+        finally:
+            if saved_key is not None: os.environ['NEYNAR_API_KEY']=saved_key
+    async def test_farcaster_cast_endpoint_validation(self):
+        saved_key=os.environ.pop('NEYNAR_API_KEY',None)
+        saved_signer=os.environ.pop('FARCASTER_SIGNER_UUID',None)
+        try:
+            # Without API key -> 503
+            r=await self.client.post('/api/farcaster/cast',json={'text':'gm'})
+            self.assertEqual(r.status,503)
+
+            # With API key but without signer -> 503
+            os.environ['NEYNAR_API_KEY']='test-key'
+            r=await self.client.post('/api/farcaster/cast',json={'text':'gm'})
+            self.assertEqual(r.status,503)
+
+            # With both, empty text -> 400
+            os.environ['FARCASTER_SIGNER_UUID']='test-uuid'
+            r=await self.client.post('/api/farcaster/cast',json={'text':''})
+            self.assertEqual(r.status,400)
+        finally:
+            if saved_key is not None: os.environ['NEYNAR_API_KEY']=saved_key
+            else: os.environ.pop('NEYNAR_API_KEY',None)
+            if saved_signer is not None: os.environ['FARCASTER_SIGNER_UUID']=saved_signer
+            else: os.environ.pop('FARCASTER_SIGNER_UUID',None)
 
 if __name__=='__main__': unittest.main()

@@ -6,6 +6,50 @@ from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 SHAPES = {'cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 BANKR_URL = 'https://api.bankr.bot'
+NEYNAR_URL = 'https://api.neynar.com'
+ECONOMY_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'contracts', 'config', 'economy.json')
+ADDR_RE = re.compile(r'^0x[a-fA-F0-9]{40}$')
+
+def load_economy_config():
+    try:
+        with open(ECONOMY_CONFIG_PATH, encoding='utf-8') as handle:
+            return json.load(handle)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def economy_settings():
+    mode = os.environ.get('ECONOMY_MODE', '').strip().lower()
+    cfg = load_economy_config()
+    if mode not in {'testnet', 'production'}:
+        return {'enabled': False, 'mode': None, 'chainId': None, 'chainName': None, 'frensToken': None, 'symbol': 'FRENS', 'decimals': 18, 'depositsEnabled': False, 'productionToken': cfg.get('production', {}).get('frensToken')}
+    block = cfg.get(mode) or {}
+    token = (os.environ.get('FRENS_TOKEN') or block.get('frensToken') or '').strip()
+    chain_raw = os.environ.get('CHAIN_ID') or block.get('chainId')
+    try:
+        chain_id = int(chain_raw) if chain_raw is not None else None
+    except (TypeError, ValueError):
+        chain_id = None
+    enabled = mode == 'testnet' and bool(token and ADDR_RE.fullmatch(token) and chain_id)
+    if mode == 'production':
+        prod = cfg.get('production') or {}
+        if prod.get('frensToken'):
+            token = str(prod['frensToken']).strip()
+        if prod.get('chainId') is not None:
+            chain_id = int(prod['chainId'])
+        enabled = False
+    return {
+        'enabled': enabled,
+        'mode': mode,
+        'chainId': chain_id,
+        'chainName': block.get('chainName'),
+        'explorer': block.get('explorer'),
+        'frensToken': token if token else None,
+        'name': block.get('name'),
+        'symbol': block.get('symbol', 'FRENS'),
+        'decimals': int(block.get('decimals', 18)),
+        'depositsEnabled': os.environ.get('ECONOMY_DEPOSITS', '').lower() == 'true' and enabled,
+        'productionToken': cfg.get('production', {}).get('frensToken'),
+    }
 
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
@@ -72,11 +116,17 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        if request.path!='/health' and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
+        public_paths={'/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast'}
+        is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
+        is_public=request.path in public_paths or is_snap_req
+        if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
-        if origin in allowed and not isinstance(response,web.WebSocketResponse):
-            response.headers.update({'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
+        if not isinstance(response,web.WebSocketResponse):
+            if is_public:
+                response.headers.update({'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Accept, X-Snap-Payload','Access-Control-Allow-Methods':'POST, GET, OPTIONS'})
+            elif origin in allowed:
+                response.headers.update({'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
         return response
     async def register(request):
         try:
@@ -122,6 +172,11 @@ def create_app(database=None, origins=None):
             return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
     async def bankr_status(request):
         return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY')),'partner':bool(os.environ.get('BANKR_PARTNER_KEY'))})
+    async def economy_status(request):
+        data = economy_settings()
+        if data['mode'] == 'production' and not data['enabled']:
+            data['note'] = 'Production FRENS is configured in contracts/config/economy.json; server economy stays off until testnet passes and ECONOMY_MODE=production is explicitly enabled.'
+        return web.json_response(data)
     async def bankr_wallet(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
@@ -246,6 +301,132 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply,'wallet':wallet,'jobId':job_id,'threadId':thread_id})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
+    def make_snap_payload(action=None):
+        effects=["confetti"] if action in ("pet","feed","play") else []
+        status_text="Your 1:1 on-chain & floating desktop companion."
+        if action=="pet": status_text="You petted the fren! They did a little wiggle 💖"
+        elif action=="feed": status_text="You fed the fren a fresh strawberry 🍓! Nom nom."
+        elif action=="play": status_text="You played ball with your fren 🎾! Joy is at 100%!"
+        return {
+            "version": "2.0",
+            "theme": {"accent": "purple"},
+            "effects": effects,
+            "ui": {
+                "root": "page",
+                "elements": {
+                    "page": {
+                        "type": "stack",
+                        "props": {"gap": "md"},
+                        "children": ["header", "hero-img", "status-text", "action-buttons", "open-miniapp-btn"]
+                    },
+                    "header": {
+                        "type": "text",
+                        "props": {"content": "TinyFrens · Pocket Pet", "weight": "bold", "size": "lg"}
+                    },
+                    "hero-img": {
+                        "type": "image",
+                        "props": {
+                            "url": "https://tinyfrens.lol/icons/icon-512.png",
+                            "aspect": "16:9",
+                            "title": "TinyFrens",
+                            "subtitle": status_text
+                        }
+                    },
+                    "status-text": {
+                        "type": "text",
+                        "props": {
+                            "content": "8 companion species · Curated 888 on-chain supply · AR camera snaps · Multiplayer party rooms",
+                            "size": "sm"
+                        }
+                    },
+                    "action-buttons": {
+                        "type": "stack",
+                        "props": {"direction": "horizontal", "gap": "sm", "equalWidth": True},
+                        "children": ["btn-pet", "btn-feed", "btn-play"]
+                    },
+                    "btn-pet": {
+                        "type": "button",
+                        "props": {"label": "Pet 💖", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=pet"}}}
+                    },
+                    "btn-feed": {
+                        "type": "button",
+                        "props": {"label": "Feed 🍓", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=feed"}}}
+                    },
+                    "btn-play": {
+                        "type": "button",
+                        "props": {"label": "Play 🎾", "variant": "secondary"},
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=play"}}}
+                    },
+                    "open-miniapp-btn": {
+                        "type": "button",
+                        "props": {"label": "Open TinyFrens Mini App 🐾", "variant": "primary", "icon": "arrow-right"},
+                        "on": {"press": {"action": "open_mini_app", "params": {"target": "https://tinyfrens.lol/"}}}
+                    }
+                }
+            }
+        }
+    async def get_snap(request):
+        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json')
+    async def post_snap_interact(request):
+        action=request.query.get('action')
+        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json')
+    async def farcaster_manifest(request):
+        candidates=[
+            os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json'),
+            os.path.join(os.path.dirname(__file__),'web','.well-known','farcaster.json'),
+            os.path.join(os.path.dirname(__file__),'.well-known','farcaster.json')
+        ]
+        data=None
+        for p in candidates:
+            if os.path.exists(p):
+                with open(p,'r',encoding='utf-8') as f: data=json.load(f); break
+        if not data:
+            data={"accountAssociation":{"header":"","payload":"","signature":""},"frame":{"version":"1","name":"TinyFrens","iconUrl":"https://tinyfrens.lol/icons/icon-192.png","homeUrl":"https://tinyfrens.lol/","imageUrl":"https://tinyfrens.lol/icons/icon-512.png","buttonTitle":"Open TinyFrens","splashImageUrl":"https://tinyfrens.lol/icons/icon-192.png","splashBackgroundColor":"#17142a"}}
+        return web.json_response(data, content_type='application/json')
+    async def farcaster_notify(request):
+        try:
+            api_key=os.environ.get('NEYNAR_API_KEY')
+            if not api_key: return web.json_response({'error':'Neynar API key is not configured'},status=503)
+            body=await request.json()
+            title=str(body.get('title','TinyFrens')).strip()[:60]
+            msg_body=str(body.get('body','Your fren wants to play!')).strip()[:160]
+            target_url=str(body.get('targetUrl','https://tinyfrens.lol/')).strip()
+            headers={'Content-Type':'application/json','x-api-key':api_key}
+            payload={'notification':{'title':title,'body':msg_body,'target_url':target_url}}
+            timeout=ClientTimeout(total=15)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(NEYNAR_URL+'/v2/farcaster/frame/notifications',headers=headers,json=payload) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or 'Could not send notification'},status=response.status)
+                    return web.json_response(data)
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
+    async def farcaster_webhook(request):
+        try:
+            data=await request.json()
+            return web.json_response({'received':True})
+        except Exception: return web.json_response({'ok':True})
+    async def farcaster_cast(request):
+        try:
+            api_key=os.environ.get('NEYNAR_API_KEY')
+            signer_uuid=os.environ.get('FARCASTER_SIGNER_UUID')
+            if not api_key: return web.json_response({'error':'Neynar API key is not configured'},status=503)
+            if not signer_uuid: return web.json_response({'error':'FARCASTER_SIGNER_UUID is not configured yet'},status=503)
+            body=await request.json()
+            text=str(body.get('text','')).strip()[:1024]
+            if not text: return web.json_response({'error':'Cast text cannot be empty'},status=400)
+            payload={'signer_uuid':signer_uuid,'text':text}
+            embeds=body.get('embeds')
+            if isinstance(embeds,list) and embeds: payload['embeds']=embeds
+            headers={'Content-Type':'application/json','x-api-key':api_key}
+            timeout=ClientTimeout(total=15)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(NEYNAR_URL+'/v2/farcaster/cast',headers=headers,json=payload) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or 'Could not publish cast'},status=response.status)
+                    return web.json_response(data)
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -374,7 +555,14 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
+    app.router.add_get('/api/snap',get_snap)
+    app.router.add_post('/api/snap/interact',post_snap_interact)
+    app.router.add_get('/snap',get_snap)
+    app.router.add_get('/.well-known/farcaster.json',farcaster_manifest)
+    app.router.add_post('/api/farcaster/notify',farcaster_notify)
+    app.router.add_post('/api/farcaster/webhook',farcaster_webhook)
+    app.router.add_post('/api/farcaster/cast',farcaster_cast)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 

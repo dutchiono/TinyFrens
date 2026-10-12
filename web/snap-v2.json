@@ -1,0 +1,91 @@
+{
+  "version": "2.0",
+  "theme": { "accent": "purple" },
+  "ui": {
+    "root": "page",
+    "elements": {
+      "page": {
+        "type": "stack",
+        "props": { "gap": "md" },
+        "children": ["header", "hero-img", "status-text", "action-buttons", "open-miniapp-btn"]
+      },
+      "header": {
+        "type": "text",
+        "props": {
+          "content": "TinyFrens · Pocket Pet",
+          "weight": "bold",
+          "size": "lg"
+        }
+      },
+      "hero-img": {
+        "type": "image",
+        "props": {
+          "url": "https://tinyfrens.lol/icons/icon-512.png",
+          "aspect": "16:9",
+          "title": "TinyFrens",
+          "subtitle": "Your 1:1 on-chain & floating desktop companion"
+        }
+      },
+      "status-text": {
+        "type": "text",
+        "props": {
+          "content": "8 companions · Curated 888 on-chain supply · AR camera snaps · Live multiplayer party rooms",
+          "size": "sm"
+        }
+      },
+      "action-buttons": {
+        "type": "stack",
+        "props": {
+          "direction": "horizontal",
+          "gap": "sm",
+          "equalWidth": true
+        },
+        "children": ["btn-pet", "btn-feed", "btn-play"]
+      },
+      "btn-pet": {
+        "type": "button",
+        "props": { "label": "Pet 💖", "variant": "secondary" },
+        "on": {
+          "press": {
+            "action": "submit",
+            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=pet" }
+          }
+        }
+      },
+      "btn-feed": {
+        "type": "button",
+        "props": { "label": "Feed 🍓", "variant": "secondary" },
+        "on": {
+          "press": {
+            "action": "submit",
+            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=feed" }
+          }
+        }
+      },
+      "btn-play": {
+        "type": "button",
+        "props": { "label": "Play 🎾", "variant": "secondary" },
+        "on": {
+          "press": {
+            "action": "submit",
+            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=play" }
+          }
+        }
+      },
+      "open-miniapp-btn": {
+        "type": "button",
+        "props": {
+          "label": "Open TinyFrens Mini App 🐾",
+          "variant": "primary",
+          "icon": "arrow-right"
+        },
+        "on": {
+          "press": {
+            "action": "open_mini_app",
+            "params": { "target": "https://tinyfrens.lol/" }
+          }
+        }
+      }
+    }
+  }
+}

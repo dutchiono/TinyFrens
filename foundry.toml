@@ -1,0 +1,16 @@
+[profile.default]
+src = "contracts"
+test = "contracts/test"
+script = "contracts/testnet/script"
+solc = "0.8.20"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read", path = "./contracts/config" }]
+
+[rpc_endpoints]
+base = "${BASE_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC}"
+
+[etherscan]
+base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
+base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }

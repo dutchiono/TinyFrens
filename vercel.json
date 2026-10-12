@@ -3,5 +3,21 @@
   "framework": null,
   "buildCommand": "node scripts/build-site.mjs",
   "outputDirectory": "dist",
-  "installCommand": ""
+  "installCommand": "",
+  "headers": [
+    {
+      "source": "/.well-known/farcaster.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/snap-v2.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.farcaster.snap+json" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ]
 }

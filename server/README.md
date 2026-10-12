@@ -30,6 +30,12 @@ Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` 
 
 Per-fren Bankr wallets are scaffolded behind `BANKR_PARTNER_KEY`. When that partner key is present, `/api/bankr/wallet` provisions a Bankr wallet for the registered fren with `POST /partner/wallets`; without it, TinyFrens uses the shared server Bankr wallet. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
+## FRENS economy (testnet first)
+
+Production FRENS on Base: `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` (see `contracts/config/economy.json`). Integration uses **Base Sepolia** and `TestFRENS` until deposits and jackpots are verified; see `contracts/testnet/README.md`.
+
+`GET /api/economy/status` reports chain, token, and whether testnet economy is enabled. Set `ECONOMY_MODE=testnet` and `FRENS_TOKEN` to your deployed test token; `ECONOMY_MODE=production` is recognized but **does not enable** paid features on the server until testnet sign-off.
+
 ## Operations
 
 Back up the `pets` Docker volume (SQLite database) and keep it private. Use one relay instance; visits/presence/rate limits are in memory. Scale-out or guaranteed background notifications need additional work. Deploy behind Caddy as provided; `TRUST_PROXY=true` assumes the relay port is not publicly exposed. Limit origin access with `ALLOWED_ORIGINS` (comma-separated exact origins). `ALLOW_NATIVE_ORIGIN=true` admits `Origin: null` for the bundled Android/iOS file WebViews, but still requires private device credentials. For web-only installs, turn it off. Origin checks are not user authentication.

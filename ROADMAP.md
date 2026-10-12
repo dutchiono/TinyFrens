@@ -17,3 +17,7 @@ Beds for naps, bowls for snacks and toys for play. Objects must trigger existing
 ## Nearby friends
 
 Native Bluetooth/Wi-Fi discovery should find a friend's server code and enter the existing friendship/visit consent flow. No automatic uninvited visits. Requires native SDK integration, permissions and tests on two phones; the relay is built. Visitors currently appear inside the care app rather than as floating guests.
+
+## On-chain economy — planned
+
+Per-fren Bankr wallets, FRENS credit deposits (rotating receive addresses + deposit sessions), in-world jackpot finds, and UUPS proxy contracts on testnet before any mainnet deploy. See [ONCHAIN-ECONOMY.md](./ONCHAIN-ECONOMY.md).
