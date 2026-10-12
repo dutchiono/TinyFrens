@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--receipts', type=Path, help='Optional directory containing mint-receipt-*.json')
     args = parser.parse_args()
     mint_transactions = {}
+    storage_transactions = {}
     if args.receipts:
         for path in args.receipts.glob('mint-receipt-*.json'):
             receipt = json.loads(path.read_text(encoding='utf-8-sig'))
@@ -40,6 +41,11 @@ def main():
                     log['topics'][0] == '0x' + keccak(text='Transfer(address,address,uint256)').hex() and
                     int(log['topics'][1], 16) == 0):
                     mint_transactions[int(log['topics'][3], 16)] = receipt['transactionHash']
+                if (log['address'].lower() == NFT.lower() and
+                    log['topics'][0] == '0x' + keccak(text='TinyFrenNetStorageSynced(uint256,address,bytes32)').hex()):
+                    storage_transactions[int(log['topics'][1], 16)] = dict(
+                        transaction=receipt['transactionHash'], block=int(receipt['blockNumber'], 16),
+                        key=log['topics'][3])
     assert int(rpc('eth_chainId', []), 16) == 84532, 'Wrong chain'
     block = rpc('eth_blockNumber', [])
 
@@ -59,6 +65,9 @@ def main():
         _, stored = call(STORAGE, 'get(bytes32,address)', ['bytes32', 'address'], [key, NFT], ['string', 'bytes'])
         if stored.decode() != uri:
             raise RuntimeError(f'Token {token_id}: Net Storage does not match tokenURI')
+        storage_write = storage_transactions.get(token_id)
+        if args.receipts and (not storage_write or storage_write['key'] != '0x' + key.hex()):
+            raise RuntimeError(f'Token {token_id}: matching metadata-write receipt missing')
         if not uri.startswith('data:application/json;base64,'):
             raise RuntimeError(f'Token {token_id}: unsupported metadata encoding')
         metadata = json.loads(base64.b64decode(uri.split(',', 1)[1]))
@@ -71,7 +80,7 @@ def main():
         if '@keyframes step-a' not in svg or '@keyframes arm-a' not in svg:
             raise RuntimeError(f'Token {token_id}: robot walk animation missing')
         tokens.append(dict(id=token_id, owner=owner, storageKey='0x' + key.hex(), metadata=metadata,
-                           mintTransaction=mint_transactions.get(token_id)))
+                           mintTransaction=mint_transactions.get(token_id), storageWrite=storage_write))
     snapshot = dict(chainId=84532, network='Base Sepolia', collection=NFT, storage=STORAGE,
                     block=int(block, 16), capturedAt=datetime.now(timezone.utc).isoformat(), tokens=tokens)
     (ROOT / 'web/testnet-gallery.json').write_text(json.dumps(snapshot, indent=2) + '\n', encoding='utf-8')

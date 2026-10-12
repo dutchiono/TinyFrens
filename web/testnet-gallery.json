@@ -3,8 +3,8 @@
   "network": "Base Sepolia",
   "collection": "0x091FB40292925E822849BA415599939eec078b62",
   "storage": "0x00000000DB40fcB9f4466330982372e27Fd7Bbf5",
-  "block": 48037798,
-  "capturedAt": "2026-10-12T22:24:52.574464+00:00",
+  "block": 48037827,
+  "capturedAt": "2026-10-12T22:26:11.900732+00:00",
   "tokens": [
     {
       "id": 1,
@@ -53,7 +53,12 @@
           }
         ]
       },
-      "mintTransaction": "0x7cee1f8319227e95b958f34b340ee4a59b2664f8ba5b7badf7139193c1290bda"
+      "mintTransaction": "0x7cee1f8319227e95b958f34b340ee4a59b2664f8ba5b7badf7139193c1290bda",
+      "storageWrite": {
+        "transaction": "0x7cee1f8319227e95b958f34b340ee4a59b2664f8ba5b7badf7139193c1290bda",
+        "block": 48037652,
+        "key": "0x570558ba4a653fb3265241944d99fb6db8114fd665ce4dd6cb2bf646a15ee511"
+      }
     },
     {
       "id": 2,
@@ -102,7 +107,12 @@
           }
         ]
       },
-      "mintTransaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236"
+      "mintTransaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236",
+      "storageWrite": {
+        "transaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236",
+        "block": 48037691,
+        "key": "0xe36171a08634e0e3f90e3469a959c8fc7073ad9b604c61752fcda3546384df37"
+      }
     },
     {
       "id": 3,
@@ -151,7 +161,12 @@
           }
         ]
       },
-      "mintTransaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236"
+      "mintTransaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236",
+      "storageWrite": {
+        "transaction": "0x8f0db0744543695f7b901daf8f9f1c0a6bfc4cca6fd51086d385ad7e36287236",
+        "block": 48037691,
+        "key": "0x08f78ee5d6118d0e22cf98092d985ee0befe551383eb9aadbb7605183ef4639f"
+      }
     },
     {
       "id": 4,
@@ -200,7 +215,12 @@
           }
         ]
       },
-      "mintTransaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d"
+      "mintTransaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d",
+      "storageWrite": {
+        "transaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d",
+        "block": 48037691,
+        "key": "0x74f34fbdede85e6f3856507d42693ca0924d154c3b35566b3ce0b7943dcd62f3"
+      }
     },
     {
       "id": 5,
@@ -249,7 +269,12 @@
           }
         ]
       },
-      "mintTransaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d"
+      "mintTransaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d",
+      "storageWrite": {
+        "transaction": "0x9d0cd3299ebb017a04ebd3bef7250c4c2d9a0c171abfa6a2edf548cf33f42e5d",
+        "block": 48037691,
+        "key": "0xd1120e86771d2782b66c218d61218319d675fae009cc83437448ea78706ffe7c"
+      }
     },
     {
       "id": 6,
@@ -298,7 +323,12 @@
           }
         ]
       },
-      "mintTransaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a"
+      "mintTransaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a",
+      "storageWrite": {
+        "transaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a",
+        "block": 48037691,
+        "key": "0x954589e0c240196c831897f1fc48da4533482f16903852fef1276a4c7c9a2d06"
+      }
     },
     {
       "id": 7,
@@ -347,7 +377,12 @@
           }
         ]
       },
-      "mintTransaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a"
+      "mintTransaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a",
+      "storageWrite": {
+        "transaction": "0xef4cd18983fbd74972ef4ad54600b93ea4ad0df87a49e8c6b60872779443ae2a",
+        "block": 48037691,
+        "key": "0x24b774b77e688686fe5091eff5502fd0ad335582e6b271c4428a3a44b9e4a594"
+      }
     },
     {
       "id": 8,
@@ -396,7 +431,12 @@
           }
         ]
       },
-      "mintTransaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206"
+      "mintTransaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206",
+      "storageWrite": {
+        "transaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206",
+        "block": 48037692,
+        "key": "0x14be9eb365cef0ff8289699cec7043f3eac62fdc938e5a5e695cbe434db6cefe"
+      }
     },
     {
       "id": 9,
@@ -445,7 +485,12 @@
           }
         ]
       },
-      "mintTransaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206"
+      "mintTransaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206",
+      "storageWrite": {
+        "transaction": "0x3b81b2a6db9ad12d3a19b50b3148fbca220020bec789639fcd5781a440257206",
+        "block": 48037692,
+        "key": "0x8dff544974eaeedfb8bfdc2f79715dfc269a69b16dc430808b99104ae2f6c2ea"
+      }
     },
     {
       "id": 10,
@@ -494,7 +539,12 @@
           }
         ]
       },
-      "mintTransaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5"
+      "mintTransaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5",
+      "storageWrite": {
+        "transaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5",
+        "block": 48037693,
+        "key": "0x5f6cdbd0e211375e5caf425672a1471f1e3456458b949fc2c8ba70caf51a6e5c"
+      }
     },
     {
       "id": 11,
@@ -543,7 +593,12 @@
           }
         ]
       },
-      "mintTransaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5"
+      "mintTransaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5",
+      "storageWrite": {
+        "transaction": "0x3d9049b325cbb737be3499ad536b1c196430ba5b8922b47fec278f931e1188a5",
+        "block": 48037693,
+        "key": "0xb272ba6e5f6090849bfef37b16687a6295d5d0cd4ad94c11ac8153d4bfbd5e18"
+      }
     },
     {
       "id": 12,
@@ -592,7 +647,12 @@
           }
         ]
       },
-      "mintTransaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15"
+      "mintTransaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15",
+      "storageWrite": {
+        "transaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15",
+        "block": 48037694,
+        "key": "0x3f3a8ae4c50b3e8536c3d083ccb30f6b703ddc42582624b24dec049b07f99203"
+      }
     },
     {
       "id": 13,
@@ -641,7 +701,12 @@
           }
         ]
       },
-      "mintTransaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15"
+      "mintTransaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15",
+      "storageWrite": {
+        "transaction": "0x21c398339012f7c99ffd7d5315ae7b3d36572df2bfb5afb80df524bb3c732c15",
+        "block": 48037694,
+        "key": "0x72c950e3d674c80ee7d444d544ff402c577c984d6731ad27d055d098fd61cb55"
+      }
     },
     {
       "id": 14,
@@ -690,7 +755,12 @@
           }
         ]
       },
-      "mintTransaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95"
+      "mintTransaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95",
+      "storageWrite": {
+        "transaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95",
+        "block": 48037694,
+        "key": "0x5b278df5c32f8c7f6a8c6df385b8efdc319780829b7d78866b509c05b67918d3"
+      }
     },
     {
       "id": 15,
@@ -739,7 +809,12 @@
           }
         ]
       },
-      "mintTransaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95"
+      "mintTransaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95",
+      "storageWrite": {
+        "transaction": "0x482dbb70e8ec7a4159dbeddbaa9cd72e1925b80fef44c248a62e800019528a95",
+        "block": 48037694,
+        "key": "0x04bbebc2c8d7445a5160825de567cdac6c046938d788339bc31b041b589c322a"
+      }
     },
     {
       "id": 16,
@@ -788,7 +863,12 @@
           }
         ]
       },
-      "mintTransaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a"
+      "mintTransaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a",
+      "storageWrite": {
+        "transaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a",
+        "block": 48037695,
+        "key": "0x8b8a13b27d342120f405b98e6ba77ef41cc3891f6a6e06ca1f9f408a186ddfe5"
+      }
     },
     {
       "id": 17,
@@ -837,7 +917,12 @@
           }
         ]
       },
-      "mintTransaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a"
+      "mintTransaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a",
+      "storageWrite": {
+        "transaction": "0xce6ca1f02b15e87a43154e5f503fff9414160c1bb476be2812246bd3d1db9f3a",
+        "block": 48037695,
+        "key": "0x4ad1af66e98d037146ad8df6a01f3d16f2d7ea25e111cda33937141b9eb738de"
+      }
     },
     {
       "id": 18,
@@ -886,7 +971,12 @@
           }
         ]
       },
-      "mintTransaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2"
+      "mintTransaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2",
+      "storageWrite": {
+        "transaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2",
+        "block": 48037697,
+        "key": "0xcc19467ef8908c3cc95c6e8214aafa7baa68229e44687960a10a887e170062f2"
+      }
     },
     {
       "id": 19,
@@ -935,7 +1025,12 @@
           }
         ]
       },
-      "mintTransaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2"
+      "mintTransaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2",
+      "storageWrite": {
+        "transaction": "0x23cb8de90cd623e3180392249aec2757c372225702c4e4ee38cb48566eaec5b2",
+        "block": 48037697,
+        "key": "0x3ad9f5b608ad65a52f2b5cb9d95b759189ec23b0bc0876285206b5edb88b36a7"
+      }
     },
     {
       "id": 20,
@@ -984,7 +1079,12 @@
           }
         ]
       },
-      "mintTransaction": "0xe93abf5bb70af59bbf6c1e95693ff8942c96adb80d5a47c07e877a5a03436aec"
+      "mintTransaction": "0xe93abf5bb70af59bbf6c1e95693ff8942c96adb80d5a47c07e877a5a03436aec",
+      "storageWrite": {
+        "transaction": "0xe93abf5bb70af59bbf6c1e95693ff8942c96adb80d5a47c07e877a5a03436aec",
+        "block": 48037698,
+        "key": "0x61ff18b6e026718d7e654b25c9ce064e22576d37f6e65b055e800cfe37bb2db7"
+      }
     }
   ]
 }

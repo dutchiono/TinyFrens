@@ -16,14 +16,19 @@
       trait.append(label, value); $('traits').append(trait);
     }
     $('owner').textContent = 'Owner at snapshot: ' + token.owner;
-    $('verified').textContent = 'Net Storage matches tokenURI · Block ' + snapshot.block.toLocaleString();
+    $('verified').textContent = 'Net Storage matches tokenURI · Checked at block ' + snapshot.block.toLocaleString();
+    $('storageKey').textContent = 'Storage key: ' + token.storageKey;
     $('links').replaceChildren();
     const links = [
       ['View token', `/token/${snapshot.collection}/instance/${token.id}`],
       ['Owner wallet', `/address/${token.owner}`],
-      ['Net Storage', `/address/${snapshot.storage}`],
+      ['Net Storage contract', `/address/${snapshot.storage}`],
     ];
     if (token.mintTransaction) links.push(['Mint transaction', `/tx/${token.mintTransaction}`]);
+    if (token.storageWrite) {
+      links.unshift(['Metadata write transaction', `/tx/${token.storageWrite.transaction}#logs`]);
+      $('verified').textContent += ' · Written at block ' + token.storageWrite.block.toLocaleString();
+    }
     for (const [label, path] of links) {
       const link = document.createElement('a'); link.textContent = label; link.href = explorer + path;
       link.target = '_blank'; link.rel = 'noopener'; $('links').append(link);
