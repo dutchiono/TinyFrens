@@ -17,13 +17,18 @@
       "headers": [
         { "key": "Content-Type", "value": "application/vnd.farcaster.snap+json" },
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Vary", "value": "Accept" }
+        { "key": "Vary", "value": "Accept" },
+        { "key": "Link", "value": "<https://www.tinyfrens.lol/snap>; rel=\"alternate\"; type=\"application/vnd.farcaster.snap+json\"" }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Vary", "value": "Accept" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Accept, X-Snap-Payload" },
+        { "key": "Vary", "value": "Accept" },
+        { "key": "Link", "value": "<https://www.tinyfrens.lol/snap>; rel=\"alternate\"; type=\"application/vnd.farcaster.snap+json\"" }
       ]
     }
   ],

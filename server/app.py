@@ -369,10 +369,11 @@ def create_app(database=None, origins=None):
         }
     async def get_snap(request):
         accept=request.headers.get('Accept','')
+        link_hdr='<https://www.tinyfrens.lol/snap>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
         if 'application/vnd.farcaster.snap+json' not in accept and 'text/html' in accept:
-            html="""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TinyFrens · Farcaster Snap</title><meta property="og:title" content="TinyFrens · In-Feed Pocket Pet"><meta property="og:description" content="Interact with your TinyFren directly inside Farcaster casts!"><meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png"><link rel="icon" href="https://tinyfrens.lol/icons/icon.svg"><style>body{margin:0;min-height:100vh;background:#17142a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;padding:20px;text-align:center;box-sizing:border-box}.card{background:#231c3c;border:1px solid #4a3474;border-radius:24px;padding:28px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.5)}img{width:100%;border-radius:16px;margin-bottom:16px}h1{font-size:24px;margin:0 0 8px}p{color:#c8b1fa;font-size:15px;margin:0 0 24px}a{display:block;background:#855DCD;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px;border-radius:14px}</style></head><body><div class="card"><img src="https://tinyfrens.lol/icons/og-card.png" alt="TinyFrens"><h1>TinyFrens Snap</h1><p>An interactive pet built for Farcaster casts.</p><a href="https://tinyfrens.lol/web/">Open Full Web App 🐾</a></div></body></html>"""
-            return web.Response(text=html, content_type='text/html', headers={'Vary': 'Accept'})
-        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept'})
+            html="""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TinyFrens · Farcaster Snap</title><meta property="og:title" content="TinyFrens · In-Feed Pocket Pet"><meta property="og:description" content="Interact with your TinyFren directly inside Farcaster casts!"><meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png"><link rel="alternate" type="application/vnd.farcaster.snap+json" href="https://www.tinyfrens.lol/snap"><link rel="icon" href="https://tinyfrens.lol/icons/icon.svg"><style>body{margin:0;min-height:100vh;background:#17142a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;padding:20px;text-align:center;box-sizing:border-box}.card{background:#231c3c;border:1px solid #4a3474;border-radius:24px;padding:28px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.5)}img{width:100%;border-radius:16px;margin-bottom:16px}h1{font-size:24px;margin:0 0 8px}p{color:#c8b1fa;font-size:15px;margin:0 0 24px}a{display:block;background:#855DCD;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px;border-radius:14px}</style></head><body><div class="card"><img src="https://tinyfrens.lol/icons/og-card.png" alt="TinyFrens"><h1>TinyFrens Snap</h1><p>An interactive pet built for Farcaster casts.</p><a href="https://tinyfrens.lol/web/">Open Full Web App 🐾</a></div></body></html>"""
+            return web.Response(text=html, content_type='text/html', headers={'Vary': 'Accept', 'Link': link_hdr})
+        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
     async def post_snap_interact(request):
         action=request.query.get('action')
         if not action:
@@ -388,7 +389,8 @@ def create_app(database=None, origins=None):
                     action=body.get('inputs',{}).get('action') or body.get('action')
             except Exception:
                 pass
-        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept'})
+        link_hdr='<https://www.tinyfrens.lol/snap>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
+        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
     async def farcaster_manifest(request):
         candidates=[
             os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json'),

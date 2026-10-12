@@ -56,9 +56,14 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.post('/api/register',headers={'Origin':ORIGIN},json={'pet':{'name':'A','shape':'unsafe','color':'no'}});self.assertEqual(r.status,400)
         ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});await ws.send_json({'type':'auth','token':'invalid'});await ws.receive();self.assertEqual(ws.close_code,4003)
     async def test_chat_requires_configured_model_key(self):
-        r=await self.client.post('/api/chat',headers={'Origin':ORIGIN},json={'message':'hi','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
-        self.assertEqual(r.status,503)
-        self.assertEqual((await r.json())['error'],'Pet chat is not connected yet')
+        saved={k:os.environ.pop(k,None) for k in ('GEMINI_API_KEY','GOOGLE_API_KEY')}
+        try:
+            r=await self.client.post('/api/chat',headers={'Origin':ORIGIN},json={'message':'hi','pet':{'name':'Beep','shape':'robot','color':'#a474f1'}})
+            self.assertEqual(r.status,503)
+            self.assertEqual((await r.json())['error'],'Pet chat is not connected yet')
+        finally:
+            for key,value in saved.items():
+                if value is not None: os.environ[key]=value
     async def test_bankr_requires_configured_api_key(self):
         old=os.environ.pop('BANKR_API_KEY',None)
         old_partner=os.environ.pop('BANKR_PARTNER_KEY',None)
