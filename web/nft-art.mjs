@@ -1,3 +1,5 @@
+import { renderScene } from "./robot-scenes.mjs";
+
 export const NFT_SPECIES = ["Robot"];
 export const NFT_SHAPES = ["robot"];
 export const NFT_PALETTES = [
@@ -14,123 +16,6 @@ export const NFT_PALETTES = [
 const box = (x, y, width, height, color) =>
   `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}"/>`;
 
-function habitat(index, background) {
-  switch (index) {
-    case 0: return box(0, 0, 64, 64, background) +
-      box(0, 49, 64, 15, "#283047") +
-      box(0, 49, 64, 2, "#69718d") +
-      box(0, 59, 64, 1, "#444a65") +
-      box(8, 51, 1, 8, "#444a65") +
-      box(48, 51, 1, 8, "#444a65") +
-      box(24, 60, 1, 4, "#444a65") +
-      box(49, 8, 9, 9, "#f3e9b6") +
-      box(47, 6, 8, 8, background) +
-      box(6, 14, 2, 2, "#c4b7e9") +
-      box(14, 7, 1, 1, "#c4b7e9") +
-      box(39, 5, 2, 2, "#c4b7e9") +
-      box(59, 28, 1, 1, "#c4b7e9") +
-      box(3, 36, 8, 13, "#22283d") +
-      box(53, 39, 11, 10, "#22283d") +
-      box(5, 39, 2, 3, "#8b7cb4") +
-      box(57, 42, 2, 3, "#8b7cb4");
-    case 1: return box(0, 0, 64, 64, background) +
-      box(0, 48, 64, 16, "#202d42") +
-      box(1, 19, 10, 29, "#263652") +
-      box(4, 15, 7, 4, "#263652") +
-      box(52, 11, 12, 37, "#263652") +
-      box(3, 23, 3, 4, "#e8a0cc") +
-      box(7, 32, 3, 4, "#e8a0cc") +
-      box(54, 16, 3, 4, "#64d9db") +
-      box(59, 24, 3, 4, "#64d9db") +
-      box(54, 33, 3, 4, "#64d9db") +
-      box(0, 48, 64, 2, "#9770ac") +
-      box(3, 54, 9, 3, "#b9b2cf") +
-      box(17, 54, 9, 3, "#b9b2cf") +
-      box(31, 54, 9, 3, "#b9b2cf") +
-      box(45, 54, 9, 3, "#b9b2cf") +
-      box(59, 54, 5, 3, "#b9b2cf") +
-      box(4, 60, 11, 1, "#5fa6b1") +
-      box(49, 61, 9, 1, "#c180ae") +
-      box(3, 8, 14, 3, "#e783b5");
-    case 2: return box(0, 0, 64, 64, background) +
-      box(0, 47, 64, 17, "#305444") +
-      box(0, 47, 64, 2, "#76a56d") +
-      box(0, 59, 64, 5, "#253e36") +
-      box(2, 25, 9, 22, "#654a46") +
-      box(0, 21, 13, 5, "#aa7476") +
-      box(2, 21, 3, 5, "#f1d1aa") +
-      box(8, 21, 3, 5, "#f1d1aa") +
-      box(3, 30, 6, 7, "#e9be77") +
-      box(4, 32, 4, 3, "#dc8069") +
-      box(54, 38, 8, 9, "#81594a") +
-      box(53, 37, 10, 2, "#b38664") +
-      box(56, 31, 2, 6, "#81bf7c") +
-      box(53, 30, 4, 3, "#81bf7c") +
-      box(57, 28, 4, 3, "#81bf7c") +
-      box(58, 26, 2, 2, "#f2a4bb") +
-      box(7, 52, 3, 2, "#b0c67c") +
-      box(52, 54, 3, 2, "#b0c67c") +
-      box(13, 61, 7, 1, "#6b7753");
-    case 3: return box(0, 0, 64, 64, background) +
-      box(0, 0, 64, 3, "#6b5b86") +
-      box(3, 3, 2, 46, "#6b5b86") +
-      box(59, 3, 2, 46, "#6b5b86") +
-      box(5, 5, 54, 1, "#a994bf") +
-      box(5, 27, 54, 2, "#6b5b86") +
-      box(12, 5, 2, 22, "#6b5b86") +
-      box(49, 5, 2, 22, "#6b5b86") +
-      box(6, 15, 13, 3, "#e2cde4") +
-      box(9, 13, 6, 2, "#e2cde4") +
-      box(42, 10, 15, 3, "#e2cde4") +
-      box(46, 8, 7, 2, "#e2cde4") +
-      box(0, 49, 64, 15, "#554968") +
-      box(0, 49, 64, 2, "#bca0c5") +
-      box(0, 57, 64, 1, "#807090") +
-      box(9, 51, 1, 6, "#807090") +
-      box(54, 51, 1, 6, "#807090") +
-      box(30, 58, 1, 6, "#807090");
-    case 4: return box(0, 0, 64, 64, background) +
-      box(0, 49, 64, 15, "#30233f") +
-      box(0, 49, 64, 2, "#bd729e") +
-      box(1, 24, 10, 25, "#211b35") +
-      box(2, 25, 8, 3, "#efbb68") +
-      box(3, 30, 6, 8, "#639eae") +
-      box(4, 32, 2, 2, "#a7f2dc") +
-      box(2, 40, 8, 2, "#9f70b4") +
-      box(4, 39, 2, 1, "#f4b6d4") +
-      box(53, 21, 10, 28, "#211b35") +
-      box(54, 22, 8, 3, "#a284ed") +
-      box(55, 27, 6, 9, "#a56099") +
-      box(56, 29, 3, 3, "#f4c678") +
-      box(54, 39, 8, 2, "#639eae") +
-      box(57, 38, 2, 1, "#a7f2dc") +
-      box(8, 8, 48, 2, "#775393") +
-      box(13, 12, 8, 2, "#ef93bf") +
-      box(43, 12, 8, 2, "#8de0dc") +
-      box(6, 56, 8, 1, "#644369") +
-      box(50, 59, 8, 1, "#644369");
-    default: return box(0, 0, 64, 64, background) +
-      box(0, 43, 64, 21, "#416b55") +
-      box(0, 44, 64, 4, "#719563") +
-      box(0, 51, 64, 13, "#335444") +
-      box(0, 53, 64, 1, "#557953") +
-      box(3, 12, 12, 3, "#ccbdce") +
-      box(6, 10, 6, 2, "#ccbdce") +
-      box(47, 7, 14, 3, "#ccbdce") +
-      box(51, 5, 6, 2, "#ccbdce") +
-      box(2, 35, 5, 10, "#294b40") +
-      box(0, 30, 9, 7, "#5a8456") +
-      box(54, 32, 7, 13, "#294b40") +
-      box(51, 27, 13, 8, "#5a8456") +
-      box(8, 48, 1, 5, "#9bb96c") +
-      box(6, 47, 5, 2, "#e7ba78") +
-      box(8, 47, 1, 1, "#ffe3ae") +
-      box(55, 49, 1, 5, "#9bb96c") +
-      box(53, 48, 5, 2, "#db97b6") +
-      box(6, 59, 3, 1, "#86a064") +
-      box(48, 58, 4, 1, "#86a064");
-  }
-}
 
 function eyes(expression, left, right, y, ink) {
   if (expression === 1) return box(left, y, 2, 3, ink) + box(right, y + 2, 3, 1, ink);
@@ -164,8 +49,11 @@ function cat(body, ink, expression) {
 function robot(body, ink, expression) {
   return `<g class="body">` +
     box(17, 18, 30, 24, ink) + box(19, 20, 26, 20, body) +
+    box(20, 20, 23, 1, "#d5e5eb") + box(19, 21, 1, 16, "#b9c6e4") +
+    box(43, 22, 2, 18, ink) + box(21, 21, 1, 1, ink) + box(42, 21, 1, 1, ink) +
     box(16, 24, 3, 8, "#6bdce3") + box(45, 24, 3, 8, "#6bdce3") +
     box(22, 23, 20, 12, "#192a41") + eyes(expression, 26, 36, 27, "#79e3e3") +
+    box(23, 33, 3, 1, "#80c9ab") + box(28, 33, 2, 1, "#f0bd5e") +
     box(25, 36, 14, 2, ink) + box(30, 36, 4, 1, "#f0bd5e") +
     box(21, 41, 22, 4, ink) + box(23, 41, 18, 2, "#2b4767") +
     `<g class="arm-a">${box(12, 27, 5, 11, ink)}${box(13, 30, 3, 6, body)}${box(11, 38, 5, 3, "#f0bd5e")}</g>` +
@@ -247,7 +135,7 @@ export function renderNftArt(traits, stage = 0) {
   const [body, ink, background] = NFT_PALETTES[traits.palette];
   const sprite = robot(body, ink, traits.expr);
   const duration = ["1.1294s", "0.8471s", "1.8824s", "0.6588s"][traits.motion];
-  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-b ${duration} steps(1) infinite}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-b ${duration} steps(1) infinite}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes step-b{0%,100%{transform:translate(2px,0)}12.5%{transform:translate(1px,0)}25%{transform:translate(0,0)}37.5%{transform:translate(-1px,0)}50%{transform:translate(-1px,0)}62.5%{transform:translate(0,-1px)}75%{transform:translate(1px,-2px)}87.5%{transform:translate(2px,-1px)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}@keyframes arm-b{0%,100%{transform:translate(-1px,0)}25%{transform:translate(1px,-1px)}50%{transform:translate(1px,0)}75%{transform:translate(-1px,1px)}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b{animation:none}}</style>`;
+  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-b ${duration} steps(1) infinite}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-b ${duration} steps(1) infinite}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes step-b{0%,100%{transform:translate(2px,0)}12.5%{transform:translate(1px,0)}25%{transform:translate(0,0)}37.5%{transform:translate(-1px,0)}50%{transform:translate(-1px,0)}62.5%{transform:translate(0,-1px)}75%{transform:translate(1px,-2px)}87.5%{transform:translate(2px,-1px)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}@keyframes arm-b{0%,100%{transform:translate(-1px,0)}25%{transform:translate(1px,-1px)}50%{transform:translate(1px,0)}75%{transform:translate(-1px,1px)}}.drift{animation:breeze 18s steps(12) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes breeze{from{transform:translateX(-2px)}to{transform:translateX(2px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow{animation:none}}</style>`;
   const evolution = stage ? box(4, 4, 2, 2, "#ffe078") + box(57, 9, 2, 2, "#ffe078") : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${habitat(traits.habitat, background)}${eraMark(traits.era)}${box(17, 50, 32, 2, "#17212d")}${sprite}<g class="body">${accessory(traits.acc)}</g>${evolution}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${renderScene(traits.habitat, background)}${eraMark(traits.era)}<g class="shadow">${box(17, 50, 32, 2, "#17212d")}</g>${sprite}<g class="body">${accessory(traits.acc)}</g>${evolution}</svg>`;
 }

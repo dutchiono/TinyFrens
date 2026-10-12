@@ -14,6 +14,10 @@ contract TinyFrensArtTest is Test {
         art = new TinyFrensArt(address(new TinyFrensSprite()));
     }
 
+    function testRendererKeepsDeploymentHeadroom() public view {
+        assertLe(address(art).code.length, 22000, "Keep room below EIP-170's 24576-byte limit");
+    }
+
     function testHatsReplaceAntennaAndMeetHead() public view {
         Traits memory traits;
         string memory antenna = '<rect x="31" y="12" width="2" height="6"';
@@ -50,12 +54,12 @@ contract TinyFrensArtTest is Test {
         // SHA-256 fixtures from web/nft-art.mjs renderNftArt for these six trait sets.
         // Covers every accessory and habitat, plus all motion and expression values.
         bytes32[6] memory expected = [
-            bytes32(0xed3b7bc7397706f91c8ddc1d2a3d5fe42bb356f55610c231d981b371f7156f06),
-            bytes32(0xa54e50bc600ec481e77d9a20751e0040933b4d898ee82cde0625db54675f93dd),
-            bytes32(0x37f52225f8cc98951349295ae2b03bd8ca041613918feddd21e92aeabdc29f94),
-            bytes32(0x51301874911e22705511d6001af0619e0b7f6b4eb3bf151d666be9efb2a1368b),
-            bytes32(0x4d0d04916debb83dc3b5c9d4aacb54621eb3c4f999968aec52dc80c172bca079),
-            bytes32(0x11bfc19db2de4ce25a41db238452c39bfb50002f3465aa2eafb26c4bf5bb28af)
+            bytes32(0x4d0b7e1603f63f5238e97cff8e9f41d9d20c48434be80d0712ec761b70752402),
+            bytes32(0x9ee7059871ede3b246da37f041c5213c084eeeb94b1283bc1151e1136204e47e),
+            bytes32(0xf4e471e48f665e0ce0ef768392aa1824fa0bfbec8dd87ee8fcf345a74dd85065),
+            bytes32(0x275fb707a0b3afa0dd77ed292db243635ec9c717979cca6ab9582571671f0e9e),
+            bytes32(0x8f706c0bea6e73d893a436e73db5ab3512dfd3e25d1f53b62dfa36b8cd0be378),
+            bytes32(0x9e9b73483c54ddc34cf9be9d3016849f579e63d253bd8c5fea8e119bbb8b7343)
         ];
         for (uint8 i; i < 6; i++) {
             Traits memory traits = Traits(0, i, i % 4, i, i % 3, i, i % 4);

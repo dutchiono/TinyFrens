@@ -52,8 +52,11 @@ contract TinyFrensSprite {
         return string.concat(
             '<g class="body">',
             _box(17, 18, 30, 24, ink), _box(19, 20, 26, 20, body),
+            _box(20, 20, 23, 1, "#d5e5eb"), _box(19, 21, 1, 16, "#b9c6e4"),
+            _box(43, 22, 2, 18, ink), _box(21, 21, 1, 1, ink), _box(42, 21, 1, 1, ink),
             _box(16, 24, 3, 8, "#6bdce3"), _box(45, 24, 3, 8, "#6bdce3"),
             _box(22, 23, 20, 12, "#192a41"), _eyes(expression, 26, 36, 27, "#79e3e3"),
+            _box(23, 33, 3, 1, "#80c9ab"), _box(28, 33, 2, 1, "#f0bd5e"),
             _box(25, 36, 14, 2, ink), _box(30, 36, 4, 1, "#f0bd5e"),
             _box(21, 41, 22, 4, ink), _box(23, 41, 18, 2, "#2b4767"),
             '<g class="arm-a">', _box(12, 27, 5, 11, ink), _box(13, 30, 3, 6, body), _box(11, 38, 5, 3, "#f0bd5e"), '</g>',
