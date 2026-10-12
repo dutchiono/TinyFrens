@@ -130,17 +130,21 @@ export function renderSVG(traits) {
       break;
     case 'robot':
       ears = `
-        <path d="M64 30 V11" stroke="${dark}" stroke-width="7" stroke-linecap="round"/>
-        <circle cx="64" cy="8" r="6" fill="${body}" stroke="${dark}" stroke-width="3"/>
-        <circle cx="64" cy="8" r="2" fill="#fff"/>
+        <path d="M64 31 V13" stroke="${dark}" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="64" cy="9" r="6" fill="#00d2d3" stroke="${dark}" stroke-width="3"/>
+        <path d="M50 28 H78" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="26" cy="66" r="8" fill="${body}" stroke="${dark}" stroke-width="5"/>
+        <circle cx="102" cy="66" r="8" fill="${body}" stroke="${dark}" stroke-width="5"/>
       `;
-      limbs = `<path d="M22 84 H11 V105 H22" fill="none" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M106 84 H117 V105 H106" fill="none" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M31 129 H50 M78 129 H97" stroke="${dark}" stroke-width="9" stroke-linecap="round"/>`;
+      limbs = `<path d="M23 88 H13 V108 H25" fill="none" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M105 88 H115 V108 H103" fill="none" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/><path d="M38 128 H52 M76 128 H90" stroke="${dark}" stroke-width="10" stroke-linecap="round"/><path d="M31 134 H56 M72 134 H97" stroke="${dark}" stroke-width="5" stroke-linecap="round" opacity=".55"/>`;
       shellPattern = `
-        <path d="M36 59 H92 M40 106 H88" stroke="${dark}" stroke-width="3" opacity=".45"/>
-        <circle cx="45" cy="108" r="3" fill="${dark}" opacity=".55"/>
-        <circle cx="83" cy="108" r="3" fill="${dark}" opacity=".55"/>
+        <path d="M36 57 H92 M36 79 H92" stroke="${dark}" stroke-width="3" opacity=".45"/>
+        <rect x="49" y="101" width="30" height="15" rx="3" fill="${bg}" stroke="${dark}" stroke-width="4" opacity=".92"/>
+        <path d="M55 108 H73" stroke="#00d2d3" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="41" cy="105" r="3" fill="${dark}" opacity=".7"/>
+        <circle cx="87" cy="105" r="3" fill="${dark}" opacity=".7"/>
       `;
-      shine = `<rect x="39" y="44" width="15" height="10" rx="3" fill="#fff" opacity=".2"/>`;
+      shine = `<path d="M39 45 H58" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".24"/>`;
       break;
     case 'bunny':
       ears = `
@@ -263,7 +267,7 @@ export function renderSVG(traits) {
 
   const defs = `<defs><linearGradient id="body" x1="20" y1="30" x2="104" y2="132"><stop offset="0%" stop-color="#fff" stop-opacity=".34"/><stop offset="32%" stop-color="${body}"/><stop offset="100%" stop-color="${dark}" stop-opacity=".28"/></linearGradient><radialGradient id="shine" cx="35%" cy="26%" r="58%"><stop offset="0%" stop-color="#fff" stop-opacity=".42"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>`;
   const bodyLayer = species.id === 'robot'
-    ? `<path d="M30 48 H98 Q106 48 106 56 V78 Q106 86 98 86 H30 Q22 86 22 78 V56 Q22 48 30 48 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><path d="M38 88 H90 Q99 88 101 98 L104 119 Q105 129 95 131 H33 Q23 129 24 119 L27 98 Q29 88 38 88 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
+    ? `<rect x="29" y="36" width="70" height="54" rx="9" fill="url(#body)" stroke="${dark}" stroke-width="8"/><rect x="38" y="48" width="52" height="31" rx="5" fill="${bg}" stroke="${dark}" stroke-width="4" opacity=".9"/><path d="M48 90 H80 L86 98 V121 Q86 129 78 129 H50 Q42 129 42 121 V98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><rect x="54" y="91" width="20" height="8" fill="${dark}" opacity=".55"/>`
     : species.id === 'blob' ? `<path d="M31 58 C19 75 19 112 40 125 C53 134 57 120 68 126 C90 136 111 116 108 86 C105 56 89 45 70 52 C54 40 39 43 31 58 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><path d="M38 55 C47 47 56 47 65 55" stroke="#fff" stroke-width="4" opacity=".22" fill="none" stroke-linecap="round"/>`
     : species.id === 'bunny' ? `<path d="M31 72 C29 48 43 35 64 38 C85 35 99 48 97 72 L94 105 C91 127 78 137 64 134 C50 137 37 127 34 105 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
     : species.id === 'dog' ? `<path d="M20 73 C18 50 35 37 59 38 H74 C96 38 109 52 107 75 L103 105 C99 127 82 137 61 133 C38 135 22 121 20 98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
