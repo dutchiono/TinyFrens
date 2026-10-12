@@ -26,6 +26,7 @@ class TurtleStore {
   }
   clear() { this.generation++; this.selected = []; this.save(); }
   remove(tokenId) { this.generation++; this.selected = this.selected.filter(nft => nft.tokenId !== tokenId); this.save(); }
+  removeWallet(address) { this.generation++; this.selected = this.selected.filter(nft => (nft.wallet || nft.originalOwner || '').toLowerCase() !== address.toLowerCase()); this.save(); }
   view() {
     if (!this.selected.length) return {selected:false, active:false};
     const items = this.selected.filter(nft => Number.isFinite(nft.validUntil) && this.clock() < nft.validUntil * 1000)

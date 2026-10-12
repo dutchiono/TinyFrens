@@ -456,3 +456,44 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .stats label{color:#b8add3}
 .gallery-callout-btn{background:#a474f1;border-color:#a474f1;color:#120f22}
 .gallery-callout-btn:hover{background:#c9a5ff;color:#120f22}
+
+/* Import and display are the primary loop; optional activities stay in More. */
+.primary-tabs{display:flex;flex:1;gap:6px}
+.tabbar{align-items:center}
+.tabbar .primary-tabs button{flex:1;white-space:nowrap;font-size:13px}
+.more-menu{position:relative;flex:0 0 auto}
+.more-menu>summary{cursor:pointer;list-style:none;padding:14px 12px;border-radius:8px;color:#c8b1fa;font-weight:700;font-size:13px}
+.more-menu>summary::-webkit-details-marker{display:none}
+.more-menu[open]>summary{background:#332652;color:#fff}
+.more-options{position:absolute;right:0;bottom:calc(100% + 12px);min-width:160px;padding:6px;background:#211c39;border:1px solid #4a3b68;border-radius:12px;box-shadow:0 8px 24px #0006}
+.tabbar .more-options button{display:block;width:100%;text-align:left;color:#f7f1ff;font-size:14px;padding:12px;min-height:44px}
+.tabbar .more-options button:hover,.tabbar .more-options button[aria-current=page]{background:#332652}
+.more-menu summary:focus-visible{outline:2px solid #c9a5ff;outline-offset:2px}
+#screen-pet .floating-controls{display:block;grid-column:1/-1;margin:0 0 16px}
+#screen-pet .pet-card{grid-column:1/-1;min-height:0}
+#screen-pet .name-row,#screen-pet .stage-label,#screen-pet #mood,#screen-pet #chatHint{display:none}
+#screen-care .stats{margin:24px 0;padding:16px;border:1px solid #4a3b68;border-radius:12px}
+#screen-care .stats label b{color:#f7f1ff}
+#screen-care .care-actions button,#screen-care .needs-actions button{background:#332652;color:#f7f1ff;border-color:#63517c}
+#screen-care .little-actions{flex-wrap:wrap}
+#screen-care .little-actions button{color:#c8b1fa}
+.companion-empty{text-align:center;color:#b8add3;padding:24px;position:relative;z-index:1}
+.companion-empty a{display:inline-block;margin-top:12px;color:#c9a5ff}
+@media(min-width:860px){.tabbar{width:420px;max-width:calc(100% - 32px)}.more-options{top:calc(100% + 12px);bottom:auto}}
+
+.more-menu{padding:0;border:0}
+.more-menu:not([open]) .more-options{display:none}
+.party-social{margin-top:24px;border:1px solid #4a3b68;border-radius:12px;padding:16px;color:#f7f1ff}
+.party-social>summary{cursor:pointer}
+.visit-box,#visitInvite{background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;margin-top:16px}
+.visit-box p,.visit-box .small,.friends-panel p{color:#b8add3}
+.visit-box h2,.friends-panel h3,.friends-panel label{color:#f7f1ff}
+.visit-box input,.friends-panel input{background:#120f22;color:#f7f1ff;border:1px solid #63517c;border-radius:8px;padding:12px}
+.friends-panel,.friend-card{border-color:#4a3b68}
+.linked-wallet-row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:12px 0;padding:12px;background:#120f22;border:1px solid #4a3b68;border-radius:10px}
+.linked-wallet-row span{min-width:0;overflow-wrap:anywhere;font:12px ui-monospace,monospace;color:#f7f1ff}
+.linked-wallet-row button{flex-shrink:0;padding:8px 12px;min-height:40px}
+
+/* Care and app notices share the existing purple surfaces and readable text. */
+.update-banner{background:#211c39;color:#f7f1ff;border-color:#4a3b68}
+.update-banner p{color:#b8add3}

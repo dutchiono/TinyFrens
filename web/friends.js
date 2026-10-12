@@ -1,9 +1,9 @@
 'use strict';
 (()=>{
  const panel=document.createElement('section');panel.className='friends-panel';panel.id='friendsPanel';
- panel.innerHTML='<h3>Friends</h3><p id="friendsStatus" role="status">Friends will be ready when your grown-up connects the server.</p><label for="myFriendCode">Your friend code</label><input id="myFriendCode" readonly placeholder="Connect first" spellcheck="false"><button id="copyFriendCode" class="secondary" disabled>Copy my code</button><form id="addFriendForm"><label for="friendCodeInput">Enter a friend’s code</label><input id="friendCodeInput" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required><button id="addFriendButton" disabled>Add friend</button></form><div id="friendRequests"></div><div id="visitRequests"></div><div id="liveVisit"></div><div id="friendList"></div><p class="small">Friends both accept before visiting. Open TinyFrens on both phones. Your own pet stays safe. No chat or location sharing.</p>';
+ panel.innerHTML='<h3>Friends</h3><p id="friendsStatus" role="status">Connecting friends…</p><label for="myFriendCode">Your friend code</label><input id="myFriendCode" readonly placeholder="Connect first" spellcheck="false"><button id="copyFriendCode" class="secondary" disabled>Copy my code</button><form id="addFriendForm"><label for="friendCodeInput">Enter a friend’s code</label><input id="friendCodeInput" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required><button id="addFriendButton" disabled>Add friend</button></form><div id="friendRequests"></div><div id="visitRequests"></div><div id="liveVisit"></div><div id="friendList"></div><p class="small">Friends both accept before visiting. Open TinyFrens on both phones. Visits keep your local save on this device.</p>';
  $('shareVisit').closest('section').append(panel);
- const settings=document.createElement('section');settings.className='overlay';settings.innerHTML='<details><summary>Friends server setup</summary><p>Ask a grown-up to set up the server first.</p><label for="friendsServer">Server address</label><input id="friendsServer" type="url" placeholder="https://pets.example.com" autocomplete="off"><div class="actions"><button id="connectFriends">Connect</button><button id="disconnectFriends" class="secondary">Disconnect</button></div><p id="serverStatus" role="status"></p><p class="small">Use the same server on both phones. Your private device key stays on this phone. Clearing app data loses your friend code.</p></details>';$('settingsPanel').append(settings);
+ const settings=document.createElement('section');settings.className='overlay';settings.innerHTML='<details><summary>Friends server setup</summary><p>Use the default relay, or connect your own.</p><label for="friendsServer">Server address</label><input id="friendsServer" type="url" placeholder="https://pets.example.com" autocomplete="off"><div class="actions"><button id="connectFriends">Connect</button><button id="disconnectFriends" class="secondary">Disconnect</button></div><p id="serverStatus" role="status"></p><p class="small">Use the same server on both phones. Your private device key stays on this phone. Clearing app data loses your friend code.</p></details>';$('settingsPanel').append(settings);
  let ws=null,endpoint='',identity=null,enabled=false,retry=null,delay=1000,visit=null,lastProfile='',generation=0,profileTimer=null;
  const notifiedRequests=new Set();
  const listeners=new Set();
@@ -30,12 +30,12 @@
   if(data.type==='visit-request'){
    nativeNotify('TinyFrens visit request',data.friend.pet.name+' wants to visit.');
    const requests=$('visitRequests');requests.replaceChildren();const p=document.createElement('p');p.textContent=data.friend.pet.name+' wants to visit.';
-   requests.append(p,button('Let them visit',()=>{send({type:'visit-answer',id:data.id,accept:true});requests.replaceChildren();}),button('Not now',()=>{send({type:'visit-answer',id:data.id,accept:false});requests.replaceChildren();},true));status('A friend wants to visit!');window.showScreen('pet');requests.scrollIntoView({behavior:'smooth',block:'center'});
+   requests.append(p,button('Let them visit',()=>{send({type:'visit-answer',id:data.id,accept:true});requests.replaceChildren();}),button('Not now',()=>{send({type:'visit-answer',id:data.id,accept:false});requests.replaceChildren();},true));status('A friend wants to visit!');window.showScreen('party');requests.scrollIntoView({behavior:'smooth',block:'center'});
   }
   if(data.type==='visit-request-ended'){$('visitRequests').replaceChildren();status('That visit request expired.');}
   if(data.type==='visit-start'){
    visit=data;$('visitRequests').replaceChildren();
-   if(data.role==='host'){window.TinyFrensVisits.guest({...data.pet,expires:data.expires},{live:true,onLeave:()=>send({type:'visit-end',id:data.id}),onAction:action=>send({type:'visit-action',id:data.id,action})});window.showScreen('pet');$('guestVisit').scrollIntoView({behavior:'smooth',block:'center'});}
+   if(data.role==='host'){window.TinyFrensVisits.guest({...data.pet,expires:data.expires},{live:true,onLeave:()=>send({type:'visit-end',id:data.id}),onAction:action=>send({type:'visit-action',id:data.id,action})});window.showScreen('party');$('guestVisit').scrollIntoView({behavior:'smooth',block:'center'});}
    else{const p=document.createElement('p');p.textContent='Your fren is visiting '+data.friend.pet.name+'!';$('liveVisit').replaceChildren(p,button('Wave',()=>send({type:'visit-action',id:data.id,action:'wave'})),button('Dance',()=>send({type:'visit-action',id:data.id,action:'dance'})),button('Come home',()=>send({type:'visit-end',id:data.id}),true));}
    status('Visit started. Say goodbye whenever you like.');
   }
@@ -62,7 +62,7 @@
    const socket=new WebSocket(endpoint.replace(/^https:/,'wss:')+'/ws');ws=socket;lastProfile='';
    socket.onopen=()=>{delay=1000;socket.send(JSON.stringify({type:'auth',token:identity.token}));};
    socket.onmessage=e=>{if(socket!==ws)return;try{message(JSON.parse(e.data));}catch{status('Server response wasn’t understood.');}};
-   socket.onclose=e=>{if(socket!==ws)return;ws=null;endVisit();$('addFriendButton').disabled=true;for(const b of $('friendList').querySelectorAll('button'))b.disabled=true;status(e.code===4003?'Device key not recognized. Ask a grown-up to check the server.':'Disconnected. Reconnecting when possible.');if(enabled&&e.code!==4003&&e.code!==4001)schedule();};
+   socket.onclose=e=>{if(socket!==ws)return;ws=null;endVisit();$('addFriendButton').disabled=true;for(const b of $('friendList').querySelectorAll('button'))b.disabled=true;status(e.code===4003?'Device connection expired. Reconnect in Settings.':'Disconnected. Reconnecting when possible.');if(enabled&&e.code!==4003&&e.code!==4001)schedule();};
    socket.onerror=()=>status('Can’t reach the server yet. Your pet is still here.');
   }catch(e){if(gen!==generation)return;status(e.message||'Couldn’t connect.');if(enabled)schedule();}
  }
@@ -72,7 +72,7 @@
  $('addFriendForm').onsubmit=e=>{e.preventDefault();const code=$('friendCodeInput').value.replace(/[-\s]/g,'').toUpperCase();if(!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){status('Check the eight letters and numbers in your friend’s code.');return;}if(send({type:'friend-request',code}))$('friendCodeInput').value='';};
  $('copyFriendCode').onclick=async()=>{try{await navigator.clipboard.writeText($('myFriendCode').value);status('Code copied. Send it to someone you know.');}catch{$('myFriendCode').focus();$('myFriendCode').select();status('Select and copy your code above.');}};
  window.addEventListener('pet-profile-changed',()=>{clearTimeout(profileTimer);profileTimer=setTimeout(sync,200);});window.addEventListener('online',()=>{if(enabled&&!ws)connect();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&enabled){if(!ws)connect();else sync();}});
- try{const saved=localStorage.getItem(storage)||window.TINYFRENS_SERVER;if(saved){endpoint=normalize(saved);$('friendsServer').value=endpoint;identity=JSON.parse(localStorage.getItem('tinyfrens-device:'+endpoint)||'null');enabled=true;if(!window.__TINYFRENS_DEFER_AUTH__)connect();else status('Signing you in…');}}catch{status('Ask a grown-up to check the server address.');}
+ try{const saved=localStorage.getItem(storage)||window.TINYFRENS_SERVER;if(saved){endpoint=normalize(saved);$('friendsServer').value=endpoint;identity=JSON.parse(localStorage.getItem('tinyfrens-device:'+endpoint)||'null');enabled=true;if(!window.__TINYFRENS_DEFER_AUTH__)connect();else status('Signing you in…');}}catch{status('Could not connect to the friends server. Check the address in Settings.');}
  // Native proximity adapters can call this same code lookup after explicit discovery.
  window.TinyFrensFriends={
   requestByCode:code=>send({type:'friend-request',code}),

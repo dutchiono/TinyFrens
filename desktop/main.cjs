@@ -222,7 +222,7 @@ async function smokeTest() {
     assert.equal(pet.isVisible(), true);
     assert.equal(await js('typeof window.TinyFrensDesktop'), 'object');
     assert.equal(await js('typeof require'), 'undefined');
-    assert.equal(await js('document.getElementById("start").textContent'), 'Hide pet');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Hide NFTs');
     await js('document.getElementById("play").click()');
     await pause(100);
     assert.equal(store.read().energy, 68); assert.equal(store.read().hunger, 72);
@@ -239,7 +239,7 @@ async function smokeTest() {
     await pet.webContents.executeJavaScript('document.getElementById("closePet").click()');
     await pause(100);
     assert.equal(pet.isVisible(), false);
-    assert.equal(await js('document.getElementById("start").textContent'), 'Show pet');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Show NFTs');
     await js('document.getElementById("start").click()');
     await pause(100); assert.equal(pet.isVisible(), true);
     const before = pet.getBounds(), area = screen.getDisplayMatching(before).workArea;
@@ -319,6 +319,7 @@ ipcMain.handle('tinyfrens:check-update', async event => {
 });
 ipcMain.handle('tinyfrens:turtle-request', async (event, server, route, body) => {
   if (!trusted(event) || event.sender !== careWindow?.webContents) throw new Error('Untrusted turtle request');
+  if (route === '/native/remove-wallet') { if (server !== SERVER || !/^0x[0-9a-fA-F]{40}$/.test(body.address)) throw new Error('Invalid wallet'); turtles.removeWallet(body.address); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/remove-turtle') { if (server !== SERVER) throw new Error('Unsupported turtle server'); turtles.remove(body.tokenId); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/import-turtle') {
     if (server !== SERVER) throw new Error('Unsupported turtle server');

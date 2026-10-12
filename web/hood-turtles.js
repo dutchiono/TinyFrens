@@ -26,17 +26,18 @@ async function check() {
 }
 async function loadLinkedWallet() {
   const result = await post('/api/wallet-link/status');
-  $('wallet').textContent = result.address ? `Connected: ${result.address}` : 'No wallet connected yet.';
-  $('check').disabled = !result.address;
-  if (!result.address) return;
+  const addresses = result.addresses || (result.address ? [result.address] : []);
+  $('wallet').textContent = addresses.length ? `${addresses.length} wallet${addresses.length === 1 ? '' : 's'} connected` : 'No wallet connected yet.';
+  $('check').disabled = !addresses.length;
+  if (!addresses.length) return;
   $('turtlePanel').hidden = false;
 
-  message('Finding your Hood Turtles…');
+  message('Finding supported NFTs across your wallets…');
   const holdings = await post('/api/wallet-link/nfts');
   $('turtleChoices').replaceChildren();
   if ($('tokenId').value && holdings.nfts.some(nft => nft.tokenId === Number($('tokenId').value))) await check();
   if (holdings.nfts.length === 1) { $('tokenId').value = holdings.nfts[0].tokenId; await check(); return; }
-  message(holdings.nfts.length ? 'Choose your turtle.' : 'No Hood Turtles found in this wallet.');
+  message(holdings.nfts.length ? 'Choose an NFT to import.' : 'No supported NFTs found in your linked wallets.');
   for (const nft of holdings.nfts) {
     const button = document.createElement('button'); button.textContent = nft.name;
     button.onclick = () => { $('tokenId').value = nft.tokenId; check().catch(error => message(error)); };
@@ -70,7 +71,6 @@ $('connectWallet').addEventListener('click', async () => {
     message('Review and sign the TinyFrens connection message. No transaction or gas.', $('connectionStatus'));
     const signature = await window.ethereum.request({method: 'personal_sign', params: [challenge.message, accounts[0]]});
     await post('/api/wallet-link/confirm', {signature});
-    window.clearImportedTurtle?.();
     message('Wallet connected to this device.', $('connectionStatus')); await loadLinkedWallet();
   } catch (error) { message(error, $('connectionStatus')); }
   finally { $('connectWallet').disabled = false; }
@@ -113,7 +113,6 @@ $('acceptPairing').addEventListener('click', async () => {
   try {
     const result = await post('/api/turtle-connect/accept', {code: pairing.code});
     pairing = null; clearTimeout(pollTimer); $('pairing').hidden = true; $('tokenId').value = result.tokenId || '';
-    window.clearImportedTurtle?.();
     message('Your Bankr wallet is connected to this device.', $('connectionStatus')); await loadLinkedWallet();
     if (latest?.active) await importTurtle();
   } catch (error) { message(error, $('pairingStatus')); }

@@ -5,10 +5,10 @@
     <section class="overlay wallet-link-panel" style="margin-top:0;">
       <h3>Connect your wallet</h3>
       <p class="small">Sign one plain-text message to link an external Web3 address to this fren. No gas, approvals, transfers, seed phrases, or spending permissions. Your external NFTs stay in your wallet.</p>
-      <p id="linkedWallet" class="wallet-link-address" style="font-family:monospace;word-break:break-all;color:inherit;"></p>
+      <div id="linkedWallet" class="wallet-link-address"></div>
       <div class="actions">
         <button type="button" id="linkWallet">Connect my wallet</button>
-        <button type="button" id="unlinkWallet" class="secondary" hidden>Disconnect</button>
+
       </div>
       <p id="walletLinkStatus" role="status"></p>
     </section>
@@ -19,18 +19,17 @@
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
     </section>
-    <p class="small">The link stays with this fren until you disconnect it.</p>
+    <p class="small">Each wallet stays linked to this device until you remove it.</p>
   `;
 
   const linkedWallet = document.getElementById('linkedWallet');
   const linkButton = document.getElementById('linkWallet');
-  const unlinkButton = document.getElementById('unlinkWallet');
   const scanButton = document.getElementById('scanWallet');
   const linkStatus = document.getElementById('walletLinkStatus');
   const scanStatus = document.getElementById('walletScanStatus');
   const matches = document.getElementById('walletMatches');
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
-  let linkedAddress = null;
+  let linkedAddresses = [];
 
   function identity() {
     const current = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base()) || 'null');
@@ -42,17 +41,34 @@
     return window.TinyFrensTurtleAPI(base(), path, {token:identity().token, ...values});
   }
 
-  function showLink(address) {
-    linkedAddress = address;
-    linkedWallet.textContent = address ? `Linked: ${address}` : 'No wallet linked yet.';
-    linkButton.textContent = address ? 'Change wallet' : 'Connect my wallet';
-    unlinkButton.hidden = !address;
-    scanButton.disabled = !address;
-    if (!address) matches.replaceChildren();
+  function showLink(addresses = []) {
+    linkedAddresses = addresses;
+    linkedWallet.replaceChildren();
+    if (!addresses.length) linkedWallet.textContent = 'No wallets linked yet.';
+    for (const address of addresses) {
+      const row = document.createElement('div'); row.className = 'linked-wallet-row';
+      const label = document.createElement('span'); label.textContent = address;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'secondary';
+      remove.textContent = 'Remove'; remove.setAttribute('aria-label', 'Remove wallet ' + address);
+      remove.onclick = async () => {
+        remove.disabled = true;
+        try {
+          const data = await post('/api/wallet-link/disconnect', {address});
+          await window.removeImportedWallet(address);
+          showLink(data.addresses || []);
+          linkStatus.textContent = 'Wallet removed. Your other wallet links stay connected.';
+          await scan();
+        } catch (error) { linkStatus.textContent = error.message; remove.disabled = false; }
+      };
+      row.append(label, remove); linkedWallet.append(row);
+    }
+    linkButton.textContent = addresses.length ? 'Add wallet' : 'Connect my wallet';
+    scanButton.disabled = !addresses.length;
+    if (!addresses.length) matches.replaceChildren();
   }
 
   async function scan() {
-    if (!linkedAddress) return;
+    if (!linkedAddresses.length) return;
     scanButton.disabled = true;
     scanStatus.textContent = 'Checking supported NFTs…';
     try {
@@ -64,10 +80,10 @@
         const title = document.createElement('strong');
         title.textContent = nft.name;
         const detail = document.createElement('p');
-        detail.textContent = 'Hood Turtles · Robinhood Chain · Currently owned';
+        detail.textContent = `${nft.collection} · ${nft.wallet.slice(0,6)}…${nft.wallet.slice(-4)}`;
         const link = document.createElement('a');
         link.href = `hood-turtles.html?tokenId=${nft.tokenId}`;
-        link.textContent = 'Import my turtle →';
+        link.textContent = 'Import NFT →';
         card.append(title, detail, link);
         matches.append(card);
       }
@@ -77,15 +93,15 @@
     } catch (error) {
       scanStatus.textContent = error.message;
     } finally {
-      scanButton.disabled = !linkedAddress;
+      scanButton.disabled = !linkedAddresses.length;
     }
   }
 
   async function loadLink() {
     const data = await post('/api/wallet-link/status');
-    showLink(data.address);
-    linkStatus.textContent = data.address ? 'Connected for read-only discovery. No wallet app needed to check again.' : '';
-    if (data.address) await scan();
+    showLink(data.addresses || (data.address ? [data.address] : []));
+    linkStatus.textContent = linkedAddresses.length ? 'Linked wallets are checked together. Add another whenever you need.' : '';
+    if (linkedAddresses.length) await scan();
   }
 
   linkButton.addEventListener('click', async () => {
@@ -101,8 +117,7 @@
         method: 'personal_sign', params: [challenge.message, address],
       });
       const result = await post('/api/wallet-link/confirm', { signature });
-      window.clearImportedTurtle?.();
-      showLink(result.address);
+      showLink(result.addresses || [result.address]);
       linkStatus.textContent = 'Wallet linked. You will not need to sign again for read-only NFT checks.';
       await scan();
     } catch (error) {
@@ -112,26 +127,9 @@
     }
   });
 
-  unlinkButton.addEventListener('click', async () => {
-    unlinkButton.disabled = true;
-    try {
-      await post('/api/wallet-link/disconnect');
-      showLink(null);
-      scanStatus.textContent = '';
-      linkStatus.textContent = 'Wallet disconnected from this fren.';
-      localStorage.removeItem('tinyfrens-hood-turtle');
-      window.clearImportedTurtle?.();
-      window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
-    } catch (error) {
-      linkStatus.textContent = error.message;
-    } finally {
-      unlinkButton.disabled = !linkedAddress;
-    }
-  });
-
   scanButton.addEventListener('click', scan);
   let attempts = 0;
-  showLink(null);
+  showLink([]);
   async function initialLoad() {
     try { await loadLink(); }
     catch (error) {

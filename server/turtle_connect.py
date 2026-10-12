@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import time
+from urllib.parse import urlencode
 
 from aiohttp import ClientSession, ClientTimeout, web
 from eth_account import Account
@@ -18,6 +19,90 @@ CHAIN_ID = 4663
 OWNERSHIP_TTL = 86400
 PAIRING_TTL = 600
 AGENT_PATHS = {'/api/turtle-connect/challenge', '/api/turtle-connect/confirm'}
+
+
+def migrate_wallet_links(db):
+    """Preserve the old single link while changing the key to device + address."""
+    columns = db.execute('PRAGMA table_info(wallet_links)').fetchall()
+    if any(row[1] == 'address' and row[5] for row in columns):
+        return
+    with db:
+        db.execute('CREATE TABLE wallet_links_next(pet_id TEXT, address TEXT COLLATE NOCASE NOT NULL, '
+                   'created INTEGER NOT NULL, PRIMARY KEY(pet_id,address))')
+        db.execute('INSERT INTO wallet_links_next SELECT pet_id,address,created FROM wallet_links')
+        db.execute('DROP TABLE wallet_links')
+        db.execute('ALTER TABLE wallet_links_next RENAME TO wallet_links')
+
+
+def linked_wallets(db, pid):
+    return [row[0] for row in db.execute('SELECT address FROM wallet_links WHERE pet_id=? ORDER BY created,address', (pid,))]
+
+
+def add_wallet(db, pid, address):
+    addresses = linked_wallets(db, pid)
+    if address.lower() not in [a.lower() for a in addresses] and len(addresses) >= 10:
+        raise ValueError('Up to 10 wallets can be linked to this device. Remove one first.')
+    db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (pid, to_checksum_address(address), int(time.time())))
+
+
+async def discover_wallets(addresses, ownership):
+    """Discover all linked wallets; cache only successful ownership verification."""
+    semaphore = asyncio.Semaphore(5)
+    async def discover(address):
+        root = os.environ.get('ROBINHOOD_BLOCKSCOUT_API_URL', 'https://robinhoodchain.blockscout.com/api/v2').rstrip('/')
+        candidates, partial, params = set(), False, {'type': 'ERC-721'}
+        async with ClientSession(timeout=ClientTimeout(total=15)) as session:
+            for page in range(5):
+                async with session.get(root + '/addresses/' + address + '/nft?' + urlencode(params)) as response:
+                    response.raise_for_status()
+                    data = await response.json(content_type=None)
+                if not isinstance(data.get('items'), list):
+                    raise ValueError('NFT indexer returned invalid data')
+                for item in data['items']:
+                    if str((item.get('token') or {}).get('address_hash', '')).lower() == COLLECTION:
+                        try:
+                            candidates.add(turtle_id(item.get('id')))
+                        except ValueError:
+                            continue
+                next_page = data.get('next_page_params')
+                if not next_page:
+                    break
+                if page == 4:
+                    partial = True
+                params = {'type': 'ERC-721', **next_page}
+        async def verify(tid):
+            cached = ownership.db.execute('SELECT checked,payload FROM turtle_ownership WHERE wallet=? AND token_id=?', (address, tid)).fetchone()
+            if cached and cached[0] <= time.time() < cached[0] + OWNERSHIP_TTL:
+                result = json.loads(cached[1])
+                active, name = result['active'], result['name']
+            else:
+                rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
+                async with semaphore, ClientSession(timeout=ClientTimeout(total=12)) as session:
+                    payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
+                               'params': [{'to': COLLECTION, 'data': '0x6352211e' + format(tid, '064x')}, 'latest']}
+                    async with session.post(rpc, json=payload) as response:
+                        response.raise_for_status()
+                        result = await response.json(content_type=None)
+                raw = result.get('result', '')
+                if result.get('error') or not re.fullmatch(r'0x0{24}[0-9a-fA-F]{40}', raw):
+                    raise RuntimeError('On-chain ownership check unavailable')
+                active = raw[-40:].lower() == address[2:].lower()
+                name = f'Hood Turtle #{tid}'
+            if not active:
+                return None
+            return {'tokenId': tid, 'name': name, 'wallet': address,
+                    'collection': 'Hood Turtles', 'originalAddress': COLLECTION, 'chainId': CHAIN_ID}
+        nfts = await asyncio.gather(*(verify(tid) for tid in sorted(candidates)[:50]))
+        return {'nfts': [nft for nft in nfts if nft], 'partial': partial or len(candidates) > 50}
+    results = await asyncio.gather(*(discover(address) for address in addresses), return_exceptions=True)
+    successes = [result for result in results if isinstance(result, dict)]
+    if not successes:
+        raise RuntimeError('NFT discovery is temporarily unavailable')
+    nfts = {}
+    for result in successes:
+        for nft in result['nfts']:
+            nfts.setdefault((nft['chainId'], nft['originalAddress'], nft['tokenId']), nft)
+    return {'nfts': list(nfts.values()), 'partial': len(successes) != len(results) or any(r['partial'] for r in successes)}
 
 
 def turtle_id(value):
@@ -92,6 +177,7 @@ class TurtleOwnership:
 
 
 def install(app, db, token_pet, limit, ownership):
+    migrate_wallet_links(db)
     db.execute('''CREATE TABLE IF NOT EXISTS turtle_pairings(
         code TEXT PRIMARY KEY, pet_id TEXT UNIQUE, expires REAL, challenge_id TEXT,
         address TEXT, token_id INTEGER, message TEXT, verified INTEGER DEFAULT 0)''')
@@ -179,10 +265,10 @@ def install(app, db, token_pet, limit, ownership):
             raise ValueError('This device has no verified pairing to accept')
         # No await between consuming the pairing and assigning the signed address.
         with db:
+            add_wallet(db, pid, row[3])
             db.execute('DELETE FROM turtle_pairings WHERE code=?', (code,))
-            db.execute('INSERT OR REPLACE INTO wallet_links VALUES(?,?,?)', (pid, row[3], int(time.time())))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
-        return {'linked': True, 'address': row[3], 'tokenId': row[4]}
+        return {'linked': True, 'address': row[3], 'addresses': linked_wallets(db, pid), 'tokenId': row[4]}
 
     def handler(action):
         async def handle(request):

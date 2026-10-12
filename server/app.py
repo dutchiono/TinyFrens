@@ -385,8 +385,8 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            return web.json_response({'linked': bool(row), 'address': row[0] if row else None})
+            addresses = turtle_connect.linked_wallets(db, pid)
+            return web.json_response({'linked': bool(addresses), 'address': addresses[0] if addresses else None, 'addresses': addresses})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -438,11 +438,11 @@ def create_app(database=None, origins=None):
                 raise ValueError('Signature could not be verified') from None
             if recovered.lower() != row[0].lower():
                 raise ValueError('Signature does not match the selected wallet')
-            db.execute('INSERT OR REPLACE INTO wallet_links VALUES(?,?,?)', (pid, row[0], int(now())))
+            turtle_connect.add_wallet(db, pid, row[0])
             db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
             db.commit()
-            return web.json_response({'linked': True, 'address': row[0]})
+            return web.json_response({'linked': True, 'address': row[0], 'addresses': turtle_connect.linked_wallets(db, pid)})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -450,11 +450,16 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
+            address = body.get('address')
+            if address is None:
+                db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
+            else:
+                address = to_checksum_address(address)
+                db.execute('DELETE FROM wallet_links WHERE pet_id=? AND address=? COLLATE NOCASE', (pid, address))
             db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
             db.commit()
-            return web.json_response({'linked': False})
+            return web.json_response({'linked': bool(turtle_connect.linked_wallets(db, pid)), 'addresses': turtle_connect.linked_wallets(db, pid)})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
 
@@ -463,55 +468,14 @@ def create_app(database=None, origins=None):
             body = await request.json()
             pid = token_pet(body.get('token'))
             limit(('wallet-link-nfts', pid), 20, 3600)
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not row:
+            addresses = turtle_connect.linked_wallets(db, pid)
+            if not addresses:
                 raise ValueError('Link a wallet first')
-            address = row[0]
-            api_root = (os.environ.get('ROBINHOOD_BLOCKSCOUT_API_URL',
-                                       'https://robinhoodchain.blockscout.com/api/v2').rstrip('/')
-                        + '/addresses/' + address + '/nft')
-            candidates = {}
-            params = {'type': 'ERC-721'}
-            partial = False
-            async with ClientSession(timeout=ClientTimeout(total=15)) as session:
-                for page in range(5):
-                    async with session.get(api_root + '?' + urlencode(params)) as response:
-                        response.raise_for_status()
-                        data = await response.json(content_type=None)
-                    if not isinstance(data.get('items'), list):
-                        raise ValueError('NFT indexer returned invalid data')
-                    for item in data['items']:
-                        contract = (item.get('token') or {}).get('address_hash', '')
-                        token_id = str(item.get('id', ''))
-                        if contract.lower() == HOOD_TURTLES_ADDRESS and token_id.isdigit() and 1 <= int(token_id) <= 2222:
-                            candidates[int(token_id)] = {'tokenId': int(token_id), 'name': f'Hood Turtle #{token_id}',
-                                                          'collection': 'Hood Turtles', 'chainId': 4663}
-                    next_page = data.get('next_page_params')
-                    if not next_page:
-                        break
-                    if page == 4:
-                        partial = True
-                        break
-                    params = {'type': 'ERC-721', **next_page}
-            rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
-            semaphore = asyncio.Semaphore(5)
-            async def owns_token(session, token_id):
-                payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
-                           'params': [{'to': HOOD_TURTLES_ADDRESS,
-                                       'data': '0x6352211e' + token_id.to_bytes(32, 'big').hex()}, 'latest']}
-                async with semaphore:
-                    async with session.post(rpc, json=payload) as response:
-                        response.raise_for_status()
-                        result = await response.json(content_type=None)
-                owner = result.get('result')
-                if not isinstance(owner, str) or len(owner) != 66:
-                    raise ValueError('On-chain ownership check unavailable')
-                return owner[-40:].lower() == address[2:].lower()
-            token_ids = list(candidates)[:50]
-            async with ClientSession(timeout=ClientTimeout(total=12)) as session:
-                ownership = await asyncio.gather(*(owns_token(session, token_id) for token_id in token_ids))
-            nfts = [candidates[token_id] for token_id, owned in zip(token_ids, ownership) if owned]
-            return web.json_response({'address': address, 'nfts': nfts, 'partial': partial or len(candidates) > 50})
+            data = await turtle_connect.discover_wallets(addresses, turtle_ownership)
+            # Filter again if a wallet was removed while discovery was in flight.
+            current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
+            data['nfts'] = [nft for nft in data['nfts'] if nft['wallet'].lower() in current]
+            return web.json_response({'addresses': [address for address in addresses if address.lower() in current], **data})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
         except (asyncio.TimeoutError, OSError, Exception):
@@ -1415,14 +1379,17 @@ def create_app(database=None, origins=None):
         try:
             body = await request.json()
             pid = token_pet(body.get('token'))
-            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not row:
+            addresses = turtle_connect.linked_wallets(db, pid)
+            if not addresses:
                 return web.json_response({'error': 'Link your wallet first'}, status=403)
             token_id = turtle_connect.turtle_id(body.get('tokenId'))
-            data = await turtle_ownership.read(row[0], token_id)
-            # A wallet may be unlinked or changed while the RPC is in flight.
-            current = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
-            if not current or current[0] != row[0]:
+            data = None
+            for address in addresses:
+                data = await turtle_ownership.read(address, token_id)
+                if data['active']:
+                    break
+            current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
+            if not data or data['wallet'].lower() not in current:
                 return web.json_response({'error': 'Wallet link changed. Please try again.'}, status=403)
             return web.json_response(data)
         except (ValueError, TypeError, OverflowError) as exc:

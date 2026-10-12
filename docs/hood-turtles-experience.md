@@ -71,3 +71,12 @@ Each collection needs an explicit art adapter and its own reviewed animation rul
 Current Hood Turtle animation scope: stationary pose and four-frame walking. No custom sleep, eating, turning, or wave poses yet. Fixtures cover three actual collection tokens with different backgrounds and traits; this is not an exhaustive audit of all 2,222 tokens. Add fixture coverage for new layouts before enabling them.
 
 Android, browser and desktop retain up to five selected Hood Turtles. Each selected token retains its own expiry and must renew independently. Removal does not disconnect the wallet. Disconnect clears selections. Android extra companions have independent overlay windows with drag; desktop extra windows currently pass clicks through, with removal in the main app.
+
+
+## Multiple wallets and primary navigation
+
+The primary app loop is Import NFTs → Show NFTs. Party, Looks and Settings are under More. Friends and visits belong to Party, not the NFT display screen.
+
+Wallet links use a composite `(pet_id,address)` key (case-insensitive address) and retain legacy links through a transactional migration. A device supports up to 10 addresses. Bankr acceptance and direct wallet signing add links without replacing previous addresses. Status includes `addresses` plus the first `address` for old clients. Discovery combines supported holdings, deduplicates by collection/chain/token, and rechecks links after network requests. If one wallet scan fails, the remaining results are marked partial; if all fail the API returns an error.
+
+POST `/api/wallet-link/disconnect` with `address` removes one wallet. Omitting address retains the legacy disconnect-all behavior. The current UI always supplies the address and immediately removes only matching browser/native companions. Pending proofs are invalidated on disconnect. Daily ownership leases apply independently to each NFT; cached proof from a removed wallet cannot authorize a new display request.
