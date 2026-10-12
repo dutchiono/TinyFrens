@@ -198,5 +198,27 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r_notify.status,503)
         finally:
             if saved_key is not None: os.environ['NEYNAR_API_KEY']=saved_key
+    async def test_farcaster_cast_endpoint_validation(self):
+        saved_key=os.environ.pop('NEYNAR_API_KEY',None)
+        saved_signer=os.environ.pop('FARCASTER_SIGNER_UUID',None)
+        try:
+            # Without API key -> 503
+            r=await self.client.post('/api/farcaster/cast',json={'text':'gm'})
+            self.assertEqual(r.status,503)
+
+            # With API key but without signer -> 503
+            os.environ['NEYNAR_API_KEY']='test-key'
+            r=await self.client.post('/api/farcaster/cast',json={'text':'gm'})
+            self.assertEqual(r.status,503)
+
+            # With both, empty text -> 400
+            os.environ['FARCASTER_SIGNER_UUID']='test-uuid'
+            r=await self.client.post('/api/farcaster/cast',json={'text':''})
+            self.assertEqual(r.status,400)
+        finally:
+            if saved_key is not None: os.environ['NEYNAR_API_KEY']=saved_key
+            else: os.environ.pop('NEYNAR_API_KEY',None)
+            if saved_signer is not None: os.environ['FARCASTER_SIGNER_UUID']=saved_signer
+            else: os.environ.pop('FARCASTER_SIGNER_UUID',None)
 
 if __name__=='__main__': unittest.main()

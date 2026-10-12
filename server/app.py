@@ -116,7 +116,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook'}
+        public_paths={'/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         is_public=request.path in public_paths or is_snap_req
         if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
@@ -407,6 +407,26 @@ def create_app(database=None, origins=None):
             data=await request.json()
             return web.json_response({'received':True})
         except Exception: return web.json_response({'ok':True})
+    async def farcaster_cast(request):
+        try:
+            api_key=os.environ.get('NEYNAR_API_KEY')
+            signer_uuid=os.environ.get('FARCASTER_SIGNER_UUID')
+            if not api_key: return web.json_response({'error':'Neynar API key is not configured'},status=503)
+            if not signer_uuid: return web.json_response({'error':'FARCASTER_SIGNER_UUID is not configured yet'},status=503)
+            body=await request.json()
+            text=str(body.get('text','')).strip()[:1024]
+            if not text: return web.json_response({'error':'Cast text cannot be empty'},status=400)
+            payload={'signer_uuid':signer_uuid,'text':text}
+            embeds=body.get('embeds')
+            if isinstance(embeds,list) and embeds: payload['embeds']=embeds
+            headers={'Content-Type':'application/json','x-api-key':api_key}
+            timeout=ClientTimeout(total=15)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.post(NEYNAR_URL+'/v2/farcaster/cast',headers=headers,json=payload) as response:
+                    data=await response.json(content_type=None)
+                    if response.status>=400: return web.json_response({'error':data.get('message') or 'Could not publish cast'},status=response.status)
+                    return web.json_response(data)
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -541,6 +561,7 @@ def create_app(database=None, origins=None):
     app.router.add_get('/.well-known/farcaster.json',farcaster_manifest)
     app.router.add_post('/api/farcaster/notify',farcaster_notify)
     app.router.add_post('/api/farcaster/webhook',farcaster_webhook)
+    app.router.add_post('/api/farcaster/cast',farcaster_cast)
     app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
