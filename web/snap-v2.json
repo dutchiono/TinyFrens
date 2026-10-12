@@ -48,7 +48,7 @@
         "on": {
           "press": {
             "action": "submit",
-            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=pet" }
+            "params": { "target": "https://tinyfrens.miono.live/api/snap/interact?action=pet" }
           }
         }
       },
@@ -58,7 +58,7 @@
         "on": {
           "press": {
             "action": "submit",
-            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=feed" }
+            "params": { "target": "https://tinyfrens.miono.live/api/snap/interact?action=feed" }
           }
         }
       },
@@ -68,7 +68,7 @@
         "on": {
           "press": {
             "action": "submit",
-            "params": { "target": "https://tinyfrens.lol/api/snap/interact?action=play" }
+            "params": { "target": "https://tinyfrens.miono.live/api/snap/interact?action=play" }
           }
         }
       },

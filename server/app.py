@@ -116,7 +116,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast'}
+        public_paths={'/','/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         is_public=request.path in public_paths or is_snap_req
         if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
@@ -347,17 +347,17 @@ def create_app(database=None, origins=None):
                     "btn-pet": {
                         "type": "button",
                         "props": {"label": "Pet 💖", "variant": "secondary"},
-                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=pet"}}}
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.miono.live/api/snap/interact?action=pet"}}}
                     },
                     "btn-feed": {
                         "type": "button",
                         "props": {"label": "Feed 🍓", "variant": "secondary"},
-                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=feed"}}}
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.miono.live/api/snap/interact?action=feed"}}}
                     },
                     "btn-play": {
                         "type": "button",
                         "props": {"label": "Play 🎾", "variant": "secondary"},
-                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.lol/api/snap/interact?action=play"}}}
+                        "on": {"press": {"action": "submit", "params": {"target": "https://tinyfrens.miono.live/api/snap/interact?action=play"}}}
                     },
                     "open-miniapp-btn": {
                         "type": "button",
@@ -368,10 +368,23 @@ def create_app(database=None, origins=None):
             }
         }
     async def get_snap(request):
-        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json')
+        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept'})
     async def post_snap_interact(request):
         action=request.query.get('action')
-        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json')
+        if not action:
+            try:
+                body=await request.json()
+                if isinstance(body, dict) and 'payload' in body and isinstance(body['payload'], str):
+                    import base64
+                    p_raw=body['payload']
+                    p_pad=p_raw + '=' * (-len(p_raw) % 4)
+                    p_data=json.loads(base64.urlsafe_b64decode(p_pad.encode('ascii')))
+                    action=p_data.get('inputs',{}).get('action')
+                elif isinstance(body, dict):
+                    action=body.get('inputs',{}).get('action') or body.get('action')
+            except Exception:
+                pass
+        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept'})
     async def farcaster_manifest(request):
         candidates=[
             os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json'),
@@ -555,9 +568,13 @@ def create_app(database=None, origins=None):
     async def health(request): return web.json_response({'ok':True})
     async def options(request): return web.Response()
     app.router.add_get('/health',health)
+    app.router.add_get('/',get_snap)
+    app.router.add_post('/',post_snap_interact)
     app.router.add_get('/api/snap',get_snap)
+    app.router.add_post('/api/snap',post_snap_interact)
     app.router.add_post('/api/snap/interact',post_snap_interact)
     app.router.add_get('/snap',get_snap)
+    app.router.add_post('/snap',post_snap_interact)
     app.router.add_get('/.well-known/farcaster.json',farcaster_manifest)
     app.router.add_post('/api/farcaster/notify',farcaster_notify)
     app.router.add_post('/api/farcaster/webhook',farcaster_webhook)

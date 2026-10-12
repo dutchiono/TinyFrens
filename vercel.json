@@ -16,8 +16,40 @@
       "source": "/snap-v2.json",
       "headers": [
         { "key": "Content-Type", "value": "application/vnd.farcaster.snap+json" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Vary", "value": "Accept" }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Vary", "value": "Accept" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": ".*application/vnd\\.farcaster\\.snap\\+json.*"
+        }
+      ],
+      "destination": "https://tinyfrens.miono.live/api/snap"
+    },
+    {
+      "source": "/snap",
+      "destination": "https://tinyfrens.miono.live/api/snap"
+    },
+    {
+      "source": "/api/snap",
+      "destination": "https://tinyfrens.miono.live/api/snap"
+    },
+    {
+      "source": "/api/snap/:path*",
+      "destination": "https://tinyfrens.miono.live/api/snap/:path*"
     }
   ]
 }
