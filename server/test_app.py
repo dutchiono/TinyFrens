@@ -91,7 +91,7 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r.status,200)
         data=await r.json()
         self.assertEqual(data['pet']['name'],'TinyFren #42')
-        self.assertIn(data['pet']['shape'],['cat','blob','robot','bunny','dog','bear','frog','turtle'])
+        self.assertIn(data['pet']['shape'],['cat','blob','robot','bunny','duck','pig','frog','turtle'])
         self.assertRegex(data['pet']['color'],r'^#[0-9a-f]{6}$')
         ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});self.sockets.append(ws)
         await ws.send_json({'type':'auth','token':a['token']})
@@ -406,7 +406,11 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(check_data['vaultAddress'].startswith('0x'))
 
         # Perform mint (with testnet free mint fallback enabled by default)
-        r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={'token': a['token']})
+        r_mint = await self.client.post('/api/wallet/mint', headers={'Origin': ORIGIN}, json={
+            'token': a['token'],
+            'customTraits': {'shape': 'frog', 'color': '#82eba1', 'expression': 'star_eyes', 'accessory': 'crown'},
+            'name': 'Prince Toad'
+        })
         self.assertEqual(r_mint.status, 200)
         mint_data = await r_mint.json()
         self.assertTrue(mint_data['success'])
@@ -414,6 +418,11 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(token_id, 1)
         self.assertLessEqual(token_id, 2664)
         self.assertEqual(mint_data['pet']['tokenId'], token_id)
+        self.assertEqual(mint_data['pet']['shape'], 'frog')
+        self.assertEqual(mint_data['pet']['color'], '#82eba1')
+        self.assertEqual(mint_data['pet']['expression'], 'star_eyes')
+        self.assertEqual(mint_data['pet']['accessory'], 'crown')
+        self.assertEqual(mint_data['pet']['name'], 'Prince Toad')
 
         # Check that bankr_nfts returns the minted NFT
         r_nfts = await self.client.post('/api/bankr/nfts', headers={'Origin': ORIGIN}, json={'token': a['token']})
@@ -434,7 +443,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r_restore.status, 200)
         restore_data = await r_restore.json()
         self.assertTrue(restore_data['success'])
-        self.assertEqual(restore_data['pet']['name'], 'MintyFren')
+        self.assertEqual(restore_data['pet']['name'], 'Prince Toad')
         self.assertEqual(restore_data['pet']['tokenId'], token_id)
         self.assertTrue(restore_data['vaultAddress'].startswith('0x'))
 

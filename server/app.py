@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover - integration modules always ship together
     validate_init_data = user_profile = bot_api = reply_markup = classify = None
     verify_interaction = exchange_code = None
 
-SHAPES = {'cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'}
+SHAPES = {'cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle', 'dog', 'bear'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 BANKR_URL = 'https://api.bankr.bot'
 NEYNAR_URL = 'https://api.neynar.com'
@@ -405,7 +405,7 @@ def create_app(database=None, origins=None):
     def nft_traits(nft):
         seed=':'.join(str(nft.get(k,'')) for k in ('chain','tokenId','name'))+':'+str((nft.get('collection') or {}).get('address',''))
         digest=hashlib.sha256(seed.encode()).digest()
-        shapes=['cat','blob','robot','bunny','dog','bear','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675']
+        shapes=['cat','blob','robot','bunny','duck','pig','frog','turtle'];colors=['#a474f1','#66c7d2','#ffb95e','#82eba1','#ff82a7','#4d96ff','#2ecc71','#ff7675']
         exprs=['happy','wink','shades','star_eyes'];accs=['none','party_hat','crown','halo','bow_tie','orb']
         return {'shape':shapes[digest[0]%len(shapes)],'color':colors[digest[1]%len(colors)],'expression':exprs[digest[2]%len(exprs)],'accessory':accs[digest[3]%len(accs)]}
     async def wallet_api_key(pid):
@@ -476,12 +476,37 @@ def create_app(database=None, origins=None):
             available_ids = [i for i in range(1, NFT_MAX_SUPPLY + 1) if i not in used_ids]
             token_id = available_ids[secrets.randbelow(len(available_ids))] if available_ids else (secrets.randbelow(NFT_MAX_SUPPLY) + 1)
             traits_data = nft_traits_by_id(token_id)
+
+            # If user submitted custom builder traits, apply them
+            custom_traits = body.get('customTraits') or body.get('traits')
+            if isinstance(custom_traits, dict):
+                valid_shapes = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle']
+                valid_exprs = ['happy', 'wink', 'shades', 'star_eyes', 'sleepy', 'loving', 'laser', 'grin']
+                valid_accs = ['none', 'party_hat', 'crown', 'straw_hat', 'halo', 'beanie', 'strawberry', 'orb', 'bubble', 'bow_tie']
+                c_shape = str(custom_traits.get('shape', '')).lower()
+                if c_shape in valid_shapes: traits_data['shape'] = c_shape
+                c_color = str(custom_traits.get('color', ''))
+                if re.fullmatch(r'#[0-9a-fA-F]{6}', c_color): traits_data['color'] = c_color.lower()
+                c_expr = str(custom_traits.get('expression', '')).lower()
+                if c_expr in valid_exprs:
+                    traits_data['expression'] = c_expr
+                    traits_data['expressionLabel'] = c_expr.replace('_', ' ').title()
+                c_acc = str(custom_traits.get('accessory', '')).lower()
+                if c_acc in valid_accs:
+                    traits_data['accessory'] = c_acc
+                    traits_data['accessoryLabel'] = c_acc.replace('_', ' ').title()
+
             species_capital = traits_data['shape'].capitalize()
-            nft_name = f'TinyFren #{token_id} · {species_capital}'
+            custom_name = str(body.get('name') or '').strip()
+            if custom_name and 1 <= len(custom_name) <= 20:
+                nft_name = f'TinyFren #{token_id} · {custom_name}'
+            else:
+                nft_name = f'TinyFren #{token_id} · {species_capital}'
             db.execute('INSERT INTO fren_nfts(pet_id,token_id,name,traits,created) VALUES(?,?,?,?,?)',
                        (pid, token_id, nft_name, json.dumps(traits_data), int(now())))
             current = pet(pid)['pet']
-            transformed = {**current, **traits_data, 'tokenId': token_id, 'name': current['name']}
+            pet_display_name = custom_name if custom_name and 1 <= len(custom_name) <= 20 else current['name']
+            transformed = {**current, **traits_data, 'tokenId': token_id, 'name': pet_display_name}
             db.execute('UPDATE pets SET profile=? WHERE id=?', (json.dumps(transformed), pid))
             db.commit()
             nft_obj = {

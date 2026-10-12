@@ -9,13 +9,20 @@
   const saved = 'tinyfrens-party-code';
   try { code.value = localStorage.getItem(saved) || ''; } catch {}
 
-  const VALID_SHAPES = ['cat','blob','robot','bunny','dog','bear','frog','turtle'];
+  const VALID_SHAPES = ['cat','blob','robot','bunny','duck','pig','frog','turtle'];
   const VALID_EXPRS = ['happy','wink','shades','star_eyes','sleepy','loving','laser','grin'];
   const VALID_ACCS = ['none','party_hat','crown','straw_hat','halo','beanie','strawberry','orb','bubble','bow_tie'];
 
+  function normalizeShape(s) {
+    if (s === 'mascot') return 'robot';
+    if (s === 'dog') return 'duck';
+    if (s === 'bear') return 'pig';
+    return VALID_SHAPES.includes(s) ? s : 'cat';
+  }
+
   function petProfile() {
     const s = read();
-    const shape = s.shape === 'mascot' ? 'robot' : VALID_SHAPES.includes(s.shape) ? s.shape : 'cat';
+    const shape = normalizeShape(s.shape);
     const expr = VALID_EXPRS.includes(s.expression) ? s.expression : 'happy';
     const acc = VALID_ACCS.includes(s.accessory) ? s.accessory : 'none';
     const tokenId = (typeof s.tokenId === 'number' && s.tokenId >= 1 && s.tokenId <= 2664) ? s.tokenId : null;
@@ -31,7 +38,7 @@
 
   function applyPetTraits(sprite, pet) {
     if (!sprite || !pet) return;
-    const shape = pet.shape === 'mascot' ? 'robot' : VALID_SHAPES.includes(pet.shape) ? pet.shape : 'cat';
+    const shape = normalizeShape(pet.shape);
     sprite.dataset.shape = shape;
     sprite.dataset.expression = VALID_EXPRS.includes(pet.expression) ? pet.expression : 'happy';
     sprite.dataset.accessory = VALID_ACCS.includes(pet.accessory) ? pet.accessory : 'none';

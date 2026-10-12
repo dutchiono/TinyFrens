@@ -31,7 +31,8 @@
   function getSpeciesName(s) {
     const map = {
       cat: 'Cat', blob: 'Blob', robot: 'Robot', bunny: 'Bunny',
-      dog: 'Puppy Dog', bear: 'Teddy Bear', frog: 'Frog', turtle: 'Turtle'
+      duck: 'Duck', pig: 'Pig', frog: 'Frog', turtle: 'Turtle',
+      dog: 'Duck', bear: 'Pig'
     };
     return map[s] || 'Fren';
   }
@@ -39,43 +40,59 @@
   function generatePetSvg(s, action) {
     const color = s.color || '#a474f1';
     const dark = '#4b2d77';
-    const shape = s.shape || 'cat';
+    let shape = s.shape || 'cat';
+    if (shape === 'dog') shape = 'duck';
+    if (shape === 'bear') shape = 'pig';
     const expr = s.expression || 'happy';
     const acc = s.accessory || 'none';
 
     let bodyRadius = 'rx="38" ry="32"';
     let earsSvg = '';
     let shellSvg = '';
+    let snoutSvg = '';
+    let feetSvg = `<rect x="25" y="132" width="29" height="12" rx="4" fill="${dark}"/><rect x="74" y="132" width="29" height="12" rx="4" fill="${dark}"/>`;
 
     if (shape === 'cat') {
       earsSvg = `<polygon points="20,40 36,4 52,40" fill="${color}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
-<polygon points="76,40 92,4 108,40" fill="${color}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>`;
+<polygon points="76,40 92,4 108,40" fill="${color}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
+<polygon points="28,34 36,16 44,34" fill="#ff82a7"/>
+<polygon points="84,34 92,16 100,34" fill="#ff82a7"/>`;
     } else if (shape === 'blob') {
       bodyRadius = 'rx="48" ry="40"';
     } else if (shape === 'robot') {
       earsSvg = `<rect x="60" y="8" width="8" height="24" fill="${dark}"/>
-<circle cx="64" cy="8" r="6" fill="${color}" stroke="${dark}" stroke-width="3"/>`;
+<circle cx="64" cy="8" r="6" fill="#00d2d3" stroke="${dark}" stroke-width="3"/>
+<rect x="2" y="60" width="8" height="14" rx="3" fill="${dark}"/>
+<rect x="118" y="60" width="8" height="14" rx="3" fill="${dark}"/>`;
       bodyRadius = 'rx="8" ry="8"';
     } else if (shape === 'bunny') {
       earsSvg = `<rect x="26" y="2" width="20" height="50" rx="10" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<rect x="82" y="2" width="20" height="50" rx="10" fill="${color}" stroke="${dark}" stroke-width="7"/>`;
-    } else if (shape === 'dog') {
-      earsSvg = `<rect x="6" y="38" width="24" height="42" rx="10" transform="rotate(-25 6 38)" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<rect x="98" y="28" width="24" height="42" rx="10" transform="rotate(25 98 28)" fill="${color}" stroke="${dark}" stroke-width="7"/>`;
-    } else if (shape === 'bear') {
-      earsSvg = `<circle cx="28" cy="30" r="16" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<circle cx="100" cy="30" r="16" fill="${color}" stroke="${dark}" stroke-width="7"/>`;
+<rect x="82" y="2" width="20" height="50" rx="10" fill="${color}" stroke="${dark}" stroke-width="7"/>
+<rect x="30" y="8" width="12" height="38" rx="6" fill="#ffc2d4"/>
+<rect x="86" y="8" width="12" height="38" rx="6" fill="#ffc2d4"/>`;
+    } else if (shape === 'duck') {
+      earsSvg = `<path d="M 58 32 C 54 20 62 14 66 14 C 68 20 66 28 66 32 Z" fill="${color}" stroke="${dark}" stroke-width="3"/>
+<path d="M 64 32 C 68 18 76 16 78 20 C 76 26 72 30 70 32 Z" fill="${color}" stroke="${dark}" stroke-width="3"/>`;
+      snoutSvg = `<ellipse cx="64" cy="72" rx="14" ry="9" fill="#ff9f43" stroke="${dark}" stroke-width="3"/>
+<circle cx="60" cy="70" r="1.5" fill="${dark}"/><circle cx="68" cy="70" r="1.5" fill="${dark}"/>`;
+      feetSvg = `<ellipse cx="38" cy="136" rx="16" ry="6" fill="#ff9f43" stroke="${dark}" stroke-width="3"/><ellipse cx="90" cy="136" rx="16" ry="6" fill="#ff9f43" stroke="${dark}" stroke-width="3"/>`;
+    } else if (shape === 'pig') {
+      earsSvg = `<polygon points="12,38 28,26 34,48" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linejoin="round"/>
+<polygon points="116,38 100,26 94,48" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linejoin="round"/>
+<polygon points="16,38 27,29 31,45" fill="#ff82a7"/>
+<polygon points="112,38 101,29 97,45" fill="#ff82a7"/>`;
+      snoutSvg = `<rect x="50" y="66" width="28" height="18" rx="9" fill="#ff82a7" stroke="${dark}" stroke-width="4"/>
+<circle cx="58" cy="75" r="2.5" fill="${dark}"/><circle cx="70" cy="75" r="2.5" fill="${dark}"/>`;
     } else if (shape === 'frog') {
-      earsSvg = `<circle cx="34" cy="32" r="16" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<circle cx="94" cy="32" r="16" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<circle cx="34" cy="32" r="5" fill="#fff"/>
-<circle cx="94" cy="32" r="5" fill="#fff"/>
-<circle cx="34" cy="32" r="2.5" fill="${dark}"/>
-<circle cx="94" cy="32" r="2.5" fill="${dark}"/>`;
+      earsSvg = `<ellipse cx="36" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/>
+<ellipse cx="92" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/>
+<circle cx="36" cy="38" r="5" fill="#fff" opacity="0.6"/>
+<circle cx="92" cy="38" r="5" fill="#fff" opacity="0.6"/>`;
       bodyRadius = 'rx="46" ry="38"';
+      shellSvg = `<ellipse cx="64" cy="104" rx="28" ry="22" fill="#c8f7c5" opacity="0.85"/>`;
     } else if (shape === 'turtle') {
       bodyRadius = 'rx="48" ry="40"';
-      shellSvg = `<circle cx="64" cy="83" r="30" fill="none" stroke="${dark}" stroke-width="4" stroke-dasharray="8 6"/>`;
+      shellSvg = `<ellipse cx="64" cy="84" rx="34" ry="26" fill="none" stroke="${dark}" stroke-width="4" stroke-dasharray="8 6"/>`;
     }
 
     let eyesSvg = `<rect x="32" y="66" width="12" height="20" rx="3" fill="${dark}"/>
@@ -100,6 +117,10 @@
       eyesSvg = `<line x1="28" y1="76" x2="44" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>
 <line x1="80" y1="76" x2="96" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>
 <text x="100" y="50" font-family="sans-serif" font-weight="bold" font-size="16" fill="#c8b1fa">zZ</text>`;
+    } else if (action === 'pet') {
+      eyesSvg = `<path d="M 30 76 Q 38 68 46 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 82 76 Q 90 68 98 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="54" y="32" font-size="20">💖</text>`;
     }
 
     let accSvg = '';
@@ -116,25 +137,51 @@
     }
 
     let actionAnim = '';
+    let extraActionSvg = '';
     if (action === 'dance') {
-      actionAnim = '<animateTransform attributeName="transform" type="rotate" values="-10 64 74; 10 64 74; -10 64 74" dur="0.5s" repeatCount="indefinite"/>';
+      actionAnim = '<animateTransform attributeName="transform" type="translate" values="0 0; 0 -14; 0 2; 0 -14; 0 0" dur="0.48s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="-10 64 80; 10 64 80; -10 64 80" dur="0.48s" additive="sum" repeatCount="indefinite"/>';
+      extraActionSvg = '<text x="102" y="36" font-size="20">🎵</text>';
     } else if (action === 'wave') {
-      actionAnim = '<animateTransform attributeName="transform" type="rotate" values="0 64 74; -8 64 74; 0 64 74" dur="0.6s" repeatCount="indefinite"/>';
+      actionAnim = '<animateTransform attributeName="transform" type="rotate" values="0 64 120; -4 64 120; 3 64 120; 0 64 120" dur="0.5s" repeatCount="indefinite"/>';
+      extraActionSvg = `<g>
+        <path d="M 108 90 C 122 80 126 65 120 52 C 114 42 102 50 102 62" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linecap="round">
+          <animateTransform attributeName="transform" type="rotate" values="0 108 80; -35 108 80; 10 108 80; 0 108 80" dur="0.5s" repeatCount="indefinite"/>
+        </path>
+        <text x="104" y="36" font-size="20">👋</text>
+      </g>`;
+    } else if (action === 'feed') {
+      actionAnim = '<animateTransform attributeName="transform" type="translate" values="0 0; 0 -4; 0 0" dur="0.35s" repeatCount="indefinite"/>';
+      extraActionSvg = `<g>
+        <circle cx="64" cy="98" r="9" fill="#ff4757"/>
+        <polygon points="64,87 60,91 68,91" fill="#2ed573"/>
+        <circle cx="62" cy="97" r="1" fill="#ffeaa7"/>
+        <circle cx="66" cy="99" r="1" fill="#ffeaa7"/>
+      </g>`;
+    } else if (action === 'pet') {
+      actionAnim = '<animateTransform attributeName="transform" type="scale" values="1 1; 1.04 0.98; 1 1" dur="0.6s" repeatCount="indefinite"/>';
+    }
+
+    let mouthSvg = `<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>`;
+    if (shape === 'frog') {
+      mouthSvg = `<path d="M 46 94 Q 64 104 82 94" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    } else if (shape === 'duck' || shape === 'pig') {
+      mouthSvg = '';
     }
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 148" width="100%" height="100%">
 <g>
 ${actionAnim}
-<rect x="25" y="132" width="29" height="12" rx="4" fill="${dark}"/>
-<rect x="74" y="132" width="29" height="12" rx="4" fill="${dark}"/>
+${feetSvg}
 ${earsSvg}
 <rect x="9" y="31" width="110" height="105" ${bodyRadius} fill="${color}" stroke="${dark}" stroke-width="8"/>
 ${shellSvg}
 <rect x="18" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>
 <rect x="96" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>
 ${eyesSvg}
-<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>
+${mouthSvg}
+${snoutSvg}
 ${accSvg}
+${extraActionSvg}
 </g>
 </svg>`;
   }
@@ -156,6 +203,7 @@ ${accSvg}
         <div class="snap-flash" id="snapFlash"></div>
         
         <header class="snap-header">
+          <button type="button" id="snapBackBtn" class="snap-back-btn" aria-label="Back">← Back</button>
           <span class="snap-title">📸 TinyFrens Snap</span>
           <button type="button" id="snapCloseBtn" class="snap-icon-btn" aria-label="Close">✕</button>
         </header>
@@ -164,7 +212,7 @@ ${accSvg}
           <div class="snap-poses">
             <button type="button" class="snap-pose-btn active" data-pose="idle">Idle</button>
             <button type="button" class="snap-pose-btn" data-pose="dance">Dance</button>
-            <button type="button" class="snap-pose-btn" data-pose="wave">Wave</button>
+            <button type="button" id="snapPoseWave" class="snap-pose-btn" data-pose="wave">Wave</button>
             <button type="button" class="snap-pose-btn" data-pose="sleep">Nap</button>
           </div>
           <div class="snap-shutter-row">
@@ -180,6 +228,11 @@ ${accSvg}
 
       <div id="snapPreviewModal" class="snap-preview-modal" hidden>
         <div class="snap-preview-card">
+          <div class="snap-preview-topbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <button type="button" id="snapPreviewBackBtn" class="snap-back-btn" aria-label="Back to Viewfinder">← Back</button>
+            <span style="color:#fff;font-weight:700;font-size:14px;">Preview Snap</span>
+            <button type="button" id="snapPreviewCloseBtn" class="snap-icon-btn" style="width:32px;height:32px;font-size:13px;" aria-label="Close">✕</button>
+          </div>
           <canvas id="snapCanvas" hidden></canvas>
           <img id="snapPreviewImg" class="snap-preview-img" alt="Captured Snap">
           <div class="snap-preview-actions">
@@ -503,6 +556,20 @@ ${accSvg}
         }
       };
     }
+
+    const backBtn = document.getElementById('snapBackBtn');
+    if (backBtn) backBtn.onclick = closeSnapStudio;
+
+    const previewBackBtn = document.getElementById('snapPreviewBackBtn');
+    if (previewBackBtn) {
+      previewBackBtn.onclick = () => {
+        const preview = document.getElementById('snapPreviewModal');
+        if (preview) preview.hidden = true;
+      };
+    }
+
+    const previewCloseBtn = document.getElementById('snapPreviewCloseBtn');
+    if (previewCloseBtn) previewCloseBtn.onclick = closeSnapStudio;
 
     const retakeBtn = document.getElementById('snapRetakeBtn');
     if (retakeBtn) {

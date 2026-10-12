@@ -24,11 +24,16 @@
   var VERSION = 3;
   var MINUTE = 60000, HOUR = 3600000, DAY = 86400000;
 
-  var SHAPES = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'];
+  var SHAPES = ['cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle'];
   var NAMES = {
     cat: ['Mochi', 'Whiskers', 'Biscuit', 'Pudding', 'Miso', 'Noodle', 'Tofu', 'Pebble', 'Marshmallow', 'Sprinkles', 'Mittens', 'Purrcy', 'Tiramisu', 'Butterscotch', 'Clementine', 'Nugget'],
     blob: ['Gloop', 'Jellybean', 'Bubbles', 'Squish', 'Wobble', 'Gumdrop', 'Puddle', 'Dumpling', 'Boba', 'Blorp', 'Jiggles', 'Plum', 'Goober', 'Squidge', 'Gelato', 'Bloop'],
-    robot: ['Bolt', 'Widget', 'Sprocket', 'Beep', 'Gizmo', 'Pixel', 'Chip', 'Rivet', 'Zippy', 'Bleep', 'Cogsworth', 'Byte', 'Servo', 'Tinker', 'Boop-3', 'Sparky']
+    robot: ['Bolt', 'Widget', 'Sprocket', 'Beep', 'Gizmo', 'Pixel', 'Chip', 'Rivet', 'Zippy', 'Bleep', 'Cogsworth', 'Byte', 'Servo', 'Tinker', 'Boop-3', 'Sparky'],
+    bunny: ['Boba', 'Pip', 'Cotton', 'Clover', 'Bunbun', 'Fluff', 'Mallow', 'Button'],
+    duck: ['Ducky', 'Quackers', 'Waddles', 'Puddles', 'Mallard', 'Pebble', 'Buttercup', 'Sunny'],
+    pig: ['Pip', 'Porky', 'Truffle', 'Hamlet', 'Oinky', 'Peaches', 'Blossom', 'Bubbles'],
+    frog: ['Kero', 'Hoppy', 'Ribbit', 'Lily', 'Puddle', 'Sprout', 'Pickle', 'Toadstool'],
+    turtle: ['Shelly', 'Koopa', 'Speedy', 'Pebble', 'Moss', 'Tank', 'Tortellini', 'Oogway']
   };
   var STAGES = ['Hatchling', 'Sprout', 'Elder'];
 
@@ -97,7 +102,12 @@
     var bank = (NAMES[shape] || NAMES.cat).filter(function (n) { return n !== avoid; });
     return bank[Math.floor(rand() * bank.length)];
   }
-  function normalShape(shape) { return shape === 'mascot' ? 'robot' : SHAPES.indexOf(shape) >= 0 ? shape : 'cat'; }
+  function normalShape(shape) {
+    if (shape === 'mascot') return 'robot';
+    if (shape === 'dog') return 'duck';
+    if (shape === 'bear') return 'pig';
+    return SHAPES.indexOf(shape) >= 0 ? shape : 'cat';
+  }
   function bool(value, fallback) { return typeof value === 'boolean' ? value : fallback; }
 
   // Fields owned by the engine. Anything else that is a primitive (e.g. wallet tokenId,

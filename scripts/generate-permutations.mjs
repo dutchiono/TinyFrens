@@ -21,8 +21,8 @@ export const SPECIES = [
   { id: 'blob', name: 'Blob' },
   { id: 'robot', name: 'Robot' },
   { id: 'bunny', name: 'Bunny' },
-  { id: 'dog', name: 'Puppy' },
-  { id: 'bear', name: 'Bear' },
+  { id: 'duck', name: 'Duck' },
+  { id: 'pig', name: 'Pig' },
   { id: 'frog', name: 'Frog' },
   { id: 'turtle', name: 'Turtle' }
 ];
@@ -156,44 +156,78 @@ export function renderSVG(traits) {
       shellPattern = `<rect x="58" y="101" width="5" height="10" rx="1" fill="#fff"/><rect x="65" y="101" width="5" height="10" rx="1" fill="#fff"/><circle cx="103" cy="104" r="8" fill="#fff" opacity=".55"/>`;
       shine = `<ellipse cx="47" cy="62" rx="15" ry="14" fill="url(#shine)"/>`;
       break;
-    case 'dog':
+    case 'duck':
       ears = `
-        <path d="M26 48 C7 42 4 63 20 82 C33 78 37 61 26 48 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
-        <path d="M102 48 C121 42 124 63 108 82 C95 78 91 61 102 48 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
-        <path d="M103 111 C119 116 123 101 112 94" fill="none" stroke="${dark}" stroke-width="8" stroke-linecap="round"/>
+        <path d="M64 34 C60 22 68 14 63 8 C70 14 72 23 66 34" fill="${body}" stroke="${dark}" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M64 34 C67 25 76 20 73 14 C78 20 77 27 66 34" fill="${body}" stroke="${dark}" stroke-width="3.5" stroke-linejoin="round"/>
       `;
-      limbs = `<path d="M29 124 C22 132 29 139 43 135" fill="${dark}"/><path d="M85 124 C98 126 103 134 94 139 H80 C78 133 80 128 85 124 Z" fill="${dark}"/>`;
-      shellPattern = `<ellipse cx="64" cy="97" rx="23" ry="16" fill="#fff" opacity=".34"/><path d="M55 94 Q64 101 73 94" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="64" cy="91" r="5" fill="${dark}"/>`;
+      limbs = `
+        <path d="M18 84 C8 94 12 112 24 106" stroke="${dark}" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <path d="M110 84 C120 94 116 112 104 106" stroke="${dark}" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <path d="M26 127 L14 137 H46 Z" fill="${dark}"/>
+        <path d="M102 127 L114 137 H82 Z" fill="${dark}"/>
+      `;
+      shellPattern = `
+        <ellipse cx="64" cy="95" rx="17" ry="10" fill="#ff9f43" stroke="${dark}" stroke-width="4.5"/>
+        <circle cx="60" cy="93" r="1.5" fill="${dark}"/><circle cx="68" cy="93" r="1.5" fill="${dark}"/>
+        <path d="M53 96 Q64 102 75 96" stroke="${dark}" stroke-width="2.5" fill="none"/>
+      `;
       shine = `<ellipse cx="43" cy="59" rx="15" ry="13" fill="url(#shine)"/>`;
       break;
-    case 'bear':
+    case 'pig':
       ears = `
-        <circle cx="28" cy="35" r="17" fill="${body}" stroke="${dark}" stroke-width="7"/>
-        <circle cx="100" cy="35" r="17" fill="${body}" stroke="${dark}" stroke-width="7"/>
-        <circle cx="28" cy="35" r="8" fill="#ffb6c8" opacity=".6"/>
-        <circle cx="100" cy="35" r="8" fill="#ffb6c8" opacity=".6"/>
+        <path d="M26 44 C12 30 16 14 34 22 C28 30 26 38 26 44 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M102 44 C116 30 112 14 94 22 C100 30 102 38 102 44 Z" fill="${body}" stroke="${dark}" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M24 28 C20 22 22 17 28 20 M104 28 C108 22 106 17 100 20" stroke="#ffb6c8" stroke-width="4" stroke-linecap="round"/>
+        <path d="M104 106 C118 104 124 94 116 88 C108 84 112 76 118 78" fill="none" stroke="${dark}" stroke-width="6" stroke-linecap="round"/>
       `;
-      limbs = `<circle cx="35" cy="119" r="10" fill="${dark}" opacity=".75"/><circle cx="93" cy="119" r="10" fill="${dark}" opacity=".75"/><path d="M31 134 H50 M78 134 H97" stroke="${dark}" stroke-width="8" stroke-linecap="round"/>`;
-      shellPattern = `<ellipse cx="64" cy="100" rx="25" ry="18" fill="#fff" opacity=".32"/><circle cx="64" cy="94" r="5" fill="${dark}"/><path d="M55 104 Q64 111 73 104" stroke="${dark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      limbs = `
+        <path d="M29 126 H47 V137 H29 Z" fill="${dark}"/>
+        <path d="M81 126 H99 V137 H81 Z" fill="${dark}"/>
+        <line x1="38" y1="131" x2="38" y2="137" stroke="#fff" stroke-width="2"/>
+        <line x1="90" y1="131" x2="90" y2="137" stroke="#fff" stroke-width="2"/>
+      `;
+      shellPattern = `
+        <ellipse cx="64" cy="95" rx="17" ry="11" fill="#ffb6c8" stroke="${dark}" stroke-width="4.5"/>
+        <ellipse cx="58" cy="95" rx="2.5" ry="4" fill="${dark}"/>
+        <ellipse cx="70" cy="95" rx="2.5" ry="4" fill="${dark}"/>
+      `;
       shine = `<ellipse cx="43" cy="59" rx="17" ry="14" fill="url(#shine)"/>`;
       break;
     case 'frog':
       ears = `
-        <circle cx="34" cy="38" r="18" fill="${body}" stroke="${dark}" stroke-width="7"/>
-        <circle cx="94" cy="38" r="18" fill="${body}" stroke="${dark}" stroke-width="7"/>
-        <circle cx="34" cy="38" r="6" fill="#fff"/>
-        <circle cx="94" cy="38" r="6" fill="#fff"/>
-        <circle cx="34" cy="38" r="3" fill="${dark}"/>
-        <circle cx="94" cy="38" r="3" fill="${dark}"/>
+        <circle cx="34" cy="40" r="18" fill="${body}" stroke="${dark}" stroke-width="7"/>
+        <circle cx="94" cy="40" r="18" fill="${body}" stroke="${dark}" stroke-width="7"/>
+        <ellipse cx="32" cy="36" rx="9" ry="6" fill="#fff" opacity=".35"/>
+        <ellipse cx="92" cy="36" rx="9" ry="6" fill="#fff" opacity=".35"/>
       `;
-      limbs = `<path d="M22 120 C10 123 9 136 27 134 H43" fill="${dark}"/><path d="M106 120 C118 123 119 136 101 134 H85" fill="${dark}"/>`;
-      shellPattern = `<path d="M37 101 Q64 117 91 101" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="45" cy="94" r="3" fill="${dark}" opacity=".38"/><circle cx="83" cy="94" r="3" fill="${dark}" opacity=".38"/>`;
+      limbs = `
+        <path d="M22 118 C8 120 8 136 28 135 H46" fill="${dark}"/>
+        <path d="M106 118 C120 120 120 136 100 135 H82" fill="${dark}"/>
+        <path d="M18 108 C10 102 12 94 25 92" stroke="${dark}" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <path d="M110 108 C118 102 116 94 103 92" stroke="${dark}" stroke-width="7" stroke-linecap="round" fill="none"/>
+      `;
+      shellPattern = `
+        <ellipse cx="64" cy="110" rx="30" ry="16" fill="#fff" opacity=".34"/>
+        <path d="M42 96 Q64 112 86 96" stroke="${dark}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        <circle cx="42" cy="95" r="2.5" fill="${dark}"/><circle cx="86" cy="95" r="2.5" fill="${dark}"/>
+      `;
       shine = `<ellipse cx="44" cy="65" rx="17" ry="12" fill="url(#shine)"/>`;
       break;
     case 'turtle':
-      ears = `<ellipse cx="64" cy="56" rx="22" ry="18" fill="${body}" stroke="${dark}" stroke-width="7"/><path d="M17 91 C6 91 4 103 17 106 M111 91 C122 91 124 103 111 106" stroke="${dark}" stroke-width="8" stroke-linecap="round" fill="none"/>`;
-      limbs = `<path d="M29 124 L18 136 H42 Z" fill="${dark}"/><path d="M99 124 L110 136 H86 Z" fill="${dark}"/>`;
-      shellPattern = `<ellipse cx="64" cy="94" rx="42" ry="35" fill="url(#body)" stroke="${dark}" stroke-width="8"/><ellipse cx="64" cy="94" rx="27" ry="24" fill="none" stroke="${dark}" stroke-width="5" opacity=".78"/><path d="M37 94 H91 M64 70 V118 M46 78 Q64 91 82 78 M46 110 Q64 97 82 110" stroke="${dark}" stroke-width="3" fill="none" opacity=".78"/><ellipse cx="50" cy="81" rx="15" ry="11" fill="url(#shine)"/>`;
+      ears = `<ellipse cx="64" cy="46" rx="24" ry="19" fill="${body}" stroke="${dark}" stroke-width="8"/>`;
+      limbs = `
+        <path d="M24 70 C10 66 8 80 20 86" stroke="${dark}" stroke-width="8" stroke-linecap="round" fill="none"/>
+        <path d="M104 70 C118 66 120 80 108 86" stroke="${dark}" stroke-width="8" stroke-linecap="round" fill="none"/>
+        <path d="M29 125 L16 137 H44 Z" fill="${dark}"/>
+        <path d="M99 125 L112 137 H84 Z" fill="${dark}"/>
+      `;
+      shellPattern = `
+        <ellipse cx="64" cy="95" rx="44" ry="36" fill="url(#body)" stroke="${dark}" stroke-width="8"/>
+        <ellipse cx="64" cy="95" rx="28" ry="24" fill="none" stroke="${dark}" stroke-width="5" opacity=".78"/>
+        <path d="M36 95 H92 M64 71 V119 M46 80 Q64 92 82 80 M46 110 Q64 98 82 110" stroke="${dark}" stroke-width="3.5" fill="none" opacity=".78"/>
+      `;
+      shine = `<ellipse cx="49" cy="81" rx="15" ry="11" fill="url(#shine)"/>`;
       break;
   }
 
@@ -231,8 +265,27 @@ export function renderSVG(traits) {
       `;
       break;
   }
+  let cheeks = `<rect x="18" y="88" width="14" height="8" rx="4" fill="#ff82a7"/><rect x="96" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>`;
+  let mouth = `<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>`;
+  if (species.id === 'duck' || species.id === 'pig' || species.id === 'frog') {
+    mouth = '';
+  } else if (species.id === 'bunny') {
+    mouth += `<rect x="61" y="101" width="6" height="5" rx="1" fill="#fff"/>`;
+  } else if (species.id === 'turtle') {
+    if (expression.id === 'happy') {
+      eyes = `<rect x="51" y="44" width="8" height="13" rx="3" fill="${dark}"/><rect x="69" y="44" width="8" height="13" rx="3" fill="${dark}"/><circle cx="53" cy="47" r="1.8" fill="#fff"/><circle cx="71" cy="47" r="1.8" fill="#fff"/>`;
+    } else if (expression.id === 'wink') {
+      eyes = `<rect x="51" y="44" width="8" height="13" rx="3" fill="${dark}"/><circle cx="53" cy="47" r="1.8" fill="#fff"/><path d="M69 50 Q73 46 77 50" stroke="${dark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    } else if (expression.id === 'shades') {
+      eyes = `<rect x="45" y="44" width="17" height="9" rx="2" fill="#111"/><rect x="66" y="44" width="17" height="9" rx="2" fill="#111"/><rect x="61" y="47" width="6" height="3" fill="#111"/>`;
+    } else {
+      eyes = `<polygon points="55,42 57,48 63,48 58,52 60,58 55,55 50,58 52,52 47,48 53,48" fill="#ffd700"/><polygon points="73,42 75,48 81,48 76,52 78,58 73,55 68,58 70,52 65,48 71,48" fill="#ffd700"/>`;
+    }
+    cheeks = `<rect x="43" y="56" width="10" height="6" rx="3" fill="#ff82a7"/><rect x="75" y="56" width="10" height="6" rx="3" fill="#ff82a7"/>`;
+    mouth = `<rect x="61" y="56" width="6" height="4" rx="2" fill="${dark}"/>`;
+  }
 
-  // Accessories (Species-aware, zero-clipping)
+  // Accessories (Species-aware, zero-clipping modular rigging)
   let acc = '';
   switch (accessory.id) {
     case 'party_hat':
@@ -251,11 +304,17 @@ export function renderSVG(traits) {
       acc = `<ellipse cx="64" cy="12" rx="30" ry="8" fill="none" stroke="#ffeaa7" stroke-width="5"/>`;
       break;
     case 'bow_tie':
-      acc = `
-        <polygon points="56,116 64,120 56,124" fill="#e74c3c"/>
-        <polygon points="72,116 64,120 72,124" fill="#e74c3c"/>
-        <circle cx="64" cy="120" r="3" fill="#c0392b"/>
-      `;
+      acc = species.id === 'turtle'
+        ? `
+          <polygon points="56,70 64,74 56,78" fill="#e74c3c"/>
+          <polygon points="72,70 64,74 72,78" fill="#e74c3c"/>
+          <circle cx="64" cy="74" r="3" fill="#c0392b"/>
+        `
+        : `
+          <polygon points="56,116 64,120 56,124" fill="#e74c3c"/>
+          <polygon points="72,116 64,120 72,124" fill="#e74c3c"/>
+          <circle cx="64" cy="120" r="3" fill="#c0392b"/>
+        `;
       break;
     case 'orb':
       acc = `
@@ -270,10 +329,10 @@ export function renderSVG(traits) {
     ? `<rect x="29" y="36" width="70" height="54" rx="9" fill="url(#body)" stroke="${dark}" stroke-width="8"/><rect x="38" y="48" width="52" height="31" rx="5" fill="${bg}" stroke="${dark}" stroke-width="4" opacity=".9"/><path d="M48 90 H80 L86 98 V121 Q86 129 78 129 H50 Q42 129 42 121 V98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><rect x="54" y="91" width="20" height="8" fill="${dark}" opacity=".55"/>`
     : species.id === 'blob' ? `<path d="M31 58 C19 75 19 112 40 125 C53 134 57 120 68 126 C90 136 111 116 108 86 C105 56 89 45 70 52 C54 40 39 43 31 58 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/><path d="M38 55 C47 47 56 47 65 55" stroke="#fff" stroke-width="4" opacity=".22" fill="none" stroke-linecap="round"/>`
     : species.id === 'bunny' ? `<path d="M31 72 C29 48 43 35 64 38 C85 35 99 48 97 72 L94 105 C91 127 78 137 64 134 C50 137 37 127 34 105 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
-    : species.id === 'dog' ? `<path d="M20 73 C18 50 35 37 59 38 H74 C96 38 109 52 107 75 L103 105 C99 127 82 137 61 133 C38 135 22 121 20 98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
-    : species.id === 'bear' ? `<path d="M22 74 C20 49 38 35 64 36 C90 35 108 49 106 74 L104 99 C102 124 88 138 64 135 C40 138 26 124 24 99 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
-    : species.id === 'frog' ? `<path d="M14 82 C14 58 34 47 64 48 C94 47 114 58 114 82 C114 115 94 134 64 131 C34 134 14 115 14 82 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
-    : species.id === 'turtle' ? ``
+    : species.id === 'duck' ? `<path d="M22 66 C18 42 38 32 64 34 C90 32 110 42 106 66 L102 102 C100 125 84 136 62 133 C38 137 22 122 22 98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
+    : species.id === 'pig' ? `<path d="M22 68 C18 44 38 32 64 34 C90 32 110 44 106 68 L104 100 C102 125 86 136 64 133 C42 136 26 125 24 100 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
+    : species.id === 'frog' ? `<path d="M14 78 C14 48 32 38 64 38 C96 38 114 48 114 78 C114 114 96 133 64 130 C32 133 14 114 14 78 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
+    : species.id === 'turtle' ? `<ellipse cx="64" cy="95" rx="44" ry="36" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`
     : `<path d="M22 68 C19 44 38 30 64 34 C90 30 109 44 106 68 L102 101 C100 125 84 137 62 133 C38 137 22 122 22 98 Z" fill="url(#body)" stroke="${dark}" stroke-width="8"/>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 148" width="100%" height="100%">
@@ -292,12 +351,11 @@ export function renderSVG(traits) {
       ${shine}
       ${shellPattern}
       <!-- Blush Cheeks -->
-      <rect x="18" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>
-      <rect x="96" y="88" width="14" height="8" rx="4" fill="#ff82a7"/>
+      ${cheeks}
       <!-- Eyes -->
       ${eyes}
       <!-- Mouth -->
-      <rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>
+      ${mouth}
       <!-- Accessory -->
       ${acc}
     </g>

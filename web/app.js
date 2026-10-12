@@ -43,6 +43,11 @@ function action(name){
 function render(s){
   const stage=Number(s.stage)||0;
   $('pet').dataset.stage=String(stage);
+  if(s.shape) $('pet').dataset.shape=s.shape==='mascot'?'robot':s.shape;
+  if(s.expression) $('pet').dataset.expression=s.expression;
+  if(s.accessory) $('pet').dataset.accessory=s.accessory;
+  if(s.color) $('pet').style.setProperty('--pet-color',s.color);
+  if(s.size) $('pet').style.setProperty('--pet-scale',String((s.size||80)/80));
   $('stageText').textContent=s.stageName||['Hatchling','Sprout','Elder'][stage]||'Hatchling';
   for(const k of ['hunger','happiness','energy']){const value=Math.round(Number(s[k])||0);$(k).value=value;$(k+'Text').textContent=value;}
   const needActions=[];if(Number(s.poops)>0)needActions.push('clean');if(s.sick)needActions.push('vitamin');
@@ -83,8 +88,10 @@ $('editName').onclick=()=>editName(true);
 $('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
 $('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n){render(rename(n));window.dispatchEvent(new Event('pet-profile-changed'));}editName(false);};
 $('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
-window.onAndroidResume=()=>{render(read());refreshFloatingButton();};
-render(ensureName(read()));
+window.onAndroidResume=()=>{const s=read();render(s);window.stylePet?.(s);refreshFloatingButton();};
+const _initS = ensureName(read());
+render(_initS);
+window.stylePet?.(_initS);
 
 
 if(desktop){desktop.onState(s=>{render(s);window.stylePet?.(s);refreshFloatingButton();window.dispatchEvent(new Event('pet-profile-changed'));});desktop.onAnimation(name=>{if(name==='check-update'){$('checkUpdate').click();return;}window.animatePet?.(name==='toy'?'dance':name);});}

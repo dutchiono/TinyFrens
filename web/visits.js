@@ -6,9 +6,10 @@
   if(!value||value.length>1600)throw new Error('Invalid invite');
   const bytes=Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
   const data=JSON.parse(new TextDecoder().decode(bytes));
-  const validShapes=['cat','blob','robot','bunny','dog','bear','frog','turtle','mascot'];
+  const validShapes=['cat','blob','robot','bunny','duck','pig','frog','turtle','dog','bear','mascot'];
   if(data.v!==1||!validShapes.includes(data.shape)||!/^#[0-9a-f]{6}$/i.test(data.color)||!Number.isFinite(data.expires)||data.expires<Date.now()||data.expires>Date.now()+31*60*1000)throw new Error('Expired invite');
-  return {name:cleanName(data.name)||'A fren',shape:data.shape==='mascot'?'robot':data.shape,color:data.color,expression:data.expression||'happy',accessory:data.accessory||'none',tokenId:data.tokenId||null,expires:data.expires,v:1};
+  const normShape = data.shape==='mascot'?'robot':data.shape==='dog'?'duck':data.shape==='bear'?'pig':data.shape;
+  return {name:cleanName(data.name)||'A fren',shape:normShape,color:data.color,expression:data.expression||'happy',accessory:data.accessory||'none',tokenId:data.tokenId||null,expires:data.expires,v:1};
  }
  function guest(data,options={}){
   if(data.shape==='mascot')data={...data,shape:'robot'};
@@ -40,7 +41,7 @@
   try{const saved=sessionStorage.getItem('tinyfrens-guest');if(saved){const data=JSON.parse(saved);if(data.expires>Date.now())guest(data);else sessionStorage.removeItem('tinyfrens-guest');}}catch{}
  }
  $('shareVisit').onclick=async()=>{
-  const s=read(),data={v:1,name:cleanName(s.name),shape:s.shape==='mascot'?'robot':['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expression:s.expression||'happy',accessory:s.accessory||'none',tokenId:s.tokenId||null,expires:Date.now()+30*60*1000};
+  const s=read(),data={v:1,name:cleanName(s.name),shape:s.shape==='mascot'?'robot':s.shape==='dog'?'duck':s.shape==='bear'?'pig':['cat','blob','robot','bunny','duck','pig','frog','turtle'].includes(s.shape)?s.shape:'cat',color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:'#a474f1',expression:s.expression||'happy',accessory:s.accessory||'none',tokenId:s.tokenId||null,expires:Date.now()+30*60*1000};
   const encoded=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const url='https://tinyfrens.lol/web/?guest='+encoded;
   try{

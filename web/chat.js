@@ -36,7 +36,7 @@
     const s = read();
     return {
       name: cleanName(s.name) || 'Your fren',
-      shape: s.shape === 'mascot' ? 'robot' : ['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape) ? s.shape : 'cat',
+      shape: s.shape === 'mascot' ? 'robot' : s.shape === 'dog' ? 'duck' : s.shape === 'bear' ? 'pig' : ['cat','blob','robot','bunny','duck','pig','frog','turtle'].includes(s.shape) ? s.shape : 'cat',
       color: /^#[0-9a-f]{6}$/i.test(s.color || '') ? s.color : '#a474f1'
     };
   }

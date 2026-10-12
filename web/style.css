@@ -13,29 +13,61 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet{--pet-color:#a474f1;--pet-scale:1;scale:var(--pet-scale)}
 .pet .body,.pet .ear{background:linear-gradient(145deg,#ffffff55 0%,#ffffff00 34%,#00000024 100%),var(--pet-color)!important}
 .pet[data-shape=blob] .ear{display:none}.pet[data-shape=blob] .body{border-radius:50% 50% 35% 35%}
-.pet[data-shape=robot] .body{border-radius:5px}.pet[data-shape=robot] .ear{width:10px;height:30px;top:7px;border-width:3px}
+/* Robot - clean antenna with LED bulb, no weird bobble */
+.pet[data-shape=robot] .ear{width:8px;height:24px;top:2px;border-width:3px;border-radius:4px;transform:none!important}
+.pet[data-shape=robot] .ear.left{left:56px;display:block}
+.pet[data-shape=robot] .ear.left::before{content:"";position:absolute;top:-12px;left:-6px;width:14px;height:14px;background:#00d2d3;border:3px solid #4b2d77;border-radius:50%;box-shadow:0 0 10px #00d2d3}
+.pet[data-shape=robot] .ear.right{display:none}
+.pet[data-shape=robot] .body{border-radius:8px;box-shadow:inset 0 0 0 5px #ffffff1c,inset 0 -14px 0 #0000001f}
+.pet[data-shape=robot] .body::before{border-radius:4px;width:70px;height:16px;left:20px;top:12px;background:#ffffff24}
+.pet[data-shape=robot] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:10px;height:9px;background:#4b2d7744;border-radius:2px;box-shadow:0 -48px 0 -1px #4b2d7744}
+
+/* Bunny */
 .pet[data-shape=bunny] .ear{width:22px;height:72px;top:-18px;border-radius:14px 14px 6px 6px}.pet[data-shape=bunny] .ear.left{left:26px;transform:rotate(-6deg)}.pet[data-shape=bunny] .ear.right{right:26px;transform:rotate(6deg)}
-.pet[data-shape=dog] .ear{width:32px;height:54px;top:32px;border-radius:12px 12px 24px 24px}.pet[data-shape=dog] .ear.left{left:4px;transform:rotate(-32deg)}.pet[data-shape=dog] .ear.right{right:4px;transform:rotate(32deg)}
-.pet[data-shape=bear] .ear{width:34px;height:34px;top:8px;border-radius:50%}.pet[data-shape=bear] .ear.left{left:16px;transform:none}.pet[data-shape=bear] .ear.right{right:16px;transform:none}
-.pet[data-shape=frog] .ear{width:34px;height:34px;top:12px;border-radius:50%}.pet[data-shape=frog] .ear.left{left:18px;transform:none}.pet[data-shape=frog] .ear.right{right:18px;transform:none}.pet[data-shape=frog] .body{border-radius:45% 45% 32% 32%}.pet[data-shape=frog] .mouth{width:16px;left:39px;border-radius:0 0 8px 8px}
-.pet[data-shape=turtle] .ear{display:none}.pet[data-shape=turtle] .body{border-radius:45% 45% 35% 35%;box-shadow:inset 0 0 0 6px #4b2d7744}
+.pet[data-shape=bunny] .mouth::after{content:"";position:absolute;top:5px;left:-1px;width:10px;height:9px;background:#fff;border-radius:0 0 3px 3px;box-shadow:6px 0 0 #fff}
+
+/* Duck */
+.pet[data-shape=duck] .ear{width:16px;height:26px;top:-6px;border-width:3px;border-radius:12px 12px 0 0}
+.pet[data-shape=duck] .ear.left{left:50px;transform:rotate(-14deg)}
+.pet[data-shape=duck] .ear.right{left:62px;transform:rotate(14deg)}
+.pet[data-shape=duck] .body{border-radius:44% 44% 34% 34%}
+.pet[data-shape=duck] .mouth{top:60px;left:34px;width:26px;height:16px;background:#ff9f43;border:3px solid #c0392b;border-radius:8px 8px 14px 14px;z-index:5}
+.pet[data-shape=duck] .foot{background:#ff9f43;border-radius:14px 14px 4px 4px}
+
+/* Pig */
+.pet[data-shape=pig] .ear{width:28px;height:36px;top:14px;border-radius:14px 24px 6px 14px}
+.pet[data-shape=pig] .ear.left{left:8px;transform:rotate(-28deg)}
+.pet[data-shape=pig] .ear.right{right:8px;transform:rotate(28deg)}
+.pet[data-shape=pig] .mouth{top:58px;left:32px;width:30px;height:20px;background:#ff82a7;border:4px solid #4b2d77;border-radius:12px;z-index:5}
+.pet[data-shape=pig] .mouth::after{content:"";position:absolute;left:4px;top:4px;width:4px;height:6px;background:#4b2d77;border-radius:2px;box-shadow:12px 0 0 #4b2d77}
+.pet[data-shape=pig] .body::after{content:"๑";position:absolute;right:-18px;bottom:10px;font-size:26px;color:#ff82a7;font-weight:900}
+
+/* Frog - clean upper eye domes, smiling mouth, pale belly, no 4-eyes */
+.pet[data-shape=frog] .ear{width:34px;height:32px;top:10px;border-radius:50%;box-shadow:inset 4px 4px 0 #ffffff24}
+.pet[data-shape=frog] .ear.left{left:16px;transform:none}
+.pet[data-shape=frog] .ear.right{right:16px;transform:none}
+.pet[data-shape=frog] .body{border-radius:46% 46% 32% 32%}
+.pet[data-shape=frog] .body::after{content:"";position:absolute;left:26px;top:66px;width:42px;height:28px;background:#c8f7c5;border-radius:50%;opacity:0.85;z-index:1}
+.pet[data-shape=frog] .mouth{width:24px;left:35px;top:66px;border-radius:0 0 12px 12px;height:8px;background:#35204e;z-index:4}
+
+/* Turtle */
+.pet[data-shape=turtle] .ear{display:none}
+.pet[data-shape=turtle] .body{border-radius:45% 45% 35% 35%;box-shadow:inset 0 0 0 6px #4b2d7744}
+.pet[data-shape=turtle] .body::after{content:"";position:absolute;inset:16px 18px 20px;border:4px dashed #4b2d77;border-radius:50%;opacity:.65}
+
+/* Fallback aliases */
+.pet[data-shape=dog] .ear{width:28px;height:44px;top:28px;border-radius:12px 12px 24px 24px}.pet[data-shape=dog] .ear.left{left:4px;transform:rotate(-28deg)}.pet[data-shape=dog] .ear.right{right:4px;transform:rotate(28deg)}
+.pet[data-shape=bear] .ear{width:32px;height:32px;top:8px;border-radius:50%}.pet[data-shape=bear] .ear.left{left:16px}.pet[data-shape=bear] .ear.right{right:16px}
+
 .pet .body{border-radius:44% 46% 34% 38%;box-shadow:inset 10px 10px 0 #ffffff1f,inset -10px -12px 0 #00000018,0 6px 0 #00000010;overflow:visible}
 .pet .body::before{content:"";position:absolute;left:18px;top:13px;width:44px;height:32px;border-radius:50%;background:radial-gradient(circle,#fff8 0%,#fff0 68%);pointer-events:none}
 .pet .ear{border-radius:44% 44% 28% 28%;box-shadow:inset 5px 7px 0 #ffffff1c}
 .pet .eye{border-radius:5px;box-shadow:inset 2px 2px 0 #ffffff3b}.pet .cheek{border-radius:999px;opacity:.88}.pet .mouth{border-radius:0 0 7px 7px}
 .pet .foot{border-radius:54% 48% 30% 30%;transform-origin:center top;box-shadow:inset 3px 3px 0 #ffffff1a}
 .pet:not([data-action=sleep]) .foot.l{animation:tinyStepL .62s ease-in-out infinite}.pet:not([data-action=sleep]) .foot.r{animation:tinyStepR .62s ease-in-out infinite}
-.pet[data-shape=robot] .body{border-radius:8px;box-shadow:inset 0 0 0 5px #ffffff1c,inset 0 -14px 0 #0000001f}.pet[data-shape=robot] .body::before{border-radius:4px;width:70px;height:16px;left:20px;top:12px;background:#ffffff24}
 .pet[data-shape=blob] .body{border-radius:54% 46% 40% 48%;animation:blobSquish 1.35s ease-in-out infinite}
-.pet[data-shape=frog] .ear,.pet[data-shape=bear] .ear{box-shadow:inset 4px 4px 0 #ffffff24}
 .pet[data-shape=cat] .body::after{content:"";position:absolute;right:-18px;bottom:8px;width:28px;height:30px;border:7px solid #4b2d77;border-left:0;border-bottom:0;border-radius:0 20px 0 0;transform:rotate(20deg)}
 .pet[data-shape=blob] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:-2px;height:18px;background:#0001;border-radius:50%;filter:blur(2px)}
-.pet[data-shape=robot] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:10px;height:9px;background:#4b2d7744;border-radius:2px;box-shadow:0 -48px 0 -1px #4b2d7744}
-.pet[data-shape=bunny] .mouth::after{content:"";position:absolute;top:5px;left:-1px;width:10px;height:9px;background:#fff;border-radius:0 0 3px 3px;box-shadow:6px 0 0 #fff}
-.pet[data-shape=dog] .body::after,.pet[data-shape=bear] .body::after{content:"";position:absolute;left:34px;top:58px;width:42px;height:28px;background:#fff5;border-radius:50%;z-index:0}
-.pet[data-shape=dog] .mouth,.pet[data-shape=bear] .mouth{z-index:1}
-.pet[data-shape=frog] .body::after{content:"";position:absolute;left:24px;top:70px;width:62px;height:16px;border-bottom:5px solid #4b2d77;border-radius:50%}
-.pet[data-shape=turtle] .body::after{content:"";position:absolute;inset:16px 18px 20px;border:4px dashed #4b2d77;border-radius:50%;opacity:.65}
 /* Expressions */
 .pet[data-expression=wink] .eye.r{height:4px;top:48px;border-radius:2px}
 .pet[data-expression=shades] .body::before{content:"";position:absolute;top:34px;left:14px;width:82px;height:18px;background:#111;border-radius:4px;box-shadow:0 2px 4px #0006;z-index:5}
@@ -53,19 +85,22 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet[data-accessory=strawberry]::after{content:"🍓";position:absolute;bottom:4px;left:96px;font-size:28px;z-index:10}
 .pet[data-accessory=orb]::after{content:"";position:absolute;bottom:20px;right:-18px;width:28px;height:28px;background:radial-gradient(circle,#fff,#00d2d3);border-radius:50%;box-shadow:0 0 14px #00d2d3;z-index:10}
 .pet[data-accessory=bubble]{box-shadow:0 0 0 16px #70a1ff44,inset 0 0 20px #70a1ff33;border-radius:50%}
-.pet[data-accessory=bow_tie] .body::after{content:"🎀";position:absolute;bottom:-6px;left:42px;font-size:24px;z-index:10}
+.pet[data-accessory=bow_tie] .mouth::before{content:"🎀";position:absolute;top:12px;left:-8px;font-size:24px;z-index:10;pointer-events:none}
 .eye{animation:blink 5s infinite}.pet[data-action=sleep] .eye{height:4px;animation:none}.pet[data-action=sleep]{animation:breathe 2s infinite}
-.pet[data-action=dance]{animation:dance .45s infinite}.pet[data-action=wave]{animation:wave .6s infinite}
+.pet[data-action=dance]{animation:dance .48s ease-in-out infinite}.pet[data-action=wave]{animation:wave .55s ease-in-out infinite}
 .pet[data-action=eat] .mouth{animation:chew .4s infinite}
 .pet[data-action=sleep]::after{content:"zZ";position:absolute;right:-12px;top:-12px;color:white}
-.pet[data-action=wave]::after{content:"hi!";position:absolute;right:-12px;top:-12px;color:white}
+.pet[data-action=wave]::after{content:"👋";position:absolute;right:-14px;top:-16px;font-size:24px;animation:waveEmoji .55s infinite}
+.pet[data-action=dance]::after{content:"🎵";position:absolute;right:-14px;top:-16px;font-size:24px;animation:danceNote .48s infinite}
 .pet[data-action=eat]::after{content:"🍓";position:absolute;bottom:15px;left:45px;font-size:25px}
 .pet-stage{position:relative}.pet-stage.wandering .pet{animation:bob 1.5s steps(2,end) infinite,wander var(--wander-time,8s) ease-in-out infinite alternate}
-.pet-stage .pet[data-action=dance]{animation:dance .45s infinite}.pet-stage .pet[data-action=wave]{animation:wave .6s infinite}.pet-stage .pet[data-action=sleep]{animation:breathe 2s infinite}
+.pet-stage .pet[data-action=dance]{animation:dance .48s ease-in-out infinite}.pet-stage .pet[data-action=wave]{animation:wave .55s ease-in-out infinite}.pet-stage .pet[data-action=sleep]{animation:breathe 2s infinite}
 .web-toy{position:absolute;bottom:10px;background:transparent!important;font-size:28px;color:#82eba1;padding:0}
 @keyframes blink{0%,4%,100%{transform:scaleY(1)}2%{transform:scaleY(.1)}}
-@keyframes dance{50%{transform:translateY(-18px) rotate(12deg)}}
-@keyframes wave{50%{transform:rotate(-9deg)}}
+@keyframes dance{0%,100%{transform:translateY(0) rotate(0deg) scale(1,1)}25%{transform:translateY(-14px) rotate(-14deg) scale(0.96,1.06)}50%{transform:translateY(2px) rotate(0deg) scale(1.08,0.92)}75%{transform:translateY(-14px) rotate(14deg) scale(0.96,1.06)}}
+@keyframes wave{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-8deg) translateY(-2px)}50%{transform:rotate(3deg) translateY(0)}75%{transform:rotate(-6deg) translateY(-1px)}}
+@keyframes waveEmoji{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-25deg) scale(1.2)}}
+@keyframes danceNote{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.25)}}
 @keyframes breathe{50%{transform:scaleY(.96)}}
 @keyframes chew{50%{height:12px}}
 @keyframes wander{0%{translate:-45px 0}50%{translate:0 -15px}100%{translate:45px 0}}
@@ -200,8 +235,10 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 .snap-pet-svg-host{width:100%;height:100%;pointer-events:none}
 .snap-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:50;transition:opacity .08s ease-out}
 .snap-flash.active{opacity:1;transition:none}
-.snap-header{position:relative;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(180deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0) 100%)}
+.snap-header{position:relative;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%)}
 .snap-title{color:#fff;font-weight:700;font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
+.snap-back-btn{background:rgba(255,255,255,0.3);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,0.5);color:#fff;border-radius:999px;font-size:14px;font-weight:700;padding:8px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:42px;box-shadow:0 4px 12px rgba(0,0,0,0.4);touch-action:manipulation}
+.snap-back-btn:active{transform:scale(0.96)}
 .snap-icon-btn{background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);color:#fff;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer}
 .snap-controls{position:relative;z-index:20;padding:16px 20px 32px;background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%);display:flex;flex-direction:column;align-items:center;gap:12px}
 .snap-poses{display:flex;gap:8px;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.15)}
@@ -349,12 +386,17 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .pet[data-shape=frog] .body{inset:49px 7px 17px;border-radius:54% 54% 42% 42%}.pet[data-shape=frog] .ear{z-index:3}
 .pet[data-shape=turtle] .body{inset:50px 5px 18px;border-radius:54% 54% 42% 42%;box-shadow:inset 0 0 0 7px #4b2d7748,inset 14px -14px 0 #00000012}
 .pet[data-shape=turtle] .arm{top:91px;height:28px}
-.pet[data-action=dance] .arm.l,.pet[data-action=wave] .arm.r{animation:tinyWave .45s ease-in-out infinite}
+.pet[data-action=dance] .arm.l{animation:tinyDanceArmL .48s ease-in-out infinite}
+.pet[data-action=dance] .arm.r{animation:tinyDanceArmR .48s ease-in-out infinite}
+.pet[data-action=wave] .arm.r{z-index:6;animation:tinyWaveHand .5s ease-in-out infinite}
+.pet[data-action=wave] .arm.l{animation:none;transform:rotate(20deg)}
 @keyframes tinyStep{0%,100%{translate:0 0;scale:1 1}50%{translate:0 -8px;scale:.88 1.14}}
 @keyframes tinyArmLeft{50%{rotate:-18deg;translate:2px -3px}}
 @keyframes tinyArmRight{50%{rotate:18deg;translate:-2px -3px}}
 @keyframes tinyBodySquash{50%{scale:1.03 .98;translate:0 2px}}
-@keyframes tinyWave{50%{rotate:-55deg;translate:0 -7px}}
+@keyframes tinyDanceArmL{0%,100%{rotate:20deg;translate:0 0}50%{rotate:-65deg;translate:2px -12px}}
+@keyframes tinyDanceArmR{0%,100%{rotate:-20deg;translate:0 0}50%{rotate:65deg;translate:-2px -12px}}
+@keyframes tinyWaveHand{0%,100%{transform:rotate(-30deg) translateY(-4px)}30%{transform:rotate(-110deg) translateY(-18px)}60%{transform:rotate(-50deg) translateY(-8px)}80%{transform:rotate(-115deg) translateY(-20px)}}
 @media(prefers-reduced-motion:reduce){.arm,.foot,.pet-stage.wandering .pet .body{animation:none!important}}
 .tabbar a span{font-size:24px;line-height:1}
 .update-banner{background:#24351f;border-color:#4d6f43;color:#f7f1ff}
@@ -365,3 +407,16 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 
 
 
+
+/* TinyFrens Studio Builder Styles */
+.studio-stage-box{display:flex;flex-direction:column;align-items:center;background:radial-gradient(circle,#281c44 0%,#17142a 100%);border:1px solid #4a386c;border-radius:18px;padding:16px;margin-bottom:18px}
+.studio-anim-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px;width:100%}
+.studio-anim-btn{background:#35274e;color:#d8c6fa;border:1px solid #57417e;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease}
+.studio-anim-btn:hover,.studio-anim-btn.active{background:#855DCD;color:#fff;border-color:#a474f1}
+.studio-palette-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 16px}
+.palette-swatch{height:34px;border-radius:8px;border:2px solid transparent;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+.palette-swatch.active{border-color:#fff;transform:scale(1.05)}
+.compiler-box{background:#110e20;border:1px solid #362952;border-radius:12px;padding:12px;margin:14px 0}
+.compiler-box pre{margin:6px 0;font-family:monospace;font-size:11px;color:#a4d4ae;overflow-x:auto;white-space:pre-wrap}
+.studio-mint-btn{width:100%;background:linear-gradient(135deg,#855DCD 0%,#66c7d2 100%);color:#fff;font-size:15px;font-weight:800;padding:14px;border-radius:12px;border:0;cursor:pointer;box-shadow:0 6px 16px rgba(133,93,205,0.4);margin-top:10px}
+.studio-mint-btn:active{transform:scale(0.98)}

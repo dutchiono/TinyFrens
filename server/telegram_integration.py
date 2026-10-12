@@ -26,7 +26,7 @@ TG_API = 'https://api.telegram.org'
 
 # Pet shapes / palettes mirrored from web/customize.js so a Telegram user's first
 # fren looks consistent with the rest of the app.
-SHAPES = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle']
+SHAPES = ['cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle']
 PALETTE = ['#a474f1', '#66c7d2', '#ffb95e', '#82eba1', '#ff82a7', '#4d96ff']
 
 

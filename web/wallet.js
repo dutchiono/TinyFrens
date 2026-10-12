@@ -3,7 +3,7 @@
   const form = $('walletForm'), question = $('walletQuestion'), ask = $('walletAsk'), status = $('walletStatus'), reply = $('walletReply');
   const refresh = $('walletRefreshNfts'), nftList = $('walletNfts');
   const vaultAddressInput = $('vaultAddressInput'), copyVaultAddress = $('copyVaultAddress'), vaultStatusChip = $('vaultStatusChip');
-  const mintNftButton = $('mintNftButton'), mintSubtext = $('mintSubtext');
+  const mintNftButton = $('mintNftButton'), mintCustomNftButton = $('mintCustomNftButton'), mintSubtext = $('mintSubtext');
   const tokenIdInput = $('walletTokenId'), renameInput = $('walletRenameInput'), renameNftButton = $('walletRenameNft'), evolveNftButton = $('walletEvolveNft');
   const magicLinkButton = $('magicLinkButton'), magicLinkBox = $('magicLinkBox'), magicLinkInput = $('magicLinkInput'), copyMagicLink = $('copyMagicLink');
 
@@ -15,7 +15,7 @@
     const s = read();
     return {
       name: cleanName(s.name) || 'Your fren',
-      shape: s.shape === 'mascot' ? 'robot' : ['cat','blob','robot','bunny','dog','bear','frog','turtle'].includes(s.shape) ? s.shape : 'cat',
+      shape: s.shape === 'mascot' ? 'robot' : s.shape === 'dog' ? 'duck' : s.shape === 'bear' ? 'pig' :  ['cat','blob','robot','bunny','duck','pig','frog','turtle'].includes(s.shape) ? s.shape : 'cat',
       color: /^#[0-9a-f]{6}$/i.test(s.color || '') ? s.color : '#a474f1',
       expression: s.expression || 'happy',
       accessory: s.accessory || 'none',
@@ -193,6 +193,37 @@
         if (status) status.textContent = err.message || 'Minting error. Check ETH balance.';
       } finally {
         mintNftButton.disabled = false;
+      }
+    };
+  }
+
+  if (mintCustomNftButton) {
+    mintCustomNftButton.onclick = async () => {
+      mintCustomNftButton.disabled = true;
+      const cur = petProfile();
+      if (status) status.textContent = `Minting custom ${cur.shape} (${cur.expression}) in ETH on Base...`;
+      try {
+        const data = await post('/api/wallet/mint', {
+          customTraits: {
+            shape: cur.shape,
+            color: cur.color,
+            expression: cur.expression,
+            accessory: cur.accessory
+          },
+          name: cur.name
+        });
+        if (data.success && data.nft) {
+          savePetLook(data.pet);
+          if (tokenIdInput) tokenIdInput.value = String(data.nft.tokenId || '');
+          if (renameInput) renameInput.value = cleanName(data.pet.name) || '';
+          if (status) status.textContent = `🎉 Minted custom TinyFren #${data.nft.tokenId}! Your custom designed companion is now on-chain.`;
+          await loadNfts();
+          window.animatePet?.('dance');
+        }
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Custom mint error. Check ETH balance.';
+      } finally {
+        mintCustomNftButton.disabled = false;
       }
     };
   }
