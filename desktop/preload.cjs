@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld('TinyFrensDesktop', {
   menu: open => call('menu', open), drag: active => call('drag', active),
   motion: reduced => call('motion', reduced),
   regions: regions => ipcRenderer.send('tinyfrens:regions', regions),
-  checkUpdate: () => ipcRenderer.invoke('tinyfrens:check-update'), openUpdate: () => call('update'),
+  checkUpdate: () => ipcRenderer.invoke('tinyfrens:check-update'), openUpdate: () => call('update'), installUpdate: () => ipcRenderer.invoke('tinyfrens:install-update'),
+  onUpdate: listener => { const handler = (_, data) => listener(data); ipcRenderer.on('tinyfrens:update', handler); return () => ipcRenderer.removeListener('tinyfrens:update', handler); },
   onState: listener => { const handler = (_, data) => listener(data); ipcRenderer.on('tinyfrens:state', handler); return () => ipcRenderer.removeListener('tinyfrens:state', handler); },
   onAnimation: listener => { const handler = (_, data) => listener(data); ipcRenderer.on('tinyfrens:animation', handler); return () => ipcRenderer.removeListener('tinyfrens:animation', handler); }
 });

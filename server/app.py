@@ -18,6 +18,34 @@ try:
     from eth_account import Account
 except ImportError:
     Account = None
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:  # pragma: no cover - pushes are optional
+    webpush = None
+    WebPushException = Exception
+
+def push_configured():
+    """Web push is available when pywebpush is installed and VAPID keys are set."""
+    return webpush is not None and bool(os.environ.get('VAPID_PRIVATE_KEY')) and bool(os.environ.get('VAPID_SUBJECT'))
+
+def deliver_push(db_path, rows, payload):
+    """Best-effort send on a worker thread; stale subscriptions are pruned."""
+    key, subject = os.environ.get('VAPID_PRIVATE_KEY'), os.environ.get('VAPID_SUBJECT')
+    for endpoint, p256dh, auth in rows:
+        try:
+            webpush(subscription_info={'endpoint': endpoint, 'keys': {'p256dh': p256dh, 'auth': auth}},
+                    data=json.dumps(payload), vapid_private_key=key, vapid_claims={'sub': subject})
+        except WebPushException as exc:
+            response = getattr(exc, 'response', None)
+            if response is not None and response.status_code in (404, 410):
+                try:
+                    stale = sqlite3.connect(db_path)
+                    stale.execute('DELETE FROM push_subs WHERE endpoint=?', (endpoint,))
+                    stale.commit(); stale.close()
+                except sqlite3.Error:
+                    pass
+        except Exception:
+            pass
 
 FREN_VAULT_SEED = os.environ.get('FREN_VAULT_SEED', 'tinyfrens-master-vault-seed-v1')
 
@@ -129,7 +157,8 @@ def profile(raw):
     return res
 
 def create_app(database=None, origins=None):
-    db = sqlite3.connect(database or os.environ.get('DB_PATH', 'tinyfrens.db'))
+    db_path = database or os.environ.get('DB_PATH', 'tinyfrens.db')
+    db = sqlite3.connect(db_path)
     db.executescript('''CREATE TABLE IF NOT EXISTS pets(id TEXT PRIMARY KEY, code TEXT UNIQUE, token TEXT UNIQUE, profile TEXT);
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));
@@ -137,7 +166,8 @@ def create_app(database=None, origins=None):
     CREATE TABLE IF NOT EXISTS magic_links(code TEXT PRIMARY KEY, pet_id TEXT, created INTEGER, expires INTEGER);
     CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER);
     CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
-    CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);''')
+    CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
+    CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, pid TEXT NOT NULL, created INTEGER);''')
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
@@ -163,6 +193,16 @@ def create_app(database=None, origins=None):
         friends=[pet(r[0]) for r in db.execute('SELECT b FROM friends WHERE a=?',(pid,))]
         requests=[pet(r[0]) for r in db.execute('SELECT sender FROM requests WHERE receiver=?',(pid,))]
         await send(pid,dict(type='state',self=pet(pid),friends=friends,requests=requests))
+    async def push_offline(pid, title, body):
+        # Best-effort web push for a pet with no live socket (fire-and-forget).
+        if not push_configured(): return
+        ws=sockets.get(pid)
+        if ws and not ws.closed: return
+        try: limit(('push',pid),10,3600)
+        except ValueError: return
+        rows=db.execute('SELECT endpoint,p256dh,auth FROM push_subs WHERE pid=?',(pid,)).fetchall()
+        if not rows: return
+        asyncio.create_task(asyncio.to_thread(deliver_push,db_path,rows,{'title':title,'body':body,'url':'./index.html'}))
     async def end(vid):
         v=visits.pop(vid,None)
         if v:
@@ -245,6 +285,31 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply[:500]})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
             return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
+    async def push_public_key(request):
+        return web.json_response({'key': os.environ.get('VAPID_PUBLIC_KEY','')})
+    async def push_subscribe(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('push-subscribe',ip),30,3600)
+            body=await request.json()
+            pid=token_pet(body.get('token'))
+            sub=body.get('subscription')
+            if not isinstance(sub,dict): raise ValueError('Notifications subscription was invalid')
+            endpoint=sub.get('endpoint',''); keys=sub.get('keys') or {}
+            p256dh=keys.get('p256dh',''); auth=keys.get('auth','')
+            if not (isinstance(endpoint,str) and endpoint.startswith('https://') and len(endpoint)<2048): raise ValueError('Notifications subscription was invalid')
+            if not all(isinstance(k,str) and 0<len(k)<400 for k in (p256dh,auth)): raise ValueError('Notifications subscription was invalid')
+            db.execute('INSERT OR REPLACE INTO push_subs VALUES(?,?,?,?,?)',(endpoint,p256dh,auth,pid,int(now())));db.commit()
+            return web.json_response({'ok':True})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e: return web.json_response({'error':str(e)},status=400)
+    async def push_unsubscribe(request):
+        try:
+            body=await request.json()
+            pid=token_pet(body.get('token'))
+            endpoint=str(body.get('endpoint',''))[:2048]
+            db.execute('DELETE FROM push_subs WHERE endpoint=? AND pid=?',(endpoint,pid));db.commit()
+            return web.json_response({'ok':True})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e: return web.json_response({'error':str(e)},status=400)
     async def bankr_status(request):
         return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY')),'partner':bool(os.environ.get('BANKR_PARTNER_KEY'))})
     async def economy_status(request):
@@ -870,7 +935,8 @@ def create_app(database=None, origins=None):
                         other=row[0]
                         if paired(pid,other): raise ValueError('Already friends')
                         if db.execute('SELECT count(*) FROM requests WHERE receiver=?',(other,)).fetchone()[0]>=30: raise ValueError('Try again later')
-                        db.execute('INSERT OR IGNORE INTO requests VALUES(?,?)',(pid,other));db.commit();await state(other);await send(pid,dict(type='notice',text='Friend request sent. They need to accept.'))
+                        inserted=db.execute('INSERT OR IGNORE INTO requests VALUES(?,?)',(pid,other)).rowcount;db.commit();await state(other);await send(pid,dict(type='notice',text='Friend request sent. They need to accept.'))
+                        if inserted: await push_offline(other,'New friend request',f"{pet(pid)['pet']['name']} wants to be friends with your fren.")
                     elif typ=='friend-answer':
                         other=str(m.get('id',''))
                         if not db.execute('SELECT 1 FROM requests WHERE sender=? AND receiver=?',(other,pid)).fetchone(): raise ValueError('Request no longer available')
@@ -879,6 +945,7 @@ def create_app(database=None, origins=None):
                                 if db.execute('SELECT count(*) FROM friends WHERE a=?',(person,)).fetchone()[0]>=100: raise ValueError('Friends list is full')
                             for a,b in ((pid,other),(other,pid)): db.execute('INSERT OR IGNORE INTO friends VALUES(?,?)',(a,b))
                         db.execute('DELETE FROM requests WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)',(other,pid,pid,other));db.commit();await state(pid);await state(other)
+                        if m.get('accept') is True: await push_offline(other,'Friend request accepted',f"{pet(pid)['pet']['name']} is now friends with your fren.")
                     elif typ=='friend-remove':
                         other=str(m.get('id',''));db.execute('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)',(pid,other,other,pid));db.commit()
                         for vid,v in list(visits.items()):
@@ -1056,7 +1123,7 @@ def create_app(database=None, origins=None):
         except (asyncio.TimeoutError, OSError, Exception):
             return web.json_response({'error': 'RPC unavailable'}, status=503)
 
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket)
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     # Serve the static front-end (web/) so the gallery and app are viewable from the relay
     # itself (e.g. http://127.0.0.1:8080/web/gallery.html) during local / testnet runs.

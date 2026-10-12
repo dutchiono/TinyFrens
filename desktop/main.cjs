@@ -8,6 +8,9 @@ const { clampPosition, hits } = require('./geometry.cjs');
 const WIDTH = 340, HEIGHT = 400;
 const RELEASES = 'https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest';
 const smoke = process.argv.includes('--tinyfrens-smoke') || app.commandLine.hasSwitch('tinyfrens-smoke');
+// Seamless self-update: Windows installer builds download and install in the background.
+// Unpacked dev runs, macOS (unsigned builds cannot self-update) and smoke tests keep the manual flow.
+const autoUpdate = process.platform === 'win32' && app.isPackaged && !smoke;
 // Intel macOS CI runners expose no usable GPU; use software rendering for the test only.
 if (smoke && process.platform === 'darwin' && process.arch === 'x64') app.disableHardwareAcceleration();
 if (smoke) console.log('Starting isolated desktop smoke test.');
@@ -34,7 +37,7 @@ function secureWindow(win, file) {
   return win.loadFile(file);
 }
 const preferences = () => ({ preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, backgroundThrottling: false });
-function snapshot(extra = {}) { return { ...store.read(), visible: petVisible, ...extra }; }
+function snapshot(extra = {}) { return { ...store.read(), visible: petVisible, autoUpdate, frameless: process.platform === 'win32', ...extra }; }
 function broadcast(extra = {}) {
   const data = snapshot(extra);
   for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:state', data);
@@ -57,7 +60,11 @@ function showPet() { petVisible=true; menuUntil = 0; drag = null; pet.showInacti
 function hidePet() { petVisible=false;drag = null; menuUntil = 0; fadeWindow(pet.getOpacity(),0,()=>{pet.hide();pet.setOpacity(1);broadcast();}); broadcast(); }
 function openApp() {
   if (!careWindow || careWindow.isDestroyed()) {
-    careWindow = new BrowserWindow({ width: 510, height: 810, minWidth: 360, minHeight: 550, title: 'TinyFrens', backgroundColor: '#f5f1e8', show: false, webPreferences: preferences() });
+    // Windows: frameless window with native caption buttons tinted to the app; the app header acts as the title bar.
+    const chrome = process.platform === 'win32'
+      ? { titleBarStyle: 'hidden', titleBarOverlay: { color: '#f5f1e8', symbolColor: '#252326', height: 40 } }
+      : {};
+    careWindow = new BrowserWindow({ width: 510, height: 810, minWidth: 360, minHeight: 550, title: 'TinyFrens', backgroundColor: '#f5f1e8', show: false, ...chrome, webPreferences: preferences() });
     careWindow.removeMenu();
     secureWindow(careWindow, path.join(__dirname, 'web/index.html')).catch(() => {});
     careWindow.once('ready-to-show', () => careWindow.show());
@@ -104,7 +111,46 @@ function moveTick() {
   moving = clampPosition({ x: moving.x + dx / distance * Math.min(step, distance), y: moving.y + dy / distance * Math.min(step, distance) }, area, WIDTH, HEIGHT);
   pet.setPosition(moving.x, moving.y);
 }
+// Background auto-updater (electron-updater): downloads silently, installs on restart or quit.
+let updaterReady = false, autoUpdater = null, updateWaiters = new Set(), checking = false, downloadedVersion = null;
+function updateEvent(payload) { for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:update', payload); }
+function settleUpdate(result) { checking = false; const waiters = [...updateWaiters]; updateWaiters.clear(); for (const resolve of waiters) resolve(result); }
+function ensureUpdater() {
+  if (updaterReady) return !!autoUpdater;
+  updaterReady = true;
+  try { autoUpdater = require('electron-updater').autoUpdater; } catch { return false; }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('checking-for-update', () => updateEvent({ type: 'checking' }));
+  autoUpdater.on('update-not-available', () => settleUpdate({ available: false }));
+  autoUpdater.on('update-available', info => updateEvent({ type: 'available', version: info?.version }));
+  autoUpdater.on('download-progress', progress => updateEvent({ type: 'progress', percent: Math.round(progress?.percent || 0) }));
+  autoUpdater.on('update-downloaded', info => {
+    downloadedVersion = info?.version || app.getVersion();
+    updateEvent({ type: 'downloaded', version: downloadedVersion });
+    settleUpdate({ available: true, downloaded: true, version: downloadedVersion });
+  });
+  autoUpdater.on('error', error => {
+    if (error) console.warn('TinyFrens updater:', error.message || error);
+    updateEvent({ type: 'error' });
+    settleUpdate({ error: true });
+  });
+  return true;
+}
+function autoUpdateCheck() {
+  if (!ensureUpdater()) return Promise.resolve({ available: false, version: app.getVersion(), url: RELEASES });
+  if (downloadedVersion) return Promise.resolve({ available: true, downloaded: true, version: downloadedVersion, auto: true });
+  return new Promise(resolve => {
+    const done = result => { clearTimeout(timer); resolve({ ...result, auto: true }); };
+    const timer = setTimeout(() => { if (updateWaiters.delete(done)) resolve({ error: true, auto: true }); }, 45000);
+    updateWaiters.add(done);
+    if (checking) return;
+    checking = true;
+    autoUpdater.checkForUpdates().catch(() => settleUpdate({ error: true }));
+  });
+}
 async function checkUpdate() {
+  if (autoUpdate) return autoUpdateCheck();
   const response = await net.fetch('https://api.github.com/repos/dutchiono/TinyFrens/releases/tags/desktop-latest', { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/vnd.github+json' } });
   if (!response.ok) { if (response.status === 404) return { available: false, version: app.getVersion(), unpublished: true }; throw new Error('Update check unavailable'); }
   const release = await response.json();
@@ -200,6 +246,14 @@ ipcMain.on('tinyfrens:regions', (event, data) => {
 ipcMain.handle('tinyfrens:check-update', async event => {
   if (!trusted(event)) return { error: true };
   try { return await checkUpdate(); } catch { return { error: true }; }
+});
+ipcMain.handle('tinyfrens:install-update', event => {
+  if (!trusted(event) || !autoUpdater || !downloadedVersion) return false;
+  try {
+    if (process.platform === 'win32') autoUpdater.quitAndInstall(true, true);
+    else autoUpdater.quitAndInstall();
+    return true;
+  } catch { return false; }
 });
 if (!app.requestSingleInstanceLock()) app.quit();
 else {

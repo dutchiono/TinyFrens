@@ -1,6 +1,8 @@
 'use strict';
 const native = typeof window.PetAndroid !== 'undefined';
 const desktop = window.TinyFrensDesktop;
+// Frameless Windows builds use the app header as the window title bar (drag region + caption-button space).
+try { if (desktop && JSON.parse(desktop.getState()).frameless) document.documentElement.classList.add('desktop-titlebar'); } catch {}
 const key = 'pocket-familiar-v1';
 const $ = id => document.getElementById(id);
 function initial(){return {hunger:80,happiness:80,energy:80,born:Date.now(),last:Date.now(),mode:'roam'};}

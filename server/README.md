@@ -30,6 +30,17 @@ Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` 
 
 Per-fren Bankr wallets are scaffolded behind `BANKR_PARTNER_KEY`. When that partner key is present, `/api/bankr/wallet` provisions a Bankr wallet for the registered fren with `POST /partner/wallets`; without it, TinyFrens uses the shared server Bankr wallet. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
+## Web push notifications
+
+Set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (see `.env.example` for a
+key-pair generation one-liner) to enable web push for the PWA's Settings → Notifications
+toggle. The web app subscribes via `POST /api/push/subscribe` (device token auth, same as the
+WebSocket) and fetches the key from `GET /api/push/public-key`. When a friend request or
+acceptance arrives for a pet with **no live connection**, the relay queues a best-effort push
+(`pywebpush`, run on a worker thread; stale subscriptions are pruned). `POST /api/push/unsubscribe`
+removes a subscription; a different device token cannot remove someone else's. All push
+plumbing is optional — without the env vars the relay behaves exactly as before.
+
 ## Telegram & Discord (see [TELEGRAM-DISCORD.md](../TELEGRAM-DISCORD.md))
 
 The relay can also authenticate Telegram Mini App users and Discord Activities and turn a

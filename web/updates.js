@@ -21,7 +21,17 @@
   if($('autoDownload').checked&&PetAndroid.canAutoDownload())PetAndroid.prepareUpdate();
  }
  if(window.TinyFrensDesktop){
-  $('updateExplanation').textContent='Checks for new desktop downloads. Replace the app with the new version; your fren stays in its saved folder. Installation is manual.';
+  const auto=!!JSON.parse(window.TinyFrensDesktop.getState()||'{}').autoUpdate;
+  $('updateExplanation').textContent=auto
+   ? 'New versions download in the background. They install the next time you close the app, or tap Restart & install now. Your pet stays saved.'
+   : 'Checks for new desktop downloads. Replace the app with the new version; your fren stays in its saved folder. Installation is manual.';
+  window.TinyFrensDesktop.onUpdate?.(event=>{
+   if(event.type==='checking')status.textContent='Checking…';
+   else if(event.type==='available')status.textContent='Downloading the new version…';
+   else if(event.type==='progress')status.textContent='Downloading update… '+event.percent+'%';
+   else if(event.type==='downloaded'){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your pet stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');}
+   else if(event.type==='error')quietError();
+  });
  }else if(native){
   const info=JSON.parse(PetAndroid.updateInfo());$('updateRepo').value=info.repo||'dutchiono/TinyFrens';
   $('advancedUpdates').hidden=false;$('autoDownloadRow').hidden=false;
@@ -77,6 +87,8 @@
     const result=await window.TinyFrensDesktop.checkUpdate();
     inFlight=false;$('checkUpdate').disabled=false;
     if(result.error){quietError();return;}
+    if(result.downloaded){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your pet stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');return;}
+    if(result.auto){status.textContent=result.available?'Downloading the new version…':'You’re up to date.';if(!result.available)banner.hidden=true;return;}
     status.textContent=result.available?'A new desktop version is ready.':result.unpublished?'Your desktop build is ready; the first download is still publishing.':'You’re up to date.';
     if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your pet stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else banner.hidden=true;
    }else if(native){

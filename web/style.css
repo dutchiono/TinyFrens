@@ -56,6 +56,10 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 
 #pipVideo{display:block;width:100%;max-height:260px;border-radius:14px;background:#17142a;margin:16px 0}.pip-note{font-size:12px!important}details summary{cursor:pointer}details a{color:#d6b6ff}
 
+/* Frameless Windows desktop window: the app header doubles as the title bar (drag to move, buttons keep clear). */
+.desktop-titlebar .topbar{-webkit-app-region:drag;user-select:none;position:sticky;top:0;z-index:30;background:#f5f1e8;padding:6px 150px 6px 0}
+.desktop-titlebar .topbar a,.desktop-titlebar .topbar button{-webkit-app-region:no-drag}
+
 
 /* A small handheld pet, with three clear places to go. */
 :root{color:#252326;background:#f5f1e8;font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif}

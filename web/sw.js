@@ -1,9 +1,27 @@
-const CACHE='pocket-familiar-v23';
+const CACHE='pocket-familiar-v24';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
-const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./effects.js','./effects.css','./pip.js','./updates.js','./ui.js','./visits.js','./social-config.js','./friends.js','./party.js','./chat.js','./wallet.js','./farcaster.js','./snap.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
+const ASSETS=['./','./index.html','./style.css','./app.js','./customize.js','./effects.js','./effects.css','./pip.js','./updates.js','./ui.js','./visits.js','./push.js','./social-config.js','./friends.js','./party.js','./chat.js','./wallet.js','./farcaster.js','./snap.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'}))))));
 self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pocket-familiar-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+// Web push: the server wakes the phone even when TinyFrens is closed.
+self.addEventListener('push',e=>{
+ let data={};
+ try{data=e.data?e.data.json():{};}catch{data={body:e.data?e.data.text():''};}
+ e.waitUntil((async()=>{
+  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  if(clients.some(c=>c.focused))return; // The app is already open — no nudge needed.
+  await self.registration.showNotification(data.title||'TinyFrens',{body:data.body||'A fren reached out 🐾',icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',data:{url:data.url||'./index.html'}});
+ })());
+});
+self.addEventListener('notificationclick',e=>{
+ e.notification.close();
+ e.waitUntil((async()=>{
+  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  for(const client of clients)if('focus' in client)return client.focus();
+  return self.clients.openWindow(e.notification.data?.url||'./index.html');
+ })());
+});
 async function videoResponse(request){
  const cached=await caches.match(request.url);
  if(!cached)return fetch(request);

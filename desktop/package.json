@@ -11,13 +11,16 @@
     "prepare-assets": "node prepare.cjs",
     "dist": "npm run prepare-assets && electron-builder --publish never"
   },
+  "dependencies": {"electron-updater": "6.8.9"},
   "devDependencies": {"electron": "44.7.0", "electron-builder": "26.0.12"},
   "build": {
     "appId": "lol.tinyfrens.desktop",
     "productName": "TinyFrens",
     "directories": {"output": "release"},
-    "files": ["*.cjs", "*.html", "*.css", "*.js", "web/**/*", "!test/**/*", "!release/**/*"],
-    "win": {"target": ["portable"], "artifactName": "TinyFrens-Windows.exe"},
-    "mac": {"target": ["zip"], "identity": "-", "category": "public.app-category.games", "artifactName": "TinyFrens-Mac-${arch}.zip"}
+    "files": ["*.cjs", "*.html", "*.css", "*.js", "web/**/*", "node_modules/**/*", "!test/**/*", "!release/**/*"],
+    "win": {"target": ["nsis"], "artifactName": "TinyFrens-Windows.exe"},
+    "nsis": {"oneClick": true, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "TinyFrens", "deleteAppDataOnUninstall": false},
+    "mac": {"target": ["zip"], "identity": "-", "category": "public.app-category.games", "artifactName": "TinyFrens-Mac-${arch}.zip"},
+    "publish": [{"provider": "generic", "url": "https://github.com/dutchiono/TinyFrens/releases/download/desktop-latest/"}]
   }
 }

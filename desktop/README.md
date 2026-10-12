@@ -6,7 +6,7 @@ TinyFrens for **Windows x64** and **Mac (Apple Silicon or Intel)** includes a tr
 
 Download from the [desktop release](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest). The first downloads appear after the Desktop floating pet workflow succeeds.
 
-- Windows: download **TinyFrens-Windows.exe**, put it in a folder you will keep, and open it. This is a portable application. Windows may show a SmartScreen warning because the build is unsigned. Check the repository and download source before allowing it.
+- Windows: download **TinyFrens-Windows.exe** and run it. It is a one-click installer (no admin needed) that sets up TinyFrens and then keeps itself updated automatically in the background. Windows may show a SmartScreen warning while the build is unsigned; see docs/WINDOWS-SIGNING.md. Check the repository and download source before allowing it.
 - Mac: choose **TinyFrens-Mac-arm64.zip** for Apple Silicon or **TinyFrens-Mac-x64.zip** for Intel. Unzip, move TinyFrens.app into Applications, and open it. The build is ad-hoc signed, not notarized. If macOS blocks it, try opening once, then System Settings → Privacy & Security → Open Anyway. Do not disable Gatekeeper globally. A paid Apple membership is not needed to build or locally run this version.
 
 No overlay permission, Accessibility permission, screen recording or administrator access is requested. The app does not read other windows or interact with their contents. Full-screen games, secure desktops, lock screens and some macOS Spaces can prevent overlays from appearing; recover the pet from its tray/menu-bar menu.
@@ -32,7 +32,7 @@ Looks → Little touches adds 40–100% pet opacity, sparkles, screen effects, f
 
 The full app and floating window share one native save, stored as pet.json under Electron's user-data directory (TinyFrens/tinyfrens-desktop depending on packaging). Names, care and appearance survive replacing the executable/app with a newer version. Browser and phone saves remain separate. Do not delete the app-data folder to update.
 
-Updates check automatically while the care app is active and can be checked manually from Settings. An available update opens the desktop release page. Quit, download the matching new file, and replace the old app. There is no automatic installation in this unsigned release. Desktop releases are separate from Android/iOS releases and do not become GitHub's latest phone release.
+On Windows, updates check automatically while the care app is active and can be checked manually from Settings. A new version downloads quietly in the background; a banner offers **Restart & install**, and simply closing the app installs it too. Your pet stays saved. On Mac, unsigned builds cannot self-update, so an available update opens the desktop release page to download manually. Desktop releases are separate from Android/iOS releases and do not become GitHub's latest phone release.
 
 ## Development
 

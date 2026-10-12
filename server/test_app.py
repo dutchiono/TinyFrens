@@ -1,4 +1,5 @@
 import asyncio, os, tempfile, unittest
+from unittest import mock
 from aiohttp.test_utils import TestClient, TestServer
 from app import create_app
 
@@ -437,6 +438,43 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(restore_data['pet']['name'], 'MintyFren')
         self.assertEqual(restore_data['pet']['tokenId'], token_id)
         self.assertTrue(restore_data['vaultAddress'].startswith('0x'))
+
+    async def test_push_subscribe_and_offline_friend_request(self):
+        import app as app_module
+        env = {'VAPID_PRIVATE_KEY': 'test-key', 'VAPID_SUBJECT': 'mailto:test@example.com', 'VAPID_PUBLIC_KEY': 'test-public'}
+        with mock.patch.dict(os.environ, env):
+            self.assertTrue(app_module.push_configured())
+            a = await self.register('Pushy'); b = await self.register('Quiet')
+            sub = {'endpoint': 'https://push.example/sub', 'keys': {'p256dh': 'p256', 'auth': 'auth'}}
+            r = await self.client.post('/api/push/subscribe', headers={'Origin': ORIGIN}, json={'token': b['token'], 'subscription': sub})
+            self.assertEqual(r.status, 200)
+            r = await self.client.post('/api/push/subscribe', headers={'Origin': ORIGIN}, json={'token': 'bogus', 'subscription': sub})
+            self.assertEqual(r.status, 400)
+            r = await self.client.post('/api/push/subscribe', headers={'Origin': ORIGIN}, json={'token': b['token'], 'subscription': {'endpoint': 'http://insecure.example', 'keys': {'p256dh': 'p', 'auth': 'a'}}})
+            self.assertEqual(r.status, 400)
+            r = await self.client.get('/api/push/public-key', headers={'Origin': ORIGIN})
+            self.assertEqual(r.status, 200)
+            self.assertEqual((await r.json())['key'], 'test-public')
+            sent = []
+            original = app_module.deliver_push
+            app_module.deliver_push = lambda path, rows, payload: sent.append((rows, payload))
+            try:
+                wa = await self.connect(a)
+                await wa.send_json({'type': 'friend-request', 'code': b['code']})
+                await self.event(wa, 'notice')
+                for _ in range(100):
+                    if sent: break
+                    await asyncio.sleep(0.05)
+            finally:
+                app_module.deliver_push = original
+            self.assertEqual(len(sent), 1)
+            self.assertEqual(sent[0][0], [('https://push.example/sub', 'p256', 'auth')])
+            self.assertEqual(sent[0][1]['title'], 'New friend request')
+            self.assertIn('Pushy', sent[0][1]['body'])
+            r = await self.client.post('/api/push/unsubscribe', headers={'Origin': ORIGIN}, json={'token': b['token'], 'endpoint': 'https://push.example/sub'})
+            self.assertEqual(r.status, 200)
+            r = await self.client.post('/api/push/unsubscribe', headers={'Origin': ORIGIN}, json={'token': a['token'], 'endpoint': 'https://push.example/sub'})
+            self.assertEqual(r.status, 200)  # a different pet cannot remove someone else's row
 
 if __name__=='__main__': unittest.main()
 
