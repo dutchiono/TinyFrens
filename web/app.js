@@ -44,8 +44,8 @@ function render(s){
   const stage=Number(s.stage)||0;
   $('pet').dataset.stage=String(stage);
   if(s.shape) $('pet').dataset.shape=s.shape==='mascot'?'robot':s.shape;
-  if(s.expression) $('pet').dataset.expression=s.expression;
-  if(s.accessory) $('pet').dataset.accessory=s.accessory;
+  $('pet').dataset.expression = s.expression || 'happy';
+  $('pet').dataset.accessory = s.accessory || 'none';
   if(s.color) $('pet').style.setProperty('--pet-color',s.color);
   if(s.size) $('pet').style.setProperty('--pet-scale',String((s.size||80)/80));
   $('stageText').textContent=s.stageName||['Hatchling','Sprout','Elder'][stage]||'Hatchling';

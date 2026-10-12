@@ -189,19 +189,41 @@ function saveLook(reset) {
     speed: Number($('petSpeed').value),
     tokenId: $('nftTokenInput').value ? Number($('nftTokenInput').value) : null
   };
+  applyImmediateLook(data);
   let state;
   if (desktop) state = JSON.parse(desktop.customize(JSON.stringify(data)));
   else if (native) state = JSON.parse(PetAndroid.customize(JSON.stringify(data)));
-  else { state = Object.assign(read(), data); localStorage.setItem(key, JSON.stringify(state)); }
+  else { state = localBridge('customize', data); }
   stylePet(state);
   render(state);
   window.dispatchEvent(new Event('pet-profile-changed'));
   $('styleMessage').textContent = (native || desktop) ? 'Saved! Your floating pet changes immediately.' : 'Look saved!';
 }
 
+function applyImmediateLook(data) {
+  const p = $('pet');
+  if (p) {
+    if (data.color) p.style.setProperty('--pet-color', data.color);
+    if (data.shape) p.dataset.shape = normalizeShape(data.shape);
+    if (data.expression) p.dataset.expression = data.expression;
+    if (data.accessory) p.dataset.accessory = data.accessory;
+    if (data.size) p.style.setProperty('--pet-scale', String(data.size / 80));
+  }
+  const preview = $('lookPreview')?.querySelector('.pet');
+  if (preview) {
+    if (data.color) preview.style.setProperty('--pet-color', data.color);
+    if (data.shape) preview.dataset.shape = normalizeShape(data.shape);
+    if (data.expression) preview.dataset.expression = data.expression;
+    if (data.accessory) preview.dataset.accessory = data.accessory;
+  }
+}
+
 $('resetStyle').onclick = () => saveLook(true);
 for (const id of ['petColor', 'petSize', 'petSpeed']) $(id).addEventListener('input', () => saveLook(false));
-for (const id of ['petShape', 'petExpression', 'petAccessory']) $(id).addEventListener('change', () => saveLook(false));
+for (const id of ['petShape', 'petExpression', 'petAccessory']) {
+  $(id).addEventListener('change', () => saveLook(false));
+  $(id).addEventListener('input', () => saveLook(false));
+}
 
 document.querySelectorAll('.palette-swatch').forEach(btn => {
   btn.onclick = () => {

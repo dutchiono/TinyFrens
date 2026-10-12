@@ -17,7 +17,10 @@
   function scheduleClose() { clearTimeout(leaveTimer); leaveTimer = setTimeout(() => { if (!pointer) menu(false); }, 900); }
   function render(s) {
     lastState = s;
-    pet.dataset.shape = s.shape; pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
+    pet.dataset.shape = s.shape;
+    pet.dataset.expression = s.expression || 'happy';
+    pet.dataset.accessory = s.accessory || 'none';
+    pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
     bubbles.querySelector('[data-action=clean]').hidden = !(Number(s.poops) > 0);
     bubbles.querySelector('[data-action=vitamin]').hidden = !s.sick;
     pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String(s.size / 80));

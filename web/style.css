@@ -69,23 +69,38 @@ input[type=range],select{width:100%;margin-bottom:18px}select{background:#30234d
 .pet[data-shape=cat] .body::after{content:"";position:absolute;right:-18px;bottom:8px;width:28px;height:30px;border:7px solid #4b2d77;border-left:0;border-bottom:0;border-radius:0 20px 0 0;transform:rotate(20deg)}
 .pet[data-shape=blob] .body::after{content:"";position:absolute;left:10px;right:10px;bottom:-2px;height:18px;background:#0001;border-radius:50%;filter:blur(2px)}
 /* Expressions */
-.pet[data-expression=wink] .eye.r{height:4px;top:48px;border-radius:2px}
-.pet[data-expression=shades] .body::before{content:"";position:absolute;top:34px;left:14px;width:82px;height:18px;background:#111;border-radius:4px;box-shadow:0 2px 4px #0006;z-index:5}
-.pet[data-expression=star_eyes] .eye{background:#ffd700;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
-.pet[data-expression=sleepy] .eye{height:4px;top:46px}
-.pet[data-expression=loving] .eye{background:#ff4757}
-.pet[data-expression=laser] .eye{background:#ff0055;box-shadow:0 0 10px #ff0055}
-.pet[data-expression=grin] .mouth{width:16px;left:39px;height:7px;border-radius:0 0 8px 8px;background:#ff4757}
+.pet[data-expression=wink] .eye.r{height:5px!important;top:46px!important;background:#35204e!important;border-radius:2px 2px 6px 6px!important;box-shadow:none!important;animation:none!important}
+.pet[data-expression=wink] .eye.r::after{display:none!important}
+.pet[data-expression=shades] .eye{width:32px!important;height:18px!important;top:36px!important;background:#151515!important;border-radius:3px 3px 6px 6px!important;box-shadow:0 3px 6px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.25)!important;animation:none!important;z-index:10!important}
+.pet[data-expression=shades] .eye.l{left:14px!important}
+.pet[data-expression=shades] .eye.r{right:14px!important}
+.pet[data-expression=shades] .eye::after{content:""!important;position:absolute!important;top:3px!important;left:4px!important;width:22px!important;height:2px!important;background:rgba(255,255,255,0.7)!important;border-radius:2px!important;transform:rotate(-18deg)!important}
+.pet[data-expression=shades] .eye.l::before{content:""!important;position:absolute!important;right:-36px!important;top:4px!important;width:36px!important;height:4px!important;background:#151515!important;z-index:10!important;box-shadow:0 1px 2px rgba(0,0,0,0.5)!important}
+.pet[data-expression=star_eyes] .eye{width:24px!important;height:24px!important;top:34px!important;background:#ffd700!important;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)!important;box-shadow:0 0 14px #ffd700!important;filter:drop-shadow(0 0 5px #ffd700)!important;animation:none!important}
+.pet[data-expression=star_eyes] .eye.l{left:17px!important}
+.pet[data-expression=star_eyes] .eye.r{right:17px!important}
+.pet[data-expression=star_eyes] .eye::after{display:none!important}
+.pet[data-expression=sleepy] .eye{height:4px!important;top:47px!important;background:#35204e!important;border-radius:2px!important;box-shadow:none!important;animation:none!important}
+.pet[data-expression=sleepy] .eye::after{display:none!important}
+.pet[data-expression=loving] .eye{width:22px!important;height:22px!important;top:35px!important;background:#ff4757!important;clip-path:polygon(50% 88%,0% 36%,12% 8%,38% 8%,50% 26%,62% 8%,88% 8%,100% 36%)!important;filter:drop-shadow(0 0 6px #ff4757)!important;box-shadow:0 0 10px #ff4757!important;animation:none!important}
+.pet[data-expression=loving] .eye.l{left:18px!important}
+.pet[data-expression=loving] .eye.r{right:18px!important}
+.pet[data-expression=loving] .eye::after{display:none!important}
+.pet[data-expression=laser] .eye{background:#ff0055!important;box-shadow:0 0 16px #ff0055,0 0 6px #fff!important;filter:drop-shadow(0 0 8px #ff0055)!important;animation:none!important}
+.pet[data-expression=laser] .eye::after{content:""!important;position:absolute!important;top:2px!important;left:2px!important;width:8px!important;height:16px!important;background:#fff!important;border-radius:3px!important;box-shadow:0 0 6px #fff!important}
+.pet[data-expression=grin] .mouth{width:24px!important;left:34px!important;height:11px!important;border-radius:0 0 14px 14px!important;background:#ff4757!important;border:3px solid #35204e!important;border-top:0!important;z-index:5!important}
 /* Accessories */
-.pet[data-accessory=party_hat]::before{content:"";position:absolute;top:-28px;left:44px;width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-bottom:40px solid #ff4757;z-index:10;filter:drop-shadow(0 2px 0 #ffd700)}
-.pet[data-accessory=crown]::before{content:"👑";position:absolute;top:-28px;left:44px;font-size:38px;z-index:10}
+.pet[data-accessory=party_hat]::before{content:"";position:absolute;top:-32px;left:50px;width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-bottom:44px solid #ff4757;z-index:25;filter:drop-shadow(0 2px 0 #ffd700);pointer-events:none}
+.pet[data-accessory=party_hat]::after{content:"";position:absolute;top:-36px;left:64px;width:12px;height:12px;background:#ffd700;border-radius:50%;z-index:26;box-shadow:0 0 6px #ffd700;pointer-events:none}
+.pet[data-accessory=crown]::before{content:"👑";position:absolute;top:-32px;left:48px;font-size:44px;line-height:1;z-index:25;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4))}
 .pet[data-accessory=straw_hat]::before{content:"👒";position:absolute;top:-26px;left:40px;font-size:42px;z-index:10}
-.pet[data-accessory=halo]::before{content:"";position:absolute;top:-18px;left:36px;width:56px;height:16px;border:4px solid #ffd700;border-radius:50%;box-shadow:0 0 10px #ffeaa7;z-index:10}
+.pet[data-accessory=halo]::before{content:"";position:absolute;top:-20px;left:38px;width:64px;height:18px;border:5px solid #ffd700;border-radius:50%;box-shadow:0 0 14px #ffeaa7,inset 0 0 8px #ffeaa7;z-index:25;pointer-events:none}
 .pet[data-accessory=beanie]::before{content:"";position:absolute;top:10px;left:14px;width:100px;height:34px;background:#34495e;border-radius:20px 20px 4px 4px;border:4px solid #2c3e50;z-index:10}
 .pet[data-accessory=strawberry]::after{content:"🍓";position:absolute;bottom:4px;left:96px;font-size:28px;z-index:10}
-.pet[data-accessory=orb]::after{content:"";position:absolute;bottom:20px;right:-18px;width:28px;height:28px;background:radial-gradient(circle,#fff,#00d2d3);border-radius:50%;box-shadow:0 0 14px #00d2d3;z-index:10}
+.pet[data-accessory=orb]::after{content:"";position:absolute;bottom:30px;right:-16px;width:32px;height:32px;background:radial-gradient(circle at 35% 35%,#fff 0%,#00d2d3 50%,#0984e3 100%);border-radius:50%;box-shadow:0 0 16px #00d2d3,0 0 32px #00d2d366;z-index:25;pointer-events:none;animation:orbFloat 2.4s ease-in-out infinite alternate}
+@keyframes orbFloat{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-12px) scale(1.06)}}
 .pet[data-accessory=bubble]{box-shadow:0 0 0 16px #70a1ff44,inset 0 0 20px #70a1ff33;border-radius:50%}
-.pet[data-accessory=bow_tie] .mouth::before{content:"🎀";position:absolute;top:12px;left:-8px;font-size:24px;z-index:10;pointer-events:none}
+.pet[data-accessory=bow_tie]::after{content:"🎀";position:absolute;top:104px;left:52px;font-size:32px;line-height:1;z-index:25;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
 .eye{animation:blink 5s infinite}.pet[data-action=sleep] .eye{height:4px;animation:none}.pet[data-action=sleep]{animation:breathe 2s infinite}
 .pet[data-action=dance]{animation:dance .48s ease-in-out infinite}.pet[data-action=wave]{animation:wave .55s ease-in-out infinite}
 .pet[data-action=eat] .mouth{animation:chew .4s infinite}
@@ -157,7 +172,7 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 #pipVideo{border-radius:8px;max-height:240px}#video-pet .pip-note{font-size:11px!important}.pet[data-action=sleep]::after,.pet[data-action=wave]::after{color:#5d3a8e}
 @media(max-width:350px){main{padding-left:16px;padding-right:16px}.pet-stage{height:200px}.stats{gap:8px}}
 
-.look-preview{height:230px;display:grid;place-items:center;background:#eee6f3;border-radius:12px;margin:18px 0 24px}.guest-stage{height:140px;display:grid;place-items:center}.guest-stage .pet{scale:.75;animation:wave 2s infinite}.visit-box{background:#e5e9d7;border-radius:12px;padding:16px;margin-top:22px}.visit-box h2{font-size:16px}.visit-box p{font-size:12px;color:#716a67;line-height:1.5}.visit-box input{width:100%;font-size:12px;padding:10px;margin-top:10px}#visitInvite{background:#e8e0f1}.visit-box button{font-size:12px}
+.look-preview{height:230px;display:grid;place-items:center;background:#eee6f3;border-radius:12px;margin:18px 0 24px;overflow:visible;position:relative}.guest-stage{height:140px;display:grid;place-items:center}.guest-stage .pet{scale:.75;animation:wave 2s infinite}.visit-box{background:#e5e9d7;border-radius:12px;padding:16px;margin-top:22px}.visit-box h2{font-size:16px}.visit-box p{font-size:12px;color:#716a67;line-height:1.5}.visit-box input{width:100%;font-size:12px;padding:10px;margin-top:10px}#visitInvite{background:#e8e0f1}.visit-box button{font-size:12px}
 
 
 .friends-panel{border-top:1px solid #d8d0c4;margin-top:22px;padding-top:16px}.friends-panel h3{margin:0 0 8px}.friends-panel input{box-sizing:border-box;width:100%;font:inherit}.friends-panel #myFriendCode{font-family:monospace;font-size:13px;letter-spacing:.5px}.friends-panel form{margin-top:20px}.friend-card{border-top:1px solid #d8d0c4;padding:14px 0}.friend-card .actions{margin-top:10px}.friend-confirm button{margin-right:8px}
@@ -197,7 +212,7 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
  .topbar{max-width:1120px;margin:0 auto 22px}
  .screen>h1,.screen-intro{max-width:860px;margin-left:auto;margin-right:auto}
  #screen-pet{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;align-items:start}
- #screen-pet .pet-card{grid-column:1/-1;min-height:min(500px,calc(100vh - 300px));display:grid;align-content:start;padding:30px 36px;border:1px solid #ddd5c8;border-radius:22px;background:linear-gradient(180deg,#fffcf5,#f2eadc);overflow:hidden}
+ #screen-pet .pet-card{grid-column:1/-1;min-height:min(500px,calc(100vh - 300px));display:grid;align-content:start;padding:30px 36px;border:1px solid #ddd5c8;border-radius:22px;background:linear-gradient(180deg,#fffcf5,#f2eadc);overflow:visible}
  .pet-name{font-size:clamp(48px,6vw,84px);line-height:.95}
  .name-row{justify-content:flex-start;max-width:none;margin:0}
  .stage-label,#mood{text-align:left;max-width:none;margin-left:0;margin-right:0}
@@ -420,3 +435,11 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .compiler-box pre{margin:6px 0;font-family:monospace;font-size:11px;color:#a4d4ae;overflow-x:auto;white-space:pre-wrap}
 .studio-mint-btn{width:100%;background:linear-gradient(135deg,#855DCD 0%,#66c7d2 100%);color:#fff;font-size:15px;font-weight:800;padding:14px;border-radius:12px;border:0;cursor:pointer;box-shadow:0 6px 16px rgba(133,93,205,0.4);margin-top:10px}
 .studio-mint-btn:active{transform:scale(0.98)}
+
+/* Gallery Callout Card (Two-way navigation) */
+.gallery-callout-card{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,rgba(164,116,241,0.12) 0%,rgba(102,199,210,0.08) 100%);border:1px solid rgba(164,116,241,0.3);border-radius:16px;padding:14px 16px;margin:16px 0;box-shadow:0 4px 14px rgba(0,0,0,0.15)}
+.gallery-callout-copy h3,.gallery-callout-copy h4{margin:0 0 3px;font-size:14px;color:#f3eeff}
+.gallery-callout-copy p{margin:0;color:#b8add3;font-size:12px;line-height:1.4}
+.gallery-callout-btn{flex-shrink:0;padding:8px 14px;border-radius:10px;background:#855DCD;color:#fff;font-size:12px;font-weight:750;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s ease;white-space:nowrap}
+.gallery-callout-btn:hover{background:#9d72e8;transform:translateY(-1px);color:#fff}
+@media(max-width:480px){.gallery-callout-card{flex-direction:column;align-items:flex-start}.gallery-callout-btn{width:100%;justify-content:center}}

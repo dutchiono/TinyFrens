@@ -21,9 +21,9 @@ test('appearance, name and care survive reopening without transient feedback', (
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-test-'));
   try {
     const file = path.join(dir, 'pet.json'), first = new PetStore(file);
-    first.rename('  Bolt\n Jr  '); first.customize({ shape: 'robot', color: '#112233', size: 128, speed: 140 }); first.action('play'); first.mode('bubble');
+    first.rename('  Bolt\n Jr  '); first.customize({ shape: 'robot', color: '#112233', size: 128, speed: 140, expression: 'shades', accessory: 'party_hat' }); first.action('play'); first.mode('bubble');
     const second = new PetStore(file).read();
-    assert.equal(second.name, 'Bolt Jr'); assert.equal(second.shape, 'robot'); assert.equal(second.color, '#112233'); assert.equal(second.energy, 68); assert.equal(second.mode, 'bubble'); assert.equal(second.feedback, undefined);
+    assert.equal(second.name, 'Bolt Jr'); assert.equal(second.shape, 'robot'); assert.equal(second.color, '#112233'); assert.equal(second.expression, 'shades'); assert.equal(second.accessory, 'party_hat'); assert.equal(second.energy, 68); assert.equal(second.mode, 'bubble'); assert.equal(second.feedback, undefined);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 test('hourly decay and migrated robot preserve stats', () => {

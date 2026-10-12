@@ -141,6 +141,8 @@
     s.fade = bool(raw.fade, true);
     s.haptics = bool(raw.haptics, true);
     s.reduceMotion = bool(raw.reduceMotion, false);
+    s.expression = (typeof raw.expression === 'string' && ['happy', 'wink', 'shades', 'star_eyes', 'sleepy', 'loving', 'laser', 'grin'].indexOf(raw.expression) >= 0) ? raw.expression : 'happy';
+    s.accessory = (typeof raw.accessory === 'string' && ['none', 'party_hat', 'crown', 'halo', 'bow_tie', 'orb'].indexOf(raw.accessory) >= 0) ? raw.accessory : 'none';
     // Tamagotchi state
     s.activity = ['idle', 'resting', 'adventuring', 'lost'].indexOf(raw.activity) >= 0 ? raw.activity : 'idle';
     s.poops = Math.floor(num(raw.poops, 0, RULES.maxPoops, 0));
@@ -348,7 +350,7 @@ else if (name === 'play') {
     if (clean) s.name = clean;
     return s;
   }
-  var CUSTOMIZABLE = ['color', 'shape', 'size', 'speed', 'opacity', 'sparkles', 'screenEffects', 'fade', 'haptics', 'reduceMotion', 'name', 'tokenId', 'sounds'];
+  var CUSTOMIZABLE = ['color', 'shape', 'size', 'speed', 'opacity', 'sparkles', 'screenEffects', 'fade', 'haptics', 'reduceMotion', 'name', 'tokenId', 'sounds', 'expression', 'accessory'];
   function customize(raw, patch, now) {
     var s = advance(raw, now), next = copy(s), i, k;
     patch = patch && typeof patch === 'object' ? patch : {};
@@ -399,6 +401,8 @@ else if (name === 'play') {
       : s.activity === 'resting' ? who + ' is resting. Zzz…'
       : s.activity === 'adventuring' ? who + ' is out exploring.'
       : v.moodTier === 'happy' ? who + ' is happy!' : who + ' is curious.';
+    v.expression = s.expression || 'happy';
+    v.accessory = s.accessory || 'none';
     if (s.activity === 'resting') v.action = 'sleep';
     return v;
   }

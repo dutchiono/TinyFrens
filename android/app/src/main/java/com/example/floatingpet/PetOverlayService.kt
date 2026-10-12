@@ -74,6 +74,7 @@ class PetOverlayService:Service(){
   val v=pet?:return;val p=params?:return
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
+  v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
   if(!hiding)v.alpha=state.optInt("opacity",100).coerceIn(40,100)/100f
   val token=state.optLong("actionUntil");if(token!=lastEffectToken){lastEffectToken=token;if(token>System.currentTimeMillis())careEffect()}
   val size=dp(state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}

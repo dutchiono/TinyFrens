@@ -18,6 +18,8 @@ class PetView(context: Context) : View(context) {
  var mood = "idle"
  var stage = 0
  var shape = "cat"
+ var expression = "happy"
+ var accessory = "none"
  var reducedMotion = false
  var bodyColor = Color.rgb(164, 116, 241)
  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -154,15 +156,49 @@ class PetView(context: Context) : View(context) {
   }
   oval(c, 11.4f, 31.2f + step, 6.2f, 4.2f, dark); oval(c, 22.4f, 31.2f - step, 6.2f, 4.2f, dark)
   val look = direction * .7f
-  if (mood == "sleep" || mood == "happy" || (!reducedMotion && frame % 100 < 4)) {
+  if (mood == "sleep" || expression == "sleepy" || (expression != "wink" && mood == "happy") || (!reducedMotion && frame % 100 < 4)) {
    rect(c, 13f + look, 20.5f, 4.4f, 1.2f, dark); rect(c, 22.6f + look, 20.5f, 4.4f, 1.2f, dark)
+  } else if (expression == "wink") {
+   c.drawRoundRect(13f + look, 17.6f, 17.2f + look, 23f, 1.3f, 1.3f, paint.apply { color = dark })
+   rect(c, 14f + look, 18.2f, 1.1f, 1.1f, Color.WHITE)
+   rect(c, 22.6f + look, 20.5f, 4.4f, 1.2f, dark)
+  } else if (expression == "shades") {
+   paint.color = Color.rgb(21, 21, 21)
+   c.drawRoundRect(10.5f + look, 17f, 29.5f + look, 22.5f, 1.2f, 1.2f, paint)
+   paint.color = Color.argb(180, 255, 255, 255); paint.strokeWidth = 0.8f; paint.style = Paint.Style.STROKE
+   c.drawLine(12f + look, 18f, 18f + look, 21.5f, paint); c.drawLine(22f + look, 18f, 28f + look, 21.5f, paint)
+   paint.style = Paint.Style.FILL
+  } else if (expression == "star_eyes") {
+   paint.color = Color.rgb(255, 215, 0)
+   c.drawCircle(15.1f + look, 20.3f, 2.5f, paint); c.drawCircle(24.9f + look, 20.3f, 2.5f, paint)
+   paint.color = Color.WHITE
+   c.drawCircle(15.1f + look, 20.3f, 1f, paint); c.drawCircle(24.9f + look, 20.3f, 1f, paint)
+  } else if (expression == "loving") {
+   paint.color = Color.rgb(255, 71, 87)
+   c.drawCircle(14.3f + look, 19.5f, 1.4f, paint); c.drawCircle(15.9f + look, 19.5f, 1.4f, paint)
+   val hl = Path().apply { moveTo(13.1f + look, 20f); lineTo(17.1f + look, 20f); lineTo(15.1f + look, 22.8f); close() }
+   c.drawPath(hl, paint)
+   c.drawCircle(24.1f + look, 19.5f, 1.4f, paint); c.drawCircle(25.7f + look, 19.5f, 1.4f, paint)
+   val hr = Path().apply { moveTo(22.9f + look, 20f); lineTo(26.9f + look, 20f); lineTo(24.9f + look, 22.8f); close() }
+   c.drawPath(hr, paint)
+  } else if (expression == "laser") {
+   paint.color = Color.rgb(255, 0, 85)
+   c.drawRoundRect(13f + look, 17.6f, 17.2f + look, 23f, 1.3f, 1.3f, paint)
+   c.drawRoundRect(22.8f + look, 17.6f, 27f + look, 23f, 1.3f, 1.3f, paint)
+   rect(c, 14f + look, 18.2f, 1.5f, 3.5f, Color.WHITE); rect(c, 23.8f + look, 18.2f, 1.5f, 3.5f, Color.WHITE)
   } else {
    c.drawRoundRect(13f + look, 17.6f, 17.2f + look, 23f, 1.3f, 1.3f, paint.apply { color = dark })
    c.drawRoundRect(22.8f + look, 17.6f, 27f + look, 23f, 1.3f, 1.3f, paint.apply { color = dark })
    rect(c, 14f + look, 18.2f, 1.1f, 1.1f, Color.WHITE); rect(c, 23.8f + look, 18.2f, 1.1f, 1.1f, Color.WHITE)
   }
   oval(c, 10.7f, 24.4f, 4.5f, 2.3f, pink); oval(c, 24.8f, 24.4f, 4.5f, 2.3f, pink)
-  c.drawRoundRect(18.8f, 26.3f, 21.2f, if (mood == "eat" && frame % 10 < 5) 29.4f else 27.7f, 1f, 1f, paint.apply { color = dark })
+  if (expression == "grin") {
+   paint.color = Color.rgb(255, 71, 87)
+   c.drawRoundRect(17.5f, 25.8f, 22.5f, 28.5f, 1.5f, 1.5f, paint)
+   strokeRound(c, 17.5f, 25.8f, 5f, 2.7f, 1.5f, dark, 1f)
+  } else {
+   c.drawRoundRect(18.8f, 26.3f, 21.2f, if (mood == "eat" && frame % 10 < 5) 29.4f else 27.7f, 1f, 1f, paint.apply { color = dark })
+  }
   if (shape == "duck") {
    oval(c, 16f, 21.8f, 8f, 5f, Color.rgb(255, 159, 67)); strokeRound(c, 16f, 21.8f, 8f, 5f, 2.5f, dark, 1.3f)
    oval(c, 18.5f, 23f, 1f, 1.2f, dark); oval(c, 20.5f, 23f, 1f, 1.2f, dark)
@@ -172,6 +208,32 @@ class PetView(context: Context) : View(context) {
    oval(c, 18f, 23.5f, 1.2f, 2f, dark); oval(c, 21.5f, 23.5f, 1.2f, 2f, dark)
   }
   if (shape == "bunny") { rect(c, 18.2f, 28.2f, 1.5f, 3f, Color.WHITE); rect(c, 20.2f, 28.2f, 1.5f, 3f, Color.WHITE) }
+  when (accessory) {
+   "party_hat" -> {
+    val hat = Path().apply { moveTo(20f, 0.5f); lineTo(14f, 8.5f); lineTo(26f, 8.5f); close() }
+    fillPath(c, hat, Color.rgb(255, 71, 87)); strokePath(c, hat, Color.rgb(255, 215, 0), 1.2f)
+    paint.color = Color.rgb(255, 215, 0); c.drawCircle(20f, 0.5f, 1.4f, paint)
+   }
+   "crown" -> {
+    val cr = Path().apply { moveTo(14f, 7.5f); lineTo(14f, 4f); lineTo(17f, 6f); lineTo(20f, 3f); lineTo(23f, 6f); lineTo(26f, 4f); lineTo(26f, 7.5f); close() }
+    fillPath(c, cr, Color.rgb(255, 215, 0)); strokePath(c, cr, Color.rgb(183, 121, 31), 1f)
+    paint.color = Color.rgb(231, 76, 60); c.drawCircle(20f, 3f, 0.9f, paint)
+   }
+   "halo" -> {
+    paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.4f; paint.color = Color.rgb(255, 234, 167)
+    c.drawOval(11f, 1.5f, 29f, 6.5f, paint); paint.style = Paint.Style.FILL
+   }
+   "bow_tie" -> {
+    val btl = Path().apply { moveTo(17.5f, 29f); lineTo(20f, 30.5f); lineTo(17.5f, 32f); close() }
+    val btr = Path().apply { moveTo(22.5f, 29f); lineTo(20f, 30.5f); lineTo(22.5f, 32f); close() }
+    fillPath(c, btl, Color.rgb(231, 76, 60)); fillPath(c, btr, Color.rgb(231, 76, 60))
+    paint.color = Color.rgb(192, 57, 43); c.drawCircle(20f, 30.5f, 1f, paint)
+   }
+   "orb" -> {
+    paint.color = Color.rgb(0, 210, 211); c.drawCircle(34f, 26f, 3.5f, paint)
+    paint.color = Color.WHITE; c.drawCircle(33f, 25f, 1.1f, paint)
+   }
+  }
   if (mood == "wave" || mood == "dance") { round(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, bodyColor); strokeRound(c, 31.3f, 17f + sin(phase) * 3, 3.7f, 8f, 2f, dark, 1.2f) }
   if (stage >= 1) { oval(c, 5.4f, 25.3f, 4.2f, 4.2f, bodyColor); strokePath(c, Path().apply { addCircle(7.5f, 27.4f, 2.1f, Path.Direction.CW) }, dark, 1f) }
   if (stage >= 2) rect(c, 19f, 7.6f, 2f, 4f, Color.rgb(255, 219, 105))

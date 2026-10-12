@@ -226,7 +226,10 @@
     stat.textContent = `${MAX_SUPPLY} previews`;
   }
 
+  let currentInspected = null;
+
   function openModal(id, t, onchain) {
+    currentInspected = { id, traits: t, onchain };
     const artHtml = onchain && onchain.image ? `<img src="${onchain.image}" alt="TinyFren #${id}"/>` : art(t);
     document.getElementById("modalArt").innerHTML = artHtml;
     document.title = onchain && onchain.name ? onchain.name : `TinyFren #${id}`;
@@ -302,6 +305,60 @@
   });
   document.getElementById("closeModal").addEventListener("click", () => modal.classList.remove("on"));
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("on"); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("on")) modal.classList.remove("on");
+  });
+
+  const adoptBtn = document.getElementById("adoptFrenBtn");
+  if (adoptBtn) {
+    adoptBtn.addEventListener("click", () => {
+      if (!currentInspected) return;
+      const { id, traits: t } = currentInspected;
+      const pal = PALETTE[t.palette];
+      const shapeList = ['cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle'];
+      const exprList = ['happy', 'wink', 'shades', 'star_eyes'];
+      const accList = ['none', 'party_hat', 'crown', 'halo', 'bow_tie', 'orb'];
+      const shape = shapeList[t.species] || 'cat';
+      const color = pal ? pal[0] : '#a474f1';
+      const expr = exprList[t.expr] || 'happy';
+      const acc = accList[t.acc] || 'none';
+      
+      try {
+        let state = {};
+        try { state = JSON.parse(localStorage.getItem('pocket-familiar-v1')) || {}; } catch(_) {}
+        state.shape = shape;
+        state.color = color;
+        state.expression = expr;
+        state.accessory = acc;
+        state.tokenId = id;
+        state.feedback = `Adopted ${SPECIES[t.species]} #${id} look from Gallery!`;
+        localStorage.setItem('pocket-familiar-v1', JSON.stringify(state));
+      } catch(_) {}
+      
+      window.location.href = './#pet';
+    });
+  }
+
+  const speciesChips = document.querySelectorAll(".species-chip");
+  speciesChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      speciesChips.forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      const spec = chip.dataset.species;
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const id = Number(card.dataset.id);
+        const sIdx = (id - 1) % 8;
+        if (spec === "all" || String(sIdx) === spec) {
+          card.style.display = "";
+          visibleCount++;
+        } else {
+          card.style.display = "none";
+        }
+      });
+      stat.textContent = spec === "all" ? `${cards.length} previews` : `${visibleCount} ${SPECIES[Number(spec)]}s`;
+    });
+  });
 
   buildGrid();
 })();
