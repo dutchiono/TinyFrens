@@ -101,6 +101,15 @@ class MainActivity : Activity() {
                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, url) }, "Send a visit invite"))
             }
         }
+        @JavascriptInterface fun setGuests(json: String) {
+            runOnUiThread {
+                val intent = Intent(this@MainActivity, PetOverlayService::class.java).apply {
+                    action = PetOverlayService.ACTION_SET_GUESTS
+                    putExtra("guests", json)
+                }
+                if (PetOverlayService.running) startService(intent)
+            }
+        }
         @JavascriptInterface fun permissions(): String = org.json.JSONObject()
             .put("overlay", Settings.canDrawOverlays(this@MainActivity))
             .put("install", packageManager.canRequestPackageInstalls()).toString()

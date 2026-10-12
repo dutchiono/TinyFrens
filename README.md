@@ -10,7 +10,14 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 
 ## Find TinyFrens
 
-[Website](https://tinyfrens.lol) · [Telegram](https://t.me/tinyfrens) · [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to)
+[Website](https://tinyfrens.lol) · [Telegram](https://t.me/TinyFrensBot) · [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to)
+
+## Documentation
+
+📚 **[Full docs index →](docs/README.md)**
+
+- **Players:** [Play in Telegram](docs/telegram.md) · [Game rules](GAMEPLAY.md)
+- **Developers:** [Developer guide](docs/DEVELOPER.md) · [Server](server/README.md) · [Telegram & Discord](TELEGRAM-DISCORD.md)
 
 ## Vercel hosting
 
@@ -26,6 +33,7 @@ See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends se
 | Mac (Apple Silicon / Intel) | [Desktop download](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest) | Transparent floating pet, wandering, drag, care bubbles, shared desktop save |
 | Browser | Open the web pet | Pet care, growth, local save, offline use after first load |
 | Native iOS | [iOS source and instructions](ios/README.md) | In-app pet; installation requires Apple signing |
+| **Telegram** | Open [@TinyFrensBot](https://t.me/TinyFrensBot) → **🐾 Play TinyFrens** | In-chat pet, care, growth, shared group "party rooms," floating buddy — [how to play](docs/telegram.md) |
 
 ## Bankr fren wallet
 

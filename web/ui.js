@@ -4,6 +4,12 @@ window.showScreen=name=>{
  if(!screens.includes(name))name='pet';
  for(const screen of document.querySelectorAll('.screen'))screen.hidden=screen.id!=='screen-'+name;
  for(const tab of document.querySelectorAll('[data-screen]')){const active=tab.dataset.screen===name;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}
+ const homeBtn=document.getElementById('spaceHome'),plazaBtn=document.getElementById('spacePlaza');
+ if(homeBtn&&plazaBtn){
+  const isHome=name==='pet',isPlaza=name==='party';
+  homeBtn.classList.toggle('active',isHome);homeBtn.setAttribute('aria-checked',String(isHome));
+  plazaBtn.classList.toggle('active',isPlaza);plazaBtn.setAttribute('aria-checked',String(isPlaza));
+ }
  history.replaceState(null,'','#'+name);window.scrollTo(0,0);
 };
 for(const tab of document.querySelectorAll('[data-screen]')){

@@ -226,4 +226,167 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
             if saved_signer is not None: os.environ['FARCASTER_SIGNER_UUID']=saved_signer
             else: os.environ.pop('FARCASTER_SIGNER_UUID',None)
 
+import hashlib as _hashlib, hmac as _hmac, json as _json, time as _time
+from urllib.parse import quote as _quote
+import telegram_integration as tg
+import discord_integration as dc
+
+
+def sign_init_data(bot_token, fields):
+    """Build a validly-signed Telegram initData string for tests."""
+    pairs = sorted(f'{k}={v}' for k, v in fields.items())
+    data_check = '\n'.join(pairs)
+    secret = _hmac.new(b'WebAppData', bot_token.encode(), _hashlib.sha256).digest()
+    digest = _hmac.new(secret, data_check.encode(), _hashlib.sha256).hexdigest()
+    encoded = '&'.join(_quote(k) + '=' + _quote(str(v)) for k, v in fields.items())
+    return encoded + '&hash=' + digest
+
+
+class IntegrationUnitTests(unittest.TestCase):
+    def test_validate_init_data_accepts_valid_signature(self):
+        token = '123:TEST'
+        init = sign_init_data(token, {'auth_date': str(int(_time.time())), 'query_id': 'AAH', 'user': _json.dumps({'id': 42, 'first_name': 'Ada'}, separators=(',', ':'))})
+        data = tg.validate_init_data(init, token)
+        self.assertEqual(data['user']['id'], 42)
+        self.assertEqual(data['user']['first_name'], 'Ada')
+
+    def test_validate_init_data_rejects_tampering_and_expiry(self):
+        token = '123:TEST'
+        init = sign_init_data(token, {'auth_date': str(int(_time.time())), 'user': _json.dumps({'id': 1})})
+        self.assertRaises(ValueError, tg.validate_init_data, init + 'x', token)  # broken hash
+        old = sign_init_data(token, {'auth_date': '1', 'user': _json.dumps({'id': 1})})
+        self.assertRaises(ValueError, tg.validate_init_data, old, token, 3600)  # expired
+        self.assertRaises(ValueError, tg.validate_init_data, '', token)  # empty
+        self.assertRaises(ValueError, tg.validate_init_data, init, '')  # no bot configured
+
+    def test_user_profile_is_deterministic_and_safe(self):
+        p1 = tg.user_profile({'id': 42, 'first_name': 'Ada'})
+        p2 = tg.user_profile({'id': 42, 'first_name': 'Ada'})
+        self.assertEqual(p1, p2)
+        self.assertIn(p1['shape'], tg.SHAPES)
+        self.assertRegex(p1['color'], r'^#[0-9a-f]{6}$')
+        long = tg.user_profile({'id': 7, 'first_name': 'X' * 50})
+        self.assertEqual(len(long['name']), 20)
+
+    def test_classify_and_room_ids(self):
+        self.assertEqual(tg.classify({'message': {'text': '/start', 'chat': {'id': 5}}})[0], 'start')
+        self.assertEqual(tg.classify({'my_chat_member': {'new_chat_member': {'status': 'member'}, 'chat': {'id': 9}}})[0], 'added')
+        self.assertEqual(tg.party_room_id({'id': -100123}), 'tg:-100123')
+        self.assertEqual(dc.channel_room_id('999'), 'dc:999')
+
+    def test_discord_verify_missing_key_returns_none(self):
+        self.assertIn(dc.verify_interaction('', '', b'', ''), (True, False, None))
+        self.assertIs(dc.verify_interaction('', '', b'', None), False)
+
+
+class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.db = self.tmp.name + '/pets.db'
+        self.client = TestClient(TestServer(create_app(self.db, [ORIGIN])))
+        await self.client.start_server(); self.sockets = []
+        self.token = '999:TESTTOKEN'
+        self.saved = {k: os.environ.get(k) for k in ('TELEGRAM_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')}
+    async def asyncTearDown(self):
+        for ws in self.sockets:
+            try: await ws.close()
+            except Exception: pass
+        await self.client.close(); self.tmp.cleanup()
+        for k, v in self.saved.items():
+            if v is None: os.environ.pop(k, None)
+            else: os.environ[k] = v
+
+    def _init(self, tg_id=42, name='Ada'):
+        user = {'id': tg_id, 'first_name': name}
+        return sign_init_data(self.token, {'auth_date': str(int(_time.time())), 'query_id': 'AAH', 'user': _json.dumps(user, separators=(',', ':'))})
+
+    async def register(self, name):
+        r = await self.client.post('/api/register', headers={'Origin': ORIGIN}, json={'pet': {'name': name, 'shape': 'robot', 'color': '#a474f1'}})
+        self.assertEqual(r.status, 200); return await r.json()
+    async def connect(self, identity):
+        ws = await self.client.ws_connect('/ws', headers={'Origin': ORIGIN}); self.sockets.append(ws)
+        await ws.send_json({'type': 'auth', 'token': identity['token']}); await self.event(ws, 'state'); return ws
+    async def event(self, ws, typ):
+        for _ in range(20):
+            data = await asyncio.wait_for(ws.receive_json(), 2)
+            if data['type'] == typ: return data
+        self.fail('Missing ' + typ)
+
+    async def test_telegram_auth_unconfigured_returns_503(self):
+        os.environ.pop('TELEGRAM_BOT_TOKEN', None)
+        r = await self.client.post('/api/telegram/auth', json={'initData': 'anything'})
+        self.assertEqual(r.status, 503)
+
+    async def test_telegram_auth_valid_and_stable_identity(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        init = self._init()
+        r = await self.client.post('/api/telegram/auth', json={'initData': init})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertRegex(data['id'], r'^[a-f0-9]{32}$')
+        self.assertRegex(data['code'], r'^[A-Z2-9]{8}$')
+        ws = await self.client.ws_connect('/ws', headers={'Origin': ORIGIN}); self.sockets.append(ws)
+        await ws.send_json({'type': 'auth', 'token': data['token']})
+        state = await self.event(ws, 'state')
+        self.assertEqual(state['self']['pet']['name'], 'Ada')
+        r2 = await self.client.post('/api/telegram/auth', json={'initData': init})
+        data2 = await r2.json()
+        self.assertEqual(data2['id'], data['id'])  # stable identity per Telegram user
+
+    async def test_telegram_auth_rejects_bad_signature(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        r = await self.client.post('/api/telegram/auth', json={'initData': self._init() + 'tampered'})
+        self.assertEqual(r.status, 400)
+
+    async def test_telegram_webhook_unconfigured_returns_503(self):
+        os.environ.pop('TELEGRAM_BOT_TOKEN', None)
+        r = await self.client.post('/api/telegram/webhook', json={'message': {'text': '/start', 'chat': {'id': 1}}})
+        self.assertEqual(r.status, 503)
+
+    async def test_discord_token_unconfigured_returns_503(self):
+        os.environ.pop('DISCORD_CLIENT_ID', None); os.environ.pop('DISCORD_CLIENT_SECRET', None)
+        r = await self.client.post('/api/discord/token', json={'code': 'abc'})
+        self.assertEqual(r.status, 503)
+
+    async def test_discord_interactions_ping_requires_config(self):
+        os.environ.pop('DISCORD_PUBLIC_KEY', None)
+        r = await self.client.post('/api/discord/interactions', data=b'{}', headers={'X-Signature-Ed25519': 'x', 'X-Signature-Timestamp': '1'})
+        self.assertEqual(r.status, 503)
+
+    async def test_party_chat_room_shares_members(self):
+        a = await self.register('Room A'); b = await self.register('Room B')
+        wa = await self.connect(a); wb = await self.connect(b)
+        await wa.send_json({'type': 'party-join', 'room': 'chat', 'platform': 'telegram', 'chatId': '-100123', 'pet': {'name': 'Room A', 'shape': 'cat', 'color': '#a474f1'}})
+        state = await self.event(wa, 'party-state')
+        self.assertEqual(state['room'], 'chat'); self.assertEqual(state['platform'], 'telegram'); self.assertEqual(state['code'], '-100123')
+        await wb.send_json({'type': 'party-join', 'room': 'chat', 'platform': 'telegram', 'chatId': '-100123', 'pet': {'name': 'Room B', 'shape': 'blob', 'color': '#123456'}})
+        sa = await self.event(wa, 'party-state')
+        self.assertEqual(len(sa['members']), 2)
+        await wb.send_json({'type': 'party-join', 'room': 'chat', 'platform': 'weird', 'chatId': '1', 'pet': {'name': 'x', 'shape': 'cat', 'color': '#123456'}})
+        await self.event(wb, 'error')
+
+    async def test_party_action_broadcast_and_full_traits(self):
+        a = await self.register('Plaza A'); b = await self.register('Plaza B')
+        wa = await self.connect(a); wb = await self.connect(b)
+        await wa.send_json({'type': 'party-join', 'room': 'public', 'pet': {'name': 'Plaza A', 'shape': 'bunny', 'color': '#ffd700', 'expression': 'shades', 'accessory': 'crown', 'tokenId': 42}})
+        sa = await self.event(wa, 'party-state')
+        self.assertEqual(sa['members'][0]['pet']['expression'], 'shades')
+        self.assertEqual(sa['members'][0]['pet']['accessory'], 'crown')
+        self.assertEqual(sa['members'][0]['pet']['tokenId'], 42)
+        await wb.send_json({'type': 'party-join', 'room': 'public', 'pet': {'name': 'Plaza B', 'shape': 'frog', 'color': '#2ecc71'}})
+        await self.event(wa, 'party-state')
+        await self.event(wb, 'party-state')
+        await wa.send_json({'type': 'party-action', 'action': 'berry', 'text': 'Enjoy a berry!'})
+        act_b = await self.event(wb, 'party-action')
+        self.assertEqual(act_b['action'], 'berry')
+        self.assertEqual(act_b['pet']['name'], 'Plaza A')
+
+    async def test_snap_nft_recognition(self):
+        r = await self.client.get('/api/snap?nft=42', headers={'Accept': 'application/vnd.farcaster.snap+json'})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertIn('TinyFren #42', data['ui']['elements']['header']['props']['content'])
+        self.assertIn('Public Plaza', data['ui']['elements']['hero-img']['props']['subtitle'])
+
+
 if __name__=='__main__': unittest.main()
+

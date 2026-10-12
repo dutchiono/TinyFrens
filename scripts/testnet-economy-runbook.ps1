@@ -176,19 +176,27 @@ if (-not $ok) {
 else { Write-Host '  OK — deployer has ETH' -ForegroundColor Green }
 Pause-Step 'Press Enter for Step 4'
 
-# --- Step 4: forge-std ---
-Write-Host '[Step 4/10] Install forge-std dependency' -ForegroundColor Yellow
-if (-not (Test-Path (Join-Path $RepoRoot 'lib\forge-std\src\Script.sol'))) {
-    forge install foundry-rs/forge-std --no-commit
-    if ($LASTEXITCODE -ne 0) { throw 'forge install failed' }
+# --- Step 4: Solidity dependencies ---
+Write-Host '[Step 4/10] Sync Solidity dependencies (forge-std, ERC721A, solady)' -ForegroundColor Yellow
+if (-not (Test-Path (Join-Path $RepoRoot 'lib\solady\src\utils\LibString.sol'))) {
+    # Submodules are pinned in .gitmodules + gitlinks at the committed versions.
+    git submodule update --init --recursive
+    if ($LASTEXITCODE -ne 0) {
+        foreach ($dep in @('foundry-rs/forge-std', 'chiru-labs/ERC721A', 'Vectorized/solady', 'OpenZeppelin/openzeppelin-contracts-upgradeable')) {
+            forge install $dep --no-commit
+            if ($LASTEXITCODE -ne 0) { throw "forge install $dep failed" }
+        }
+    }
 }
 Write-Host '  OK' -ForegroundColor Green
 Pause-Step 'Press Enter for Step 5'
 
-# --- Step 5: Compile ---
-Write-Host '[Step 5/10] Compile TestFRENS' -ForegroundColor Yellow
-forge build --contracts contracts/testnet/TestFRENS.sol contracts/testnet/script/DeployTestFRENS.s.sol
+# --- Step 5: Compile + unit tests ---
+Write-Host '[Step 5/10] Compile + run Foundry unit tests' -ForegroundColor Yellow
+forge build
 if ($LASTEXITCODE -ne 0) { throw 'forge build failed' }
+forge test -vv
+if ($LASTEXITCODE -ne 0) { throw 'forge test failed' }
 Write-Host '  OK' -ForegroundColor Green
 Pause-Step 'Press Enter for Step 6'
 

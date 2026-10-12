@@ -69,7 +69,7 @@
  $('addFriendForm').onsubmit=e=>{e.preventDefault();const code=$('friendCodeInput').value.replace(/[-\s]/g,'').toUpperCase();if(!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){status('Check the eight letters and numbers in your friend’s code.');return;}if(send({type:'friend-request',code}))$('friendCodeInput').value='';};
  $('copyFriendCode').onclick=async()=>{try{await navigator.clipboard.writeText($('myFriendCode').value);status('Code copied. Send it to someone you know.');}catch{$('myFriendCode').focus();$('myFriendCode').select();status('Select and copy your code above.');}};
  window.addEventListener('pet-profile-changed',()=>{clearTimeout(profileTimer);profileTimer=setTimeout(sync,200);});window.addEventListener('online',()=>{if(enabled&&!ws)connect();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&enabled){if(!ws)connect();else sync();}});
- try{const saved=localStorage.getItem(storage)||window.TINYFRENS_SERVER;if(saved){endpoint=normalize(saved);$('friendsServer').value=endpoint;identity=JSON.parse(localStorage.getItem('tinyfrens-device:'+endpoint)||'null');enabled=true;connect();}}catch{status('Ask a grown-up to check the server address.');}
+ try{const saved=localStorage.getItem(storage)||window.TINYFRENS_SERVER;if(saved){endpoint=normalize(saved);$('friendsServer').value=endpoint;identity=JSON.parse(localStorage.getItem('tinyfrens-device:'+endpoint)||'null');enabled=true;if(!window.__TINYFRENS_DEFER_AUTH__)connect();else status('Signing you in…');}}catch{status('Ask a grown-up to check the server address.');}
  // Native proximity adapters can call this same code lookup after explicit discovery.
  window.TinyFrensFriends={
   requestByCode:code=>send({type:'friend-request',code}),

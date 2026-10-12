@@ -12,7 +12,16 @@ import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
 class PetOverlayService:Service(){
- companion object{@Volatile var running=false;const val ACTION_HIDE="com.example.floatingpet.HIDE";private const val CHAT_SERVER="https://tinyfrens.miono.live"}
+ companion object{
+  @Volatile var running=false
+  const val ACTION_HIDE="com.example.floatingpet.HIDE"
+  const val ACTION_SET_GUESTS="com.example.floatingpet.SET_GUESTS"
+  private const val CHAT_SERVER="https://tinyfrens.miono.live"
+ }
+ class GuestPet(val view:PetView,val params:WindowManager.LayoutParams,var name:String,var shape:String,var color:Int,var tokenId:Int){
+  var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
+ }
+ private val guestPets=mutableListOf<GuestPet>()
  private lateinit var wm:WindowManager
  private var closeButton:View?=null;private var caption:TextView?=null;private var menuAbove=false
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var chatPanel:View?=null;private var toy:View?=null
@@ -38,7 +47,7 @@ class PetOverlayService:Service(){
  private fun update(v:View,p:WindowManager.LayoutParams){try{wm.updateViewLayout(v,p)}catch(_:Exception){if(!Settings.canDrawOverlays(this))stopSelf()}}
  private fun reducedMotion()=state.optBoolean("reduceMotion")||Settings.Global.getFloat(contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
  private fun hideWithFade(){
-  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects()
+  if(hiding)return;hiding=true;removeMenu();removeChat();removeToy();removeEffects();clearGuests()
   val v=pet
   if(v!=null&&state.optBoolean("fade",true)&&!reducedMotion())v.animate().alpha(0f).setDuration(220).withEndAction{stopSelf()}.start()else stopSelf()
  }
@@ -85,6 +94,24 @@ class PetOverlayService:Service(){
     v.direction=if(s.x>=x)1 else -1;x=s.x;y=s.y;p.x=x.roundToInt();p.y=y.roundToInt();update(v,p)
     if(s.arrived){behavior="idle";nextDecision=clock+1200;if(toy!=null){removeToy();lastRead=0}}
    };v.invalidate()
+   if(!reducedMotion()&&guestPets.isNotEmpty()){
+    val(bx,by)=bounds()
+    for(g in guestPets){
+     if(clock>g.nextMove){
+      g.tx=Random.nextFloat()*bx;g.ty=Random.nextFloat()*by
+      g.nextMove=clock+Random.nextLong(3000,7000)
+      g.view.mood=if(Random.nextInt(3)==0)"wave" else "walk"
+     }
+     if(g.view.mood=="walk"){
+      val s=PetMotion.move(g.x,g.y,g.tx,g.ty,45f*resources.displayMetrics.density,.05f,bx,by)
+      g.direction=if(s.x>=g.x)1 else -1;g.view.direction=g.direction
+      g.x=s.x;g.y=s.y;g.params.x=g.x.roundToInt();g.params.y=g.y.roundToInt()
+      update(g.view,g.params)
+      if(s.arrived){g.view.mood="idle";g.nextMove=clock+1500}
+     }
+     g.view.invalidate()
+    }
+   }
   };handler.postDelayed(this,if(screenOn)50 else 1000)
  }}
  override fun onCreate(){
@@ -103,8 +130,43 @@ class PetOverlayService:Service(){
   if(i?.action==ACTION_HIDE){hideWithFade();return START_NOT_STICKY}
   if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY}
   if(pet==null)createOverlay();state=store.read();lastRead=0;style()
+  if(i?.action==ACTION_SET_GUESTS){updateGuests(i.getStringExtra("guests")?:"[]");return START_STICKY}
   if(i?.getStringExtra("command")=="toy")spawnToy()
   return START_STICKY
+ }
+ private fun removeGuest(g:GuestPet){try{wm.removeView(g.view)}catch(_:Exception){}}
+ private fun clearGuests(){for(g in guestPets)removeGuest(g);guestPets.clear()}
+ private fun updateGuests(jsonStr:String){
+  if(pet==null)return
+  val arr=try{org.json.JSONArray(jsonStr)}catch(_:Exception){org.json.JSONArray()}
+  val maxCount=arr.length().coerceAtMost(2)
+  while(guestPets.size>maxCount){val g=guestPets.removeAt(guestPets.size-1);removeGuest(g)}
+  val(bx,by)=bounds()
+  for(idx in 0 until maxCount){
+   val obj=arr.optJSONObject(idx)?:continue
+   val name=obj.optString("name","A fren")
+   val shape=obj.optString("shape","cat")
+   val color=try{Color.parseColor(obj.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
+   val tokenId=obj.optInt("tokenId",0)
+   if(idx<guestPets.size){
+    val g=guestPets[idx]
+    g.name=name;g.shape=shape;g.color=color;g.tokenId=tokenId
+    g.view.shape=shape;g.view.bodyColor=color;g.view.invalidate()
+   }else{
+    val gv=PetView(this);val size=dp(64)
+    val gp=overlay(size,size)
+    gv.shape=shape;gv.bodyColor=color;gv.alpha=0.9f
+    val gx=(x+(if(idx==0)-dp(70) else dp(70))).coerceIn(0f,bx)
+    val gy=(y+dp(20)).coerceIn(0f,by)
+    gp.x=gx.roundToInt();gp.y=gy.roundToInt()
+    val guest=GuestPet(gv,gp,name,shape,color,tokenId).apply{x=gx;y=gy;tx=gx;ty=gy;nextMove=SystemClock.elapsedRealtime()+2000}
+    gv.onTap={
+     val tokenText=if(guest.tokenId>0)" (#${guest.tokenId})" else ""
+     say("${guest.name}$tokenText visiting from Plaza!")
+    }
+    try{wm.addView(gv,gp);guestPets.add(guest)}catch(_:Exception){}
+   }
+  }
  }
  private fun overlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
   WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
@@ -267,7 +329,7 @@ class PetOverlayService:Service(){
  }
  private fun savePosition(){position.edit().putInt("x",x.toInt()).putInt("y",y.toInt()).apply()}
  override fun onConfigurationChanged(c:Configuration){super.onConfigurationChanged(c);removeMenu();removeToy();clamp();pet?.let{v->params?.let{p->update(v,p)}};nextDecision=0}
- override fun onDestroy(){running=false;pet?.animate()?.cancel();removeEffects();handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeChat();removeToy();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
+ override fun onDestroy(){running=false;pet?.animate()?.cancel();removeEffects();handler.removeCallbacksAndMessages(null);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};savePosition();removeMenu();removeChat();removeToy();clearGuests();pet?.let{try{wm.removeView(it)}catch(_:Exception){}};pet=null;params=null;super.onDestroy()}
  override fun onBind(i:Intent?):IBinder?=null
 }
 

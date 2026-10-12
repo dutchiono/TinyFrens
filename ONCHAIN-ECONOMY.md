@@ -1,6 +1,6 @@
 # TinyFrens on-chain economy (design)
 
-Status: **design only** — no mainnet deployment from this doc. Ship only after testnet + integration tests + verified proxy deploy.
+Status: **contracts + server ledger implemented and tested locally; no mainnet deployment from this doc.** Ship only after testnet + verified proxy deploy.
 
 ## Git while others are on the repo
 
@@ -69,17 +69,20 @@ Why this beats “paste tx hash”:
 
 ## Credit ledger (server)
 
-New tables (conceptual):
+Implemented in `server/economy.py` (tables created on app startup):
 
 - `credit_accounts(pet_id, balance, updated_at)`
-- `credit_ledger(id, pet_id, delta, reason, ref_type, ref_id, created_at)` — append-only
-- `deposit_sessions(id, pet_id, address, expected_amount, status, tx_hash, expires_at, created_at)`
+- `credit_ledger(id, pet_id, delta, balance, reason, ref_type, ref_id, created)` — append-only
+- `deposit_sessions(id, pet_id, address, token, expected_amount, credits, status, chain_id, tx_hash, created, expires_at)`
+- `deposits(id, session_id, pet_id, chain_id, tx_hash, log_index, amount, credits, created)` — unique `(chain_id, tx_hash, log_index)`
 
 Rules:
 
 - Grants only from **confirmed** deposits or **on-chain jackpot claim** events verified by contract logs.
-- Idempotency: `(chain_id, tx_hash, log_index)` unique.
-- Rate limits per `pet_id` and IP on `open` / `confirm` paths (same pattern as Bankr routes in `server/app.py`).
+- Idempotency: `(chain_id, tx_hash, log_index)` unique; replays are no-ops, and a session is **single-use**.
+- `credits = wei * CREDITS_PER_FRENS / 1e18` (default 100 credits/FRENS); packages `10 / 50 / 100` FRENS.
+- Rate limits per `pet_id` on `open` / `confirm` paths (same pattern as Bankr routes in `server/app.py`).
+- Session TTL (default 900s); `open` expires any prior open session for the same pet.
 
 Credits stay **server-side** for v1 so gameplay stays fast and phone-friendly; optional future: merkle claims for large jackpots.
 
@@ -91,19 +94,21 @@ Deploy on **Base** (align with NFT/Bankr stack) unless product says otherwise.
 |----------|---------|---------|
 | FRENS (deployed) | ERC-20 on Base | `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` — no redeploy. |
 | `TestFRENS` | testnet mintable ERC-20 | Base Sepolia only; see `contracts/testnet/README.md`. |
-| `Treasury` | UUPS proxy | Holds FRENS/ETH; only `GameController` can pull for jackpots/payouts. |
-| `JackpotVault` | UUPS proxy | One or more pools; `fund()`, `drawWinner(bytes32 roundId, …)` with VRF or commit-reveal; emits `JackpotWon(petRef, amount)`. |
+| `Treasury` | UUPS proxy ✅ implemented | `contracts/economy/Treasury.sol` — holds ETH/FRENS; `fundETH`/`fundERC20` open, `payETH`/`payERC20` controller-only, pausable, `Ownable2Step`. |
+| `JackpotVault` | UUPS proxy ✅ implemented | `contracts/economy/JackpotVault.sol` — named pools (ETH or one ERC-20 each), open funding, controller-only `drawWinner`, emits `JackpotWon(poolId, winner, token, amount)`. |
 | `WorldFindRegistry` | UUPS proxy | Optional: on-chain record of “find” outcomes for transparency; gameplay RNG can stay off-chain with signed attestations from server oracle key. |
-| `DepositRouter` (optional) | minimal proxy clones | One clone address per deposit session forwarding to treasury + emitting `Deposit(sessionId, from, amount)` for easy indexing. |
+| `DepositRouter` | UUPS proxy ✅ implemented | `contracts/economy/DepositRouter.sol` — session factory; `createSession`/`closeSession` (controller), deployable UUPS. |
+| `DepositSession` | minimal-proxy clone ✅ implemented | `contracts/economy/DepositSession.sol` — one clone address per deposit session; auto-forwards ETH to treasury on `receive`, `sweep()` for ERC-20, emits `Deposit(sessionId, sender, token, amount)`. |
 
 **Verification**: deploy implementation + proxy, verify both on Basescan, store addresses in server env (`FRENS_TOKEN`, `JACKPOT_PROXY`, `TREASURY_PROXY`, `CHAIN_ID`).
 
 **Testing gate before mainnet**
 
-1. Hardhat/Foundry unit tests: access control, reentrancy, upgrade auth, pause.
-2. Testnet deploy with multisig or timelock as proxy admin.
-3. Server integration tests against local fork or testnet (mock indexer).
-4. Manual mobile pass: open deposit → pay from external wallet → credits appear without refresh hacks.
+1. Foundry unit tests (done): `forge test` runs `contracts/test/TestFRENS.t.sol`, `Treasury.t.sol`, `JackpotVault.t.sol`, `DepositRouter.t.sol` — access control, pausability, reentrancy-safe payouts, deposit forwarding/attribution, and upgrade authorization + state preservation (70 tests).
+2. Server tests (done): `python -m unittest` in `server/` — includes `test_economy.py` (session/ledger unit tests + route tests + `create_app` wiring, 58 tests).
+3. Testnet deploy via `contracts/testnet/script/DeployEconomy.s.sol` (now also deploys `DepositSession` impl + `DepositRouter` proxy) with multisig or timelock as proxy admin.
+4. Live server integration against local fork or testnet (mock or real indexer).
+5. Manual mobile pass: open deposit → pay from external wallet → credits appear without refresh hacks.
 
 No production deploy without explicit owner approval.
 
@@ -126,13 +131,17 @@ Tie-break: use existing `pet_id` hash, not wallet address, so credits work befor
 
 | Endpoint | Notes |
 |----------|--------|
-| `GET /api/economy/status` | Token addresses, chain, feature flags, open deposit slots. |
-| `POST /api/deposits/open` | Requires `token`; returns session + address + exact amount. |
-| `POST /api/deposits/refresh` | Optional client poll; server also indexes. |
-| `GET /api/credits/balance` | Requires `token`. |
-| `POST /api/credits/spend` | Internal; used by feed/objects when we gate features. |
+| `GET /api/economy/status` | Token addresses, chain, feature flags. |
+| `POST /api/deposits/open` | ✅ Requires `token` + `package`; returns `{ depositId, address, token, chainId, amountWei, credits, expiresAt }`. 503 when economy disabled or no allocator configured. |
+| `POST /api/deposits/status` | ✅ Requires `token` + `depositId`; returns session status. |
+| `POST /api/deposits/confirm` | ✅ Indexer callback; idempotent; optional `X-Indexer-Secret` guard. 409 on reuse/expiry, 404 unknown. |
+| `POST /api/credits/balance` | ✅ Requires `token`; returns `{ balance, history }`. |
 
-Wallet tab UX: “Add credits” → pick package → show QR + copy + countdown → “Waiting for payment…” with auto-complete.
+`Economy.attach()` wires these in `create_app` (`server/app.py`). The deposit address pool is
+configured out-of-band via `DEPOSIT_SESSION_ADDRESSES` (comma-separated clones); wiring a live
+`DepositRouter.createSession` signer is the remaining step for fully automatic addressing.
+
+Wallet tab UX: "Add credits" → pick package → show QR + copy + countdown → "Waiting for payment…" with auto-complete.
 
 ## Security notes
 

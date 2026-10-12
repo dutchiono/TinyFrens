@@ -1,5 +1,12 @@
 # Pocket Familiar — Android overlay pet + offline PWA
 
+> ⚠️ **This file is out of date.** It describes an early "Pocket Familiar" prototype.
+> TinyFrens has grown a lot since (party rooms, Bankr, Farcaster, Telegram, on-chain
+> economy, desktop, iOS). For current documentation see **[`docs/DEVELOPER.md`](docs/DEVELOPER.md)**
+> and the **[docs index](docs/README.md)**. Kept only for historical reference.
+
+---
+
 A complete **starter source project**, not a precompiled APK. Includes a native Kotlin Android overlay service and a shared HTML/CSS/JS pet management UI that also runs as a standalone installable PWA. No backend, account, or app-store submission required.
 
 ## Requirements

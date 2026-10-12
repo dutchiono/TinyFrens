@@ -30,6 +30,16 @@ Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` 
 
 Per-fren Bankr wallets are scaffolded behind `BANKR_PARTNER_KEY`. When that partner key is present, `/api/bankr/wallet` provisions a Bankr wallet for the registered fren with `POST /partner/wallets`; without it, TinyFrens uses the shared server Bankr wallet. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
 
+## Telegram & Discord (see [TELEGRAM-DISCORD.md](../TELEGRAM-DISCORD.md))
+
+The relay can also authenticate Telegram Mini App users and Discord Activities and turn a
+Telegram group / Discord channel into a shared TinyFrens "party room" using the existing
+friends relay. Set the env vars in `.env.example` to enable them. Telegram uses
+`POST /api/telegram/auth` (validates signed `initData`) and `POST /api/telegram/webhook`
+(bot welcome + inline `web_app` button). Discord uses `POST /api/discord/token` and
+`POST /api/discord/interactions` (Ed25519 PING). Discord verification needs `pip install
+PyNaCl`. All platform wiring is behind env flags and the app works without them.
+
 ## FRENS economy (testnet first)
 
 Production FRENS on Base: `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` (see `contracts/config/economy.json`). Integration uses **Base Sepolia** and `TestFRENS` until deposits and jackpots are verified; see `contracts/testnet/README.md`.

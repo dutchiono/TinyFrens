@@ -2,6 +2,13 @@
 import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from collections import defaultdict, deque
 from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
+import economy as economy_ledger
+try:
+    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
+    from discord_integration import verify_interaction, exchange_code
+except Exception:  # pragma: no cover - integration modules always ship together
+    validate_init_data = user_profile = bot_api = reply_markup = classify = None
+    verify_interaction = exchange_code = None
 
 SHAPES = {'cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
@@ -70,7 +77,9 @@ def create_app(database=None, origins=None):
     db.executescript('''CREATE TABLE IF NOT EXISTS pets(id TEXT PRIMARY KEY, code TEXT UNIQUE, token TEXT UNIQUE, profile TEXT);
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));
-    CREATE TABLE IF NOT EXISTS pet_wallets(pet_id TEXT PRIMARY KEY, provider TEXT, wallet_id TEXT, evm_address TEXT, sol_address TEXT, api_key TEXT, nft TEXT, created INTEGER);''')
+    CREATE TABLE IF NOT EXISTS pet_wallets(pet_id TEXT PRIMARY KEY, provider TEXT, wallet_id TEXT, evm_address TEXT, sol_address TEXT, api_key TEXT, nft TEXT, created INTEGER);
+    CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
+    CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);''')
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
@@ -100,13 +109,20 @@ def create_app(database=None, origins=None):
         v=visits.pop(vid,None)
         if v:
             for p in (v['sender'],v['receiver']): await send(p,dict(type='visit-ended',id=vid))
+    def room_kind(room):
+        # 'public' | ('private', code) | ('chat', platform, code)
+        if room=='public': return 'public','',''
+        head,_,tail=room.partition(':')
+        if head in ('tg','dc'): return 'chat',('telegram' if head=='tg' else 'discord'),tail
+        return 'private','',tail
     async def room_state(room):
         if room not in rooms: return
         members=[dict(id=pid,pet=data['pet']) for pid,data in rooms[room].items()]
-        public=room=='public'
-        code='' if public else room.split(':',1)[1]
+        kind,platform,code=room_kind(room)
+        payload=dict(type='party-state',room=kind,code=code,members=members)
+        if kind=='chat': payload['platform']=platform
         for pid in list(rooms[room]):
-            await send(pid,dict(type='party-state',room='public' if public else 'private',code=code,members=members))
+            await send(pid,payload)
     async def leave_room(pid):
         room=room_by_pet.pop(pid,None)
         if room and pid in rooms.get(room,{}):
@@ -116,7 +132,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast'}
+        public_paths={'/','/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         is_public=request.path in public_paths or is_snap_req
         if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
@@ -301,9 +317,55 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply,'wallet':wallet,'jobId':job_id,'threadId':thread_id})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
-    def make_snap_payload(action=None):
+    def nft_traits_by_id(token_id):
+        species_list = ['Cat', 'Blob', 'Robot', 'Bunny', 'Puppy', 'Bear', 'Frog', 'Turtle']
+        palettes = [
+            ('Lavender Dream', '#a474f1', 'Classic'),
+            ('Cyber Neon', '#66c7d2', 'Classic'),
+            ('Sunny Amber', '#ffb95e', 'Classic'),
+            ('Mint Meadow', '#82eba1', 'Classic'),
+            ('Bubblegum', '#ff82a7', 'Classic'),
+            ('Electric Blue', '#4d96ff', 'Classic'),
+            ('Midnight Obsidian', '#3a2d52', 'Rare'),
+            ('24K Solid Gold', '#ffd700', 'Legendary')
+        ]
+        exprs = ['Classic Happy', 'Playful Wink', 'Cool Shades', 'Star Eyes']
+        accs = ['None', 'Party Hat', 'Royal Crown', 'Angel Halo', 'Dapper Bow Tie', 'Mystic Orb']
+        s = (int(token_id) * 104729 + 7919) % 2147483647
+        def rand():
+            nonlocal s
+            s = (s * 16807) % 2147483647
+            return (s - 1) / 2147483646
+        species = species_list[(int(token_id) - 1) % 8]
+        roll = rand() * 100
+        if roll < 5: pal = palettes[7]
+        elif roll < 20: pal = palettes[6]
+        else: pal = palettes[int(rand() * 6)]
+        expr = exprs[int(rand() * len(exprs))]
+        acc = accs[int(rand() * len(accs))]
+        return {
+            'species': species,
+            'palette': pal[0],
+            'color': pal[1],
+            'tier': pal[2],
+            'expression': expr,
+            'accessory': acc,
+            'tokenId': int(token_id)
+        }
+    def make_snap_payload(action=None, nft_id=None):
         effects=["confetti"] if action in ("pet","feed","play") else []
         status_text="Your 1:1 on-chain & floating desktop companion."
+        header_text="TinyFrens · Pocket Pet"
+        status_sub="8 companion species · Curated 888 on-chain supply · AR camera snaps · Multiplayer party rooms"
+        app_target="https://tinyfrens.lol/"
+        if nft_id:
+            try:
+                traits = nft_traits_by_id(nft_id)
+                header_text = f"TinyFren #{nft_id} · {traits['species']}"
+                status_sub = f"[{traits['tier']}] {traits['palette']} · {traits['expression']}" + (f" · {traits['accessory']}" if traits['accessory'] != 'None' else "")
+                status_text = f"TinyFren #{nft_id} is active in the Public Plaza!"
+                app_target = f"https://tinyfrens.lol/?nft={nft_id}"
+            except Exception: pass
         if action=="pet": status_text="You petted the fren! They did a little wiggle 💖"
         elif action=="feed": status_text="You fed the fren a fresh strawberry 🍓! Nom nom."
         elif action=="play": status_text="You played ball with your fren 🎾! Joy is at 100%!"
@@ -321,21 +383,21 @@ def create_app(database=None, origins=None):
                     },
                     "header": {
                         "type": "text",
-                        "props": {"content": "TinyFrens · Pocket Pet", "weight": "bold", "size": "lg"}
+                        "props": {"content": header_text, "weight": "bold", "size": "lg"}
                     },
                     "hero-img": {
                         "type": "image",
                         "props": {
                             "url": "https://tinyfrens.lol/icons/og-card.png",
                             "aspect": "16:9",
-                            "title": "TinyFrens",
+                            "title": header_text,
                             "subtitle": status_text
                         }
                     },
                     "status-text": {
                         "type": "text",
                         "props": {
-                            "content": "8 companion species · Curated 888 on-chain supply · AR camera snaps · Multiplayer party rooms",
+                            "content": status_sub,
                             "size": "sm"
                         }
                     },
@@ -362,18 +424,28 @@ def create_app(database=None, origins=None):
                     "open-miniapp-btn": {
                         "type": "button",
                         "props": {"label": "Open TinyFrens Mini App 🐾", "variant": "primary", "icon": "arrow-right"},
-                        "on": {"press": {"action": "open_mini_app", "params": {"target": "https://tinyfrens.lol/"}}}
+                        "on": {"press": {"action": "open_mini_app", "params": {"target": app_target}}}
                     }
                 }
             }
         }
     async def get_snap(request):
         accept=request.headers.get('Accept','')
-        link_hdr='<https://www.tinyfrens.lol/snap>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
+        nft_param=request.query.get('nft') or request.query.get('id')
+        nft_id=None
+        if nft_param:
+            try:
+                v=int(nft_param)
+                if 1<=v<=888: nft_id=v
+            except ValueError: pass
+        link_query=f"?nft={nft_id}" if nft_id else ""
+        link_hdr=f'<https://www.tinyfrens.lol/snap{link_query}>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
         if 'application/vnd.farcaster.snap+json' not in accept and 'text/html' in accept:
-            html="""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TinyFrens · Farcaster Snap</title><meta property="og:title" content="TinyFrens · In-Feed Pocket Pet"><meta property="og:description" content="Interact with your TinyFren directly inside Farcaster casts!"><meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png"><link rel="alternate" type="application/vnd.farcaster.snap+json" href="https://www.tinyfrens.lol/snap"><link rel="icon" href="https://tinyfrens.lol/icons/icon.svg"><style>body{margin:0;min-height:100vh;background:#17142a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;padding:20px;text-align:center;box-sizing:border-box}.card{background:#231c3c;border:1px solid #4a3474;border-radius:24px;padding:28px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.5)}img{width:100%;border-radius:16px;margin-bottom:16px}h1{font-size:24px;margin:0 0 8px}p{color:#c8b1fa;font-size:15px;margin:0 0 24px}a{display:block;background:#855DCD;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px;border-radius:14px}</style></head><body><div class="card"><img src="https://tinyfrens.lol/icons/og-card.png" alt="TinyFrens"><h1>TinyFrens Snap</h1><p>An interactive pet built for Farcaster casts.</p><a href="https://tinyfrens.lol/web/">Open Full Web App 🐾</a></div></body></html>"""
+            card_title=f"TinyFren #{nft_id}" if nft_id else "TinyFrens Snap"
+            card_desc=f"Verified On-Chain #{nft_id} Companion" if nft_id else "An interactive pet built for Farcaster casts."
+            html=f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{card_title} · Farcaster Snap</title><meta property="og:title" content="{card_title} · In-Feed Pocket Pet"><meta property="og:description" content="{card_desc}"><meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png"><link rel="alternate" type="application/vnd.farcaster.snap+json" href="https://www.tinyfrens.lol/snap{link_query}"><link rel="icon" href="https://tinyfrens.lol/icons/icon.svg"><style>body{{margin:0;min-height:100vh;background:#17142a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;padding:20px;text-align:center;box-sizing:border-box}}.card{{background:#231c3c;border:1px solid #4a3474;border-radius:24px;padding:28px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.5)}}img{{width:100%;border-radius:16px;margin-bottom:16px}}h1{{font-size:24px;margin:0 0 8px}}p{{color:#c8b1fa;font-size:15px;margin:0 0 24px}}a{{display:block;background:#855DCD;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px;border-radius:14px}}</style></head><body><div class="card"><img src="https://tinyfrens.lol/icons/og-card.png" alt="TinyFrens"><h1>{card_title}</h1><p>{card_desc}</p><a href="https://tinyfrens.lol/web/{link_query}">Open Full Web App 🐾</a></div></body></html>"""
             return web.Response(text=html, content_type='text/html', headers={'Vary': 'Accept', 'Link': link_hdr})
-        return web.json_response(make_snap_payload(), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
+        return web.json_response(make_snap_payload(nft_id=nft_id), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
     async def post_snap_interact(request):
         action=request.query.get('action')
         if not action:
@@ -446,6 +518,98 @@ def create_app(database=None, origins=None):
                     if response.status>=400: return web.json_response({'error':data.get('message') or 'Could not publish cast'},status=response.status)
                     return web.json_response(data)
         except Exception as e: return web.json_response({'error':str(e)},status=400)
+    def mint_pet(p):
+        """Create a persistent pet identity and return (pid, token, code)."""
+        pid=secrets.token_hex(16); token=secrets.token_urlsafe(32)
+        alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        while True:
+            code=''.join(secrets.choice(alphabet) for _ in range(8))
+            if not db.execute('SELECT 1 FROM pets WHERE code=?',(code,)).fetchone(): break
+        db.execute('INSERT INTO pets VALUES(?,?,?,?)',(pid,code,hashlib.sha256(token.encode()).hexdigest(),json.dumps(p)))
+        return pid, token, code
+    def reissue_token(pid):
+        """Give an existing pet a fresh bearer token and return (token, code)."""
+        token=secrets.token_urlsafe(32)
+        db.execute('UPDATE pets SET token=? WHERE id=?',(hashlib.sha256(token.encode()).hexdigest(),pid))
+        code=db.execute('SELECT code FROM pets WHERE id=?',(pid,)).fetchone()
+        return token, (code[0] if code else '')
+    async def telegram_auth(request):
+        # Exchange a validated Telegram initData for the same friends-relay
+        # identity ({id,token,code}) so friends.js/party.js work unchanged inside
+        # the Mini App. A returning Telegram user keeps the same fren.
+        try:
+            if validate_init_data is None: raise ValueError('Telegram support is unavailable')
+            token=os.environ.get('TELEGRAM_BOT_TOKEN')
+            if not token: return web.json_response({'error':'Telegram bot is not configured'},status=503)
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('tg-auth',ip),30,3600)
+            body=await request.json()
+            data=validate_init_data(str(body.get('initData','')),token)
+            user=data['user'] or {}
+            tg_id=str(user.get('id',''))
+            if not tg_id: raise ValueError('No Telegram user in initData')
+            p=user_profile(user)
+            row=db.execute('SELECT pet_id FROM tg_users WHERE tg_id=?',(tg_id,)).fetchone()
+            if row and db.execute('SELECT 1 FROM pets WHERE id=?',(row[0],)).fetchone():
+                pid=row[0]
+                db.execute('UPDATE pets SET profile=? WHERE id=?',(json.dumps(p),pid))
+                bearer,code=reissue_token(pid)
+            else:
+                pid,bearer,code=mint_pet(p)
+                db.execute('INSERT OR REPLACE INTO tg_users VALUES(?,?,?)',(tg_id,pid,int(now())))
+            db.commit()
+            return web.json_response({'id':pid,'token':bearer,'code':code,'chat':data['chat'],'startParam':data['start_param']})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Telegram sign-in failed'},status=400)
+    async def telegram_webhook(request):
+        # Bot webhook: greet /start in DMs and, when added to a group, post an
+        # inline web_app button that opens the Mini App in that group (== party room).
+        try:
+            if bot_api is None: return web.json_response({'error':'Telegram support is unavailable'},status=503)
+            token=os.environ.get('TELEGRAM_BOT_TOKEN')
+            if not token: return web.json_response({'error':'Telegram bot is not configured'},status=503)
+            update=await request.json()
+            kind,chat_id,chat=classify(update)
+            miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/')
+            if kind=='start' and chat_id is not None:
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Hi! 🐾 I\'m your TinyFren. Tap below to wake me up — then invite me to a group so everyone\'s frens can hang out together.'},token)
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Ready when you are.','reply_markup':reply_markup(miniapp)},token)
+            elif kind=='added' and chat_id is not None:
+                title=(chat or {}).get('title') or 'this chat'
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'A TinyFren has arrived in '+title+'! 🎉 Everyone here can open the app below to drop their fren into this shared room.','reply_markup':reply_markup(miniapp,'🐾 Open the room')},token)
+            return web.json_response({'ok':True})
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
+    async def discord_token(request):
+        try:
+            if exchange_code is None: return web.json_response({'error':'Discord support is unavailable'},status=503)
+            client_id=os.environ.get('DISCORD_CLIENT_ID'); client_secret=os.environ.get('DISCORD_CLIENT_SECRET')
+            if not client_id or not client_secret: return web.json_response({'error':'Discord app is not configured'},status=503)
+            body=await request.json()
+            code=str(body.get('code',''))
+            if not code: raise ValueError('Missing authorization code')
+            redirect=os.environ.get('DISCORD_REDIRECT_URI','')
+            data,status=await exchange_code(code,client_id,client_secret,redirect)
+            if status>=400: return web.json_response({'error':data.get('error_description') or 'Discord token exchange failed'},status=status)
+            return web.json_response(data)
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Discord sign-in failed'},status=400)
+    async def discord_interactions(request):
+        # Verifies Discord's Ed25519 signature and answers PING (type 1) so the app
+        # can be validated in the dev portal. Rich slash-command handling is Phase 3.
+        try:
+            if verify_interaction is None: return web.json_response({'error':'Discord support is unavailable'},status=503)
+            public_key=os.environ.get('DISCORD_PUBLIC_KEY')
+            if not public_key: return web.json_response({'error':'Discord app is not configured'},status=503)
+            body=await request.read()
+            signature=request.headers.get('X-Signature-Ed25519',''); timestamp=request.headers.get('X-Signature-Timestamp','')
+            result=verify_interaction(signature,timestamp,body,public_key)
+            if result is None: return web.json_response({'error':'Install PyNaCl to verify Discord interactions'},status=503)
+            if not result: return web.HTTPUnauthorized(text='invalid request signature')
+            try: data=json.loads(body)
+            except json.JSONDecodeError: return web.json_response({'error':'bad body'},status=400)
+            if data.get('type')==1: return web.json_response({'type':1})
+            return web.json_response({'type':4,'data':{'content':'TinyFrens is launching soon in Discord! 🐾'}})
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
     async def websocket(request):
         try: limit(('connect',request.remote or '?'),60,60)
         except ValueError: raise web.HTTPTooManyRequests()
@@ -479,6 +643,12 @@ def create_app(database=None, origins=None):
                         p=profile(m.get('pet'))
                         mode=str(m.get('room','public')).lower()
                         if mode=='public': room='public'
+                        elif mode=='chat':
+                            platform=str(m.get('platform','')).lower()
+                            if platform not in ('telegram','discord'): raise ValueError('Unknown chat platform')
+                            cid=re.sub(r'[^0-9A-Za-z:_-]','',str(m.get('chatId','')))[:64]
+                            if not cid: raise ValueError('Missing chat id')
+                            room=('tg:' if platform=='telegram' else 'dc:')+cid
                         elif mode=='private':
                             code=re.sub(r'[^A-Z0-9-]','',str(m.get('code','')).upper())[:24]
                             if not 3<=len(code)<=24: raise ValueError('Enter a party code')
@@ -491,6 +661,18 @@ def create_app(database=None, origins=None):
                     elif typ=='party-leave':
                         await leave_room(pid)
                         await send(pid,dict(type='party-state',room='none',code='',members=[]))
+                    elif typ=='party-action':
+                        if pid in room_by_pet:
+                            room=room_by_pet[pid]
+                            action=str(m.get('action','wave')).lower()
+                            if action in ('wave','dance','berry','pet','heart'):
+                                target=m.get('target')
+                                text=m.get('text')
+                                payload=dict(type='party-action',sender=pid,action=action,pet=rooms[room][pid]['pet'])
+                                if target: payload['target']=target
+                                if text: payload['text']=str(text)[:100]
+                                for other_pid in list(rooms[room]):
+                                    await send(other_pid, payload)
                     elif typ=='friend-request':
                         limit(('requests',pid),15,3600); code=str(m.get('code','')).replace('-','').replace(' ','').upper()
                         row=db.execute('SELECT id FROM pets WHERE code=?',(code,)).fetchone()
@@ -585,6 +767,22 @@ def create_app(database=None, origins=None):
     app.router.add_post('/api/farcaster/notify',farcaster_notify)
     app.router.add_post('/api/farcaster/webhook',farcaster_webhook)
     app.router.add_post('/api/farcaster/cast',farcaster_cast)
+    # Telegram Mini App + bot
+    app.router.add_post('/api/telegram/auth',telegram_auth)
+    app.router.add_post('/api/telegram/webhook',telegram_webhook)
+    # Discord Activity + interactions
+    app.router.add_post('/api/discord/token',discord_token)
+    app.router.add_post('/api/discord/interactions',discord_interactions)
+    # On-chain economy: deposit sessions + off-chain credit ledger
+    pool=[a.strip() for a in os.environ.get('DEPOSIT_SESSION_ADDRESSES','').split(',') if a.strip()]
+    economy_ledger.attach(
+        app, db,
+        token_pet=token_pet,
+        limit=limit,
+        settings=economy_settings,
+        allocator=economy_ledger.AddressPool(db, pool) if pool else None,
+        indexer_secret=os.environ.get('ECONOMY_INDEXER_SECRET'),
+    )
     app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app

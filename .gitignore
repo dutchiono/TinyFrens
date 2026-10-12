@@ -18,3 +18,8 @@ lib/
 .tools/
 node_modules/
 **/node_modules/
+
+# Local secrets — never commit. .env.example is the tracked template.
+.env
+.env.*
+!.env.example

@@ -84,10 +84,15 @@ $env:BASE_SEPOLIA_RPC = "https://sepolia.base.org"
 cast balance (cast wallet address --private-key $env:PRIVATE_KEY) --rpc-url $env:BASE_SEPOLIA_RPC
 ```
 
-### 4 — Dependencies + deploy
+### 4 — Dependencies + compile + tests + deploy
 
 ```powershell
-forge install foundry-rs/forge-std --no-commit
+# Deps are pinned as submodules (forge-std, ERC721A, solady) + remappings.txt
+git submodule update --init --recursive
+
+forge build
+forge test -vv          # 70 unit tests (TestFRENS + economy proxies + deposit router)
+
 forge script contracts/testnet/script/DeployTestFRENS.s.sol:DeployTestFRENS `
   --rpc-url $env:BASE_SEPOLIA_RPC `
   --broadcast
@@ -103,6 +108,18 @@ $me = cast wallet address --private-key $env:PRIVATE_KEY
 cast send $token "mint(address,uint256)" $me 10000000000000000000000 `
   --rpc-url $env:BASE_SEPOLIA_RPC --private-key $env:PRIVATE_KEY
 ```
+
+### 5b — Deploy economy proxies (Treasury + JackpotVault + DepositRouter)
+
+```powershell
+forge script contracts/testnet/script/DeployEconomy.s.sol:DeployEconomy `
+  --rpc-url $env:BASE_SEPOLIA_RPC `
+  --broadcast
+```
+
+Logs print `treasuryProxy`, `vaultProxy`, `routerProxy`, `sessionImpl`. Your server controller
+(`GAME_CONTROLLER`) must call `DepositRouter.createSession(sessionId, token)` per payment; open the
+session with `token = address(0)` for ETH deposits or the TestFRENS address for ERC-20 deposits.
 
 ### 6 — Server
 
