@@ -1,4 +1,4 @@
-const CACHE='pocket-familiar-v41';
+const CACHE='pocket-familiar-v42';
 const VIDEOS=['cat','blob','robot'].flatMap(shape=>['purple','cyan','amber','mint','pink','blue'].map(color=>'./pip/'+shape+'-'+color+'.mp4'));
 const ASSETS=['./','./index.html','./gallery.html','./style.css','./pet-engine.js','./app.js','./customize.js','./effects.js','./effects.css','./pip.js','./updates.js','./ui.js','./navigation.js','./vote.html','./vote.js','./visits.js','./push.js','./social-config.js','./friends.js','./party.js','./chat.js','./wallet.js','./nft-discovery.js','./wallet-link.js','./hood-turtles.html','./hood-turtles.js','./featured-turtle.js','./turtle-api.js','./gallery.js','./farcaster.js','./snap.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png',...VIDEOS];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'}))))));

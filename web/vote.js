@@ -4,6 +4,46 @@
   const key = 'tinyfrens-device:' + base;
   const networks = {1:'Ethereum',8453:'Base',4663:'Robinhood Chain'};
   const status = $('suggestStatus');
+  const tokenAddress = '0x1A96226727a1D0a46334b3A4b3878B32B7659ba3';
+  const walletButton = $('connectVoteWallet');
+  const walletStatus = $('voteWalletStatus');
+  let wallet;
+  function clearWallet() {
+    wallet = null; walletButton.textContent = 'Connect wallet';
+    walletStatus.textContent = 'Connect your wallet on Base to see your FRENS balance.';
+  }
+  walletButton.onclick = async () => {
+    walletButton.disabled = true;
+    try {
+      const provider = window.ethereum;
+      if (!provider?.request) throw new Error('Open this page in your wallet’s browser, or use a browser with a wallet extension.');
+      const accounts = await provider.request({method:'eth_requestAccounts'});
+      const account = accounts[0];
+      if (!/^0x[0-9a-fA-F]{40}$/.test(account || '')) throw new Error('No wallet account was connected.');
+      if (await provider.request({method:'eth_chainId'}) !== '0x2105') {
+        await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x2105'}]});
+      }
+      wallet = account;
+      walletButton.textContent = 'Refresh wallet';
+      walletStatus.textContent = `${account} · Base · Loading FRENS balance…`;
+      const balance = BigInt(await provider.request({method:'eth_call',params:[{
+        to:tokenAddress, data:'0x70a08231' + account.slice(2).toLowerCase().padStart(64,'0'),
+      },'latest']}));
+      // Keep token units as integers; balances can exceed JavaScript's safe number range.
+      const units = 10n ** 18n;
+      const fraction = (balance % units).toString().padStart(18,'0').replace(/0+$/, '');
+      const formatted = (balance / units).toLocaleString('en-US') + (fraction ? '.' + fraction : '');
+      walletStatus.textContent = `${account} · ${formatted} FRENS on Base`;
+    } catch (error) {
+      walletStatus.textContent = wallet
+        ? `${wallet} · Could not read balance. ${error.message || 'Try again.'}`
+        : error.code === 4001 ? 'Wallet connection was cancelled.' : error.message || 'Could not connect wallet.';
+    } finally { walletButton.disabled = false; }
+  };
+  if (window.ethereum?.on) {
+    window.ethereum.on('accountsChanged', clearWallet);
+    window.ethereum.on('chainChanged', clearWallet);
+  }
   let collections = [];
   const resetReview = () => { $('burnReview').hidden = true; };
   async function identity() {
