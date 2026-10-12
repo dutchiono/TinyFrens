@@ -15,8 +15,9 @@
   const sprites = new Map();
   const empty = document.createElement('div');
   empty.className = 'companion-empty';
-  empty.innerHTML = '<p>Import an NFT to see it here.</p><a href="hood-turtles.html">Connect my wallet →</a>';
+  empty.innerHTML = '<p>Import an NFT to see it here.</p><a href="#wallet" id="emptyConnectWallet">Connect a wallet ↑</a>';
   stage.append(empty);
+  empty.querySelector('a').onclick = event => { event.preventDefault(); window.showScreen('wallet'); };
   const controls = document.createElement('div');
   controls.className = 'companion-controls'; stage.after(controls);
   let items = [], refreshing = false;
@@ -37,6 +38,9 @@
   }
   function render() {
     const active = items.filter(nft => nft.active !== false && nft.companion?.adapter === 'hood-turtles-v1' && Date.now() < nft.validUntil * 1000);
+    stage.closest('.pet-card').hidden = !active.length;
+    const floating = document.querySelector('#screen-pet .floating-controls');
+    if (floating) floating.hidden = !active.length;
     pet.style.visibility = 'hidden';
     empty.hidden = active.length > 0;
     const ids = new Set(active.map(nft => nft.tokenId));

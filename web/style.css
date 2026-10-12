@@ -620,3 +620,5 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .companion-settings .small{margin:8px 0 0}
 
 .bankr-connect{margin-top:24px;padding-top:20px;border-top:1px solid #4a3b68}.bankr-connect h4{margin:0 0 8px}.bankr-connect textarea{width:100%;box-sizing:border-box;background:#17142a;color:#f7f1ff;border:1px solid #63517c;border-radius:12px;padding:14px;font:14px/1.6 system-ui;resize:vertical}.wallet-link-panel .actions{flex-wrap:wrap}.wallet-link-panel button{white-space:normal}
+
+.wallet-manager{grid-column:1/-1;margin:0 0 18px;background:#211c39;border:1px solid #4a3b68;border-radius:14px;padding:14px 18px}.wallet-manager>summary{color:#c9a5ff;font-size:14px;cursor:pointer}.wallet-manager .overlay{border:0;padding:12px 0;margin:0}.wallet-nft-art{display:block;width:100%;max-width:180px;height:160px;object-fit:contain;margin-bottom:12px}.wallet-link-panel .wallet-nft{background:#211c39;border:1px solid #4a3b68;border-radius:12px;padding:16px}.wallet-link-panel button{color:#120f22}.wallet-link-panel button.secondary{color:#f7f1ff}#externalWalletPanel{grid-column:1/-1}

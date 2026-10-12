@@ -2,6 +2,7 @@
   const target = document.getElementById('externalWalletPanel');
   if (!target) return;
   target.innerHTML = `
+    <details id="walletManager" class="wallet-manager" open><summary>Connect your wallet</summary>
     <section class="overlay wallet-link-panel" style="margin-top:0;">
       <h3>Connect your wallet</h3>
       <p class="small">Use your wallet directly, or copy the message below and send it to Bankr. Your NFTs stay in your wallet.</p>
@@ -19,8 +20,8 @@
         <div class="actions"><button type="button" id="copyBankrWalletPrompt" disabled>Copy Bankr message</button><button type="button" id="renewWalletPairing" class="secondary">New code</button><button type="button" id="acceptWalletPairing" hidden>Accept wallet link</button></div>
         <p id="walletPairingStatus" role="status"></p>
       </div>
-    </section>
-    <section class="overlay wallet-link-panel">
+    </section></details>
+    <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
       <h3>Your supported NFTs</h3>
       <p class="small">Hood Turtles are available now. This wallet link also covers collections we support later. Choose multiple companions from your wallet.</p>
       <button type="button" id="scanWallet" class="secondary" disabled>Refresh external NFTs</button>
@@ -38,6 +39,7 @@
   const matches = document.getElementById('walletMatches');
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   let linkedAddresses = [];
+  const manager = document.getElementById('walletManager');
 
   function identity() {
     const current = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base()) || 'null');
@@ -51,6 +53,9 @@
 
   function showLink(addresses = []) {
     linkedAddresses = addresses;
+    manager.open = !addresses.length;
+    manager.querySelector('summary').textContent = addresses.length ? `Manage wallets (${addresses.length}) · Add another` : 'Connect your wallet';
+    document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
     if (!addresses.length) linkedWallet.textContent = 'No wallets linked yet.';
     for (const address of addresses) {
@@ -66,7 +71,7 @@
           showLink(data.addresses || []);
           linkStatus.textContent = 'Wallet removed. Your other wallet links stay connected.';
           await scan();
-          await startPairing();
+          if (manager.open) await startPairing();
         } catch (error) { linkStatus.textContent = error.message; remove.disabled = false; }
       };
       row.append(label, remove); linkedWallet.append(row);
@@ -90,11 +95,32 @@
         title.textContent = nft.name;
         const detail = document.createElement('p');
         detail.textContent = `${nft.collection} · ${nft.wallet.slice(0,6)}…${nft.wallet.slice(-4)}`;
-        const link = document.createElement('a');
-        link.href = `hood-turtles.html?tokenId=${nft.tokenId}`;
-        link.textContent = 'Import NFT →';
+        const link = document.createElement('button');
+        link.type = 'button'; link.textContent = 'Show NFT';
+        link.onclick = async () => {
+          link.disabled = true;
+          try {
+            const verified = await post('/api/featured/hood-turtle', {tokenId:nft.tokenId});
+            if (!verified.active || !verified.companion || Date.now() >= verified.validUntil * 1000) throw new Error('This NFT is not ready to show. Refresh your collection and try again.');
+            const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => item.tokenId !== verified.tokenId);
+            if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
+            if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId});
+            saved.push(verified); localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
+            window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
+            window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'});
+            link.textContent = 'Showing';
+          } catch (error) { scanStatus.textContent = error.message; }
+          finally { link.disabled = false; }
+        };
         card.append(title, detail, link);
         matches.append(card);
+        // Original art appears as it loads; loading a preview never imports it.
+        post('/api/featured/hood-turtle', {tokenId:nft.tokenId}).then(verified => {
+          const source = verified.companion?.idle || verified.image;
+          if (!verified.active || !/^data:image\/(svg\+xml|png);base64,/.test(source || '') || !card.isConnected) return;
+          const art = document.createElement('img'); art.src = source; art.alt = nft.name; art.className = 'wallet-nft-art';
+          card.prepend(art);
+        }).catch(() => {});
       }
       scanStatus.textContent = data.nfts.length
         ? `${data.nfts.length} supported NFT${data.nfts.length === 1 ? '' : 's'} found.${data.partial ? ' More may exist; scan is limited to the first five indexer pages.' : ''}`
@@ -129,7 +155,7 @@
       showLink(result.addresses || [result.address]);
       linkStatus.textContent = 'Wallet linked. You will not need to sign again for read-only NFT checks.';
       await scan();
-      await startPairing();
+      if (manager.open) await startPairing();
     } catch (error) {
       linkStatus.textContent = error.message || 'Wallet link was not completed.';
     } finally {
@@ -177,6 +203,7 @@
     catch { prompt.focus(); prompt.select(); pairingStatus.textContent = 'Select and copy the message above.'; }
   };
   renew.onclick = startPairing;
+  manager.addEventListener('toggle', () => { if (manager.open && !pairing && !renew.disabled) { try { identity(); startPairing(); } catch {} } });
   accept.onclick = async () => {
     if (!pairing) return;
     accept.disabled = true;
@@ -194,7 +221,7 @@
   let attempts = 0;
   showLink([]);
   async function initialLoad() {
-    try { await loadLink(); await startPairing(); }
+    try { await loadLink(); if (manager.open && !pairing && !renew.disabled) await startPairing(); }
     catch (error) {
       if (++attempts < 8 && !window.TinyFrensFriends?.identity?.()?.token) {
         setTimeout(initialLoad, 1000);

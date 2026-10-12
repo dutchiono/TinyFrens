@@ -21,7 +21,9 @@
       } catch (error) { pending.delete(requestId); clearTimeout(timer); reject(error); }
     });
     const response = await fetch(base + path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:AbortSignal.timeout(20000)});
-    const data = await response.json();
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error('Could not reach the TinyFrens relay. Please retry in a moment.'); }
     if (!response.ok) throw new Error(data.error || 'Turtle connection unavailable');
     return data;
   };

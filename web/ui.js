@@ -1,5 +1,7 @@
 'use strict';
 window.showScreen=name=>{
+ const walletRequested=name==='wallet';
+ if(walletRequested)name='pet';
  const screens=[...document.querySelectorAll('[data-screen]')].map(tab=>tab.dataset.screen);
  if(!screens.includes(name))name='pet';
  for(const screen of document.querySelectorAll('.screen'))screen.hidden=screen.id!=='screen-'+name;
@@ -13,6 +15,7 @@ window.showScreen=name=>{
  if(name==='party'&&(document.getElementById('visitRequests')?.children.length||document.getElementById('guestVisit'))){const social=document.querySelector('.party-social');if(social)social.open=true;}
  const more=document.getElementById('moreMenu');if(more){more.open=false;}
  history.replaceState(null,'','#'+name);window.scrollTo(0,0);
+ if(walletRequested){const manager=document.getElementById('walletManager');if(manager){manager.open=true;manager.scrollIntoView({block:'start'});}}
 };
 for(const tab of document.querySelectorAll('[data-screen]')){
  tab.onclick=()=>showScreen(tab.dataset.screen);
@@ -23,4 +26,4 @@ document.addEventListener('click',event=>{const more=document.getElementById('mo
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){const more=document.getElementById('moreMenu');if(more?.open){more.open=false;more.querySelector('summary').focus();}}});
 let hasImports=false;
 try{const native=window.PetAndroid||window.TinyFrensDesktop;hasImports=native?.getTurtle?JSON.parse(native.getTurtle()).selected:JSON.parse(localStorage.getItem('tinyfrens-companions')||'[]').length>0||!!localStorage.getItem('tinyfrens-hood-turtle');}catch{}
-showScreen(location.hash==='#video-pet'?'pet':location.hash.slice(1)||(hasImports?'pet':'wallet'));
+showScreen(location.hash==='#video-pet'?'pet':location.hash.slice(1)||'pet');
