@@ -24,6 +24,10 @@ contract DeployTinyFrensNFT is Script {
         address deployer = vm.addr(key);
         uint256 mintCount = vm.envOr("MINT_CREATOR_RESERVE", uint256(20));
 
+        // Validate the required Net infrastructure on the selected chain before broadcasting.
+        require(block.chainid == 84532 || block.chainid == 46630 || block.chainid == 8453 || block.chainid == 4663, "Unsupported deployment chain");
+        require(address(0x00000000B24D62781dB359b07880a105cD0b64e6).code.length > 0, "Net Protocol missing on chain");
+        require(address(0x00000000DB40fcB9f4466330982372e27Fd7Bbf5).code.length > 0, "Net Storage missing on chain");
         vm.startBroadcast(key);
         TinyFrensSprite sprite = new TinyFrensSprite();
         TinyFrensArt art = new TinyFrensArt(address(sprite));
