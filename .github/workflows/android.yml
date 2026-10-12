@@ -33,7 +33,7 @@ jobs:
         run: gradle :android:app:testDebugUnitTest :android:app:assembleDebug -PupdateRepo=dutchiono/TinyFrens
       - uses: actions/upload-artifact@v4
         with:
-          name: pocket-familiar-test-apk
+          name: tinyfrens-test-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
       - name: Prepare release signing
         id: signing
@@ -80,7 +80,7 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'This build is already published; leaving its APK unchanged.'
           else
-            gh release create "$tag" pocket-familiar.apk update.json --target "$GITHUB_SHA" --title "Pocket Familiar 0.5.$RUN_NUMBER" --notes 'Install pocket-familiar.apk to update. Your existing pet data is retained when updating a release signed with the same key.' --latest
+            gh release create "$tag" pocket-familiar.apk update.json --target "$GITHUB_SHA" --title "TinyFrens 0.5.$RUN_NUMBER" --notes 'Install pocket-familiar.apk to update. Your existing pet data is retained when updating a release signed with the same key.' --latest
           fi
       - name: Remove temporary signing key
         if: always()
