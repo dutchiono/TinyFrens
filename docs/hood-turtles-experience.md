@@ -1,6 +1,6 @@
 # Hood Turtles connection and import
 
-Source implementation, October 12, 2026. A deployed relay, published Bankr skill, and updated installed builds are required for live use.
+Source implementation, October 12, 2026. The relay connection endpoints are deployed, and the public skill is served at https://tinyfrens.lol/skill.md. Updated installed builds are required for native use.
 
 ## Product direction
 
@@ -14,9 +14,9 @@ The device has its own private credential; the relay stores its hash. Pairing li
 
 1. Open Import Hood Turtle inside the Android, desktop, or native iOS app, or open the web setup page for browser use.
 2. Tap Connect with Bankr. The device creates a random 12-character code, valid for ten minutes.
-3. Copy the generated prompt into the user's own Bankr agent. Its setup skill reads the user's wallet and chosen turtle, requests a challenge bound to the code, and signs the exact message with personal_sign.
+3. Tweet the generated prompt to @bankrbot or send it in Bankr chat. Its setup skill reads the user's wallet and chosen turtle, requests a challenge bound to the code, and signs the exact message with personal_sign.
 4. The relay verifies the signer and current collection ownership. This does not yet link the phone.
-5. The device displays the verified address and turtle. Tap Use this turtle on this device to consume the code and link the wallet.
+5. The device displays the verified address and turtle. Tap Import this turtle to consume the code, link the wallet, and import the chosen artwork.
 6. Tap Import my turtle. Android fetches verified original artwork through its native HTTPS bridge, renders SVG/PNG once into a bitmap, and persists the selected turtle with its ownership expiry. Show pet uses that artwork in the existing draggable floating overlay.
 
 The direct wallet-browser path uses the existing one-time EIP-191 challenge instead of Bankr. It currently requires an injected wallet provider; a standalone WalletConnect QR/mobile adapter is not implemented. Pairing again on another device is supported; email recovery and cloud care-save synchronization are not.
@@ -53,8 +53,10 @@ Native iOS has a restricted HTTPS connection bridge and uses the shared original
 
 Publish the updated relay and skill, then distribute updated signed app builds before directing live users to this flow. Enable ALLOW_NATIVE_ORIGIN=true on the relay; the supplied Compose configuration already does this. The native turtle bridges accept only https://tinyfrens.miono.live and specific connection/import routes. Native iOS compilation and device validation require macOS/Xcode; this Windows environment cannot perform them.
 
-The supplied X post, official RPC, and Blockscout artwork reads returned HTTP 403 from this development environment. Live Bankr signing, the purchased token's exact rendering, and physical-phone overlay behavior still need verification. Do not infer the purchase destination from the earlier ambiguous wording: the user clarified that their NFT remains in their Bankr wallet.
+The supplied X post and direct RPC reads returned HTTP 403 from this Windows environment. The deployed relay successfully loads official on-chain artwork through its production network. Live Bankr signing, the purchased token's exact rendering, and physical-phone overlay behavior still need verification. Do not infer the purchase destination from the earlier ambiguous wording: the user clarified that their NFT remains in their Bankr wallet.
 
-Bankr supports user-installed skills and personal_sign via its Wallet API. API signing requires Wallet API permissions and a non-read-only key; web sessions alone are not accepted. Public X bot skill execution has not been verified. The skill never requests transfers, approvals, purchases, wallet keys, or deployment.
+Bankr supports user-installed skills and personal_sign via its Wallet API. API signing requires Wallet API permissions and a non-read-only key; web sessions alone are not accepted. Bankr documents skills shared across web and X, but this integration still needs an end-to-end X test. The skill never requests transfers, approvals, purchases, wallet keys, or deployment.
 
 References: https://docs.bankr.bot/skills/in-bankr/from-github/ and https://docs.bankr.bot/wallet-api/sign/
+
+The existing production relay was older than the repository. The live rollout added only turtle connection/ownership routes to that deployed version, preserving existing handlers, with an app backup and a SQLite snapshot before restart. Hosting the website does not deploy the Python relay.

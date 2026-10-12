@@ -1,11 +1,12 @@
 ---
 name: tinyfrens-connect
-description: Connect a user's Hood Turtle NFT to their waiting TinyFrens phone using a pairing code and a read-only wallet signature. Use for importing a Hood Turtle into TinyFrens, not purchasing, transferring, minting, or deploying NFTs.
+description: Connect a user's Hood Turtle NFT to their waiting TinyFrens phone, desktop, or browser using a pairing code and a read-only wallet signature. Use for importing a Hood Turtle into TinyFrens, not purchasing, transferring, minting, or deploying NFTs.
 ---
 
 # Connect a Hood Turtle to TinyFrens
 
 TinyFrens API: `https://tinyfrens.miono.live`. Phone setup: `https://tinyfrens.lol/web/hood-turtles.html`.
+Public skill URL: `https://tinyfrens.lol/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
 Collection: `0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain, chain ID **4663**. Token IDs 1–2222. Do not use Base holdings or the original TinyFrens minting contracts.
 
 ## Phone pairing
@@ -15,7 +16,7 @@ Collection: `0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain, chain
 3. POST JSON to `/api/turtle-connect/challenge`: `{"code":"PHONE_CODE","address":"USER_WALLET","tokenId":1}`. No TinyFrens API key or phone credential is needed. Codes can contain hyphens. On expiry or a request already in progress, ask the user to generate a fresh code on their phone; do not loop through alternatives.
 4. Inspect the returned `message`: it must identify TinyFrens, domain `tinyfrens.lol`, the user's selected wallet, pairing code, collection, chain 4663, chosen token, nonce, expiry, and only read-only device linking. Stop on a mismatch. Sign the **exact returned text**, preserving newlines, with `personal_sign`. Do not sign transactions or typed data. Do not submit or broadcast anything.
 5. POST `/api/turtle-connect/confirm`: `{"code":"PHONE_CODE","challengeId":"RETURNED_ID","signature":"0x..."}`. Success means the signature and current ownership were verified; it does not mean the phone has accepted or imported the turtle.
-6. Tell the user to return to the waiting device, check the displayed wallet and turtle, tap **Use this turtle on this device**, then **Import my turtle**. On Android, import inside TinyFrens, then tap **Show pet** and grant overlay permission if prompted. On desktop, import inside the installed TinyFrens app to use the floating overlay. In browsers and the native iPhone app, the turtle stays inside TinyFrens. Each browser or app pairs separately; importing in a browser does not import into an installed app. Native iOS App Store distribution is planned, not yet available.
+6. Tell the user to return to the waiting device, check the displayed wallet and turtle, and tap **Import this turtle**. The device accepts the connection, loads the verified artwork, and imports it. On Android, then tap **Show pet** and grant overlay permission if prompted. On desktop, import inside the installed TinyFrens app to use the floating overlay. In browsers and the native iPhone app, the turtle stays inside TinyFrens. Each browser or app pairs separately. Native iOS App Store distribution is planned, not yet available.
 
 ## Signing with Bankr
 
@@ -31,4 +32,4 @@ Documentation: https://docs.bankr.bot/wallet-api/sign/
 
 A one-time signature links the public address to the device after local acceptance. The NFT stays in the user's wallet. TinyFrens checks ownership at connection and renews it after 24 hours of active use; transfers may take up to 24 hours to remove access. Expired verification requires an online check. The pairing code expires after 10 minutes and is single use. Phone credentials remain on the phone; no bearer recovery link is posted in chat. Pair again on a new device; care-save synchronization is separate.
 
-Custom skills can be installed into a user's Bankr agent. Do not claim the public X bot supports this skill until tested. Do not claim installation, import, phone acceptance, or overlay display based solely on an API success.
+Bankr documents shared agent state and skills across web and X (@bankrbot). This integration still needs an end-to-end X test. Do not claim installation, import, device acceptance, or overlay display based solely on an API success. If the relay returns 404/503 or an origin rejection, explain that the connection service needs updating; do not claim the NFT was imported.

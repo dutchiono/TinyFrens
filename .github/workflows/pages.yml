@@ -2,7 +2,7 @@ name: Welcome site
 on:
   push:
     branches: [main]
-    paths: ['index.html', '.nojekyll', 'play/**', 'site/**', 'web/**', '.github/workflows/pages.yml']
+    paths: ['index.html', '.nojekyll', 'play/**', 'site/**', 'web/**', 'skills/tinyfrens-connect/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +26,7 @@ jobs:
           cp -R site/. public/site/
           cp -R web/. public/web/
           cp -R play/. public/play/
+          cp skills/tinyfrens-connect/SKILL.md public/skill.md
           touch public/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
