@@ -31,13 +31,14 @@ test("scene tiles fit the pixel canvas", () => {
   }
 });
 
-test("all 4608 trait combinations stay within the 8.5 KB SVG budget", () => {
+test("18432 artwork/motion-profile combinations stay within the 8.5 KB SVG budget", () => {
   for (let palette = 0; palette < 8; palette++) for (let expr = 0; expr < 4; expr++)
     for (let acc = 0; acc < 6; acc++) for (let habitat = 0; habitat < 6; habitat++)
-      for (let motion = 0; motion < 4; motion++) {
-        const svg = renderNftArt({ species: 0, palette, expr, acc, era: 2, habitat, motion }, 2);
+      for (let motion = 0; motion < 4; motion++) for (const ambience of [0, 21845, 43690, 65535]) {
+        const svg = renderNftArt({ species: 0, palette, expr, acc, era: 2, habitat, motion, ambience }, 2);
         assert.ok(Buffer.byteLength(svg) <= 8500, `Art exceeded budget: ${palette}/${expr}/${acc}/${habitat}/${motion}`);
-        assert.match(svg, /\.camera,\.parallax,\.light,\.sheen\{animation:none\}/);
+        assert.match(svg, /\.parallax,\.light,\.sheen,\.orb,\.halo\{animation:none\}/);
+        assert.ok(!svg.includes("scale("), "Scenery must not zoom");
       }
 });
 

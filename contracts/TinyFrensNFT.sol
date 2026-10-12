@@ -218,6 +218,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         t.acc = uint8((combination / 4) % 6);
         t.habitat = uint8((combination / 24) % 6);
         t.motion = uint8((combination / 144) % 4);
+        t.ambience = uint16((tokenId * 7919 + 104729) % 65536);
     }
 
     function _speciesName(uint8) internal pure returns (string memory) {
@@ -285,6 +286,42 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return artRenderer.render(_traits(tokenId), _evolution[tokenId]);
     }
 
+    function _ambientName(uint8 family, uint8 variant) internal pure returns (string memory) {
+        if (family == 0) return variant == 0 ? "Easy" : variant == 1 ? "Brisk" : variant == 2 ? "Swift" : "Lazy";
+        if (family == 1) return variant == 0 ? "Sparkling" : variant == 1 ? "Lively" : variant == 2 ? "Soft" : "Dreamy";
+        if (family == 2) return variant == 0 ? "Drifting" : variant == 1 ? "Breezy" : variant == 2 ? "Unhurried" : "Playful";
+        if (family == 3) return variant == 0 ? "Gentle" : variant == 1 ? "Breezy" : variant == 2 ? "Calm" : "Lively";
+        if (family == 4) return variant == 0 ? "Warm" : variant == 1 ? "Rolling" : variant == 2 ? "Lingering" : "Shimmering";
+        if (family == 5) return variant == 0 ? "Pulsing" : variant == 1 ? "Lively" : variant == 2 ? "Mellow" : "Glowing";
+        if (family == 6) return variant == 0 ? "Gentle" : variant == 1 ? "Wandering" : variant == 2 ? "Still Air" : "Breezy";
+        if (family == 7) return variant == 0 ? "Buoyant" : variant == 1 ? "Bobbing" : variant == 2 ? "Dreamy" : "Gentle";
+        revert("Invalid motion");
+    }
+
+    function _ambientKey(uint8 family) internal pure returns (string memory) {
+        if (family == 0) return "Cloud Drift";
+        if (family == 1) return "Star Twinkle";
+        if (family == 2) return "Falling Leaves";
+        if (family == 3) return "Foliage Sway";
+        if (family == 4) return "Light Cycle";
+        if (family == 5) return "Neon Glow";
+        if (family == 6) return "Layer Drift";
+        if (family == 7) return "Accessory Float";
+        revert("Invalid motion");
+    }
+
+    function _ambientAttributes(Traits memory t) internal pure returns (string memory result) {
+        for (uint8 i; i < 8; i++) {
+            bool relevant = i == 0 ? t.habitat != 4 : i == 1 ? t.habitat == 0 :
+                i == 2 ? t.habitat == 2 || t.habitat == 5 :
+                i == 3 ? t.habitat == 2 || t.habitat == 3 || t.habitat == 5 :
+                i == 5 ? t.habitat == 1 || t.habitat == 3 || t.habitat == 4 :
+                i == 7 ? t.acc == 3 || t.acc == 5 : true;
+            if (relevant) result = string.concat(result, ',{"trait_type":"', _ambientKey(i),
+                '","value":"', _ambientName(i, uint8((t.ambience >> (i * 2)) & 3)), '"}');
+        }
+    }
+
     function _attributes(uint256 tokenId) internal view returns (string memory) {
         Traits memory t = _traits(tokenId);
         (, , , string memory palName, string memory tier) = _paletteData(t.palette);
@@ -310,7 +347,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             '"},{"trait_type":"Motion","value":"', _motionName(t.motion),
             '"},{"trait_type":"Evolution","value":"Stage ', uint256(_evolution[tokenId]).toString(),
             '"}',
-            vaultAttrs,
+            _ambientAttributes(t), vaultAttrs,
             ']'
         );
     }

@@ -2,23 +2,28 @@
 
 Measured October 12, 2026. Source/preview revision only; deployed testnet metadata is unchanged.
 
-All six habitats now use detailed 128-pixel scenery with foreground props, layered depth, ground texture and scene-specific stepped light pools. Clouds travel ten pixels in twelve seconds. The background zooms 2.5% over twenty seconds while distant silhouettes shift separately. Robot casing highlights change opacity. Animations remain embedded SVG/CSS, with reduced-motion support and no external images or videos.
+Six detailed 128-pixel habitats use foreground props, layered silhouettes, ground texture and scene-specific stepped light pools. Camera zoom has been removed. Clouds travel ten pixels with 4/6/8/10-second drift variants. Stars fade fully out and brighten with four independent twinkle timings. Crown, halo, bow tie and orb have been redrawn; halo/orb float independently. Era indicators are integrated into the casing rather than floating in the sky.
 
-## Limits
+## Motion traits
 
-The richer art intentionally uses more of the deployment and metadata budgets. Working guards are now 24,000 art runtime bytes (576 bytes below EIP-170), 8,500 SVG bytes, 16,000 bytes for fork-sampled tokenURI and 6 million gas for fork-sampled public mint execution. These replace the earlier 22,000 / 7,000 / 13,000 / 5 million guards. They are project budgets, not Net Protocol storage limits. Fixed scenery CSS lives in the existing sprite renderer to leave room for scene records in the art renderer.
+Walking retains its existing four variants. Eight separate two-bit environmental values are packed into a deterministic per-token uint16 ambience trait, generated as (tokenId * 7919 + 104729) modulo 65536. Cloud Drift, Star Twinkle, Falling Leaves, Foliage Sway, Light Cycle, Neon Glow, Layer Drift and Accessory Float have separate timings. Metadata only lists traits relevant to the token's habitat/accessory. Browser artwork, gallery, sample exports and Solidity use the same timing and label definitions. These are artwork traits rather than device preferences.
 
-| Final measurement | Result |
+## Limits and measurements
+
+Working guards: each production contract runtime at most 24,000 bytes (576 below EIP-170), each tested SVG at most 8,500 bytes, fork-sampled tokenURI at most 16,000 bytes and public-mint execution at most 6 million gas. These intentionally replace the earlier 22,000 / 7,000 / 13,000 / 5 million project guards to allow richer art. They are not Net Protocol storage limits. Packed tile records and shared SVG paths encode scenery and accessories; fixed animation CSS/timing definitions live in the existing sprite renderer.
+
+| Measurement | Result |
 | --- | ---: |
-| Art renderer runtime | 23,694 bytes |
-| Remaining under EIP-170 | 882 bytes |
-| SVG sweep (4,608 combinations, maximum decorations) | 6,734–7,747 bytes; mean 7,243 |
-| Fork public-mint samples, SVG | 6,616–7,377 bytes |
-| Fork public-mint samples, stored tokenURI | 12,701–14,049 bytes |
-| Fork public-mint execution gas | 4,576,115–4,891,041 |
-| Combined three-contract deployment execution gas | 11,677,501 |
+| Art renderer runtime | 15,413 bytes |
+| Sprite renderer runtime | 16,808 bytes |
+| NFT runtime | 19,336 bytes |
+| SVG sweep: 18,432 artwork/motion-profile combinations, max decorations | 6,864–8,014 bytes; mean 7,473 |
+| Six fork samples: SVG | 6,745–7,441 bytes |
+| Six fork samples: stored tokenURI | 13,169–14,481 bytes |
+| Public mint execution gas | 4,720,277–5,011,842 |
+| Three-contract deployment execution gas | 10,838,594 |
 
-The five Node artwork tests and 21 targeted Solidity tests pass, including six browser/Solidity parity fixtures and all 2,664 tokens remaining visibly unique. Browser animation seeking verifies cloud drift from -5 to +5 pixels, zoom from 1 to 1.025, distant-layer shift from -1 to +1 pixels, light opacity from .02 to .18 and casing highlight opacity from .65 to 1. Reduced-motion disables every new motion class.
+Five Node artwork tests and 22 targeted Solidity tests pass. Six browser/Solidity parity fixtures cover all accessories/habitats and varied environmental values. The full 2,664-token set has unique visible art. A stored-metadata test checks actual motion labels against the rendered CSS. Browser checks confirm four distinct timing profiles, stars fading from opacity 0 to 1, no zoom, pause/reduced-motion support and no mobile overflow.
 
 ## Reproduce
 
@@ -29,14 +34,12 @@ forge test --match-contract 'TinyFrens(Art|NFT)Test' -vv
 forge script contracts/testnet/script/MeasureRobotArt.s.sol --rpc-url https://mainnet.base.org --fork-block-number 52529190
 ```
 
-The script accepts Base Mainnet (8453) or Base Sepolia (84532). It runs locally against actual Net Protocol and Net Storage contract code. It uses no private key, does not broadcast and spends no funds. Six standard ETH mints cover one token per habitat. Gas measures execution around mint(1), excluding transaction intrinsic gas; later samples benefit from warmed accesses within the simulation. Deployment measures the three constructors together, excluding transaction intrinsic gas. Neither is a paid receipt or an exhaustive gas sweep.
+The script accepts Base Mainnet (8453) or Base Sepolia (84532). It runs locally against actual Net Protocol and Net Storage contract code, without a private key, broadcasting or spending funds. Six standard ETH mints cover one token per habitat. Mint gas excludes transaction intrinsic gas; later samples benefit from warmed accesses within the simulation. Deployment measures three constructors together, excluding intrinsic gas. These are not paid receipts or an exhaustive mint/gas sweep.
 
-## Fee assumptions
+## Illustrative fees
 
-At Base mainnet block 52,529,190 the base fee was 5,000,000 wei (0.005 gwei); the sampled RPC gas-price quote was 6,000,000 wei (0.006 gwei). The Base oracle returned a 2,262,155,383 wei L1 fee upper bound for an assumed 200-byte signed mint transaction. Deployment L1 bounds use each contract creation bytecode length plus 200 bytes for constructor arguments and transaction overhead.
+At Base mainnet block 52,529,190, base fee was 5,000,000 wei (0.005 gwei); the sampled RPC gas-price quote was 6,000,000 wei (0.006 gwei). The Base oracle returned an L1 fee upper bound of 2,262,155,383 wei for an assumed 200-byte signed mint transaction. The combined deployment L1 bound was 525,604,940,980 wei, using each creation bytecode length plus 200 bytes for constructor arguments and transaction overhead.
 
-At an ETH price around $2,462, multiply execution gas by 0.006 gwei and add L1 fees for the illustrative USD figures. Quotes vary with congestion and ETH price. The configured 0.001 ETH mint purchase price is separate from network gas; Bankr service fees are not included or verified. No mainnet deployment has been made.
-
-At that quote, sampled mint execution plus the L1 bound is approximately $0.068–$0.073 per NFT, before intrinsic gas and any service fees. A practical quiet-network estimate is $0.07–$0.08 per mint. Combined deployment execution plus its 566,163,001,233 wei L1 upper bound is about $0.174; allow approximately $0.20–$0.25 including the three transactions' intrinsic/initcode gas. These are estimates from simulation, not paid receipts or fixed price guarantees. Viewing and running the SVG animations incurs no further blockchain transaction fees.
+Using ETH around $2,462 and the sampled 0.006 gwei quote, mint execution plus the L1 bound is about $0.070–$0.074 per NFT. Allow roughly $0.07–$0.08 including intrinsic gas. Three-contract deployment execution plus the L1 bound is about $0.161; a practical allowance including intrinsic/initcode gas is approximately $0.20–$0.25. Fees vary with congestion and ETH price. The configured 0.001 ETH mint purchase price is separate; Bankr service fees are excluded and unverified. Viewing/animating stored SVG requires no further blockchain transactions. No mainnet contracts have been deployed.
 
 Fee model: https://docs.base.org/specifications/transactions/network-fees

@@ -1,3 +1,4 @@
+import { robotAmbience, motionAttributes } from "./robot-motion.mjs";
 import { NFT_PALETTES, NFT_SHAPES, NFT_SPECIES, renderNftArt } from "./nft-art.mjs";
 import { ROBOT_COLLECTION, robotTokenName } from "./robot-collection.mjs";
 
@@ -19,6 +20,7 @@ function traitsFor(tokenId) {
     era: Math.floor((tokenId - 1) / 888),
     habitat: Math.floor(combination / 24) % 6,
     motion: Math.floor(combination / 144) % 4,
+    ambience: robotAmbience(tokenId),
   };
 }
 
@@ -34,6 +36,7 @@ function attributes(traits) {
     ["Era", ERA[traits.era]],
     ["Habitat", HABITAT[traits.habitat]],
     ["Motion", MOTION[traits.motion]],
+    ...motionAttributes(traits),
   ];
 }
 

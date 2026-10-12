@@ -12,6 +12,7 @@ struct Traits {
     uint8 era;
     uint8 habitat;
     uint8 motion;
+    uint16 ambience;
 }
 
 interface ITinyFrensArt {
@@ -74,16 +75,16 @@ contract TinyFrensArt is ITinyFrensArt {
     // Generated from web/robot-scenes.mjs by scripts/sync-robot-scenes.mjs.
     function _habitat(uint8 habitat, string memory bg) internal pure returns (string memory) {
         if (habitat == 0) return string.concat(
-            _scene(hex"00008080000000002680141e1d34003a801427253f004e8014302c490062801e2830470062800469718d00768002444a6510660210444a6560660210444a6530780208444a6562101212f3e9b65e0c10100000000c1c0404c4b7e91c0e0202c4b7e94e0a0404c4b7e976380202c4b7e90648101a22283d6a4e161422283d0a4e04068b7cb4725404068b7cb4003c0e0c2420386e3a12142420380238080436304c72360a0436304c0a420204aa8cc578400206aa8cc5025e1604536079685e1804536079006e2002394159626e1e023941590e7a0c0259607a66780a0259607a", bg),
+            _scene(hex"00008080000000002680141e1d34003a801427253f004e8014302c490062801e2830470062800469718d00768002444a6510660210444a6560660210444a6530780208444a6562101212f3e9b65e0c10100000000648101a22283d6a4e161422283d0a4e04068b7cb4725404068b7cb4003c0e0c2420386e3a12142420380238080436304c72360a0436304c0a420204aa8cc578400206aa8cc5025e1604536079685e1804536079006e2002394159626e1e02394159", bg),
             string.concat('<g class="parallax">', _scene(hex"1f41091d2d2b462b3b07232d2b46523f0a1f2d2b465e4607182d2b46", bg), '</g>'),
             _scene(hex"033d0a02625a82043f020849426307410404cab8e7703b0e02625a82733d020f49426377420403cab8e7025516028d91ae685518028d91ae045702073a405b0d5702073a405b705702073a405b7a5702073a405b04631b01a0a3bd64631c01a0a3bd01681a014d587205701b014d587260721f014d5872047b0a0177829a167d080177829a637c120177829a17670107171f376e660108171f3724790107171f375f2008014f496b67230a014f496b08490201958bb1714d0301958bb1085b03016a7792765b03016a77921b72040178819a5f74050178819a", bg),
-            string.concat('<g class="twinkle">', _scene(hex"16240206e9daff14260602e9daff58220202bda4de", bg), '</g>'),
-            string.concat('<g class="twinkle late">', _scene(hex"720c0206e9daff700e0602e9daff280a0202bda4de", bg), '</g>'),
+            string.concat('<g class="twinkle">', _scene(hex"16230105bba2d814250501bba2d816250101ffffff4e090103e9daff4d0a0301e9daff", bg), '</g>'),
+            string.concat('<g class="twinkle late">', _scene(hex"720c0105bba2d8700e0501bba2d8720e0101ffffff28090103e9daff270a0301e9daff", bg), '</g>'),
             string.concat('<g class="drift">', _scene(hex"261614027066812b140b0287788e271811014f506a", bg), '</g>'),
             string.concat('<g class="light">', _scene(hex"5e6322049cabe052672e059cabe0466d3a069cabe0397347069cabe02b7a55069cabe0", bg), '</g>')
         );
         if (habitat == 1) return string.concat(
-            _scene(hex"000080800000000024801419354b00388014213d52004c80142c465a00608020202d420226143a263652081e0e082636526816184a263652062e0608e8a0cc0e400608e8a0cc6c20060864d9db7630060864d9db6c42060864d9db006080049770ac066c1206b9b2cf226c1206b9b2cf3e6c1206b9b2cf5a6c1206b9b2cf766c0a06b9b2cf087816025fa6b1627a1202c180ae06101c06e783b5182e08321c263c5e3c08241c263c1a3402046c75a31a4002046c75a3604402049c658c08160210916eb406121802ffb2d708100406ffd6e412100206ffd6e41a100406ffd6e46a5812025ca1b6045a1002ac6c9b047a0802526580", bg),
+            _scene(hex"000080800000000024801419354b00388014213d52004c80142c465a00608020202d420226143a263652081e0e082636526816184a263652062e0608e8a0cc0e400608e8a0cc6c20060864d9db7630060864d9db6c42060864d9db006080049770ac066c1206b9b2cf226c1206b9b2cf3e6c1206b9b2cf5a6c1206b9b2cf766c0a06b9b2cf06101c06e783b5182e08321c263c5e3c08241c263c1a3402046c75a31a4002046c75a3604402049c658c08160210916eb406121802ffb2d708100406ffd6e412100206ffd6e41a100406ffd6e46a5812025ca1b6045a1002ac6c9b047a0802526580", bg),
             string.concat('<g class="parallax">', _scene(hex"242d0c311c29413323093b1c294144300a2e1c294151280a361c2941", bg), '</g>'),
             _scene(hex"022702314e607e14260234172238681702424e607e7e16024417223807390a01607593074c0a016075936b2c11016075936b50110160759322193c01566080221a01055660805d1a01035660801948060a3543621a490402f5c590604e0508354362614f030193dada04641801c699bf64641c0183b9c90a750c01487583067c1201487583647312017756756c7e1001775675036b01123d47601d73010d3d4760706601053d476008210501ac91c26e1908017890ac0f5203018990ad6d5405018990ad055e1001d79dbb6c5e10018cd3cf0c770501a6e3dd747b0501e6a1c7", bg),
             string.concat('<g class="glow">', _scene(hex"6c200608b1fff1062e0608ffc3e3", bg), '</g>'),
@@ -92,7 +93,7 @@ contract TinyFrensArt is ITinyFrensArt {
             string.concat('<g class="light">', _scene(hex"04651304ec9cce07741402ec9cce027b1c02ec9cce68661803ec9cce63791d03ec9cce", bg), '</g>')
         );
         if (habitat == 2) return string.concat(
-            _scene(hex"00008080000000001e801649384a00348016614856004a8014795d60005e8022305444005e800476a56d0076800a253e360432122c654a46002a1a0aaa7476042a060af1d1aa102a060af1d1aa063c0c0ee9be7708400806dc80696c4c101281594a6a4a1404b38664703e040c81bf7c6a3c080681bf7c7238080681bf7c74340404f2a4bb0e680604b0c67c686c0604b0c67c1a7a0e026b775302341602492f3c044e1002d19a7906520c043d333808540202f4b46b0e540202f4b46b6c521002ac80616c581002634e44046e120256765262721202567652047808024a6650707a0c024a6650166a020691ba7514680604e7a0b46466020691ba7562640604efc37b", bg),
+            _scene(hex"00008080000000001e801649384a00348016614856004a8014795d60005e8022305444005e800476a56d0076800a253e360432122c654a46002a1a0aaa7476042a060af1d1aa102a060af1d1aa063c0c0ee9be7708400806dc80696c4c101281594a6a4a1404b38664703e040c81bf7c6a3c080681bf7c7238080681bf7c74340404f2a4bb02341602492f3c044e1002d19a7906520c043d333808540202f4b46b0e540202f4b46b6c521002ac80616c581002634e44046e120256765262721202567652047808024a6650707a0c024a6650166a020691ba7514680604e7a0b46466020691ba7562640604efc37b", bg),
             string.concat('<g class="parallax">', _scene(hex"284f0f0f4c6054394a12144c60544e510e0d4c6054", bg), '</g>'),
             _scene(hex"03360218b98a7014360218493c4006390c01f7d99808410701f7d998064c0e02926c5505581001322e39012c1801f2cdb201331801674c491b3a0920423d481c3b0702ba94771c460702ba94771c520702ba94771d3f02059bb38a20400204e5b2811d4a0406cb87916a4f020cc6a77e7a4f020c563f3902621903688d6566621a03688d65017219019c986963771d019c986907660208496c5076670209496c50047c1201728363647d14017283635c5a0904577c5d5e56020699b7796258020499b77909480301fce1a910580301946b596d540501d1aa84735a0401d1aa840a740501b3b9816f7a0501b3b981", bg),
             string.concat('<g class="sway">', _scene(hex"703a020ab4d9956a3a080495c8837236080495c883", bg), '</g>'),
@@ -132,51 +133,20 @@ contract TinyFrensArt is ITinyFrensArt {
     }
 
     function _accessory(uint8 accessory, uint8) internal pure returns (string memory) {
-        if (accessory == 0) return string.concat(_box(31, 12, 2, 6, "#302048"),
-                _box(29, 10, 6, 3, "#f0bd5e"),
-                _box(31, 9, 2, 1, "#ffe078"));
-        if (accessory == 1) return string.concat(_box(20, 16, 24, 2, "#24344f"),
-                _box(22, 12, 20, 4, "#6e8da9"),
-                _box(25, 10, 14, 2, "#a9c7d6"),
-                _box(23, 12, 3, 3, "#d1e3e8"),
-                _box(26, 13, 13, 2, "#4bd2dc"),
-                _box(27, 13, 5, 1, "#c1f6ef"),
-                _box(31, 10, 2, 2, "#f1d18a"),
-                _box(39, 15, 3, 1, "#324f6c"));
-        if (accessory == 2) return string.concat(_box(22, 15, 20, 3, "#b47c32"),
-                _box(23, 9, 4, 6, "#f5cb67"),
-                _box(30, 7, 4, 8, "#f5cb67"),
-                _box(37, 9, 4, 6, "#f5cb67"),
-                _box(24, 15, 16, 2, "#ffe6a0"),
-                _box(26, 15, 2, 2, "#c58cf0"),
-                _box(31, 15, 2, 2, "#ed87a5"),
-                _box(36, 15, 2, 2, "#84dbd3"));
-        if (accessory == 3) return string.concat(_box(24, 9, 16, 2, "#b98d47"),
-                _box(22, 11, 4, 2, "#fbe9aa"),
-                _box(38, 11, 4, 2, "#fbe9aa"),
-                _box(25, 13, 14, 2, "#fbe9aa"),
-                _box(25, 8, 14, 1, "#fff5d0"));
-        if (accessory == 4) return string.concat(_box(31, 12, 2, 6, "#302048"),
-                _box(29, 10, 6, 3, "#f0bd5e"),
-                _box(31, 9, 2, 1, "#ffe078"),
-                _box(27, 41, 4, 3, "#ec6c7c"),
-                _box(33, 41, 4, 3, "#ec6c7c"),
-                _box(31, 42, 2, 2, "#f9d77d"));
-        if (accessory == 5) return string.concat(_box(31, 12, 2, 6, "#302048"),
-                _box(29, 10, 6, 3, "#f0bd5e"),
-                _box(31, 9, 2, 1, "#ffe078"),
-                _box(52, 33, 7, 7, "#327e9c"),
-                _box(53, 34, 5, 5, "#69dce3"),
-                _box(54, 34, 2, 2, "#ffffff"),
-                _box(54, 41, 3, 1, "#458793"));
+        if (accessory == 0) return _scene(hex"2e1203093020482b0f0904f0bd5e2e0d0302ffe078", "");
+        if (accessory == 1) return _scene(hex"1e18240324344f21121e066e8da9250f1503a9c7d622120504d1e3e8271313034bd2dc28130802c1f6ef2e0f0303f1d18a3a160502324f6c", "");
+        if (accessory == 2) return _scene(hex"21181e0379503822121b06c18b3c210f0409e6b54f3a0f0509e6b54f2d0d060be6b54f25150803e6b54f33150703e6b54f22181b01ffe3a022100206ffe3a02d0f0104ffe3a02816030275d0d734160302e38eac2e1503039555a1", "");
+        if (accessory == 3) return string.concat('<g class="halo">', _scene(hex"250f1501bd874221100402bd87423a100502bd87421f120504bd87423c120404bd874222161b02bd874225181501bd874225101502fff1bd21120303fff1bd3c120303f1c86c24151803f1c86c27151201fff4d4", ""), '</g>');
+        if (accessory == 4) return _scene(hex"2e1203093020482b0f0904f0bd5e2e0d0302ffe078243c1801e1d7cf243d060684324f363d060684324f253d0505ef79962a3f0403cf526f313f0503cf526f363d0405ef7996253d0302ffb0b8373d0302ffb0b82e3f0303e9c371", "");
+        if (accessory == 5) return string.concat(_scene(hex"2e1203093020482b0f0904f0bd5e2e0d0302ffe078", ""), '<g class="orb">', _scene(hex"522106012447624f220c032447624e250f062447624f2b0c03244762522e0602244762522206029aede45124090750b5ca522b0602387b9e512503059aede45424040474d9dc572803033785aa52240301ecfff2", ""), '</g>');
         return "";
     }
 
     function _eraMark(uint8 era) internal pure returns (string memory) {
-        if (era == 0) return _box(3, 4, 2, 2, "#dc9979");
-        if (era == 1) return string.concat(_box(3, 4, 2, 2, "#b9c5dc"), _box(7, 4, 2, 2, "#b9c5dc"));
-        return string.concat(_box(3, 4, 2, 2, "#ffe078"), _box(7, 4, 2, 2, "#ffe078"),
-            _box(11, 4, 2, 2, "#ffe078"));
+        if (era == 0) return _box(23, 39, 2, 1, "#dc9979");
+        if (era == 1) return string.concat(_box(23, 39, 2, 1, "#b9c5dc"), _box(27, 39, 2, 1, "#b9c5dc"));
+        return string.concat(_box(23, 39, 2, 1, "#ffe078"), _box(27, 39, 2, 1, "#ffe078"),
+            _box(31, 39, 2, 1, "#ffe078"));
     }
 
     function render(Traits calldata traits, uint8 stage) external view override returns (string memory) {
@@ -187,7 +157,7 @@ contract TinyFrensArt is ITinyFrensArt {
         string memory phase = traits.motion == 1 ? "-0.42355s" : traits.motion == 2 ? "-0.9412s" :
             traits.motion == 3 ? "-0.3294s" : "-0.5647s";
         string memory style = string.concat(
-            '<style>.body{animation:bob ', duration, ' steps(1) infinite}',
+            '<style>', spriteRenderer.motionStyle(traits.ambience), '.body{animation:bob ', duration, ' steps(1) infinite}',
             '.foot-a{animation:step-a ', duration, ' steps(1) infinite}',
             '.foot-b{animation:step-a ', duration, ' steps(1) infinite;animation-delay:', phase, '}',
             '.arm-a{animation:arm-a ', duration, ' steps(1) infinite}',
@@ -196,15 +166,15 @@ contract TinyFrensArt is ITinyFrensArt {
             '@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}',
             '@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}',
             spriteRenderer.sceneryStyle(),
-            '@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow,.camera,.parallax,.light,.sheen{animation:none}}</style>'
+            '@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow,.parallax,.light,.sheen,.orb,.halo{animation:none}}</style>'
         );
         string memory evolution = stage == 0 ? "" :
             string.concat(_box(4, 4, 2, 2, "#ffe078"), _box(57, 9, 2, 2, "#ffe078"));
         return string.concat(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%" shape-rendering="crispEdges" data-species="',
             uint256(traits.species).toString(), '">',
-            style, '<g class="camera">', _habitat(traits.habitat, bg), '</g>', _eraMark(traits.era), '<g transform="translate(16 30)"><g class="shadow">', _box(17, 50, 32, 2, "#17212d"), '</g>',
-            sprite, '<g class="body">', _accessory(traits.acc, traits.species), '</g></g>',
+            style, _habitat(traits.habitat, bg), '<g transform="translate(16 30)"><g class="shadow">', _box(17, 50, 32, 2, "#17212d"), '</g>',
+            sprite, '<g class="body">', _accessory(traits.acc, traits.species), _eraMark(traits.era), '</g></g>',
             evolution, '</svg>'
         );
     }

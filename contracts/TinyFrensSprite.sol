@@ -8,7 +8,40 @@ contract TinyFrensSprite {
 
     // Fixed CSS lives beside sprite data to leave room for packed scene artwork.
     function sceneryStyle() external pure returns (string memory) {
-        return '.camera{transform-origin:64px 96px;animation:depth 20s steps(4) infinite alternate}.parallax{animation:parallax 20s steps(4) infinite alternate}.light{animation:lighting 8s steps(4) infinite alternate}.sheen{animation:shade 8s steps(4) infinite alternate}.drift{animation:breeze 12s steps(10) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes depth{from{transform:scale(1)}to{transform:scale(1.025)}}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}';
+        return '.orb,.halo{animation:hover var(--float) steps(4) infinite alternate}@keyframes hover{from{transform:translateY(0)}to{transform:translateY(-2px)}}.parallax{animation:parallax var(--depth) steps(4) infinite alternate}.light{animation:lighting var(--light) steps(4) infinite alternate}.sheen{animation:shade var(--light) steps(4) infinite alternate}.drift{animation:breeze var(--cloud) steps(10) infinite alternate}.twinkle{animation:sparkle var(--stars) steps(8) infinite alternate}.glow{animation:glimmer var(--glow) steps(4) infinite alternate}.sway{animation:sway var(--sway) steps(4) infinite alternate}.leaf{animation:fall var(--leaves) steps(14) infinite}.shadow{animation:shade var(--light) steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{0%,15%{opacity:0}70%,100%{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}';
+    }
+
+    function _motionSeconds(uint8 family, uint8 variant) internal pure returns (uint256) {
+        if (family == 0) return variant == 0 ? 8 : variant == 1 ? 6 : variant == 2 ? 4 : 10;
+        if (family == 1) return variant == 0 ? 3 : variant == 1 ? 2 : variant == 2 ? 4 : 5;
+        if (family == 2) return variant == 0 ? 10 : variant == 1 ? 8 : variant == 2 ? 14 : 6;
+        if (family == 3) return variant == 0 ? 6 : variant == 1 ? 4 : variant == 2 ? 8 : 3;
+        if (family == 4) return variant == 0 ? 8 : variant == 1 ? 6 : variant == 2 ? 12 : 4;
+        if (family == 5) return variant == 0 ? 5 : variant == 1 ? 3 : variant == 2 ? 7 : 4;
+        if (family == 6) return variant == 0 ? 20 : variant == 1 ? 16 : variant == 2 ? 24 : 12;
+        if (family == 7) return variant == 0 ? 4 : variant == 1 ? 3 : variant == 2 ? 6 : 5;
+        revert("Invalid motion");
+    }
+
+    function _motionKey(uint8 family) internal pure returns (string memory) {
+        if (family == 0) return "cloud";
+        if (family == 1) return "stars";
+        if (family == 2) return "leaves";
+        if (family == 3) return "sway";
+        if (family == 4) return "light";
+        if (family == 5) return "glow";
+        if (family == 6) return "depth";
+        if (family == 7) return "float";
+        revert("Invalid motion");
+    }
+
+    function motionStyle(uint16 ambience) external pure returns (string memory result) {
+        result = ":root{";
+        for (uint8 i; i < 8; i++) {
+            result = string.concat(result, i == 0 ? "" : ";", "--", _motionKey(i), ":",
+                _motionSeconds(i, uint8((ambience >> (i * 2)) & 3)).toString(), "s");
+        }
+        return string.concat(result, "}");
     }
 
     function _box(uint256 x, uint256 y, uint256 width, uint256 height, string memory color)

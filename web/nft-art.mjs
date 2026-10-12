@@ -1,4 +1,5 @@
-import { renderScene } from "./robot-scenes.mjs";
+import { motionStyle } from "./robot-motion.mjs";
+import { renderScene, renderTiles } from "./robot-scenes.mjs";
 
 export const NFT_SPECIES = ["Robot"];
 export const NFT_SHAPES = ["robot"];
@@ -88,52 +89,19 @@ function turtle(body, ink, expression) {
     feet(3, ink, "#91d890");
 }
 
+const ACCESSORY_TILES = [[[46,18,3,9,"#302048"],[43,15,9,4,"#f0bd5e"],[46,13,3,2,"#ffe078"]],[[30,24,36,3,"#24344f"],[33,18,30,6,"#6e8da9"],[37,15,21,3,"#a9c7d6"],[34,18,5,4,"#d1e3e8"],[39,19,19,3,"#4bd2dc"],[40,19,8,2,"#c1f6ef"],[46,15,3,3,"#f1d18a"],[58,22,5,2,"#324f6c"]],[[33,24,30,3,"#795038"],[34,18,27,6,"#c18b3c"],[33,15,4,9,"#e6b54f"],[58,15,5,9,"#e6b54f"],[45,13,6,11,"#e6b54f"],[37,21,8,3,"#e6b54f"],[51,21,7,3,"#e6b54f"],[34,24,27,1,"#ffe3a0"],[34,16,2,6,"#ffe3a0"],[45,15,1,4,"#ffe3a0"],[40,22,3,2,"#75d0d7"],[52,22,3,2,"#e38eac"],[46,21,3,3,"#9555a1"]],[[37,15,21,1,"#bd8742"],[33,16,4,2,"#bd8742"],[58,16,5,2,"#bd8742"],[31,18,5,4,"#bd8742"],[60,18,4,4,"#bd8742"],[34,22,27,2,"#bd8742"],[37,24,21,1,"#bd8742"],[37,16,21,2,"#fff1bd"],[33,18,3,3,"#fff1bd"],[60,18,3,3,"#f1c86c"],[36,21,24,3,"#f1c86c"],[39,21,18,1,"#fff4d4"]],[[46,18,3,9,"#302048"],[43,15,9,4,"#f0bd5e"],[46,13,3,2,"#ffe078"],[36,60,24,1,"#e1d7cf"],[36,61,6,6,"#84324f"],[54,61,6,6,"#84324f"],[37,61,5,5,"#ef7996"],[42,63,4,3,"#cf526f"],[49,63,5,3,"#cf526f"],[54,61,4,5,"#ef7996"],[37,61,3,2,"#ffb0b8"],[55,61,3,2,"#ffb0b8"],[46,63,3,3,"#e9c371"]],[[46,18,3,9,"#302048"],[43,15,9,4,"#f0bd5e"],[46,13,3,2,"#ffe078"],[82,33,6,1,"#244762"],[79,34,12,3,"#244762"],[78,37,15,6,"#244762"],[79,43,12,3,"#244762"],[82,46,6,2,"#244762"],[82,34,6,2,"#9aede4"],[81,36,9,7,"#50b5ca"],[82,43,6,2,"#387b9e"],[81,37,3,5,"#9aede4"],[84,36,4,4,"#74d9dc"],[87,40,3,3,"#3785aa"],[82,36,3,1,"#ecfff2"]]];
 function accessory(index) {
-  if (index === 0) return box(31, 12, 2, 6, "#302048") +
-    box(29, 10, 6, 3, "#f0bd5e") +
-    box(31, 9, 2, 1, "#ffe078");
-  if (index === 1) return box(20, 16, 24, 2, "#24344f") +
-    box(22, 12, 20, 4, "#6e8da9") +
-    box(25, 10, 14, 2, "#a9c7d6") +
-    box(23, 12, 3, 3, "#d1e3e8") +
-    box(26, 13, 13, 2, "#4bd2dc") +
-    box(27, 13, 5, 1, "#c1f6ef") +
-    box(31, 10, 2, 2, "#f1d18a") +
-    box(39, 15, 3, 1, "#324f6c");
-  if (index === 2) return box(22, 15, 20, 3, "#b47c32") +
-    box(23, 9, 4, 6, "#f5cb67") +
-    box(30, 7, 4, 8, "#f5cb67") +
-    box(37, 9, 4, 6, "#f5cb67") +
-    box(24, 15, 16, 2, "#ffe6a0") +
-    box(26, 15, 2, 2, "#c58cf0") +
-    box(31, 15, 2, 2, "#ed87a5") +
-    box(36, 15, 2, 2, "#84dbd3");
-  if (index === 3) return box(24, 9, 16, 2, "#b98d47") +
-    box(22, 11, 4, 2, "#fbe9aa") +
-    box(38, 11, 4, 2, "#fbe9aa") +
-    box(25, 13, 14, 2, "#fbe9aa") +
-    box(25, 8, 14, 1, "#fff5d0");
-  if (index === 4) return box(31, 12, 2, 6, "#302048") +
-    box(29, 10, 6, 3, "#f0bd5e") +
-    box(31, 9, 2, 1, "#ffe078") +
-    box(27, 41, 4, 3, "#ec6c7c") +
-    box(33, 41, 4, 3, "#ec6c7c") +
-    box(31, 42, 2, 2, "#f9d77d");
-  if (index === 5) return box(31, 12, 2, 6, "#302048") +
-    box(29, 10, 6, 3, "#f0bd5e") +
-    box(31, 9, 2, 1, "#ffe078") +
-    box(52, 33, 7, 7, "#327e9c") +
-    box(53, 34, 5, 5, "#69dce3") +
-    box(54, 34, 2, 2, "#ffffff") +
-    box(54, 41, 3, 1, "#458793");
-  return "";
+  const tiles = ACCESSORY_TILES[index];
+  if (index === 3) return '<g class="halo">' + renderTiles(tiles) + '</g>';
+  if (index === 5) return renderTiles(tiles.slice(0, 3)) + '<g class="orb">' + renderTiles(tiles.slice(3)) + '</g>';
+  return renderTiles(tiles);
 }
 
 function eraMark(era) {
-  if (era === 0) return box(3, 4, 2, 2, "#dc9979");
-  if (era === 1) return box(3, 4, 2, 2, "#b9c5dc") + box(7, 4, 2, 2, "#b9c5dc");
-  return box(3, 4, 2, 2, "#ffe078") + box(7, 4, 2, 2, "#ffe078") +
-    box(11, 4, 2, 2, "#ffe078");
+  if (era === 0) return box(23, 39, 2, 1, "#dc9979");
+  if (era === 1) return box(23, 39, 2, 1, "#b9c5dc") + box(27, 39, 2, 1, "#b9c5dc");
+  return box(23, 39, 2, 1, "#ffe078") + box(27, 39, 2, 1, "#ffe078") +
+    box(31, 39, 2, 1, "#ffe078");
 }
 
 export function renderNftArt(traits, stage = 0) {
@@ -141,7 +109,7 @@ export function renderNftArt(traits, stage = 0) {
   const sprite = robot(body, ink, traits.expr);
   const duration = ["1.1294s", "0.8471s", "1.8824s", "0.6588s"][traits.motion];
   const phase = ["-0.5647s", "-0.42355s", "-0.9412s", "-0.3294s"][traits.motion];
-  const style = `<style>.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-a ${duration} steps(1) infinite;animation-delay:${phase}}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-a ${duration} steps(1) infinite;animation-delay:${phase}}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}.camera{transform-origin:64px 96px;animation:depth 20s steps(4) infinite alternate}.parallax{animation:parallax 20s steps(4) infinite alternate}.light{animation:lighting 8s steps(4) infinite alternate}.sheen{animation:shade 8s steps(4) infinite alternate}.drift{animation:breeze 12s steps(10) infinite alternate}.twinkle{animation:sparkle 4s steps(3) infinite alternate}.glow{animation:glimmer 5s steps(4) infinite alternate}.sway{animation:sway 7s steps(4) infinite alternate}.leaf{animation:fall 14s steps(14) infinite}.shadow{animation:shade 6s steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes depth{from{transform:scale(1)}to{transform:scale(1.025)}}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{from{opacity:.3}to{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow,.camera,.parallax,.light,.sheen{animation:none}}</style>`;
+  const style = `<style>${motionStyle(traits.ambience)}.body{animation:bob ${duration} steps(1) infinite}.foot-a{animation:step-a ${duration} steps(1) infinite}.foot-b{animation:step-a ${duration} steps(1) infinite;animation-delay:${phase}}.arm-a{animation:arm-a ${duration} steps(1) infinite}.arm-b{animation:arm-a ${duration} steps(1) infinite;animation-delay:${phase}}@keyframes bob{0%,50%,100%{transform:translateY(0)}12.5%,37.5%,62.5%,87.5%{transform:translateY(-1px)}25%,75%{transform:translateY(0)}}@keyframes step-a{0%,100%{transform:translate(-1px,0)}12.5%{transform:translate(0,-1px)}25%{transform:translate(1px,-2px)}37.5%{transform:translate(2px,-1px)}50%{transform:translate(2px,0)}62.5%{transform:translate(1px,0)}75%{transform:translate(0,0)}87.5%{transform:translate(-1px,0)}}@keyframes arm-a{0%,100%{transform:translate(1px,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(-1px,0)}75%{transform:translate(1px,-1px)}}.orb,.halo{animation:hover var(--float) steps(4) infinite alternate}@keyframes hover{from{transform:translateY(0)}to{transform:translateY(-2px)}}.parallax{animation:parallax var(--depth) steps(4) infinite alternate}.light{animation:lighting var(--light) steps(4) infinite alternate}.sheen{animation:shade var(--light) steps(4) infinite alternate}.drift{animation:breeze var(--cloud) steps(10) infinite alternate}.twinkle{animation:sparkle var(--stars) steps(8) infinite alternate}.glow{animation:glimmer var(--glow) steps(4) infinite alternate}.sway{animation:sway var(--sway) steps(4) infinite alternate}.leaf{animation:fall var(--leaves) steps(14) infinite}.shadow{animation:shade var(--light) steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{0%,15%{opacity:0}70%,100%{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}@media(prefers-reduced-motion:reduce){.body,.foot-a,.foot-b,.arm-a,.arm-b,.drift,.twinkle,.glow,.sway,.leaf,.shadow,.parallax,.light,.sheen,.orb,.halo{animation:none}}</style>`;
   const evolution = stage ? box(4, 4, 2, 2, "#ffe078") + box(57, 9, 2, 2, "#ffe078") : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}<g class="camera">${renderScene(traits.habitat, background)}</g>${eraMark(traits.era)}<g transform="translate(16 30)"><g class="shadow">${box(17, 50, 32, 2, "#17212d")}</g>${sprite}<g class="body">${accessory(traits.acc)}</g></g>${evolution}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%" shape-rendering="crispEdges" data-species="${traits.species}">${style}${renderScene(traits.habitat, background)}<g transform="translate(16 30)"><g class="shadow">${box(17, 50, 32, 2, "#17212d")}</g>${sprite}<g class="body">${accessory(traits.acc)}${eraMark(traits.era)}</g></g>${evolution}</svg>`;
 }

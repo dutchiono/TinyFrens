@@ -34,6 +34,11 @@ contract MeasureRobotArt is Script {
                 + oracle.getL1FeeUpperBound(type(TinyFrensNFT).creationCode.length + 200));
         }
         console2.log("Art runtime bytes", address(art).code.length);
+        console2.log("Sprite runtime bytes", address(art.spriteRenderer()).code.length);
+        console2.log("NFT runtime bytes", address(nft).code.length);
+        require(address(art).code.length <= 24000, "Art deployment budget");
+        require(address(art.spriteRenderer()).code.length <= 24000, "Sprite deployment budget");
+        require(address(nft).code.length <= 24000, "NFT deployment budget");
         for (uint256 id = 1; id <= 6; id++) {
             uint256 beforeMint = gasleft();
             nft.mint{value: 0.001 ether}(1);

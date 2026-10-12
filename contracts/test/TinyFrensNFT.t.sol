@@ -56,6 +56,20 @@ contract TinyFrensNFTTest is Test {
         token.mint(bob, 1_000_000_000 * 10**18);
     }
 
+    function testEnvironmentalTraitsMatchStoredArtwork() public {
+        assertLe(address(nft).code.length, 24000, "NFT must fit EIP-170 with deployment headroom");
+        vm.prank(alice);
+        nft.mint{value: 0.001 ether}(1);
+        string memory json = string(Base64.decode(nft.tokenURI(1).slice(29)));
+        assertTrue(json.contains('"trait_type":"Cloud Drift","value":"Easy"'));
+        assertTrue(json.contains('"trait_type":"Star Twinkle","value":"Soft"'));
+        assertFalse(json.contains('"trait_type":"Falling Leaves"'));
+        string memory svg = nft.art(1);
+        assertTrue(svg.contains('--cloud:8s;--stars:4s;'));
+        assertTrue(svg.contains('animation:bob 1.1294s'));
+        assertFalse(svg.contains('scale('));
+    }
+
     function testDeploymentRequiresNet() public {
         address renderer = address(nft.artRenderer());
         vm.etch(NET_ADDRESS, "");

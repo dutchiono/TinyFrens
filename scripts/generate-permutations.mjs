@@ -1,3 +1,4 @@
+import { robotAmbience, motionAttributes } from "../web/robot-motion.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,7 @@ export function generateTraits(tokenId) {
     era: Math.floor((tokenId - 1) / 888),
     habitat: Math.floor(combination / 24) % HABITATS.length,
     motion: Math.floor(combination / 144) % MOTIONS.length,
+    ambience: robotAmbience(tokenId),
   };
 }
 
@@ -54,6 +56,7 @@ function exportSamples() {
         { trait_type: "Era", value: ERAS[traits.era] },
         { trait_type: "Habitat", value: HABITATS[traits.habitat] },
         { trait_type: "Motion", value: MOTIONS[traits.motion] },
+        ...motionAttributes(traits).map(([trait_type, value]) => ({ trait_type, value })),
       ],
     };
     const basename = `fren-${tokenId}-${species.id}`;

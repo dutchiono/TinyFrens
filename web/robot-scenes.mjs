@@ -11,10 +11,6 @@ export const ROBOT_SCENES = [
       [48, 120, 2, 8, "#444a65"],
       [98, 16, 18, 18, "#f3e9b6"],
       [94, 12, 16, 16, null],
-      [12, 28, 4, 4, "#c4b7e9"],
-      [28, 14, 2, 2, "#c4b7e9"],
-      [78, 10, 4, 4, "#c4b7e9"],
-      [118, 56, 2, 2, "#c4b7e9"],
       [6, 72, 16, 26, "#22283d"],
       [106, 78, 22, 20, "#22283d"],
       [10, 78, 4, 6, "#8b7cb4"],
@@ -29,18 +25,20 @@ export const ROBOT_SCENES = [
       [104, 94, 24, 4, "#536079"],
       [0, 110, 32, 2, "#394159"],
       [98, 110, 30, 2, "#394159"],
-      [14, 122, 12, 2, "#59607a"],
-      [102, 120, 10, 2, "#59607a"],
     ] },
     { motion: "twinkle", tiles: [
-      [22, 36, 2, 6, "#e9daff"],
-      [20, 38, 6, 2, "#e9daff"],
-      [88, 34, 2, 2, "#bda4de"],
+      [22, 35, 1, 5, "#bba2d8"],
+      [20, 37, 5, 1, "#bba2d8"],
+      [22, 37, 1, 1, "#ffffff"],
+      [78, 9, 1, 3, "#e9daff"],
+      [77, 10, 3, 1, "#e9daff"],
     ] },
     { motion: "twinkle late", tiles: [
-      [114, 12, 2, 6, "#e9daff"],
-      [112, 14, 6, 2, "#e9daff"],
-      [40, 10, 2, 2, "#bda4de"],
+      [114, 12, 1, 5, "#bba2d8"],
+      [112, 14, 5, 1, "#bba2d8"],
+      [114, 14, 1, 1, "#ffffff"],
+      [40, 9, 1, 3, "#e9daff"],
+      [39, 10, 3, 1, "#e9daff"],
     ] },
   ],
   [
@@ -61,8 +59,6 @@ export const ROBOT_SCENES = [
       [62, 108, 18, 6, "#b9b2cf"],
       [90, 108, 18, 6, "#b9b2cf"],
       [118, 108, 10, 6, "#b9b2cf"],
-      [8, 120, 22, 2, "#5fa6b1"],
-      [98, 122, 18, 2, "#c180ae"],
       [6, 16, 28, 6, "#e783b5"],
       [24, 46, 8, 50, "#1c263c"],
       [94, 60, 8, 36, "#1c263c"],
@@ -105,9 +101,6 @@ export const ROBOT_SCENES = [
       [106, 60, 8, 6, "#81bf7c"],
       [114, 56, 8, 6, "#81bf7c"],
       [116, 52, 4, 4, "#f2a4bb"],
-      [14, 104, 6, 4, "#b0c67c"],
-      [104, 108, 6, 4, "#b0c67c"],
-      [26, 122, 14, 2, "#6b7753"],
       [2, 52, 22, 2, "#492f3c"],
       [4, 78, 16, 2, "#d19a79"],
       [6, 82, 12, 4, "#3d3338"],
@@ -447,6 +440,12 @@ for (let i = 0; i < ROBOT_SCENES.length; i++) {
 // Consecutive tiles with the same fill share a path, reducing stored SVG bytes.
 export function renderScene(index, background) {
   return ROBOT_SCENES[index].map(({ motion, tiles }) => {
+    const output = renderTiles(tiles, background);
+    return motion ? `<g class="${motion}">${output}</g>` : output;
+  }).join("");
+}
+
+export function renderTiles(tiles, background = "") {
     let output = "", fill = "", path = "";
     const flush = () => { if (path) output += `<path fill="${fill}" d="${path}"/>`; };
     for (const [x, y, w, h, color] of tiles) {
@@ -455,6 +454,5 @@ export function renderScene(index, background) {
       path += `M${x} ${y}h${w}v${h}h-${w}z`;
     }
     flush();
-    return motion ? `<g class="${motion}">${output}</g>` : output;
-  }).join("");
+    return output;
 }
