@@ -1022,7 +1022,40 @@ def create_app(database=None, origins=None):
     if indexer is not None:
         app.on_startup.append(_start_indexer)
         app.on_cleanup.append(_stop_indexer)
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket)
+
+    # NFT gallery support: read tokenURI straight from the on-chain collection so the
+    # web/gallery.html page (and anyone) can render the real art. Read-only eth_call.
+    TOKEN_URI_SELECTOR = '0xc87b56dd'  # tokenURI(uint256)
+
+    async def nft_uri(request):
+        nft = os.environ.get('TINYFRENS_NFT_ADDRESS')
+        rpc = os.environ.get('BASE_RPC_URL')
+        if not nft or not rpc or not re.fullmatch(r'0x[a-fA-F0-9]{40}', nft or ''):
+            return web.json_response({'error': 'NFT contract / RPC not configured'}, status=503)
+        try:
+            tid = int(request.query.get('tokenId', '0'))
+            if tid < 1 or tid > 1_000_000:
+                return web.json_response({'error': 'tokenId out of range'}, status=400)
+            data = TOKEN_URI_SELECTOR + tid.to_bytes(32, 'big').hex()
+            payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
+                       'params': [{'to': nft, 'data': data}, 'latest']}
+            async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+                async with session.post(rpc, json=payload) as response:
+                    body = await response.json(content_type=None)
+            if 'error' in body or not body.get('result') or body['result'] == '0x':
+                return web.json_response({'tokenId': tid, 'minted': False, 'uri': None})
+            raw = bytes.fromhex(body['result'][2:])
+            offset = int.from_bytes(raw[:32], 'big')
+            length = int.from_bytes(raw[offset:offset + 32], 'big')
+            uri = raw[offset + 32:offset + 32 + length].decode('utf-8')
+            return web.json_response({'tokenId': tid, 'minted': True, 'uri': uri,
+                                      'collection': {'name': 'TinyFrens', 'address': nft}})
+        except (ValueError, KeyError) as e:
+            return web.json_response({'error': str(e) or 'Bad request'}, status=400)
+        except (asyncio.TimeoutError, OSError, Exception):
+            return web.json_response({'error': 'RPC unavailable'}, status=503)
+
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     return app
 
