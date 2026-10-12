@@ -85,19 +85,21 @@ GAME_CONTROLLER=0x...
 
 ### Deposit sessions
 
-To accept deposits the server needs the on-chain controller (game server signer) to call `DepositRouter.createSession(sessionId, token)` once per user payment, producing a cloned `DepositSession` address that forwards ETH to the treasury / holds ERC-20 until `sweep()`. Pipelines proven anvil-green:
-
-1. Open a session with `token = address(0)` for an ETH deposit: any `value` sent to the clone auto-forwards to treasury and emits `Deposit(sessionId, sender, address(0), amount)`.
-2. Open with the FRENS token for an ERC-20 deposit: user transfers FRENS to the clone, then anyone calls `sweep()` (`controller` or the server) to forward it to treasury and emit `Deposit`.
-
-Stateless test flow (no indexer needed, one address, marked free when its session closes):
+The server auto-provisions sessions when configured with the router + controller key:
 
 ```env
-DEPOSIT_SESSION_ADDRESSES=0xCloneAddrReturnedByCreateSession
-ECONOMY_INDEXER_SECRET=change-me   # sent as X-Indexer-Secret to /api/deposits/confirm
+DEPOSIT_ROUTER_PROXY=0x...           # from DeployEconomy.s.sol
+GAME_CONTROLLER_PRIVATE_KEY=0x...    # same wallet as the deployer (owner+controller on testnet)
+BASE_RPC_URL=https://sepolia.base.org
+ECONOMY_INDEXER_SECRET=change-me     # sent as X-Indexer-Secret to /api/deposits/confirm
 ```
 
-`POST /api/deposits/open` with `{ token, package }` (`10|50|100` FRENS) returns `{ depositId, address, amountWei, credits, expiresAt }`; the shot-gun confirm callback `POST /api/deposits/confirm` credits the pet idempotently (`server/economy.py`, `server/test_economy.py`).
+With these set, `POST /api/deposits/open` signs a `DepositRouter.createSession` call and returns
+a fresh clone address. The clone forwards ETH to the Treasury on `receive` (ETH session, `token = address(0)`)
+or holds FRENS until anyone calls `sweep()` (ERC-20 session). `server/test_deposit_allocator.py` proves the
+full ERC-20 and ETH paths end-to-end against anvil.
+
+Fallback (no live router): pre-provision clones manually and list them in `DEPOSIT_SESSION_ADDRESSES`.
 
 ### Upgrading
 

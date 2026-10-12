@@ -77,6 +77,7 @@
   on:handler=>{listeners.add(handler);return()=>listeners.delete(handler);},
   pet,
   identity:()=>identity,
+  setIdentity:newId=>{identity=newId;if(endpoint)localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));connect();},
   connected:()=>ws?.readyState===WebSocket.OPEN,
   connect:()=>{if(enabled&&!ws)connect();}
  };

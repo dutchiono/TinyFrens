@@ -28,6 +28,11 @@ jobs:
     defaults:
       run:
         working-directory: desktop
+    env:
+      # Optional Azure Trusted Signing — see docs/WINDOWS-SIGNING.md. Empty secrets keep builds unsigned.
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,6 +47,18 @@ jobs:
       - name: Native renderer and overlay smoke test
         run: npx electron . --tinyfrens-smoke
         timeout-minutes: 3
+      - name: Enable Azure Trusted Signing
+        if: matrix.name == 'windows' && env.AZURE_CLIENT_ID != ''
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.build.win | Add-Member -NotePropertyName azureSignOptions -NotePropertyValue @{
+            endpoint = '${{ secrets.AZURE_SIGNING_ENDPOINT }}'
+            certificateProfileName = '${{ secrets.AZURE_CERT_PROFILE_NAME }}'
+            codeSigningAccountName = '${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}'
+            publisherName = '${{ secrets.AZURE_PUBLISHER_NAME }}'
+          } -Force
+          $pkg | ConvertTo-Json -Depth 16 | Set-Content package.json
       - name: Build desktop download
         run: npm run dist -- ${{ matrix.target }}
         env:
@@ -51,7 +68,11 @@ jobs:
           name: desktop-${{ matrix.name }}
           path: |
             desktop/release/TinyFrens-Windows.exe
+            desktop/release/TinyFrens-Windows.exe.blockmap
             desktop/release/TinyFrens-Mac-*.zip
+            desktop/release/TinyFrens-Mac-*.zip.blockmap
+            desktop/release/latest.yml
+            desktop/release/latest-mac.yml
           if-no-files-found: error
   publish:
     needs: build
@@ -69,11 +90,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DESKTOP_VERSION: 0.1.${{ github.run_number }}
+          SIGNED: ${{ secrets.AZURE_CLIENT_ID != '' }}
         run: |
           python3 - <<'PY'
           import os
           from pathlib import Path
-          Path('desktop-release.md').write_text('Desktop version: ' + os.environ['DESKTOP_VERSION'] + '\n\nTransparent floating pet for Windows x64 and Mac (Apple Silicon or Intel). Download the matching file. These builds are unsigned/not notarized. Windows may show SmartScreen; macOS may block opening until allowed in Privacy & Security. See desktop/README.md for setup. Updating keeps the local pet save.\n')
+          trust = ('Windows builds are signed with Azure Trusted Signing, so Windows does not show a SmartScreen warning.'
+                   if os.environ.get('SIGNED') == 'true' else
+                   'These builds are unsigned. Windows may show a SmartScreen warning until the app builds reputation; see docs/WINDOWS-SIGNING.md to turn on trusted signing.')
+          Path('desktop-release.md').write_text('Desktop version: ' + os.environ['DESKTOP_VERSION'] + '\n\nTransparent floating pet for Windows x64 and Mac (Apple Silicon or Intel). Windows is a one-click installer that downloads updates in the background and installs them when you restart or close the app. ' + trust + ' macOS builds update manually and are unsigned/not notarized; macOS may block opening until allowed in Privacy & Security. See desktop/README.md for setup. Updating keeps the local pet save.\n')
           PY
           gh release view desktop-latest >/dev/null 2>&1 || gh release create desktop-latest --target "$GITHUB_SHA" --title 'TinyFrens desktop floating pet' --draft --latest=false
           gh release upload desktop-latest downloads/* --clobber

@@ -78,8 +78,11 @@ abstract contract NetIntegratedERC721A is ERC721A {
         maxMintsPerWallet = maxMintsPerWallet_;
         creatorReserve = creatorReserve_;
 
-        // Chain-wide registry: best-effort, never block deploy.
-        try NET.sendMessage(name_, TOPIC_COLLECTION, abi.encodePacked(tx.origin)) {} catch {}
+        // Chain-wide registry: best-effort, never block deploy. Skip when Net is
+        // not deployed on this chain (e.g. testnets) so the call can't revert.
+        if (address(NET).code.length > 0) {
+            try NET.sendMessage(name_, TOPIC_COLLECTION, abi.encodePacked(tx.origin)) {} catch {}
+        }
     }
 
     /// @dev Token IDs start at 1.
@@ -164,7 +167,9 @@ abstract contract NetIntegratedERC721A is ERC721A {
             text = _transferText(from, to, startTokenId, endTokenId);
         }
 
-        try NET.sendMessageViaApp(msgSender, text, topic, "") {} catch {}
+        if (address(NET).code.length > 0) {
+            try NET.sendMessageViaApp(msgSender, text, topic, "") {} catch {}
+        }
     }
 
     function _mintText(address to, uint256 startId, uint256 endId)

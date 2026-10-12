@@ -1,9 +1,15 @@
 'use strict';
 (() => {
   const form = $('walletForm'), question = $('walletQuestion'), ask = $('walletAsk'), status = $('walletStatus'), reply = $('walletReply');
-  const info = $('walletInfo'), load = $('walletLoad'), refresh = $('walletRefreshNfts'), nftList = $('walletNfts');
+  const refresh = $('walletRefreshNfts'), nftList = $('walletNfts');
+  const vaultAddressInput = $('vaultAddressInput'), copyVaultAddress = $('copyVaultAddress'), vaultStatusChip = $('vaultStatusChip');
+  const mintNftButton = $('mintNftButton'), mintSubtext = $('mintSubtext');
+  const magicLinkButton = $('magicLinkButton'), magicLinkBox = $('magicLinkBox'), magicLinkInput = $('magicLinkInput'), copyMagicLink = $('copyMagicLink');
+
   const server = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   let wallet = null;
+  let livePriceQuote = null;
+
   function petProfile() {
     const s = read();
     return {
@@ -15,24 +21,28 @@
       tokenId: s.tokenId || null
     };
   }
+
   function identity() {
     const id = window.TinyFrensFriends?.identity?.();
     if (id?.token) return id;
     window.TinyFrensFriends?.connect?.();
     return null;
   }
+
   function walletAddress() {
     return wallet?.evmAddress || wallet?.solAddress || '';
   }
+
   function showWallet(data) {
     wallet = data;
-    const lines = [];
-    if (data.evmAddress) lines.push('EVM: ' + data.evmAddress);
-    if (data.solAddress) lines.push('Solana: ' + data.solAddress);
-    if (!lines.length) lines.push('No wallet address came back yet.');
-    if (data.message) lines.push(data.message);
-    info.textContent = lines.join('\n');
+    if (vaultAddressInput && data.evmAddress) {
+      vaultAddressInput.value = data.evmAddress;
+    }
+    if (vaultStatusChip) {
+      vaultStatusChip.textContent = data.partner ? 'Bankr Partner' : 'Base Vault';
+    }
   }
+
   async function post(path, body) {
     const base = server(), id = identity();
     if (!base) throw new Error('Connect the TinyFrens server first.');
@@ -43,22 +53,45 @@
       body: JSON.stringify({token: id.token, ...body})
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Bankr is unavailable.');
+    if (!response.ok) throw new Error(data.error || 'Server error.');
     return data;
   }
+
+  async function fetchPriceQuote() {
+    try {
+      const base = server();
+      if (!base) return;
+      const res = await fetch(base + '/api/nft/price');
+      if (!res.ok) return;
+      livePriceQuote = await res.json();
+      if (mintNftButton && livePriceQuote.frensRequired) {
+        const frensFmt = Number(livePriceQuote.frensRequired).toLocaleString(undefined, {maximumFractionDigits: 2});
+        mintNftButton.textContent = `✨ Mint TinyFren · $1.00 (~${frensFmt} FRENS)`;
+      }
+      if (mintSubtext && livePriceQuote.priceUsd) {
+        const p = livePriceQuote.priceUsd;
+        const pFmt = p < 0.0001 ? p.toFixed(8) : p.toFixed(4);
+        mintSubtext.textContent = `1 FRENS ≈ $${pFmt} USD on Base DEX. Fixed $1.00 USD mint.`;
+      }
+    } catch (_) {}
+  }
+
   async function loadWallet() {
-    status.textContent = 'Loading fren wallet...';
+    if (status) status.textContent = 'Loading fren pocket vault...';
     try {
       showWallet(await post('/api/bankr/wallet', {pet: petProfile()}));
-      status.textContent = wallet.partner ? 'This fren has its own Bankr wallet.' : 'Using the shared agent wallet for now.';
+      if (status) status.textContent = 'Fren Pocket Vault connected on Base.';
     } catch (error) {
-      status.textContent = error.message || 'Could not load the fren wallet.';
+      if (status) status.textContent = error.message || 'Could not load fren vault.';
     }
+    fetchPriceQuote();
   }
+
   function nftTitle(nft) {
     const collection = nft.collection?.name || nft.collectionName || 'NFT';
     return (nft.name || collection + ' #' + (nft.tokenId || '?')).slice(0, 80);
   }
+
   function savePetLook(pet) {
     let state;
     if (desktop) state = JSON.parse(desktop.customize(JSON.stringify(pet)));
@@ -69,12 +102,14 @@
     window.dispatchEvent(new Event('pet-profile-changed'));
     window.animatePet?.('dance');
   }
+
   function drawNfts(nfts) {
+    if (!nftList) return;
     nftList.replaceChildren();
     if (!nfts.length) {
       const p = document.createElement('p');
       p.className = 'small';
-      p.textContent = 'No NFTs found yet. Send one to the fren wallet address, then refresh.';
+      p.textContent = 'No NFTs found yet. Send one to your Fren Vault address or mint above!';
       nftList.append(p);
       return;
     }
@@ -87,53 +122,126 @@
       meta.textContent = [nft.chain, nft.collection?.name, nft.tokenId ? '#' + nft.tokenId : ''].filter(Boolean).join(' · ');
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = 'Become this';
+      button.textContent = 'Wear this look';
       button.onclick = async () => {
-        status.textContent = 'Letting your fren inspect that NFT...';
+        if (status) status.textContent = 'Equipping NFT look on your fren...';
         try {
           const data = await post('/api/bankr/transform', {nft});
           savePetLook(data.pet);
-          status.textContent = 'Your fren adopted ' + nftTitle(nft) + '.';
+          if (status) status.textContent = 'Your fren equipped ' + nftTitle(nft) + '!';
         } catch (error) {
-          status.textContent = error.message || 'Could not transform your fren.';
+          if (status) status.textContent = error.message || 'Could not transform your fren.';
         }
       };
       card.append(title, meta, button);
       nftList.append(card);
     }
   }
+
   async function loadNfts() {
-    status.textContent = 'Checking the fren wallet for NFTs...';
+    if (status) status.textContent = 'Checking fren vault for NFTs...';
     try {
       if (!wallet) await loadWallet();
       const data = await post('/api/bankr/nfts', {});
       drawNfts(data.nfts || []);
-      status.textContent = (data.nfts || []).length ? 'Pick an NFT for your fren to adopt.' : 'No NFTs found in the fren wallet yet.';
+      if (status) status.textContent = (data.nfts || []).length ? 'Pick an NFT for your fren to wear.' : 'No NFTs found in vault yet.';
     } catch (error) {
-      status.textContent = error.message || 'Could not refresh NFTs.';
+      if (status) status.textContent = error.message || 'Could not refresh NFTs.';
     }
   }
-  form.onsubmit = async event => {
-    event.preventDefault();
-    reply.textContent = '';
-    const prompt = question.value.trim();
-    if (!wallet) await loadWallet();
-    const address = walletAddress();
-    if (!address) { status.textContent = 'Load the fren wallet first.'; return; }
-    ask.disabled = true;
-    status.textContent = 'Asking Bankr...';
-    try {
-      const data = await post('/api/bankr/monitor', {wallet: address, question: prompt || 'How is this fren wallet looking today?', pet: petProfile()});
-      reply.textContent = data.reply || 'Bankr is still thinking. Try again in a moment.';
-      status.textContent = data.pending ? 'Bankr is still thinking.' : '';
-      window.animatePet?.('wave');
-    } catch (error) {
-      status.textContent = error.message || 'Bankr is unavailable.';
-    } finally {
-      ask.disabled = false;
-    }
-  };
-  load.onclick = loadWallet;
-  refresh.onclick = loadNfts;
+
+  if (copyVaultAddress && vaultAddressInput) {
+    copyVaultAddress.onclick = async () => {
+      const addr = vaultAddressInput.value;
+      if (!addr || addr.startsWith('Loading')) return;
+      try {
+        await navigator.clipboard.writeText(addr);
+        copyVaultAddress.textContent = '✅ Copied!';
+        setTimeout(() => { copyVaultAddress.textContent = '📋 Copy'; }, 2000);
+      } catch (_) {
+        vaultAddressInput.select();
+      }
+    };
+  }
+
+  if (mintNftButton) {
+    mintNftButton.onclick = async () => {
+      mintNftButton.disabled = true;
+      if (status) status.textContent = 'Minting your TinyFren NFT ($1.00 USD in FRENS)...';
+      try {
+        const data = await post('/api/wallet/mint', {});
+        if (data.success && data.nft) {
+          savePetLook(data.pet);
+          if (status) status.textContent = `🎉 Minted TinyFren #${data.nft.tokenId}! Your fren is wearing their 1:1 on-chain look.`;
+          await loadNfts();
+          window.animatePet?.('dance');
+        }
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Minting error. Check FRENS balance.';
+      } finally {
+        mintNftButton.disabled = false;
+      }
+    };
+  }
+
+  if (magicLinkButton) {
+    magicLinkButton.onclick = async () => {
+      magicLinkButton.disabled = true;
+      if (status) status.textContent = 'Generating magic restore link...';
+      try {
+        const data = await post('/api/wallet/magic-link', {});
+        if (data.restoreUrl) {
+          if (magicLinkBox) magicLinkBox.hidden = false;
+          if (magicLinkInput) magicLinkInput.value = data.restoreUrl;
+          if (status) status.textContent = 'Magic Link generated! Copy and save it safely.';
+        }
+      } catch (err) {
+        if (status) status.textContent = err.message || 'Could not create magic link.';
+      } finally {
+        magicLinkButton.disabled = false;
+      }
+    };
+  }
+
+  if (copyMagicLink && magicLinkInput) {
+    copyMagicLink.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(magicLinkInput.value);
+        copyMagicLink.textContent = 'Copied!';
+        setTimeout(() => { copyMagicLink.textContent = 'Copy'; }, 2000);
+      } catch (_) {
+        magicLinkInput.select();
+      }
+    };
+  }
+
+  if (form) {
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (reply) reply.textContent = '';
+      const prompt = question?.value?.trim();
+      if (!wallet) await loadWallet();
+      const address = walletAddress();
+      if (!address) { if (status) status.textContent = 'Load the fren vault first.'; return; }
+      if (ask) ask.disabled = true;
+      if (status) status.textContent = 'Asking Bankr...';
+      try {
+        const data = await post('/api/bankr/monitor', {wallet: address, question: prompt || 'How is this fren vault looking today?', pet: petProfile()});
+        if (reply) {
+          reply.hidden = false;
+          reply.textContent = data.reply || 'Bankr is still thinking. Try again in a moment.';
+        }
+        if (status) status.textContent = data.pending ? 'Bankr is still thinking.' : '';
+        window.animatePet?.('wave');
+      } catch (error) {
+        if (status) status.textContent = error.message || 'Bankr is unavailable.';
+      } finally {
+        if (ask) ask.disabled = false;
+      }
+    };
+  }
+
+  if (refresh) refresh.onclick = loadNfts;
+
   loadWallet();
 })();

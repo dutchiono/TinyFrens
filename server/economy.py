@@ -10,12 +10,16 @@ Design notes (see ONCHAIN-ECONOMY.md):
   * credits are only granted from a confirmed deposit (or admin grant) and the
     ledger is append-only.
 """
+import inspect
 import json
+import logging
 import secrets
 import sqlite3
 import time
 
 from aiohttp import web
+
+log = logging.getLogger("economy")
 
 CREDITS_PER_FRENS = 100
 FRENS_DECIMALS = 18
@@ -96,7 +100,7 @@ class AddressPool:
         self.db = db
         self.addresses = [a for a in addresses if a]
 
-    def __call__(self, pet_id=None):
+    def __call__(self, pet_id=None, token=None):
         busy = {
             r[0].lower()
             for r in self.db.execute("SELECT address FROM deposit_sessions WHERE status='open'")
@@ -131,7 +135,7 @@ class Economy:
         ]
 
     # -- sessions ---------------------------------------------------------
-    def open_session(self, pet_id, address, frens, token=None, chain_id=None, ttl=SESSION_TTL_SECONDS):
+    def open_session(self, pet_id, address, frens, token=None, chain_id=None, ttl=SESSION_TTL_SECONDS, session_id=None):
         if frens <= 0:
             raise ValueError("frens must be > 0")
         ts = self.now()
@@ -139,7 +143,7 @@ class Economy:
             "UPDATE deposit_sessions SET status='expired' WHERE pet_id=? AND status='open'",
             (pet_id,),
         )
-        session_id = secrets.token_hex(16)
+        session_id = session_id or secrets.token_hex(16)
         self.db.execute(
             "INSERT INTO deposit_sessions"
             "(id,pet_id,address,token,expected_amount,credits,status,chain_id,tx_hash,created,expires_at) "
@@ -326,7 +330,8 @@ def attach(app, db, *, token_pet, limit, settings, allocator=None, indexer_secre
     token_pet(token) -> pet_id  (raises ValueError on bad token)
     limit(key, max, seconds)    (raises ValueError when rate limited)
     settings()                  -> economy_settings() dict from app.py
-    allocator(pet_id) -> address | (address, token)  on-chain session allocator
+    allocator(pet_id, token) -> address | (address, token) | (address, token, session_id)
+                                sync or async; raises on failure -> 503
     """
     economy = Economy(db)
 
@@ -339,6 +344,28 @@ def attach(app, db, *, token_pet, limit, settings, allocator=None, indexer_secre
     def _pet(body):
         return token_pet(body.get("token"))
 
+    async def _allocate(pid, token):
+        """Call the allocator (sync or async) and normalize its return value.
+
+        Returns (address, token, session_id) where session_id may be None.
+        """
+        if allocator is None:
+            raise NotEnabled("Deposit allocator not configured")
+        result = allocator(pid, token)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is None:
+            raise NotEnabled("Deposit allocator not configured")
+        if isinstance(result, (tuple, list)):
+            if len(result) == 3:
+                address, token, session_id = result
+            else:
+                address, token = result
+                session_id = None
+        else:
+            address, token, session_id = result, None, None
+        return address, token, session_id
+
     async def deposits_open(request):
         try:
             _require_enabled()
@@ -348,12 +375,11 @@ def attach(app, db, *, token_pet, limit, settings, allocator=None, indexer_secre
             frens = int(body.get("package") or PACKAGES[0])
             if frens not in PACKAGES:
                 return web.json_response({"error": "Unknown package"}, status=400)
-            if allocator is None:
-                return web.json_response({"error": "Deposit allocator not configured"}, status=503)
-            allocated = allocator(pid)
-            address, token = allocated if isinstance(allocated, (tuple, list)) else (allocated, None)
             s = _require_enabled()
-            session = economy.open_session(pid, address, frens, token=token, chain_id=s.get("chainId"))
+            address, alloc_token, session_id = await _allocate(pid, s.get("frensToken"))
+            session = economy.open_session(
+                pid, address, frens, token=alloc_token, chain_id=s.get("chainId"), session_id=session_id
+            )
             return web.json_response(
                 {
                     "depositId": session["id"],
@@ -369,6 +395,9 @@ def attach(app, db, *, token_pet, limit, settings, allocator=None, indexer_secre
             return web.json_response({"error": str(exc)}, status=503)
         except (ValueError, KeyError, json.JSONDecodeError) as exc:
             return web.json_response({"error": str(exc) or "Bad request"}, status=400)
+        except Exception as exc:
+            log.exception("deposit open failed")
+            return web.json_response({"error": "Deposit allocator unavailable"}, status=503)
 
     async def deposits_status(request):
         try:

@@ -192,6 +192,15 @@ Nothing here is committed to a live bot — these are the real-world steps.
     left (dev-portal config). Cross-links the technical plan.
   - `docs/README.md` — index updated with a *Play with others* + *Discord* grouping.
   - `docs/telegram.md` — cross-link to the party-rooms deep-dive.
+- **Pass 5 (socials, footer, URLs, chat UX):**
+  - Added **Farcaster** (`https://farcaster.xyz/tinyfrens`) to socials everywhere: web-app
+    footer, marketing-site footer, root footer, README, docs.
+  - Built a real **socials footer** in the web app (was a hidden empty `<footer>`).
+  - Added **`docs/links.md`** — one canonical reference for every public URL + Mini App
+    target (Farcaster→root, Telegram→`/web/`, Snap→`/snap`, relay). Linked from the index.
+  - **Chat is no longer a tab.** Removed the Chat tab; `screen-chat` became a bottom-sheet
+    **modal** opened by tapping the character (`#pet`) or the "Tap your fren to chat" hint.
+    All existing chat logic/IDs preserved. Updated `docs/telegram.md` to match.
 
 
 

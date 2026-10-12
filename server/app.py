@@ -14,6 +14,90 @@ SHAPES = {'cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 BANKR_URL = 'https://api.bankr.bot'
 NEYNAR_URL = 'https://api.neynar.com'
+try:
+    from eth_account import Account
+except ImportError:
+    Account = None
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:  # pragma: no cover - pushes are optional
+    webpush = None
+    WebPushException = Exception
+
+def push_configured():
+    """Web push is available when pywebpush is installed and VAPID keys are set."""
+    return webpush is not None and bool(os.environ.get('VAPID_PRIVATE_KEY')) and bool(os.environ.get('VAPID_SUBJECT'))
+
+def deliver_push(db_path, rows, payload):
+    """Best-effort send on a worker thread; stale subscriptions are pruned."""
+    key, subject = os.environ.get('VAPID_PRIVATE_KEY'), os.environ.get('VAPID_SUBJECT')
+    for endpoint, p256dh, auth in rows:
+        try:
+            webpush(subscription_info={'endpoint': endpoint, 'keys': {'p256dh': p256dh, 'auth': auth}},
+                    data=json.dumps(payload), vapid_private_key=key, vapid_claims={'sub': subject})
+        except WebPushException as exc:
+            response = getattr(exc, 'response', None)
+            if response is not None and response.status_code in (404, 410):
+                try:
+                    stale = sqlite3.connect(db_path)
+                    stale.execute('DELETE FROM push_subs WHERE endpoint=?', (endpoint,))
+                    stale.commit(); stale.close()
+                except sqlite3.Error:
+                    pass
+        except Exception:
+            pass
+
+FREN_VAULT_SEED = os.environ.get('FREN_VAULT_SEED', 'tinyfrens-master-vault-seed-v1')
+
+def fren_vault_address_and_key(pid):
+    digest = hashlib.sha256(f"{FREN_VAULT_SEED}:{pid}".encode()).digest()
+    if Account:
+        acct = Account.from_key(digest)
+        return acct.address, acct.key.hex()
+    addr = '0x' + hashlib.sha256(digest).hexdigest()[:40]
+    return addr, '0x' + digest.hex()
+
+FRENS_TOKEN_ADDRESS = "0x1A96226727a1D0a46334b3A4b3878B32B7659ba3"
+_frens_price_cache = {"ts": 0, "price_usd": 0.0000001050}
+
+async def fetch_frens_price_usd():
+    now_ts = time.time()
+    if now_ts - _frens_price_cache["ts"] < 30 and _frens_price_cache["price_usd"] > 0:
+        return _frens_price_cache["price_usd"]
+    try:
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{FRENS_TOKEN_ADDRESS}"
+        async with ClientSession(timeout=ClientTimeout(total=4)) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    pairs = data.get("pairs") or []
+                    for pair in pairs:
+                        p_usd = float(pair.get("priceUsd") or 0)
+                        if p_usd > 0:
+                            _frens_price_cache["ts"] = now_ts
+                            _frens_price_cache["price_usd"] = p_usd
+                            return p_usd
+    except Exception:
+        pass
+    return _frens_price_cache["price_usd"] or 0.0000001050
+
+async def calculate_frens_mint_quote(target_usd=1.00):
+    price_usd = await fetch_frens_price_usd()
+    frens_amount = target_usd / price_usd if price_usd > 0 else 100.0
+    frens_wei = int(frens_amount * 10**18)
+    credits_needed = int(frens_amount * 100)
+    return {
+        "targetUsd": float(target_usd),
+        "priceUsd": price_usd,
+        "frensPriceUsd": price_usd,
+        "frensRequired": round(frens_amount, 2),
+        "frensRequiredWei": str(frens_wei),
+        "creditsRequired": credits_needed,
+        "tokenAddress": FRENS_TOKEN_ADDRESS,
+        "symbol": "FRENS",
+        "timestamp": int(time.time()),
+        "expiresAt": int(time.time()) + 60
+    }
 ECONOMY_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'contracts', 'config', 'economy.json')
 ADDR_RE = re.compile(r'^0x[a-fA-F0-9]{40}$')
 
@@ -73,13 +157,17 @@ def profile(raw):
     return res
 
 def create_app(database=None, origins=None):
-    db = sqlite3.connect(database or os.environ.get('DB_PATH', 'tinyfrens.db'))
+    db_path = database or os.environ.get('DB_PATH', 'tinyfrens.db')
+    db = sqlite3.connect(db_path)
     db.executescript('''CREATE TABLE IF NOT EXISTS pets(id TEXT PRIMARY KEY, code TEXT UNIQUE, token TEXT UNIQUE, profile TEXT);
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));
     CREATE TABLE IF NOT EXISTS pet_wallets(pet_id TEXT PRIMARY KEY, provider TEXT, wallet_id TEXT, evm_address TEXT, sol_address TEXT, api_key TEXT, nft TEXT, created INTEGER);
+    CREATE TABLE IF NOT EXISTS magic_links(code TEXT PRIMARY KEY, pet_id TEXT, created INTEGER, expires INTEGER);
+    CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER);
     CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
-    CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);''')
+    CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
+    CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, pid TEXT NOT NULL, created INTEGER);''')
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rooms, room_by_pet, rates = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque)
@@ -105,6 +193,16 @@ def create_app(database=None, origins=None):
         friends=[pet(r[0]) for r in db.execute('SELECT b FROM friends WHERE a=?',(pid,))]
         requests=[pet(r[0]) for r in db.execute('SELECT sender FROM requests WHERE receiver=?',(pid,))]
         await send(pid,dict(type='state',self=pet(pid),friends=friends,requests=requests))
+    async def push_offline(pid, title, body):
+        # Best-effort web push for a pet with no live socket (fire-and-forget).
+        if not push_configured(): return
+        ws=sockets.get(pid)
+        if ws and not ws.closed: return
+        try: limit(('push',pid),10,3600)
+        except ValueError: return
+        rows=db.execute('SELECT endpoint,p256dh,auth FROM push_subs WHERE pid=?',(pid,)).fetchall()
+        if not rows: return
+        asyncio.create_task(asyncio.to_thread(deliver_push,db_path,rows,{'title':title,'body':body,'url':'./index.html'}))
     async def end(vid):
         v=visits.pop(vid,None)
         if v:
@@ -132,9 +230,10 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/.well-known/farcaster.json','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
-        is_public=request.path in public_paths or is_snap_req
+        # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
+        is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
         if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
@@ -186,6 +285,31 @@ def create_app(database=None, origins=None):
             return web.json_response({'reply':reply[:500]})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError):
             return web.json_response({'error':'Pet chat is having trouble right now'},status=400)
+    async def push_public_key(request):
+        return web.json_response({'key': os.environ.get('VAPID_PUBLIC_KEY','')})
+    async def push_subscribe(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('push-subscribe',ip),30,3600)
+            body=await request.json()
+            pid=token_pet(body.get('token'))
+            sub=body.get('subscription')
+            if not isinstance(sub,dict): raise ValueError('Notifications subscription was invalid')
+            endpoint=sub.get('endpoint',''); keys=sub.get('keys') or {}
+            p256dh=keys.get('p256dh',''); auth=keys.get('auth','')
+            if not (isinstance(endpoint,str) and endpoint.startswith('https://') and len(endpoint)<2048): raise ValueError('Notifications subscription was invalid')
+            if not all(isinstance(k,str) and 0<len(k)<400 for k in (p256dh,auth)): raise ValueError('Notifications subscription was invalid')
+            db.execute('INSERT OR REPLACE INTO push_subs VALUES(?,?,?,?,?)',(endpoint,p256dh,auth,pid,int(now())));db.commit()
+            return web.json_response({'ok':True})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e: return web.json_response({'error':str(e)},status=400)
+    async def push_unsubscribe(request):
+        try:
+            body=await request.json()
+            pid=token_pet(body.get('token'))
+            endpoint=str(body.get('endpoint',''))[:2048]
+            db.execute('DELETE FROM push_subs WHERE endpoint=? AND pid=?',(endpoint,pid));db.commit()
+            return web.json_response({'ok':True})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e: return web.json_response({'error':str(e)},status=400)
     async def bankr_status(request):
         return web.json_response({'connected':bool(os.environ.get('BANKR_API_KEY')),'partner':bool(os.environ.get('BANKR_PARTNER_KEY'))})
     async def economy_status(request):
@@ -202,31 +326,28 @@ def create_app(database=None, origins=None):
             if body.get('pet') is not None:
                 p=profile(body.get('pet')); db.execute('UPDATE pets SET profile=? WHERE id=?',(json.dumps(p),pid)); db.commit()
             row=db.execute('SELECT provider,wallet_id,evm_address,sol_address,api_key FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
-            if row:
-                return web.json_response({'mode':row[0],'walletId':row[1],'evmAddress':row[2],'solAddress':row[3],'partner':row[0]=='bankr-partner'})
-            bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+            if row and row[0] in ('bankr-partner', 'fren-vault') and row[2]:
+                return web.json_response({'mode':row[0],'walletId':row[1],'evmAddress':row[2],'solAddress':row[3] or '','partner':row[0]=='bankr-partner','message':'Your personal Fren Pocket Vault on Base.'})
             partner_key=os.environ.get('BANKR_PARTNER_KEY')
-            timeout=ClientTimeout(total=20)
             if partner_key:
-                async with ClientSession(timeout=timeout) as session:
-                    payload={'idempotencyKey':'tinyfrens:'+pid,'wallet':{'solana':False},'apiKey':{'permissions':{'agentApiEnabled':True,'llmGatewayEnabled':False,'tokenLaunchApiEnabled':False,'readOnly':False}}}
-                    async with session.post(bankr_base+'/partner/wallets',headers={'Content-Type':'application/json','X-Partner-Key':partner_key},json=payload) as response:
-                        data=await response.json(content_type=None)
-                        if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Bankr could not create a fren wallet'},status=response.status)
-                db.execute('INSERT OR REPLACE INTO pet_wallets VALUES(?,?,?,?,?,?,?,?)',(pid,'bankr-partner',data.get('id',''),data.get('evmAddress',''),data.get('solAddress',''),data.get('apiKey',''),None,int(now())))
-                db.commit()
-                return web.json_response({'mode':'bankr-partner','walletId':data.get('id',''),'evmAddress':data.get('evmAddress',''),'solAddress':data.get('solAddress',''),'partner':True})
-            api_key=os.environ.get('BANKR_API_KEY')
-            if not api_key: return web.json_response({'error':'Bankr is not connected yet'},status=503)
-            async with ClientSession(timeout=timeout) as session:
-                async with session.get(bankr_base+'/wallet/me',headers={'X-API-Key':api_key}) as response:
-                    data=await response.json(content_type=None)
-                    if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Bankr wallet is unavailable'},status=response.status)
-            evm=next((w.get('address') for w in data.get('wallets',[]) if w.get('chain')=='evm'),None)
-            sol=next((w.get('address') for w in data.get('wallets',[]) if w.get('chain')=='solana'),None)
-            return web.json_response({'mode':'server-agent','walletId':'server-bankr-wallet','evmAddress':evm or '','solAddress':sol or '','partner':False,'message':'Using the server Bankr wallet until per-fren partner wallets are enabled.'})
+                bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+                timeout=ClientTimeout(total=20)
+                try:
+                    async with ClientSession(timeout=timeout) as session:
+                        payload={'idempotencyKey':'tinyfrens:'+pid,'wallet':{'solana':False},'apiKey':{'permissions':{'agentApiEnabled':True,'llmGatewayEnabled':False,'tokenLaunchApiEnabled':False,'readOnly':False}}}
+                        async with session.post(bankr_base+'/partner/wallets',headers={'Content-Type':'application/json','X-Partner-Key':partner_key},json=payload) as response:
+                            data=await response.json(content_type=None)
+                            if response.status < 400 and data.get('evmAddress'):
+                                db.execute('INSERT OR REPLACE INTO pet_wallets VALUES(?,?,?,?,?,?,?,?)',(pid,'bankr-partner',data.get('id',''),data.get('evmAddress',''),data.get('solAddress',''),data.get('apiKey',''),None,int(now())))
+                                db.commit()
+                                return web.json_response({'mode':'bankr-partner','walletId':data.get('id',''),'evmAddress':data.get('evmAddress',''),'solAddress':data.get('solAddress',''),'partner':True,'message':'Your dedicated Bankr partner wallet.'})
+                except Exception: pass
+            evm_addr, evm_key = fren_vault_address_and_key(pid)
+            db.execute('INSERT OR REPLACE INTO pet_wallets VALUES(?,?,?,?,?,?,?,?)',(pid,'fren-vault','vault:'+pid,evm_addr,'',evm_key,None,int(now())))
+            db.commit()
+            return web.json_response({'mode':'fren-vault','walletId':'vault:'+pid,'evmAddress':evm_addr,'solAddress':'','partner':False,'message':'Your personal Fren Pocket Vault on Base.'})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
-            return web.json_response({'error':str(e) or 'Bankr wallet is having trouble right now'},status=400)
+            return web.json_response({'error':str(e) or 'Fren vault is having trouble right now'},status=400)
     def nft_traits(nft):
         seed=':'.join(str(nft.get(k,'')) for k in ('chain','tokenId','name'))+':'+str((nft.get('collection') or {}).get('address',''))
         digest=hashlib.sha256(seed.encode()).digest()
@@ -235,21 +356,147 @@ def create_app(database=None, origins=None):
         return {'shape':shapes[digest[0]%len(shapes)],'color':colors[digest[1]%len(colors)],'expression':exprs[digest[2]%len(exprs)],'accessory':accs[digest[3]%len(accs)]}
     async def wallet_api_key(pid):
         row=db.execute('SELECT api_key FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
-        return row[0] if row and row[0] else os.environ.get('BANKR_API_KEY')
+        return row[0] if row and row[0] and row[0].startswith('bk_') else os.environ.get('BANKR_API_KEY')
     async def bankr_nfts(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
-            limit(('bankr-nfts',ip),30,3600)
-            body=await request.json(); pid=token_pet(body.get('token')); api_key=await wallet_api_key(pid)
-            if not api_key: return web.json_response({'error':'Bankr is not connected yet'},status=503)
-            bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
-            async with ClientSession(timeout=ClientTimeout(total=25)) as session:
-                async with session.get(bankr_base+'/wallet/portfolio?include=nfts',headers={'X-API-Key':api_key}) as response:
-                    data=await response.json(content_type=None)
-                    if response.status>=400: return web.json_response({'error':data.get('message') or data.get('error') or 'Could not read fren NFTs'},status=response.status)
-            return web.json_response({'nfts':data.get('nfts',[])})
+            limit(('bankr-nfts',ip),60,3600)
+            body=await request.json(); pid=token_pet(body.get('token'))
+            row=db.execute('SELECT provider,wallet_id,evm_address,sol_address,api_key,nft FROM pet_wallets WHERE pet_id=?',(pid,)).fetchone()
+            evm_addr = row[2] if row else fren_vault_address_and_key(pid)[0]
+            nfts = []
+            db_nfts = db.execute('SELECT token_id, name, traits FROM fren_nfts WHERE pet_id=? ORDER BY id DESC', (pid,)).fetchall()
+            for row_nft in db_nfts:
+                tid, nname, traits_json = row_nft
+                traits_data = json.loads(traits_json) if traits_json else nft_traits_by_id(tid)
+                nfts.append({
+                    'chain': 'base',
+                    'collection': {'name': 'TinyFrens', 'address': os.environ.get('TINYFRENS_NFT_ADDRESS', '0xTinyFrensNFT')},
+                    'tokenId': tid,
+                    'name': nname or f'TinyFren #{tid}',
+                    'traits': traits_data
+                })
+            if row and row[0] == 'bankr-partner' and row[4]:
+                bankr_base=os.environ.get('BANKR_API_URL',BANKR_URL).rstrip('/')
+                try:
+                    async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+                        async with session.get(bankr_base+'/wallet/portfolio?include=nfts',headers={'X-API-Key':row[4]}) as response:
+                            if response.status < 400:
+                                data=await response.json(content_type=None)
+                                nfts.extend(data.get('nfts', []))
+                except Exception: pass
+            return web.json_response({'nfts': nfts, 'evmAddress': evm_addr})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Could not read fren NFTs'},status=400)
+    async def nft_price(request):
+        try:
+            quote = await calculate_frens_mint_quote(target_usd=1.00)
+            return web.json_response(quote)
+        except Exception as e:
+            return web.json_response({'error': str(e)}, status=500)
+    async def wallet_mint(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('wallet-mint',ip),20,3600)
+            body=await request.json(); pid=token_pet(body.get('token'))
+            evm_addr, _ = fren_vault_address_and_key(pid)
+            quote = await calculate_frens_mint_quote(target_usd=1.00)
+            frens_needed = quote['frensRequired']
+            credits_needed = quote['creditsRequired']
+            row_credit = db.execute('SELECT balance FROM credit_accounts WHERE pet_id=?', (pid,)).fetchone()
+            current_credits = row_credit[0] if row_credit else 0
+            if body.get('checkOnly'):
+                return web.json_response({
+                    'canAfford': current_credits >= credits_needed,
+                    'frensRequired': frens_needed,
+                    'currentBalance': current_credits / 100.0,
+                    'vaultAddress': evm_addr,
+                    'quote': quote
+                })
+            allow_free = os.environ.get('ALLOW_TESTNET_FREE_MINT', 'true').lower() == 'true'
+            if current_credits < credits_needed and not allow_free:
+                current_frens = current_credits / 100.0
+                return web.json_response({
+                    'error': f"Minting requires {frens_needed:,.2f} FRENS ($1.00 USD). Your Fren Vault balance: {current_frens:,.2f} FRENS.",
+                    'frensRequired': frens_needed,
+                    'currentBalance': current_frens,
+                    'targetUsd': 1.00,
+                    'vaultAddress': evm_addr,
+                    'quote': quote
+                }, status=402)
+            if current_credits >= credits_needed:
+                new_balance = current_credits - credits_needed
+                db.execute('UPDATE credit_accounts SET balance=?, updated_at=? WHERE pet_id=?', (new_balance, int(now()), pid))
+                db.execute('INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) VALUES(?,?,?,?,?,?,?)',
+                           (pid, -credits_needed, new_balance, 'mint_nft_frens', 'usd_1.00', str(int(now())), int(now())))
+            existing = db.execute('SELECT token_id FROM fren_nfts').fetchall()
+            used_ids = {r[0] for r in existing}
+            available_ids = [i for i in range(1, 889) if i not in used_ids]
+            token_id = available_ids[secrets.randbelow(len(available_ids))] if available_ids else (secrets.randbelow(888) + 1)
+            traits_data = nft_traits_by_id(token_id)
+            species_capital = traits_data['shape'].capitalize()
+            nft_name = f'TinyFren #{token_id} · {species_capital}'
+            db.execute('INSERT INTO fren_nfts(pet_id,token_id,name,traits,created) VALUES(?,?,?,?,?)',
+                       (pid, token_id, nft_name, json.dumps(traits_data), int(now())))
+            current = pet(pid)['pet']
+            transformed = {**current, **traits_data, 'tokenId': token_id, 'name': current['name']}
+            db.execute('UPDATE pets SET profile=? WHERE id=?', (json.dumps(transformed), pid))
+            db.commit()
+            nft_obj = {
+                'chain': 'base',
+                'collection': {'name': 'TinyFrens', 'address': os.environ.get('TINYFRENS_NFT_ADDRESS', '0xTinyFrensNFT')},
+                'tokenId': token_id,
+                'name': nft_name,
+                'traits': traits_data
+            }
+            return web.json_response({
+                'success': True,
+                'pet': transformed,
+                'nft': nft_obj,
+                'evmAddress': evm_addr,
+                'quote': quote
+            })
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Could not mint TinyFren'},status=400)
+    async def wallet_magic_link(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('wallet-magic',ip),15,3600)
+            body=await request.json(); pid=token_pet(body.get('token'))
+            code = secrets.token_urlsafe(16)
+            expires = int(now()) + (30 * 86400)
+            db.execute('INSERT OR REPLACE INTO magic_links VALUES(?,?,?,?)', (code, pid, int(now()), expires))
+            db.commit()
+            restore_url = f"https://tinyfrens.lol/web/#restore={code}"
+            return web.json_response({'code': code, 'restoreUrl': restore_url, 'expires': expires})
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Could not generate magic link'},status=400)
+    async def wallet_restore(request):
+        try:
+            ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
+            limit(('wallet-restore',ip),30,3600)
+            body=await request.json(); code=str(body.get('code','')).strip()
+            row = db.execute('SELECT pet_id, expires FROM magic_links WHERE code=?', (code,)).fetchone()
+            if not row or row[1] < int(now()):
+                return web.json_response({'error': 'Magic restore link is invalid or expired.'}, status=404)
+            pid = row[0]
+            pet_row = db.execute('SELECT code, profile FROM pets WHERE id=?', (pid,)).fetchone()
+            if not pet_row: return web.json_response({'error': 'Pet not found'}, status=404)
+            new_token = secrets.token_urlsafe(32)
+            db.execute('UPDATE pets SET token=? WHERE id=?', (hashlib.sha256(new_token.encode()).hexdigest(), pid))
+            db.commit()
+            evm_addr, _ = fren_vault_address_and_key(pid)
+            return web.json_response({
+                'success': True,
+                'id': pid,
+                'code': pet_row[0],
+                'token': new_token,
+                'pet': json.loads(pet_row[1]),
+                'evmAddress': evm_addr,
+                'vaultAddress': evm_addr
+            })
+        except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
+            return web.json_response({'error':str(e) or 'Could not restore fren'},status=400)
     async def bankr_transform(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
@@ -318,6 +565,7 @@ def create_app(database=None, origins=None):
         except (ValueError,KeyError,TypeError,json.JSONDecodeError,asyncio.TimeoutError) as e:
             return web.json_response({'error':str(e) or 'Bankr is having trouble right now'},status=400)
     def nft_traits_by_id(token_id):
+        shapes = ['cat', 'blob', 'robot', 'bunny', 'dog', 'bear', 'frog', 'turtle']
         species_list = ['Cat', 'Blob', 'Robot', 'Bunny', 'Puppy', 'Bear', 'Frog', 'Turtle']
         palettes = [
             ('Lavender Dream', '#a474f1', 'Classic'),
@@ -329,27 +577,34 @@ def create_app(database=None, origins=None):
             ('Midnight Obsidian', '#3a2d52', 'Rare'),
             ('24K Solid Gold', '#ffd700', 'Legendary')
         ]
-        exprs = ['Classic Happy', 'Playful Wink', 'Cool Shades', 'Star Eyes']
-        accs = ['None', 'Party Hat', 'Royal Crown', 'Angel Halo', 'Dapper Bow Tie', 'Mystic Orb']
+        expr_keys = ['happy', 'wink', 'shades', 'star_eyes']
+        expr_labels = ['Classic Happy', 'Playful Wink', 'Cool Shades', 'Star Eyes']
+        acc_keys = ['none', 'party_hat', 'crown', 'halo', 'bow_tie', 'orb']
+        acc_labels = ['None', 'Party Hat', 'Royal Crown', 'Angel Halo', 'Dapper Bow Tie', 'Mystic Orb']
         s = (int(token_id) * 104729 + 7919) % 2147483647
         def rand():
             nonlocal s
             s = (s * 16807) % 2147483647
             return (s - 1) / 2147483646
-        species = species_list[(int(token_id) - 1) % 8]
+        idx = (int(token_id) - 1) % 8
+        shape = shapes[idx]
+        species = species_list[idx]
         roll = rand() * 100
         if roll < 5: pal = palettes[7]
         elif roll < 20: pal = palettes[6]
         else: pal = palettes[int(rand() * 6)]
-        expr = exprs[int(rand() * len(exprs))]
-        acc = accs[int(rand() * len(accs))]
+        e_idx = int(rand() * len(expr_keys))
+        a_idx = int(rand() * len(acc_keys))
         return {
+            'shape': shape,
             'species': species,
             'palette': pal[0],
             'color': pal[1],
             'tier': pal[2],
-            'expression': expr,
-            'accessory': acc,
+            'expression': expr_keys[e_idx],
+            'expressionLabel': expr_labels[e_idx],
+            'accessory': acc_keys[a_idx],
+            'accessoryLabel': acc_labels[a_idx],
             'tokenId': int(token_id)
         }
     def make_snap_payload(action=None, nft_id=None):
@@ -362,7 +617,7 @@ def create_app(database=None, origins=None):
             try:
                 traits = nft_traits_by_id(nft_id)
                 header_text = f"TinyFren #{nft_id} · {traits['species']}"
-                status_sub = f"[{traits['tier']}] {traits['palette']} · {traits['expression']}" + (f" · {traits['accessory']}" if traits['accessory'] != 'None' else "")
+                status_sub = f"[{traits['tier']}] {traits['palette']} · {traits['expressionLabel']}" + (f" · {traits['accessoryLabel']}" if traits['accessory'] != 'none' else "")
                 status_text = f"TinyFren #{nft_id} is active in the Public Plaza!"
                 app_target = f"https://tinyfrens.lol/?nft={nft_id}"
             except Exception: pass
@@ -680,7 +935,8 @@ def create_app(database=None, origins=None):
                         other=row[0]
                         if paired(pid,other): raise ValueError('Already friends')
                         if db.execute('SELECT count(*) FROM requests WHERE receiver=?',(other,)).fetchone()[0]>=30: raise ValueError('Try again later')
-                        db.execute('INSERT OR IGNORE INTO requests VALUES(?,?)',(pid,other));db.commit();await state(other);await send(pid,dict(type='notice',text='Friend request sent. They need to accept.'))
+                        inserted=db.execute('INSERT OR IGNORE INTO requests VALUES(?,?)',(pid,other)).rowcount;db.commit();await state(other);await send(pid,dict(type='notice',text='Friend request sent. They need to accept.'))
+                        if inserted: await push_offline(other,'New friend request',f"{pet(pid)['pet']['name']} wants to be friends with your fren.")
                     elif typ=='friend-answer':
                         other=str(m.get('id',''))
                         if not db.execute('SELECT 1 FROM requests WHERE sender=? AND receiver=?',(other,pid)).fetchone(): raise ValueError('Request no longer available')
@@ -689,6 +945,7 @@ def create_app(database=None, origins=None):
                                 if db.execute('SELECT count(*) FROM friends WHERE a=?',(person,)).fetchone()[0]>=100: raise ValueError('Friends list is full')
                             for a,b in ((pid,other),(other,pid)): db.execute('INSERT OR IGNORE INTO friends VALUES(?,?)',(a,b))
                         db.execute('DELETE FROM requests WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)',(other,pid,pid,other));db.commit();await state(pid);await state(other)
+                        if m.get('accept') is True: await push_offline(other,'Friend request accepted',f"{pet(pid)['pet']['name']} is now friends with your fren.")
                     elif typ=='friend-remove':
                         other=str(m.get('id',''));db.execute('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)',(pid,other,other,pid));db.commit()
                         for vid,v in list(visits.items()):
@@ -774,17 +1031,123 @@ def create_app(database=None, origins=None):
     app.router.add_post('/api/discord/token',discord_token)
     app.router.add_post('/api/discord/interactions',discord_interactions)
     # On-chain economy: deposit sessions + off-chain credit ledger
-    pool=[a.strip() for a in os.environ.get('DEPOSIT_SESSION_ADDRESSES','').split(',') if a.strip()]
-    economy_ledger.attach(
+    allocator = None
+    router_addr = os.environ.get('DEPOSIT_ROUTER_PROXY')
+    controller_key = os.environ.get('GAME_CONTROLLER_PRIVATE_KEY')
+    if router_addr and controller_key and os.environ.get('BASE_RPC_URL'):
+        try:
+            from deposit_allocator import DepositRouterAllocator
+            allocator = DepositRouterAllocator(
+                router_addr,
+                controller_key,
+                os.environ.get('CHAIN_ID') or 84532,
+                os.environ['BASE_RPC_URL'],
+                token=economy_settings().get('frensToken'),
+            )
+        except Exception:
+            app.logger.warning('DepositRouter allocator disabled (address/key/rpc issue)', exc_info=True)
+    if allocator is None:
+        pool=[a.strip() for a in os.environ.get('DEPOSIT_SESSION_ADDRESSES','').split(',') if a.strip()]
+        if pool: allocator = economy_ledger.AddressPool(db, pool)
+    economy = economy_ledger.attach(
         app, db,
         token_pet=token_pet,
         limit=limit,
         settings=economy_settings,
-        allocator=economy_ledger.AddressPool(db, pool) if pool else None,
+        allocator=allocator,
         indexer_secret=os.environ.get('ECONOMY_INDEXER_SECRET'),
     )
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/ws',websocket)
+    # On-chain deposit indexer: scans Deposit logs and credits the ledger.
+    # Starts in 'auto' when an allocator + RPC are wired; INDEXER_ENABLED=true
+    # forces it (e.g. AddressPool-backed) and INDEXER_ENABLED=false suppresses.
+    indexer = None
+    idx_mode = os.environ.get('INDEXER_ENABLED', 'auto').lower()
+    idx_wanted = idx_mode not in ('0', 'false', 'no')
+    idx_auto_ok = bool(os.environ.get('BASE_RPC_URL')) and allocator is not None
+    if idx_wanted and os.environ.get('BASE_RPC_URL') and (idx_auto_ok or idx_mode in ('1', 'true', 'yes')):
+        try:
+            from indexer import DepositIndexer
+            indexer = DepositIndexer(
+                economy,
+                os.environ['BASE_RPC_URL'],
+                os.environ.get('CHAIN_ID') or 84532,
+                poll_seconds=float(os.environ.get('INDEXER_POLL_SECONDS', '6')),
+                lookback=int(os.environ.get('INDEXER_LOOKBACK', '300')),
+            )
+        except Exception:
+            app.logger.warning('Deposit indexer disabled (import/rpc issue)', exc_info=True)
+
+    async def _start_indexer(_app):
+        if indexer is not None:
+            app.logger.info('Deposit indexer scanning %s (poll %.1fs)',
+                            indexer.rpc_url, indexer.poll)
+            indexer.start()
+
+    async def _stop_indexer(_app):
+        if indexer is not None:
+            await indexer.aclose()
+
+    if indexer is not None:
+        app.on_startup.append(_start_indexer)
+        app.on_cleanup.append(_stop_indexer)
+
+    # NFT gallery support: read tokenURI straight from the on-chain collection so the
+    # web/gallery.html page (and anyone) can render the real art. Read-only eth_call.
+    TOKEN_URI_SELECTOR = '0xc87b56dd'  # tokenURI(uint256)
+
+    async def nft_uri(request):
+        nft = os.environ.get('TINYFRENS_NFT_ADDRESS')
+        rpc = os.environ.get('BASE_RPC_URL')
+        if not nft or not rpc or not re.fullmatch(r'0x[a-fA-F0-9]{40}', nft or ''):
+            return web.json_response({'error': 'NFT contract / RPC not configured'}, status=503)
+        try:
+            tid = int(request.query.get('tokenId', '0'))
+            if tid < 1 or tid > 1_000_000:
+                return web.json_response({'error': 'tokenId out of range'}, status=400)
+            data = TOKEN_URI_SELECTOR + tid.to_bytes(32, 'big').hex()
+            payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
+                       'params': [{'to': nft, 'data': data}, 'latest']}
+            async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+                async with session.post(rpc, json=payload) as response:
+                    body = await response.json(content_type=None)
+            if 'error' in body or not body.get('result') or body['result'] == '0x':
+                return web.json_response({'tokenId': tid, 'minted': False, 'uri': None})
+            raw = bytes.fromhex(body['result'][2:])
+            offset = int.from_bytes(raw[:32], 'big')
+            length = int.from_bytes(raw[offset:offset + 32], 'big')
+            uri = raw[offset + 32:offset + 32 + length].decode('utf-8')
+            return web.json_response({'tokenId': tid, 'minted': True, 'uri': uri,
+                                      'collection': {'name': 'TinyFrens', 'address': nft}})
+        except (ValueError, KeyError) as e:
+            return web.json_response({'error': str(e) or 'Bad request'}, status=400)
+        except (asyncio.TimeoutError, OSError, Exception):
+            return web.json_response({'error': 'RPC unavailable'}, status=503)
+
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
     app.router.add_route('OPTIONS','/{path:.*}',options)
+    # Serve the static front-end (web/) so the gallery and app are viewable from the relay
+    # itself (e.g. http://127.0.0.1:8080/web/gallery.html) during local / testnet runs.
+    _web_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'web')
+    if os.path.isdir(_web_root):
+        app.router.add_static('/web/',_web_root,show_index=False)
     return app
 
-if __name__=='__main__': web.run_app(create_app(),host=os.environ.get('HOST','0.0.0.0'),port=int(os.environ.get('PORT','8080')),access_log=None)
+def _load_dotenv(path):
+    try:
+        with open(path,encoding='utf-8') as fh:
+            for line in fh:
+                line=line.strip()
+                if not line or line.startswith('#') or '=' not in line: continue
+                key,_,val=line.partition('=')
+                key=key.strip(); val=val.strip().strip('"').strip("'")
+                if key and key not in os.environ: os.environ[key]=val
+    except OSError:
+        pass
+
+if __name__=='__main__':
+    # Load server/.env (then repo .env) so the runbook's Step 11 config takes effect.
+    # Done only for direct runs so the unittest suite stays isolated from a local .env.
+    _here=os.path.dirname(os.path.abspath(__file__))
+    _load_dotenv(os.path.join(_here,'.env'))
+    _load_dotenv(os.path.join(os.path.dirname(_here),'.env'))
+    web.run_app(create_app(),host=os.environ.get('HOST','0.0.0.0'),port=int(os.environ.get('PORT','8080')),access_log=None)

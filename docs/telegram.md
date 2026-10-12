@@ -28,16 +28,21 @@ your fren grows through stages: **Hatchling → Sprout → Elder**.
 
 ---
 
-## The six tabs
+## The tabs
 
 Along the bottom of the Mini App you'll see:
 
 - **♡ Pet** — your fren, its mood, and the Feed / Play / Nap buttons.
 - **◌ Party** — hop into a shared room and see other people's frens (see below).
-- **✦ Chat** — have a little conversation with your fren.
 - **◈ Wallet** — on-chain extras and NFT looks (advanced).
 - **✎ Looks** — change colour, species, expression, accessories, and size.
 - **⚙ Settings** — updates, help, and grown-up options.
+
+### Talk to your fren 💬
+
+There's no separate Chat tab — just **tap your character** (or the *"Tap your fren to
+chat"* hint under it) and a little chat window pops up. Say hi, ask something, and your
+fren replies. Tap the ✕ or anywhere outside the window to close it.
 
 ---
 

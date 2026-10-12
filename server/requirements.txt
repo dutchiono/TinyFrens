@@ -1,2 +1,9 @@
 aiohttp==3.14.4
 PyNaCl==1.5.0
+eth-account==0.8.0
+eth-abi==5.2.0
+eth-utils==2.3.2
+pywebpush==2.5.0
+# eth-account 0.8.0 -> eth-keyfile imports pkg_resources; ship setuptools so the import
+# works in a bare env (CI runners and the runtime image otherwise omit it).
+setuptools<81

@@ -8,6 +8,27 @@
 - Asset: **Sepolia ETH** (free from faucets)
 - Mainnet FRENS `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` is unrelated to this faucet step
 
+## Operator handoff (what to run)
+
+Prerequisites: Windows + PowerShell 7, ~0.01 Base Sepolia ETH on **your** deployer, and (optional,
+for contract verification) a Basescan Sepolia API key.
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\testnet-economy-runbook.ps1                 # interactive, waits for each receipt
+# resume later with:  .\scripts\testnet-economy-runbook.ps1 -From <step> -SkipWalletCreate
+```
+
+Success signals:
+
+- Step 5: `70 tests passed, 0 failed`
+- Steps 6/8/9: each logs `<name> live at 0x...` after a `status=0x1` receipt
+- Step 11: writes `server/.env` (auto-loaded by `python app.py`)
+- Step 12: `Ran 72 tests ... OK`
+- Step 13: `enabled=True mode=testnet` (send `-Headers @{Origin="https://tinyfrens.lol"}` — the relay only answers allowed Origins)
+
+Everything is idempotent via `.secrets/testnet-deployment.json`; re-running never redeploys.
+
 ## One command (recommended)
 
 From repo root in PowerShell:
@@ -121,6 +142,17 @@ Logs print `treasuryProxy`, `vaultProxy`, `routerProxy`, `sessionImpl`. Your ser
 (`GAME_CONTROLLER`) must call `DepositRouter.createSession(sessionId, token)` per payment; open the
 session with `token = address(0)` for ETH deposits or the TestFRENS address for ERC-20 deposits.
 
+### 5c — Deploy the TinyFrens NFT collection
+
+```powershell
+forge script contracts/testnet/script/DeployTinyFrensNFT.s.sol:DeployTinyFrensNFT `
+  --rpc-url $env:BASE_SEPOLIA_RPC `
+  --broadcast
+```
+
+Logs print `nftAddress` and `nftMinted` (the 20 creator-reserve tokens, minted to your deployer by
+default). The art is **100% on-chain** (SVG + JSON data URIs) — no IPFS, no external metadata.
+
 ### 6 — Server
 
 ```powershell
@@ -129,8 +161,14 @@ pip install -r requirements.txt
 $env:ECONOMY_MODE = "testnet"
 $env:FRENS_TOKEN = "0xDeployedTestFRENS"
 $env:CHAIN_ID = "84532"
+$env:TINYFRENS_NFT_ADDRESS = "0xDeployedTinyFrensNFT"   # enables /api/nft/uri + gallery on-chain mode
 python app.py
 ```
+
+`python app.py` also auto-loads `server/.env` on startup, so config written by the runbook
+(Step 11) is picked up without exporting variables by hand. The relay answers `GET /api/*` only
+for allowed Origins, so add `-Headers @{Origin="https://tinyfrens.lol"}` when smoke-testing with
+`Invoke-RestMethod`.
 
 New window:
 
@@ -149,8 +187,39 @@ python -m unittest discover -s . -v
 
 </details>
 
-## Optional: verify on Basescan Sepolia
+## Viewing the testnet NFT collection
 
+**OpenSea does not index Base Sepolia**, so there is no OpenSea link. Use one of these instead:
+
+1. **Blockscout Base Sepolia** (renders the on-chain SVG thumbnails):
+
+   ```text
+   https://base-sepolia.blockscout.com/token/<nftAddress>
+   ```
+
+2. **Local gallery** (`web/gallery.html`) — previews all 888 pieces client-side and can load the
+   exact on-chain art per token. The relay serves `web/` under `/web/`:
+
+   ```text
+   http://127.0.0.1:8080/web/gallery.html?nft=<nftAddress>
+   ```
+
+   Pass `?nft=` (or paste the address in the box) to lock it to your collection. "Load on-chain"
+   fetches `GET /api/nft/uri?tokenId=N`, which requires the server to have `BASE_RPC_URL` and
+   `TINYFRENS_NFT_ADDRESS` set:
+
+   ```powershell
+   $env:TINYFRENS_NFT_ADDRESS = "0xDeployedTinyFrensNFT"
+   ```
+
+   The endpoint returns `{tokenId, minted, uri, collection}`; `minted` is `true` for the 20
+   creator-reserve tokens until public minting begins. Served locally the gallery talks to the
+   same-origin relay automatically; override with `?api=http://host:port` if needed.
+
+Basescan Sepolia shows the token page but **blanks SVG thumbnails** (its viewer does not render
+`data:image/svg+xml`), so prefer Blockscout or the local gallery.
+
+## Optional: verify on Basescan Sepolia
 ```powershell
 $env:BASESCAN_API_KEY = "your-api-key"
 # Re-run deploy with --verify, or use forge verify-contract ...

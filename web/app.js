@@ -1,6 +1,8 @@
 'use strict';
 const native = typeof window.PetAndroid !== 'undefined';
 const desktop = window.TinyFrensDesktop;
+// Frameless Windows builds use the app header as the window title bar (drag region + caption-button space).
+try { if (desktop && JSON.parse(desktop.getState()).frameless) document.documentElement.classList.add('desktop-titlebar'); } catch {}
 const key = 'pocket-familiar-v1';
 const $ = id => document.getElementById(id);
 function initial(){return {hunger:80,happiness:80,energy:80,born:Date.now(),last:Date.now(),mode:'roam'};}
@@ -89,4 +91,41 @@ render(ensureName(read()));
 
 
 if(desktop){desktop.onState(s=>{render(s);window.stylePet?.(s);refreshFloatingButton();window.dispatchEvent(new Event('pet-profile-changed'));});desktop.onAnimation(name=>{if(name==='check-update'){$('checkUpdate').click();return;}window.animatePet?.(name==='toy'?'dance':name);});}
+
+// Magic Link Restore Check
+(async () => {
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  const match = hash.match(/restore=([a-zA-Z0-9_-]+)/) || search.match(/restore=([a-zA-Z0-9_-]+)/);
+  if (match) {
+    const code = match[1];
+    const server = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+    if (server) {
+      try {
+        const res = await fetch(server + '/api/wallet/restore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({code})
+        });
+        const data = await res.json();
+        if (data.success && data.token && data.pet) {
+          const newId = { id: data.id, code: data.code, token: data.token };
+          window.TinyFrensFriends?.setIdentity?.(newId);
+          let s;
+          if (desktop) s = JSON.parse(desktop.customize(JSON.stringify(data.pet)));
+          else if (native) s = JSON.parse(PetAndroid.customize(JSON.stringify(data.pet)));
+          else { s = Object.assign(read(), data.pet); localStorage.setItem(key, JSON.stringify(s)); }
+          window.stylePet?.(s);
+          render(s);
+          window.history.replaceState(null, '', window.location.pathname);
+          const moodEl = $('mood');
+          if (moodEl) moodEl.textContent = `✨ Restored ${data.pet.name || 'fren'} from magic link!`;
+          window.animatePet?.('dance');
+        }
+      } catch (e) {
+        console.warn('Magic link restore error', e);
+      }
+    }
+  }
+})();
 

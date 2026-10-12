@@ -10,6 +10,7 @@ public/
 dist/
 __pycache__/
 *.pyc
+*.db
 cache/
 out/
 broadcast/
