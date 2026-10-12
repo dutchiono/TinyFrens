@@ -26,9 +26,15 @@ No Apple developer membership, external account provider, or paid hosted service
 
 The relay can also answer TinyFren chat requests from the web app. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to `gemini-2.0-flash`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
 
-Bankr is integrated as a normal server-side API-key bridge. Set `BANKR_API_KEY` on the server to enable `/api/bankr/status`, `/api/bankr/wallet`, `/api/bankr/nfts`, `/api/bankr/transform`, and `/api/bankr/monitor`. The web app's Wallet tab shows the server's agent-controlled Bankr wallet, reads NFTs from it, and can apply an NFT-derived look to the fren.
+The web app's Wallet tab uses a read-only, non-custodial link. On first use, the person signs a short EIP-191 text challenge with their own Ethereum wallet. The relay verifies the signer, then stores only that public address against the fren's existing device identity. Later NFT checks use the saved address without another wallet prompt. Disconnect deletes the link. A new device identity or changed wallet requires a new signature. The signature cannot transfer assets or authorize approvals.
 
-Per-fren Bankr wallets are scaffolded behind `BANKR_PARTNER_KEY`. When that partner key is present, `/api/bankr/wallet` provisions a Bankr wallet for the registered fren with `POST /partner/wallets`; without it, TinyFrens uses the shared server Bankr wallet. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
+`POST /api/wallet-link/status`, `/challenge`, `/confirm`, `/disconnect`, and `/nfts` require the fren's device token. The NFT endpoint queries Robinhood Blockscout for candidate holdings and rechecks Hood Turtles ownership on-chain. It is limited to five indexer pages and reports `partial` if more remain. `ROBINHOOD_RPC_URL` and `ROBINHOOD_BLOCKSCOUT_API_URL` optionally override the public endpoints. Hood Turtles is the only supported external collection for now.
+
+The older Bankr/pocket-vault API routes remain for existing users and recovery. The web app keeps those tools in a collapsed legacy section and does not provision a vault during the new Hood Turtle import flow. Do not send NFTs to an old vault address as part of the new link flow. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
+
+## Hood Turtles featured access
+
+The relay reads the original Hood Turtles contract at `0xca28587b61eac19a87dfcfd9420870867a916675` on Robinhood Chain (chain ID 4663), using the official Robinhood RPC by default. `POST /api/featured/hood-turtle` requires the fren's device token, reads the address from its signed wallet link, and checks `ownerOf` before returning the original on-chain artwork. Successful checks are cached in SQLite for 24 hours; expired checks require a successful online renewal, so transfers may take up to 24 hours to remove display access. The web page is `web/hood-turtles.html`. No certificate, mint, transfer, or approval is required. Featured display is an app-level entitlement, not an on-chain receipt, and ends when the NFT leaves the linked wallet or the wallet is unlinked.
 
 ## Web push notifications
 
@@ -75,3 +81,11 @@ python -m unittest discover -s . -v
 The tests run separate authenticated WebSocket clients and exercise friendship/visit consent, live appearance, actions, goodbye, unauthorized peers, removal, disconnect, origin rejection, malformed profiles, and identity persistence across restart. No real phones or Bluetooth radio testing is claimed.
 
 Android registration uses the app’s HTTPS bridge, preserving the bundled WebView file-access restrictions. It sends `Origin: null`, so keep `ALLOW_NATIVE_ORIGIN=true` for native installs. No passwords or service credentials are bundled in the app.
+
+## Bankr phone pairing and turtle import
+
+`skills/tinyfrens-connect/SKILL.md` describes the phone-first Bankr connection. Device-authenticated `/api/turtle-connect/start`, `/status`, and `/accept` bind a ten-minute single-use pairing code to the existing phone. Origin-less agents can call only `/challenge` and `/confirm`; the latter verifies an EIP-191 signature and forces a current Hood Turtles ownership check. The phone must explicitly accept before its wallet link changes. No phone credential or bearer recovery URL is returned to the agent. Changing or disconnecting a wallet invalidates pending pairings.
+
+`GET /api/hood-turtles/preview?tokenId=N` returns only public collection artwork, without an ownership entitlement. Web/native rendering still requires the linked device. Android imports through its restricted native HTTPS bridge, caches a rendered SVG/PNG bitmap, and renews ownership while the floating service runs. Set `ALLOW_NATIVE_ORIGIN=true` for native setup; Compose already enables it. The native turtle bridge uses `https://tinyfrens.miono.live`.
+
+See [the implemented flow and rollout requirements](../docs/hood-turtles-experience.md). Publish the relay and skill and distribute the updated Android app together; this is not enabled in old installed APKs.

@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-  if (native || window.TinyFrensDesktop) return; // Android uses the transparent native overlay.
+  if (native || window.TinyFrensDesktop || window.PetIOS || !location.search.includes('legacyPip=1')) return;
   const panel = document.createElement('section');
   panel.className = 'overlay';
   panel.id = 'video-pet';

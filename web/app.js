@@ -79,7 +79,7 @@ $('start').onclick=()=>{
  $('start').disabled=true;setTimeout(()=>{$('start').disabled=false;refreshFloatingButton();},500);
 };
 if(native||desktop){refreshFloatingButton();setInterval(()=>{if(!document.hidden)refreshFloatingButton();},1000);}
-$('platform').textContent=(native||desktop)?'Let your fren wander while you use other apps.':'Try the floating video below.';
+$('platform').textContent=(native||desktop)?'Let your fren wander while you use other apps.':'Your companion lives here in TinyFrens.';
 function editName(open){
   $('nameRow').hidden=open;$('nameForm').hidden=!open;
   if(open){$('nameInput').value=read().name||'';$('nameInput').focus();$('nameInput').select();}

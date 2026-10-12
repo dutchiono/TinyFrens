@@ -47,6 +47,22 @@ class MainActivity : Activity() {
         createUpdateChannel()
     }
     inner class Bridge {
+        @JavascriptInterface fun turtleRequest(server: String, path: String, json: String, requestId: Int) {
+            Thread {
+                val turtles = TurtleStore(this@MainActivity)
+                val result = try {
+                    require(json.length <= 4096)
+                    val body = org.json.JSONObject(json)
+                    if (path == "/native/import-turtle") {
+                        turtles.importTurtle(server, body.getString("token"), body.getInt("tokenId"))
+                    } else turtles.request(server, path, body)
+                } catch (e: Exception) { org.json.JSONObject().put("error", e.message ?: "Turtle connection failed") }
+                val response = org.json.JSONObject().put("requestId", requestId).put("result", result)
+                runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.onTurtleResponse?.($response)", null) }
+            }.start()
+        }
+        @JavascriptInterface fun getTurtle(): String = TurtleStore(this@MainActivity).view()
+        @JavascriptInterface fun clearTurtle() { TurtleStore(this@MainActivity).clear() }
         @JavascriptInterface fun updateInfo(): String = org.json.JSONObject()
             .put("repo", getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO))
             .put("versionCode", BuildConfig.VERSION_CODE).put("versionName", BuildConfig.VERSION_NAME).toString()

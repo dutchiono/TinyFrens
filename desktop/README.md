@@ -2,6 +2,8 @@
 
 TinyFrens for **Windows x64** and **Mac (Apple Silicon or Intel)** includes a transparent, frameless, always-on-top pet window. This is the interactive pet, not the browser's PiP video.
 
+Hood Turtle import: open **Import Hood Turtle** inside the desktop app, pair that device through Bankr, accept the verified wallet, and import. The overlay displays the original NFT artwork, persists it locally, and renews ownership verification daily. Expired artwork stays hidden until verification succeeds. Browser and desktop imports are separate. This source change requires an updated relay and desktop release for live use.
+
 ## Install
 
 Download from the [desktop release](https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest). The first downloads appear after the Desktop floating pet workflow succeeds.

@@ -147,6 +147,8 @@ main{max-width:460px;padding:calc(18px + env(safe-area-inset-top)) 22px calc(112
 .name-row{gap:2px}.pet-name{font-size:32px;letter-spacing:-1px}.name-edit{min-width:44px;min-height:44px;color:#716a67;padding:8px}
 .stage-label{font-size:11px;color:#716a67;text-transform:none;letter-spacing:0;font-weight:500;margin:1px 0 0}
 .pet-stage{height:240px;background:radial-gradient(circle,#ded7cd 1px,transparent 1px);background-size:18px 18px;margin:12px 0}
+.pet-stage{position:relative}.featured-turtle{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:4px;pointer-events:none}.featured-turtle[hidden]{display:none}.featured-turtle img{width:min(190px,70vw);height:min(190px,70vw);object-fit:contain;image-rendering:pixelated;animation:featured-walk 1.1s steps(2,end) infinite alternate}.featured-turtle span{background:#17142a;color:#f3eeff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}@keyframes featured-walk{to{transform:translateY(-6px)}}@media(prefers-reduced-motion:reduce){.featured-turtle img{animation:none}}
+.featured-unload{font-size:12px;padding:7px 12px;margin:-5px auto 9px;display:block}.featured-unload[hidden]{display:none}
 .pet{filter:drop-shadow(0 8px 0 #ddd6cb)}#mood{color:#716a67;font-size:13px;margin:0 0 22px;padding:0}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0;background:none;border:0;border-radius:0;margin:0 0 22px}
 .stats>div{margin:0}.stats label{font-size:11px;gap:4px}.stats label b{color:#716a67;font-weight:500}
@@ -443,3 +445,5 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .gallery-callout-btn{flex-shrink:0;padding:8px 14px;border-radius:10px;background:#855DCD;color:#fff;font-size:12px;font-weight:750;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s ease;white-space:nowrap}
 .gallery-callout-btn:hover{background:#9d72e8;transform:translateY(-1px);color:#fff}
 @media(max-width:480px){.gallery-callout-card{flex-direction:column;align-items:flex-start}.gallery-callout-btn{width:100%;justify-content:center}}
+
+.featured-turtle[data-action="dance"] img,.featured-turtle[data-action="wave"] img{animation:turtle-celebrate .6s steps(3,end) infinite alternate}.featured-turtle[data-action="eat"] img{animation:turtle-eat .4s steps(2,end) infinite alternate}.featured-turtle[data-action="sleep"] img{animation:none;opacity:.7}@keyframes turtle-celebrate{from{transform:rotate(-5deg)}to{transform:translateY(-8px) rotate(5deg)}}@keyframes turtle-eat{to{transform:translateY(3px) scale(1.03,.97)}}html[data-reduced-motion="true"] .featured-turtle img{animation:none!important}@media(prefers-reduced-motion:reduce){.featured-turtle img{animation:none!important}}

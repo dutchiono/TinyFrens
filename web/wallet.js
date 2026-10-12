@@ -327,5 +327,8 @@
   if (refresh) refresh.onclick = loadNfts;
 
   syncOnchainControls();
-  loadWallet();
+  const legacyTools = document.querySelector('#screen-wallet > details');
+  legacyTools?.addEventListener('toggle', () => { if (legacyTools.open && !wallet) loadWallet(); });
+  window.addEventListener('tinyfrens-identity-ready', () => { if (legacyTools?.open) { loadWallet(); } });
+  window.addEventListener('focus', () => { if (legacyTools?.open && !wallet) loadWallet(); });
 })();

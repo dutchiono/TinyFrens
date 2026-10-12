@@ -1,4 +1,7 @@
 :root,html,body{background:transparent!important;overflow:hidden;width:340px;height:400px;margin:0;padding:0;user-select:none}
+.overlay-turtle{display:none;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:pixelated}
+#pet[data-turtle=true]>:not(.overlay-turtle){display:none}
+#pet[data-turtle=true]>.overlay-turtle:not([hidden]){display:block}
 #petHolder{position:absolute;left:106px;top:100px;width:128px;height:148px}
 #pet{cursor:grab;filter:drop-shadow(0 5px 2px #0003);touch-action:none;outline-offset:8px}
 #pet:active{cursor:grabbing}#pet[data-action=sleep]::after,#pet[data-action=wave]::after{color:#302040;background:#fffcf5;border-radius:8px;padding:3px}

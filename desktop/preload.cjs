@@ -2,6 +2,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const call = (name, value) => ipcRenderer.sendSync('tinyfrens:sync', name, value);
 contextBridge.exposeInMainWorld('TinyFrensDesktop', {
+  getTurtle: () => call('turtle'), clearTurtle: () => call('clear-turtle'),
+  turtleRequest: (server, path, body) => ipcRenderer.invoke('tinyfrens:turtle-request', server, path, body),
+  onTurtle: listener => { const handler = (_, data) => listener(data); ipcRenderer.on('tinyfrens:turtle', handler); return () => ipcRenderer.removeListener('tinyfrens:turtle', handler); },
   getState: () => call('state'), action: name => call('action', name), rename: name => call('rename', name),
   customize: data => call('customize', data), setMode: mode => call('mode', mode),
   isPetVisible: () => call('visible'), togglePet: () => call('toggle'), hidePet: () => call('hide'), openApp: () => call('open'),

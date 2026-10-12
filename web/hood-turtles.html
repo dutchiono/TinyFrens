@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Hood Turtles × TinyFrens</title>
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<style>
+:root{font:16px/1.5 system-ui,sans-serif;color:#f3eeff;background:#17142a}*{box-sizing:border-box}body{margin:0;padding:24px}main{max-width:650px;margin:5vh auto}.back{color:#c9a5ff}.eyebrow{color:#ffd76d;font-size:.8rem;letter-spacing:.13em;text-transform:uppercase;font-weight:800}h1{font-size:clamp(2rem,7vw,3.4rem);line-height:1.1;margin:.3em 0}p{color:#bfb5d5}.panel{background:#26203e;border:1px solid #46375e;border-radius:20px;padding:24px;margin:24px 0}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button,input{font:inherit;border-radius:10px;padding:11px 14px}button{border:0;background:#ad82f5;color:#17142a;font-weight:800;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button.secondary{background:#423654;color:white}input{width:110px;background:#17142a;color:white;border:1px solid #75668d}label{display:block;font-weight:700}#art{width:min(100%,280px);margin:16px auto;display:block;image-rendering:pixelated;border-radius:14px}#art[hidden]{display:none}#status{min-height:2em;color:#ffe295}small{color:#bfb5d5}a{color:#c9a5ff}
+button:disabled{color:#f3eeff}
+.connection{display:grid;gap:12px}.connection button{width:100%}textarea{font:inherit;width:100%;min-height:110px;padding:12px;background:#17142a;color:#f3eeff;border:1px solid #75668d;border-radius:10px}#pairingCode{font-size:1.5rem;letter-spacing:.12em;color:#ffd76d}#pairing[hidden],#acceptPairing[hidden]{display:none}ol{padding-left:22px;color:#bfb5d5}
+p,small{overflow-wrap:anywhere}.panel{min-width:0}button{max-width:100%}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html#wallet">← TinyFrens</a>
+<p class="eyebrow">Featured collection · Robinhood Chain</p>
+<h1>Bring your turtle out of your wallet.</h1>
+<p>Your Hood Turtle stays yours. Connect with Bankr or sign a simple message in your wallet to bring the original artwork into TinyFrens.</p>
+<section class="panel" aria-labelledby="connectTitle">
+<h2 id="connectTitle">Connect this device</h2>
+<p>No email or password. Your wallet proves ownership; this device keeps a private connection key.</p>
+<div class="connection"><button id="connectBankr" disabled>Connect with Bankr</button><button id="connectWallet" class="secondary" disabled>Connect my wallet</button></div>
+<div id="pairing" hidden>
+<p>Your pairing code: <strong id="pairingCode"></strong></p>
+<ol><li>Copy the prompt below into your Bankr agent.</li><li>Let Bankr verify your wallet and chosen turtle.</li><li>Return here and accept the connection. The code expires in 10 minutes.</li></ol>
+<label for="bankrPrompt">Bankr prompt</label><textarea id="bankrPrompt" readonly></textarea>
+<div class="actions"><button id="copyPrompt" class="secondary">Copy prompt</button><a href="https://bankr.bot/terminal" target="_blank" rel="noopener noreferrer">Open Bankr ↗</a></div>
+<p id="pairingStatus" role="status"></p><button id="acceptPairing" hidden>Use this turtle on this device</button>
+</div>
+<p id="connectionStatus" role="status">Preparing this device…</p>
+</section>
+<section class="panel">
+<label for="tokenId">Your Hood Turtle token #</label>
+<input id="tokenId" type="number" min="1" max="2222" step="1" value="1">
+<div class="actions"><button id="check" class="secondary" disabled>View my turtle</button></div>
+<p id="wallet"></p><p id="status" role="status"></p>
+<p><a href="./#wallet">Manage linked wallet →</a></p>
+<img id="art" alt="Your Hood Turtle NFT" hidden>
+<div class="actions"><button id="load" disabled>Import my turtle</button></div>
+</section>
+<p><small>Ownership is verified on connection and renewed every 24 hours while you use TinyFrens. Transfers can take up to 24 hours to remove access. After verification expires, an online check is required. Unlinking removes access immediately. This integration is not affiliated with Hood Turtles.</small></p>
+<p id="deviceHelp"><small>Import inside the Android or desktop app to use its floating overlay. In a browser, your turtle lives inside TinyFrens. Native iPhone support is being built for an App Store release; the turtle stays inside the app. Pair separately on each device. Clearing app/browser data requires pairing again; care saves do not yet sync between devices.</small></p>
+<p><a href="https://robinhoodchain.blockscout.com/token/0xca28587b61eac19a87dfcfd9420870867a916675" target="_blank" rel="noopener noreferrer">View original collection ↗</a></p>
+</main>
+<script src="social-config.js"></script><script src="turtle-api.js"></script><script src="hood-turtles.js"></script>
+</body>
+</html>

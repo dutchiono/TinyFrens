@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { PetStore } = require('./state.cjs');
+const { TurtleStore, SERVER } = require('./turtle.cjs');
 const { clampPosition, hits } = require('./geometry.cjs');
 const WIDTH = 340, HEIGHT = 400;
 const RELEASES = 'https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest';
@@ -16,21 +17,24 @@ if (smoke && process.platform === 'darwin' && process.arch === 'x64') app.disabl
 if (smoke) console.log('Starting isolated desktop smoke test.');
 if (smoke) setTimeout(() => { console.error('Desktop startup/renderer test did not finish within 45 seconds'); finishSmoke(1); }, 45000);
 if (smoke) app.setPath('userData', fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tinyfrens-smoke-')));
-let store, pet, careWindow, tray, tick, quitting = false, petVisible = false, regions = [], menuUntil = 0, drag = null;
+let store, turtles, turtleTick, pet, careWindow, tray, tick, quitting = false, petVisible = false, regions = [], menuUntil = 0, drag = null;
 let moving = null, target = null, nextTarget = 0, lastTick = Date.now(), ignoring = true, sleepingUntil = 0, fadeTimer = null, systemReducedMotion = false;
 const allowedWindows = new Map();
+function pageURL(url) { try { const u = new URL(url); u.search = ''; u.hash = ''; return u.href; } catch { return ''; } }
 function trusted(event) {
   const expected = allowedWindows.get(event.sender.id);
-  return !!expected && event.senderFrame === event.sender.mainFrame && event.senderFrame.url.split('#')[0] === expected;
+  return !!expected && event.senderFrame === event.sender.mainFrame && expected.has(pageURL(event.senderFrame.url));
 }
 function external(url) {
-  try { const u = new URL(url); if ((u.protocol === 'https:' && ['github.com', 'dutchiono.github.io', 'tinyfrens.lol', 'www.tinyfrens.lol', 't.me', 'x.com'].includes(u.hostname) && !u.username && !u.password) || url === 'mailto:Tinyfrens@agentmail.to') shell.openExternal(url); } catch {}
+  try { const u = new URL(url); if ((u.protocol === 'https:' && ['github.com', 'bankr.bot', 'dutchiono.github.io', 'tinyfrens.lol', 'www.tinyfrens.lol', 't.me', 'x.com'].includes(u.hostname) && !u.username && !u.password) || url === 'mailto:Tinyfrens@agentmail.to') shell.openExternal(url); } catch {}
 }
 function secureWindow(win, file) {
   const expected = pathToFileURL(file).href;
-  allowedWindows.set(win.webContents.id, expected);
+  const pages = new Set([expected]);
+  if (file === path.join(__dirname, 'web/index.html')) pages.add(pathToFileURL(path.join(__dirname, 'web/hood-turtles.html')).href);
+  allowedWindows.set(win.webContents.id, pages);
   win.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (event, url) => { if (url.split('#')[0] !== expected) { event.preventDefault(); external(url); } });
+  win.webContents.on('will-navigate', (event, url) => { if (!pages.has(pageURL(url))) { event.preventDefault(); external(url); } });
   win.webContents.on('will-attach-webview', event => event.preventDefault());
   const id = win.webContents.id;
   win.on('closed', () => allowedWindows.delete(id));
@@ -45,6 +49,7 @@ function broadcast(extra = {}) {
   return data;
 }
 function animate(action) { for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:animation', action); }
+function broadcastTurtle() { for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:turtle', turtles.view()); }
 function recover() {
   const area = screen.getPrimaryDisplay().workArea;
   const point = clampPosition({ x: area.x + area.width - WIDTH - 30, y: area.y + area.height - HEIGHT - 30 }, area, WIDTH, HEIGHT);
@@ -200,7 +205,18 @@ async function smokeTest() {
     // Tick explicitly so renderer hit-region updates cannot pause this movement assertion.
     for (let i = 0; i < 8; i++) { regions = []; lastTick = Date.now() - 100; moveTick(); }
     assert.notEqual(pet.getBounds().x, before.x);
-    console.log('Desktop smoke passed: isolated renderer, always-on-top overlay, shared care, instant shape, close/show, movement.');
+    // Exercise real packaged navigation and IPC using explicit fixture artwork, without a live wallet.
+    await careWindow.loadFile(path.join(__dirname, 'web/hood-turtles.html'));
+    assert.equal(await js('typeof TinyFrensDesktop.turtleRequest'), 'function');
+    turtles.fetch = async () => ({ok:true, text:async () => JSON.stringify({active:true, tokenId:7,
+      name:'Smoke fixture', image:'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="green"/></svg>').toString('base64'), validUntil:Date.now()/1000 + 3600})});
+    await js(`TinyFrensDesktop.turtleRequest('${SERVER}', '/native/import-turtle', {token:'smoke-fixture', tokenId:7})`);
+    await pause(200);
+    assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.turtle'), 'true');
+    assert.equal(await pet.webContents.executeJavaScript('document.querySelector(".overlay-turtle").naturalWidth'), 64);
+    await js('TinyFrensDesktop.clearTurtle()'); await pause(100);
+    assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.turtle'), 'false');
+    console.log('Desktop smoke passed: isolated renderer, always-on-top overlay, shared care, movement, packaged import navigation, turtle IPC/artwork/unload.');
     clearTimeout(deadline); finishSmoke(0);
   } catch (error) { console.error(error); clearTimeout(deadline); finishSmoke(1); }
 }
@@ -214,6 +230,8 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
   try {
     switch (name) {
       case 'state': event.returnValue = JSON.stringify(snapshot()); break;
+      case 'turtle': event.returnValue = JSON.stringify(turtles.view()); break;
+      case 'clear-turtle': turtles.clear(); broadcastTurtle(); event.returnValue = true; break;
       case 'visible': event.returnValue = petVisible; break;
       case 'toggle': if (petVisible) hidePet(); else showPet(); event.returnValue = petVisible; break;
       case 'hide': hidePet(); event.returnValue = true; break;
@@ -247,6 +265,14 @@ ipcMain.handle('tinyfrens:check-update', async event => {
   if (!trusted(event)) return { error: true };
   try { return await checkUpdate(); } catch { return { error: true }; }
 });
+ipcMain.handle('tinyfrens:turtle-request', async (event, server, route, body) => {
+  if (!trusted(event) || event.sender !== careWindow?.webContents) throw new Error('Untrusted turtle request');
+  if (route === '/native/import-turtle') {
+    if (server !== SERVER) throw new Error('Unsupported turtle server');
+    const result = await turtles.import(server, body); broadcastTurtle(); return result;
+  }
+  return turtles.request(server, route, body);
+});
 ipcMain.handle('tinyfrens:install-update', event => {
   if (!trusted(event) || !autoUpdater || !downloadedVersion) return false;
   try {
@@ -261,6 +287,7 @@ else {
   app.whenReady().then(() => {
     fs.mkdirSync(app.getPath('userData'), { recursive: true });
     store = new PetStore(path.join(app.getPath('userData'), 'pet.json'));
+    turtles = new TurtleStore(path.join(app.getPath('userData'), 'turtle.json'), (...args) => net.fetch(...args));
     session.defaultSession.setPermissionRequestHandler((_, permission, callback) => callback(permission === 'clipboard-sanitized-write'));
     pet = new BrowserWindow({ width: WIDTH, height: HEIGHT, frame: false, transparent: true, backgroundColor: '#00000000', resizable: false, hasShadow: false, alwaysOnTop: true, skipTaskbar: true, show: false, webPreferences: preferences() });
     pet.setAlwaysOnTop(true, 'floating');
@@ -274,10 +301,11 @@ else {
     const restore = () => { recover(); broadcast(); };
     screen.on('display-removed', restore); screen.on('display-metrics-changed', restore);
     tick = setInterval(moveTick, 50);
+    turtleTick = setInterval(async () => { if (await turtles.renew()) broadcastTurtle(); }, 1000);
     openApp();
     if (smoke) smokeTest();
   }).catch(error => { console.error('TinyFrens startup failed:', error); app.exit(1); });
 }
 app.on('activate', () => { if (store && !quitting) openApp(); });
 app.on('window-all-closed', () => {});
-app.on('before-quit', () => { quitting = true; clearInterval(tick); clearInterval(fadeTimer); if (store) { store.read(); store.save(); } });
+app.on('before-quit', () => { quitting = true; clearInterval(tick); clearInterval(turtleTick); clearInterval(fadeTimer); if (store) { store.read(); store.save(); } });

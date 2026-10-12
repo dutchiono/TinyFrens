@@ -1,6 +1,9 @@
-import asyncio, os, tempfile, unittest
+import asyncio, base64, json, os, tempfile, unittest
 from unittest import mock
+from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from app import create_app
 
 ORIGIN='https://tinyfrens.lol'
@@ -56,6 +59,125 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.post('/api/register',headers={'Origin':'https://bad.example'},json={});self.assertEqual(r.status,403)
         r=await self.client.post('/api/register',headers={'Origin':ORIGIN},json={'pet':{'name':'A','shape':'unsafe','color':'no'}});self.assertEqual(r.status,400)
         ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});await ws.send_json({'type':'auth','token':'invalid'});await ws.receive();self.assertEqual(ws.close_code,4003)
+
+    async def test_hood_turtle_display_requires_signed_link_and_current_owner(self):
+        fren=await self.register('Turtle Owner')
+        stranger=await self.register('Stranger')
+        account=Account.create()
+        wallet=account.address
+        other='0x2222222222222222222222222222222222222222'
+        original_owner=wallet
+        metadata={'name':'Hood Turtle #1','image':'data:image/svg+xml;base64,PHN2Zy8+'}
+        uri='data:application/json;base64,'+base64.b64encode(json.dumps(metadata).encode()).decode()
+        encoded_uri=uri.encode()
+        async def rpc(request):
+            body=await request.json()
+            selector=body['params'][0]['data'][:10]
+            if selector=='0xc87b56dd':
+                result='0x'+(32).to_bytes(32,'big').hex()+len(encoded_uri).to_bytes(32,'big').hex()+encoded_uri.hex()
+            else:
+                result='0x'+int(original_owner,16).to_bytes(32,'big').hex()
+            return web.json_response({'jsonrpc':'2.0','id':1,'result':result})
+        rpc_app=web.Application();rpc_app.router.add_post('/',rpc)
+        server=TestServer(rpc_app);await server.start_server()
+        try:
+            with mock.patch.dict(os.environ,{'ROBINHOOD_RPC_URL':str(server.make_url('/'))}):
+                path='/api/featured/hood-turtle'
+                payload={'token':fren['token'],'tokenId':1}
+                response=await self.client.post(path,headers={'Origin':ORIGIN},json=payload)
+                self.assertEqual(response.status,403)
+                response=await self.client.post('/api/wallet-link/challenge',headers={'Origin':ORIGIN},
+                                                json={'token':fren['token'],'address':wallet})
+                challenge=await response.json()
+                signature=Account.sign_message(encode_defunct(text=challenge['message']),account.key).signature.hex()
+                response=await self.client.post('/api/wallet-link/confirm',headers={'Origin':ORIGIN},
+                                                json={'token':fren['token'],'signature':signature})
+                self.assertEqual(response.status,200)
+                response=await self.client.post(path,headers={'Origin':ORIGIN},
+                                                json={'token':stranger['token'],'tokenId':1,'wallet':wallet})
+                self.assertEqual(response.status,403)
+                response=await self.client.post(path,headers={'Origin':ORIGIN},json=payload)
+                self.assertEqual(response.status,200)
+                data=await response.json()
+                self.assertTrue(data['active'])
+                self.assertEqual(data['image'],metadata['image'])
+                original_owner=other
+                # Ownership is cached for 24 hours, then transfers revoke display.
+                with mock.patch('turtle_connect.time.time', return_value=data['validUntil'] + 1):
+                    response=await self.client.post(path,headers={'Origin':ORIGIN},json=payload)
+                self.assertEqual(response.status,200)
+                data=await response.json()
+                self.assertFalse(data['active'])
+                self.assertIsNone(data['image'])
+        finally:
+            await server.close()
+
+    async def test_read_only_wallet_link_is_persistent_replay_safe_and_revocable(self):
+        async def post(path, body):
+            return await self.client.post(path, headers={'Origin': ORIGIN}, json=body)
+        fren=await self.register('Walletless')
+        other=await self.register('Other')
+        account=Account.create()
+        wrong=Account.create()
+        payload={'token':fren['token']}
+        response=await post('/api/wallet-link/challenge',{**payload,'address':account.address})
+        self.assertEqual(response.status,200)
+        challenge=await response.json()
+        self.assertIn('read-only',challenge['message'])
+        self.assertIn('does not authorize transactions',challenge['message'])
+        wrong_signature=Account.sign_message(encode_defunct(text=challenge['message']),wrong.key).signature.hex()
+        response=await post('/api/wallet-link/confirm',{**payload,'signature':wrong_signature})
+        self.assertEqual(response.status,400)
+        signature=Account.sign_message(encode_defunct(text=challenge['message']),account.key).signature.hex()
+        response=await post('/api/wallet-link/confirm',{**payload,'signature':signature})
+        self.assertEqual(response.status,200)
+        self.assertEqual((await response.json())['address'],account.address)
+        response=await post('/api/wallet-link/confirm',{**payload,'signature':signature})
+        self.assertEqual(response.status,400)
+        response=await post('/api/wallet-link/status',payload)
+        self.assertEqual((await response.json())['address'],account.address)
+        response=await post('/api/wallet-link/status',{'token':other['token']})
+        self.assertFalse((await response.json())['linked'])
+        response=await post('/api/wallet-link/disconnect',payload)
+        self.assertEqual(response.status,200)
+        response=await post('/api/wallet-link/status',payload)
+        self.assertFalse((await response.json())['linked'])
+
+    async def test_wallet_scan_filters_supported_nfts_and_verifies_owner_on_chain(self):
+        async def post(path, body):
+            return await self.client.post(path, headers={'Origin': ORIGIN}, json=body)
+        fren=await self.register('Collector')
+        account=Account.create()
+        payload={'token':fren['token']}
+        response=await post('/api/wallet-link/challenge',{**payload,'address':account.address})
+        challenge=await response.json()
+        signature=Account.sign_message(encode_defunct(text=challenge['message']),account.key).signature.hex()
+        response=await post('/api/wallet-link/confirm',{**payload,'signature':signature})
+        self.assertEqual(response.status,200)
+        current_owner=account.address
+        async def indexer(request):
+            return web.json_response({'items':[
+                {'id':'1','token':{'address_hash':'0xca28587b61eac19a87dfcfd9420870867a916675'}},
+                {'id':'2','token':{'address_hash':'0x1111111111111111111111111111111111111111'}}],
+                'next_page_params':None})
+        async def rpc(request):
+            return web.json_response({'result':'0x'+int(current_owner,16).to_bytes(32,'big').hex()})
+        fake=web.Application()
+        fake.router.add_get('/api/v2/addresses/{address}/nft',indexer)
+        fake.router.add_post('/rpc',rpc)
+        server=TestServer(fake);await server.start_server()
+        try:
+            with mock.patch.dict(os.environ,{'ROBINHOOD_BLOCKSCOUT_API_URL':str(server.make_url('/api/v2')),
+                                          'ROBINHOOD_RPC_URL':str(server.make_url('/rpc'))}):
+                response=await post('/api/wallet-link/nfts',payload)
+                self.assertEqual(response.status,200)
+                data=await response.json()
+                self.assertEqual([nft['tokenId'] for nft in data['nfts']],[1])
+                current_owner='0x2222222222222222222222222222222222222222'
+                response=await post('/api/wallet-link/nfts',payload)
+                self.assertEqual((await response.json())['nfts'],[])
+        finally:
+            await server.close()
     async def test_chat_requires_configured_model_key(self):
         saved={k:os.environ.pop(k,None) for k in ('GEMINI_API_KEY','GOOGLE_API_KEY')}
         try:

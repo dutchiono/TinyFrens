@@ -1,8 +1,10 @@
 """TinyFrens relay: private device credentials, friend consent, live guest visits."""
 import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from collections import defaultdict, deque
+from urllib.parse import urlencode
 from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
+import turtle_connect
 try:
     from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
     from discord_integration import verify_interaction, exchange_code
@@ -16,8 +18,9 @@ BANKR_URL = 'https://api.bankr.bot'
 NEYNAR_URL = 'https://api.neynar.com'
 try:
     from eth_account import Account
+    from eth_account.messages import encode_defunct
 except ImportError:
-    Account = None
+    Account = encode_defunct = None
 try:
     from eth_abi import encode as abi_encode
     from eth_utils import keccak, to_checksum_address
@@ -64,6 +67,7 @@ def fren_vault_address_and_key(pid):
 
 DEFAULT_NFT_MINT_PRICE_WEI = 10**15  # 0.001 ETH, matching TinyFrensNFT.sol.
 NFT_MAX_SUPPLY = 2664
+HOOD_TURTLES_ADDRESS = '0xca28587b61eac19a87dfcfd9420870867a916675'
 NET_STORAGE_ADDRESS = '0x00000000DB40fcB9f4466330982372e27Fd7Bbf5'
 
 def nft_mint_price_wei():
@@ -167,6 +171,8 @@ def create_app(database=None, origins=None):
     CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a,b));
     CREATE TABLE IF NOT EXISTS requests(sender TEXT, receiver TEXT, PRIMARY KEY(sender,receiver));
     CREATE TABLE IF NOT EXISTS pet_wallets(pet_id TEXT PRIMARY KEY, provider TEXT, wallet_id TEXT, evm_address TEXT, sol_address TEXT, api_key TEXT, nft TEXT, created INTEGER);
+    CREATE TABLE IF NOT EXISTS wallet_links(pet_id TEXT PRIMARY KEY, address TEXT NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS wallet_link_challenges(pet_id TEXT PRIMARY KEY, address TEXT NOT NULL, message TEXT NOT NULL, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS magic_links(code TEXT PRIMARY KEY, pet_id TEXT, created INTEGER, expires INTEGER);
     CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER);
     CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
@@ -284,14 +290,17 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
-        if not is_public and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
+        is_agent=request.path in turtle_connect.AGENT_PATHS and origin is None
+        if not is_public and not is_agent and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
         if not isinstance(response,web.WebSocketResponse):
+            if is_agent:
+                response.headers['Cache-Control']='no-store'
             if is_public:
                 response.headers.update({'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Accept, X-Snap-Payload','Access-Control-Allow-Methods':'POST, GET, OPTIONS'})
             elif origin in allowed:
@@ -371,6 +380,142 @@ def create_app(database=None, origins=None):
         if data['mode'] == 'production' and not data['enabled']:
             data['note'] = 'Production FRENS is configured in contracts/config/economy.json; server economy stays off until testnet passes and ECONOMY_MODE=production is explicitly enabled.'
         return web.json_response(data)
+
+    async def wallet_link_status(request):
+        try:
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
+            return web.json_response({'linked': bool(row), 'address': row[0] if row else None})
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+
+    async def wallet_link_challenge(request):
+        try:
+            if Account is None or encode_defunct is None:
+                return web.json_response({'error': 'Wallet signature support is unavailable'}, status=503)
+            ip = request.remote or '?'
+            limit(('wallet-link-challenge', ip), 12, 3600)
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            address = str(body.get('address', ''))
+            if not ADDR_RE.fullmatch(address):
+                raise ValueError('Valid Ethereum wallet address required')
+            address = to_checksum_address(address)
+            issued = int(now())
+            expires = issued + 300
+            message = (f'TinyFrens read-only wallet link\n'
+                       f'Domain: tinyfrens.lol\n'
+                       f'Wallet: {address}\n'
+                       f'Fren: {pid}\n'
+                       f'Nonce: {secrets.token_hex(16)}\n'
+                       f'Issued: {issued}\nExpires: {expires}\n\n'
+                       'This signature only links your public address for supported NFT discovery. '
+                       'It does not authorize transactions, transfers, approvals, or spending.')
+            db.execute('INSERT OR REPLACE INTO wallet_link_challenges VALUES(?,?,?,?)',
+                       (pid, address, message, expires))
+            db.commit()
+            return web.json_response({'message': message, 'expires': expires})
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+
+    async def wallet_link_confirm(request):
+        try:
+            ip = request.remote or '?'
+            limit(('wallet-link-confirm', ip), 20, 3600)
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            signature = body.get('signature')
+            if not isinstance(signature, str) or not re.fullmatch(r'0x[a-fA-F0-9]{130}', signature):
+                raise ValueError('Valid wallet signature required')
+            row = db.execute('SELECT address,message,expires FROM wallet_link_challenges WHERE pet_id=?',
+                             (pid,)).fetchone()
+            if not row or row[2] < now():
+                raise ValueError('Link request expired. Start again.')
+            try:
+                recovered = Account.recover_message(encode_defunct(text=row[1]), signature=signature)
+            except Exception:
+                raise ValueError('Signature could not be verified') from None
+            if recovered.lower() != row[0].lower():
+                raise ValueError('Signature does not match the selected wallet')
+            db.execute('INSERT OR REPLACE INTO wallet_links VALUES(?,?,?)', (pid, row[0], int(now())))
+            db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
+            db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
+            db.commit()
+            return web.json_response({'linked': True, 'address': row[0]})
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+
+    async def wallet_link_disconnect(request):
+        try:
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
+            db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
+            db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
+            db.commit()
+            return web.json_response({'linked': False})
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+
+    async def wallet_link_nfts(request):
+        try:
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            limit(('wallet-link-nfts', pid), 20, 3600)
+            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
+            if not row:
+                raise ValueError('Link a wallet first')
+            address = row[0]
+            api_root = (os.environ.get('ROBINHOOD_BLOCKSCOUT_API_URL',
+                                       'https://robinhoodchain.blockscout.com/api/v2').rstrip('/')
+                        + '/addresses/' + address + '/nft')
+            candidates = {}
+            params = {'type': 'ERC-721'}
+            partial = False
+            async with ClientSession(timeout=ClientTimeout(total=15)) as session:
+                for page in range(5):
+                    async with session.get(api_root + '?' + urlencode(params)) as response:
+                        response.raise_for_status()
+                        data = await response.json(content_type=None)
+                    if not isinstance(data.get('items'), list):
+                        raise ValueError('NFT indexer returned invalid data')
+                    for item in data['items']:
+                        contract = (item.get('token') or {}).get('address_hash', '')
+                        token_id = str(item.get('id', ''))
+                        if contract.lower() == HOOD_TURTLES_ADDRESS and token_id.isdigit() and 1 <= int(token_id) <= 2222:
+                            candidates[int(token_id)] = {'tokenId': int(token_id), 'name': f'Hood Turtle #{token_id}',
+                                                          'collection': 'Hood Turtles', 'chainId': 4663}
+                    next_page = data.get('next_page_params')
+                    if not next_page:
+                        break
+                    if page == 4:
+                        partial = True
+                        break
+                    params = {'type': 'ERC-721', **next_page}
+            rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
+            semaphore = asyncio.Semaphore(5)
+            async def owns_token(session, token_id):
+                payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_call',
+                           'params': [{'to': HOOD_TURTLES_ADDRESS,
+                                       'data': '0x6352211e' + token_id.to_bytes(32, 'big').hex()}, 'latest']}
+                async with semaphore:
+                    async with session.post(rpc, json=payload) as response:
+                        response.raise_for_status()
+                        result = await response.json(content_type=None)
+                owner = result.get('result')
+                if not isinstance(owner, str) or len(owner) != 66:
+                    raise ValueError('On-chain ownership check unavailable')
+                return owner[-40:].lower() == address[2:].lower()
+            token_ids = list(candidates)[:50]
+            async with ClientSession(timeout=ClientTimeout(total=12)) as session:
+                ownership = await asyncio.gather(*(owns_token(session, token_id) for token_id in token_ids))
+            nfts = [candidates[token_id] for token_id, owned in zip(token_ids, ownership) if owned]
+            return web.json_response({'address': address, 'nfts': nfts, 'partial': partial or len(candidates) > 50})
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+        except (asyncio.TimeoutError, OSError, Exception):
+            return web.json_response({'error': 'NFT discovery is temporarily unavailable'}, status=503)
     async def bankr_wallet(request):
         try:
             ip=request.headers.get('X-Forwarded-For',request.remote or '?') if os.environ.get('TRUST_PROXY')=='true' else request.remote or '?'
@@ -1242,7 +1387,50 @@ def create_app(database=None, origins=None):
         except (asyncio.TimeoutError, OSError, Exception):
             return web.json_response({'error': 'RPC unavailable'}, status=503)
 
-    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/rename-nft',wallet_rename_nft);app.router.add_post('/api/wallet/evolve-nft',wallet_evolve_nft);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
+    turtle_ownership = turtle_connect.TurtleOwnership(db)
+    turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
+    turtle_previews = {}
+
+    async def hood_turtle_preview(request):
+        try:
+            limit(('turtle-preview', request.remote or '?'), 30, 60)
+            tid = turtle_connect.turtle_id(request.query.get('tokenId', '1'))
+            cached = turtle_previews.get(tid)
+            if cached and cached[0] > now():
+                return web.json_response(cached[1])
+            original = await turtle_ownership.read(None, tid)
+            data = {key: original[key] for key in ('tokenId', 'name', 'image', 'originalAddress', 'chainId')}
+            if len(turtle_previews) >= 64:
+                turtle_previews.pop(next(iter(turtle_previews)))
+            turtle_previews[tid] = (now() + 300, data)
+            return web.json_response(data)
+        except (ValueError, TypeError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+        except Exception:
+            return web.json_response({'error': 'Collection preview unavailable'}, status=503)
+
+    app.router.add_get('/api/hood-turtles/preview', hood_turtle_preview)
+
+    async def hood_turtle_status(request):
+        try:
+            body = await request.json()
+            pid = token_pet(body.get('token'))
+            row = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
+            if not row:
+                return web.json_response({'error': 'Link your wallet first'}, status=403)
+            token_id = turtle_connect.turtle_id(body.get('tokenId'))
+            data = await turtle_ownership.read(row[0], token_id)
+            # A wallet may be unlinked or changed while the RPC is in flight.
+            current = db.execute('SELECT address FROM wallet_links WHERE pet_id=?', (pid,)).fetchone()
+            if not current or current[0] != row[0]:
+                return web.json_response({'error': 'Wallet link changed. Please try again.'}, status=403)
+            return web.json_response(data)
+        except (ValueError, TypeError, OverflowError) as exc:
+            return web.json_response({'error': str(exc)}, status=400)
+        except Exception:
+            return web.json_response({'error': 'Robinhood Chain RPC unavailable'}, status=503)
+
+    app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/wallet-link/status',wallet_link_status);app.router.add_post('/api/wallet-link/challenge',wallet_link_challenge);app.router.add_post('/api/wallet-link/confirm',wallet_link_confirm);app.router.add_post('/api/wallet-link/disconnect',wallet_link_disconnect);app.router.add_post('/api/wallet-link/nfts',wallet_link_nfts);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/featured/hood-turtle',hood_turtle_status);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/rename-nft',wallet_rename_nft);app.router.add_post('/api/wallet/evolve-nft',wallet_evolve_nft);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     # Serve the static front-end (web/) so the gallery and app are viewable from the relay
     # itself (e.g. http://127.0.0.1:8080/web/gallery.html) during local / testnet runs.

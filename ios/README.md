@@ -2,6 +2,8 @@
 
 Native SwiftUI shell with the bundled offline pet interface in WKWebView. Feed/play/rest, evolution, and local save work inside the app. No Android-style overlay over other apps. Browser, iOS, and Android saves are separate.
 
+The Hood Turtle source flow opens **Import Hood Turtle** inside the app, creates a device pairing code for Bankr, accepts the verified wallet, and displays the NFT's original artwork. Its native HTTPS bridge only permits the configured TinyFrens relay and specific connection routes. Verification renews daily; expired artwork stays hidden until an online check succeeds. The relay and skill must be published and an updated app signed/distributed before live use. This work was authored on Windows and requires macOS/Xcode compilation and device QA.
+
 ## GitHub builds
 
 The iOS build workflow uses a macOS runner and XcodeGen to generate the Xcode project. It builds both a simulator app and an unsigned device archive. Download artifacts from Actions → iOS build. The unsigned archive is a compile artifact, **not an installable IPA**.
@@ -16,9 +18,9 @@ For TestFlight, join/use the Apple Developer Program, create the matching App St
 
 Use the hosted pet at https://dutchiono.github.io/TinyFrens/web/ after GitHub Pages is enabled. In Safari open Share → Add to Home Screen. This is the browser/PWA version; it plays inside its own window and supports offline use after the first load.
 
-## Picture in Picture
+## Legacy Picture in Picture
 
-The shell enables WKWebView inline/PiP video playback and the playback audio session. Bundled pet MP4 loops can be played through the web interface using Float pet or the video player controls. PiP is controlled by iOS and requires an actual iPhone test. This does not add a transparent cross-app pet or bypass native signing. The free Safari/home-screen web app uses the same PiP interface.
+PiP video is excluded from the native app and Hood Turtle onboarding. The older browser video panel is only available with `?legacyPip=1`. The planned App Store experience displays original turtle artwork inside TinyFrens; it does not claim a transparent overlay over arbitrary iOS apps.
 
 ## Free-account sideloading and updates
 

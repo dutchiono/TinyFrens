@@ -29,6 +29,7 @@ class PetOverlayService:Service(){
  private var pet:PetView?=null;private var params:WindowManager.LayoutParams?=null;private var menu:View?=null;private var chatPanel:View?=null;private var toy:View?=null
  private val handler=Handler(Looper.getMainLooper());private val store by lazy{PetStore(this)}
  private val position by lazy{getSharedPreferences("overlay_position",MODE_PRIVATE)}
+ private val turtles by lazy{TurtleStore(this)}
  private var state=org.json.JSONObject();private var lastRead=0L;private var frame=0
  private var x=0f;private var y=0f;private var tx=0f;private var ty=0f
  private var effectsView:View?=null;private var lastEffectToken=0L;private var hiding=false
@@ -72,6 +73,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")

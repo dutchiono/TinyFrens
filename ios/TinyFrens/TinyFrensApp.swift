@@ -1,7 +1,6 @@
 import SwiftUI
 import WebKit
 import UIKit
-import AVFoundation
 
 @main
 struct TinyFrensApp: App {
@@ -14,13 +13,12 @@ struct PetWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
-        config.allowsPictureInPictureMediaPlayback = true
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        config.allowsPictureInPictureMediaPlayback = false
         config.websiteDataStore = .default()
         config.userContentController.addUserScript(WKUserScript(
             source: "window.PetIOS = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController.add(context.coordinator, name: "petUpdates")
+        config.userContentController.add(context.coordinator, name: "petTurtle")
         let web = WKWebView(frame: .zero, configuration: config)
         context.coordinator.attach(web)
         web.navigationDelegate = context.coordinator
@@ -37,7 +35,7 @@ struct PetWebView: UIViewRepresentable {
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
     func makeCoordinator() -> Coordinator { Coordinator() }
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
         weak var web: WKWebView?
         private var foregroundObserver: NSObjectProtocol?
         private var checking = false
@@ -49,7 +47,9 @@ struct PetWebView: UIViewRepresentable {
         }
         deinit { if let observer = foregroundObserver { NotificationCenter.default.removeObserver(observer) } }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.frameInfo.isMainFrame, message.name == "petUpdates" else { return }
+            guard message.frameInfo.isMainFrame else { return }
+            if message.name == "petTurtle" { turtleRequest(message); return }
+            guard message.name == "petUpdates" else { return }
             if (message.body as? String) == "tap" { UIImpactFeedbackGenerator(style: .light).impactOccurred(); return }
             if (message.body as? String) == "check" { checkUpdates(); return }
             if let data = message.body as? [String: String], data["type"] == "share",
@@ -63,6 +63,41 @@ struct PetWebView: UIViewRepresentable {
                 while let presented = presenter?.presentedViewController { presenter = presented }
                 presenter?.present(sheet, animated: true)
             }
+        }
+        private func turtleRequest(_ message: WKScriptMessage) {
+            let paths: Set<String> = ["/api/register", "/api/wallet-link/status", "/api/wallet-link/challenge",
+                "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle",
+                "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept"]
+            guard let page = message.frameInfo.request.url, page.isFileURL,
+                  let folder = Bundle.main.resourceURL?.appendingPathComponent("web"),
+                  page.standardizedFileURL.path.hasPrefix(folder.standardizedFileURL.path + "/"),
+                  let payload = message.body as? [String: Any], let id = payload["requestId"] as? Int,
+                  payload["server"] as? String == "https://tinyfrens.miono.live",
+                  let path = payload["path"] as? String, paths.contains(path),
+                  let body = payload["body"] as? [String: Any],
+                  let encoded = try? JSONSerialization.data(withJSONObject: body), encoded.count <= 4096,
+                  let url = URL(string: "https://tinyfrens.miono.live" + path) else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"; request.httpBody = encoded; request.timeoutInterval = 30
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("null", forHTTPHeaderField: "Origin")
+            let session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+            session.dataTask(with: request) { [weak self] data, response, error in
+                defer { session.finishTasksAndInvalidate() }
+                var result: [String: Any] = ["error": "Turtle connection unavailable. Please retry."]
+                if error == nil, let data = data, data.count <= 2_000_000,
+                   let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                    if (response as? HTTPURLResponse)?.statusCode == 200 { result = json }
+                    else { result = ["error": json["error"] as? String ?? "Turtle connection failed."] }
+                }
+                guard let encoded = try? JSONSerialization.data(withJSONObject: ["requestId": id, "result": result]),
+                      let json = String(data: encoded, encoding: .utf8) else { return }
+                DispatchQueue.main.async { self?.web?.evaluateJavaScript("window.onTurtleResponse?.(\(json))", completionHandler: nil) }
+            }.resume()
+        }
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil)
         }
         private func send(_ result: [String: Any]) {
             checking = false
