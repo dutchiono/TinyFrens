@@ -1,1 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#211c39"/><rect x="50" y="35" width="30" height="65" rx="8" fill="#4b2d77"/><rect x="112" y="35" width="30" height="65" rx="8" fill="#4b2d77"/><rect x="45" y="70" width="102" height="91" rx="34" fill="#a474f1" stroke="#4b2d77" stroke-width="9"/><rect x="69" y="109" width="11" height="20" fill="#35204e"/><rect x="113" y="109" width="11" height="20" fill="#35204e"/><rect x="59" y="134" width="15" height="7" fill="#ff82a7"/><rect x="119" y="134" width="15" height="7" fill="#ff82a7"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2c1e4d"/>
+      <stop offset="100%" stop-color="#141124"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#a474f1" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#141124" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#07040e" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect width="508" height="508" x="2" y="2" rx="110" fill="none" stroke="#503c73" stroke-width="4"/>
+  <circle cx="256" cy="270" r="180" fill="url(#glow)"/>
+
+  <!-- Sparkles -->
+  <path d="M 96 112 Q 106 122 106 132 Q 106 122 116 112 Q 106 102 106 92 Q 106 102 96 112 Z" fill="#ffd700"/>
+  <path d="M 400 130 Q 408 138 408 146 Q 408 138 416 130 Q 408 122 408 114 Q 408 122 400 130 Z" fill="#66c7d2"/>
+  <circle cx="128" cy="380" r="4" fill="#ffd700" opacity="0.8"/>
+  <circle cx="396" cy="360" r="5" fill="#a474f1" opacity="0.8"/>
+
+  <!-- Pet Group with Drop Shadow -->
+  <g filter="url(#shadow)">
+    <!-- Cat Ears -->
+    <polygon points="150,190 196,80 242,190" fill="#a474f1" stroke="#4b2d77" stroke-width="16" stroke-linejoin="round"/>
+    <polygon points="270,190 316,80 362,190" fill="#a474f1" stroke="#4b2d77" stroke-width="16" stroke-linejoin="round"/>
+    <polygon points="172,176 196,116 220,176" fill="#ff82a7"/>
+    <polygon points="292,176 316,116 340,176" fill="#ff82a7"/>
+
+    <!-- Royal Crown Accessory -->
+    <polygon points="220,126 220,94 238,108 256,86 274,108 292,94 292,126" fill="#ffd700" stroke="#b7791f" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="256" cy="86" r="6" fill="#ff4757"/>
+
+    <!-- Paws/Feet -->
+    <rect x="180" y="420" width="60" height="26" rx="10" fill="#4b2d77"/>
+    <rect x="272" y="420" width="60" height="26" rx="10" fill="#4b2d77"/>
+
+    <!-- Main Chibi Body -->
+    <rect x="126" y="160" width="260" height="260" rx="90" fill="#a474f1" stroke="#4b2d77" stroke-width="18"/>
+
+    <!-- Cheeks -->
+    <rect x="156" y="296" width="34" height="20" rx="10" fill="#ff82a7"/>
+    <rect x="322" y="296" width="34" height="20" rx="10" fill="#ff82a7"/>
+
+    <!-- Eyes with Catchlights -->
+    <rect x="188" y="244" width="28" height="46" rx="8" fill="#35204e"/>
+    <rect x="296" y="244" width="28" height="46" rx="8" fill="#35204e"/>
+    <circle cx="196" cy="254" r="6" fill="#ffffff"/>
+    <circle cx="204" cy="274" r="3" fill="#ffffff"/>
+    <circle cx="304" cy="254" r="6" fill="#ffffff"/>
+    <circle cx="312" cy="274" r="3" fill="#ffffff"/>
+
+    <!-- Smile Mouth -->
+    <path d="M 242 306 Q 256 318 270 306" stroke="#4b2d77" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
