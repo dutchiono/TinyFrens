@@ -171,6 +171,33 @@ def economy_settings():
         'productionToken': cfg.get('production', {}).get('frensToken'),
     }
 
+def treasury_settings():
+    """Fixed Dev-wallet FRENS deposit target for the v1 direct-transfer path.
+
+    The address is env-only and has no default, and the indexer is off unless
+    `FRENS_TREASURY_INDEXER=true`: until an operator sets both, the deposit path stays
+    inert, so a missing or stale config can never redirect funds. Every transfer is
+    capped (`FRENS_TREASURY_MAX_CREDITS`) and unmatched senders credit nothing.
+    """
+    cfg = load_economy_config()
+    token = (os.environ.get('FRENS_TREASURY_TOKEN') or os.environ.get('FRENS_TOKEN')
+             or (cfg.get('production') or {}).get('frensToken') or '').strip()
+    try:
+        chain_id = int(os.environ.get('FRENS_TREASURY_CHAIN_ID') or 8453)
+    except (TypeError, ValueError):
+        chain_id = 8453
+    try:
+        cap = int(os.environ.get('FRENS_TREASURY_MAX_CREDITS') or 0)
+    except (TypeError, ValueError):
+        cap = 0
+    return {
+        'address': (os.environ.get('FRENS_TREASURY') or '').strip(),
+        'token': token or None,
+        'chainId': chain_id,
+        'maxCreditsPerTransfer': cap or None,
+        'enabled': os.environ.get('FRENS_TREASURY_INDEXER', '').strip().lower() in ('1', 'true', 'yes'),
+    }
+
 def _env_int(name, default):
     try:
         return int(os.environ[name])
@@ -1708,6 +1735,52 @@ def create_app(database=None, origins=None):
         app.on_startup.append(_start_indexer)
         app.on_cleanup.append(_stop_indexer)
 
+    # Treasury indexer: the v1 deposit path (FRENS sent straight to the Dev wallet).
+    # Off unless FRENS_TREASURY_INDEXER=true and a valid address is set; fail closed.
+    treasury_cfg = treasury_settings()
+    treasury_indexer = None
+    if treasury_cfg['enabled']:
+        if treasury_cfg['address'] and ADDR_RE.fullmatch(treasury_cfg['address']) and os.environ.get('BASE_RPC_URL'):
+            try:
+                from indexer import TreasuryTransferIndexer
+
+                def resolve_wallet_pet(sender):
+                    rows = db.execute(
+                        'SELECT pet_id FROM wallet_links WHERE address = ? COLLATE NOCASE', (sender,)
+                    ).fetchall()
+                    pets = {r[0] for r in rows}
+                    return pets.pop() if len(pets) == 1 else None
+
+                treasury_indexer = TreasuryTransferIndexer(
+                    economy,
+                    os.environ['BASE_RPC_URL'],
+                    treasury_cfg['chainId'],
+                    treasury=treasury_cfg['address'],
+                    token=treasury_cfg['token'],
+                    poll_seconds=float(os.environ.get('INDEXER_POLL_SECONDS', '6')),
+                    lookback=int(os.environ.get('INDEXER_LOOKBACK', '300')),
+                    resolve=resolve_wallet_pet,
+                    max_credits=treasury_cfg['maxCreditsPerTransfer'],
+                )
+            except Exception:
+                app.logger.warning('Treasury indexer disabled (import/address/rpc issue)', exc_info=True)
+        else:
+            app.logger.warning('Treasury indexer requested but FRENS_TREASURY / BASE_RPC_URL is missing or invalid')
+
+    async def _start_treasury(_app):
+        if treasury_indexer is not None:
+            app.logger.info('Treasury indexer watching %s on chain %s',
+                            treasury_indexer.treasury, treasury_indexer.chain_id)
+            treasury_indexer.start()
+
+    async def _stop_treasury(_app):
+        if treasury_indexer is not None:
+            await treasury_indexer.aclose()
+
+    if treasury_indexer is not None:
+        app.on_startup.append(_start_treasury)
+        app.on_cleanup.append(_stop_treasury)
+
     # NFT gallery support: read tokenURI straight from the on-chain collection so the
     # web/gallery.html page (and anyone) can render the real art. Read-only eth_call.
     TOKEN_URI_SELECTOR = '0xc87b56dd'  # tokenURI(uint256)
@@ -1747,14 +1820,14 @@ def create_app(database=None, origins=None):
 
     async def robot_owner_check(pid, token_id):
         # Care is robots-only: authorize via the Robots verifier against the linked wallets
-        # (same path the companion flow uses).
+        # (same path the companion flow uses). Money paths use a FRESH ownerOf — the
+        # cached read can lag a transfer by up to 24h, which must not gate charges.
         addresses = turtle_connect.linked_wallets(db, pid)
         if not addresses:
             raise robot_care.NotLinked('Link your wallet first')
         for address in addresses:
-            data = await robots.read(address, token_id)
-            if data['active']:
-                return data['wallet']
+            if await robots.owner_of(address, token_id):
+                return address
         return None
 
     robot_care.install(
@@ -1763,6 +1836,14 @@ def create_app(database=None, origins=None):
         limit=limit,
         settings=lambda: admin_surface.care_settings(db),
         owner_check=robot_owner_check,
+        economy=economy,
+    )
+    admin_surface.install(
+        app, db,
+        token=os.environ.get('ADMIN_TOKEN'),
+        economy_settings=economy_settings,
+        treasury_settings=treasury_settings,
+        economy=economy,
     )
     admin_surface.install(
         app, db,

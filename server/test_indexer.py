@@ -16,7 +16,15 @@ from eth_utils import keccak, to_checksum_address
 
 from deposit_allocator import DepositRouterAllocator
 from economy import Economy
-from indexer import DEPOSIT_TOPIC, DepositIndexer, IndexerError, decode_deposit_log
+from indexer import (
+    DEPOSIT_TOPIC,
+    TRANSFER_TOPIC,
+    DepositIndexer,
+    IndexerError,
+    TreasuryTransferIndexer,
+    decode_deposit_log,
+    decode_transfer_log,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 TOOLS = REPO / ".tools" / "foundry"
@@ -73,6 +81,125 @@ class DecodeTests(unittest.TestCase):
         log = self._log(keccak(text="s2").hex(), "0x" + "cd" * 20, "0x" + "11" * 20, 5)
         log["topics"][0] = "0x" + "00" * 32
         self.assertRaises(IndexerError, decode_deposit_log, log)
+
+
+class TransferDecodeTests(unittest.TestCase):
+    def _transfer(self, sender, recipient, amount):
+        return {
+            "address": "0x" + "11" * 20,
+            "topics": [
+                TRANSFER_TOPIC,
+                "0x000000000000000000000000" + sender[-40:],
+                "0x000000000000000000000000" + recipient[-40:],
+            ],
+            "data": "0x" + amount.to_bytes(32, "big").hex(),
+            "transactionHash": "0x" + "cc" * 32,
+            "logIndex": "0x2",
+        }
+
+    def test_decode_transfer(self):
+        sender = "0x" + "cd" * 20
+        recipient = "0x" + "ef" * 20
+        got_sender, got_recipient, amount = decode_transfer_log(self._transfer(sender, recipient, 7 * 10**18))
+        self.assertEqual(to_checksum_address(got_sender), to_checksum_address(sender))
+        self.assertEqual(to_checksum_address(got_recipient), to_checksum_address(recipient))
+        self.assertEqual(amount, 7 * 10**18)
+
+    def test_decode_transfer_rejects_wrong_topic(self):
+        log = self._transfer("0x" + "cd" * 20, "0x" + "ef" * 20, 1)
+        log["topics"][0] = "0x" + "00" * 32
+        self.assertRaises(IndexerError, decode_transfer_log, log)
+
+
+class TreasuryIndexerUnitTests(unittest.IsolatedAsyncioTestCase):
+    """Drive `TreasuryTransferIndexer.scan` with a stubbed RPC (no network)."""
+
+    TREASURY = "0x" + "ab" * 20
+    TOKEN = "0x" + "11" * 20
+
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.economy = Economy(self.db)
+
+    def _indexer(self, logs, resolve, **kw):
+        indexer = TreasuryTransferIndexer(
+            self.economy, "http://rpc.invalid", 8453, treasury=self.TREASURY,
+            token=kw.pop("token", self.TOKEN), resolve=resolve, **kw,
+        )
+        calls = []
+
+        async def fake_rpc(method, params):
+            calls.append((method, params))
+            return logs if method == "eth_getLogs" else "0x0"
+
+        indexer._rpc = fake_rpc
+        indexer.calls = calls
+        return indexer
+
+    def _log(self, sender, recipient, amount):
+        return {
+            "address": self.TOKEN,
+            "topics": [
+                TRANSFER_TOPIC,
+                "0x000000000000000000000000" + sender[-40:],
+                "0x000000000000000000000000" + recipient[-40:],
+            ],
+            "data": "0x" + amount.to_bytes(32, "big").hex(),
+            "transactionHash": "0x" + "dd" * 32,
+            "logIndex": "0x5",
+        }
+
+    async def test_scan_credits_resolved_sender(self):
+        sender = "0x" + "01" * 20
+        indexer = self._indexer([self._log(sender, self.TREASURY, 12 * 10**18)],
+                                resolve=lambda s: "pet-1" if s.lower() == sender else None)
+        credited = await indexer.scan(100, 120)
+        self.assertEqual(credited, 1)
+        self.assertEqual(self.economy.balance("pet-1"), 1_200)
+
+    async def test_scan_filters_to_treasury_and_token(self):
+        sender = "0x" + "01" * 20
+        other = "0x" + "02" * 20
+        logs = [self._log(sender, other, 10**18), self._log(sender, self.TREASURY, 10**18)]
+        indexer = self._indexer(logs, resolve=lambda s: "pet-1")
+        credited = await indexer.scan(1, 2)
+        self.assertEqual(credited, 1)
+        self.assertEqual(self.economy.balance("pet-1"), 100)
+        method, params = indexer.calls[0]
+        self.assertEqual(method, "eth_getLogs")
+        self.assertEqual(params[0]["address"], self.TOKEN)
+        self.assertEqual(params[0]["topics"][0], TRANSFER_TOPIC)
+        self.assertEqual(params[0]["topics"][2], "0x" + self.TREASURY[2:].lower().rjust(64, "0"))
+
+    async def test_scan_unmatched_sender_credits_nothing(self):
+        indexer = self._indexer([self._log("0x" + "01" * 20, self.TREASURY, 10**18)],
+                                resolve=lambda s: None)
+        credited = await indexer.scan(1, 2)
+        self.assertEqual(credited, 0)
+        self.assertEqual(self.economy.balance("pet-1"), 0)
+
+    async def test_scan_over_cap_credits_nothing(self):
+        indexer = self._indexer([self._log("0x" + "01" * 20, self.TREASURY, 10**21)],
+                                resolve=lambda s: "pet-1", max_credits=100)
+        credited = await indexer.scan(1, 2)
+        self.assertEqual(credited, 0)
+        self.assertEqual(self.economy.balance("pet-1"), 0)
+
+    async def test_scan_is_idempotent(self):
+        indexer = self._indexer([self._log("0x" + "01" * 20, self.TREASURY, 10**18)],
+                                resolve=lambda s: "pet-1")
+        self.assertEqual(await indexer.scan(1, 2), 1)
+        self.assertEqual(await indexer.scan(1, 2), 0)
+        self.assertEqual(self.economy.balance("pet-1"), 100)
+
+    async def test_scan_respects_its_own_state_key(self):
+        indexer = self._indexer([], resolve=lambda s: None)
+        self.assertIsNone(indexer._state_last())
+        indexer._state_save(4321)
+        self.assertEqual(indexer._state_last(), 4321)
+        # A stale deposit-indexer cursor must not be read as the treasury cursor.
+        self.db.execute("INSERT INTO indexer_state(key,value) VALUES('last_block',9999999)")
+        self.assertEqual(indexer._state_last(), 4321)
 
 
 @unittest.skipUnless(ANVIL.exists() and FORGE.exists(), "repo-local foundry toolchain not present")

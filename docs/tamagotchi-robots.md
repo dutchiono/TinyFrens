@@ -1,7 +1,8 @@
 # Tamagotchi Robots v1 — design plan
 
-Status: **Building in phases.** P1 (mechanics), P2 (server care layer) and P3 (admin) ship in stacked
-branches; P4 (money) is not live yet.
+Status: **Building in phases.** P1 (mechanics), P2 (server care layer), P3 (admin) and P4 (money —
+server core) ship in stacked branches; P4b (client wiring) and P5 follow. Live mainnet deposits are
+**not yet enabled** (§6.2, §9).
 
 Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/tamagotchi-robots-economy`).
 The previous draft of this doc was written against a stale branch and treated games/ownership/
@@ -128,13 +129,42 @@ the existing `economy_settings()` flag, and start with a small cap. Fail closed 
 Endpoints (robots-only, gated by a fresh `ownerOf` against the pet's linked wallets, like the
 companion flow):
 
-- `POST /api/robots/care` `{token, tokenId}` → `{tokenId, allowance, prices, actions, freeActions}`
+- `POST /api/robots/care` `{token, tokenId}` → `{tokenId, allowance, prices, actions, freeActions, creditsPerFrens, balance}`
 - `POST /api/robots/care/action` `{token, tokenId, action}` → `{allowed, free, charged, allowance}`;
-  beyond the allowance it returns `{allowed: false, requiresPayment: true, priceFrens}` for P4 to charge.
+  within the allowance it is free, beyond it the FRENS price is **charged from the credit ledger**
+  (P4). When the balance is short it returns
+  `{allowed: false, requiresPayment: true, priceFrens, balance, shortfall}` and moves nothing.
+- `POST /api/robots/game` `{token, tokenId, game}` → the small game earn-back (P4): grants the
+  admin-tunable `gameRewardCredits` (0 = off) and returns `{granted, balance}`.
 
-Tunables are env-overridable (`ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_PRICE_<ACTION>`) and move to
-the admin page in P3. The care *simulation* stays in `web/pet-engine.js`; nothing here changes offline,
-floating-overlay, desktop or native behavior.
+Ownership uses `Robots.owner_of()` (a fresh `ownerOf` with no cache and no metadata), not the 24h
+`read()` cache — charging and crediting must see current ownership.
+
+Tunables are env-overridable (`ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_PRICE_<ACTION>`,
+`ROBOT_CARE_GAME_REWARD_CREDITS`) and are edited live on the admin page (P3). The care *simulation*
+stays in `web/pet-engine.js`; nothing here changes offline, floating-overlay, desktop or native
+behavior.
+
+## 6.2 Money layer (P4)
+
+The deposit path is the v1 **direct transfer**: a player sends FRENS straight to the fixed Dev
+wallet, and `TreasuryTransferIndexer` (`server/indexer.py`) watches ERC-20 `Transfer` logs to that
+address.
+
+- **Destination is env-only and fail-closed.** The target address comes from `FRENS_TREASURY` with
+  **no default**, and the indexer only starts when `FRENS_TREASURY_INDEXER=true`. It is deliberately
+  **not** admin-tunable: an admin-token compromise must not be able to redirect deposits. Every
+  transfer is capped (`FRENS_TREASURY_MAX_CREDITS`) and the scan fails closed on any RPC error.
+- **Attribution.** Because there is no per-session address, each `Transfer` is matched to the pet
+  whose linked wallets include the sender (`resolve_wallet_pet`). If the sender maps to **zero or
+  several** pets, the transfer is recorded in `treasury_transfers` with status `unmatched` and credits
+  **nothing** for manual reconciliation — we never guess. Over-cap (`over_cap`) and sub-credit
+  (`dust`) transfers are recorded the same way. Crediting is idempotent on
+  `(chain_id, tx_hash, log_index)`.
+- **Counter.** `Economy.credits_per_frens` is now configurable (default 100) instead of a hardcoded
+  constant; `treasury_transfers` is the on-chain provenance of every credited deposit.
+- **Charging.** `server/robot_care.py` charges the paid top-up (and the paid revive) from the credit
+  ledger on the paid branch; the ledger's `spend()`/`grant()` are the only money movements.
 
 ## 7. Ownership gate
 
@@ -151,19 +181,21 @@ Shipped (P3):
   accident; the token is compared in constant time. This surface never touches keys, seeds or
   deployments.
 - `GET /api/admin/state` — care tunables (effective + overrides), the care-action list, economy
-  status, counts and the recent audit log. `POST /api/admin/settings` — retune `dailyAllowance` and
-  the per-action FRENS prices; persisted in `app_settings` and read **live** by the care layer (so
-  `RobotCare` re-reads them per request, no restart). `GET /api/admin/ledger` and
-  `GET /api/admin/care` — read-only views of the credit ledger and daily care usage.
+  status (including the read-only deposit treasury address, the per-transfer cap and
+  `creditsPerFrens`), counts and the recent audit log. `POST /api/admin/settings` — retune
+  `dailyAllowance`, `gameRewardCredits` and the per-action FRENS prices; persisted in `app_settings`
+  and read **live** by the care layer (so `RobotCare` re-reads them per request, no restart).
+  `GET /api/admin/ledger` and `GET /api/admin/care` — read-only views of the credit ledger and daily
+  care usage.
 - `web/admin.html` (reached via `/admin`) — the operator page. The API is origin-independent (it
   carries its own bearer token) and every response is `Cache-Control: no-store`.
 - Deployment: reachable at `/admin` on `PET_DOMAIN`, or on its own host by setting `ADMIN_DOMAIN`
   and uncommenting the Caddy block (`server/Caddyfile`, `server/README.md`); production runs as
   systemd `tinyfrens-server.service` on `miono`.
 
-Deferred to P4: the Dev wallet address and game-reward amounts are not stored yet, because they
-would not take effect until money lands. `usd_per_credit` is dropped — prices are denominated in
-FRENS.
+The **deposit treasury address is deliberately not admin-tunable** — it is env-only and fail-closed
+(P4, §6.2). The admin page shows it read-only. `usd_per_credit` is dropped — prices are denominated
+in FRENS.
 
 ## 9. Phasing
 
@@ -185,9 +217,21 @@ FRENS.
   at `web/admin.html` (§8). Care tunables move to `app_settings` and are read live, so
   `server/robot_care.py` re-resolves its allowance/prices per request. Tests:
   `server/test_admin.py`.
-- **P4 — Money.** FRENS deposit to the fixed Dev wallet + `TreasuryTransferIndexer`, the daily free
-  allowance + paid top-up enforcement, the paid revive cost, game earn-back, and the
-  `CREDITS_PER_FRENS` reconciliation.
+- **P4 — Money.** Server money core **✅ shipped in this branch**; client wiring follows as P4b.
+  - `TreasuryTransferIndexer` (`server/indexer.py`): ERC-20 `Transfer` → fixed Dev wallet, matched to
+    the pet by sender, idempotent, fail-closed (§6.2). `Economy.credit_transfer` +
+    `treasury_transfers` ledger and a configurable `credits_per_frens`.
+  - Paid top-up and paid revive **charged** from the credit ledger in `server/robot_care.py`;
+    game earn-back via `POST /api/robots/game` and the admin-tunable `gameRewardCredits`.
+  - Fresh `ownerOf` (`Robots.owner_of`) for the money paths; admin shows the read-only treasury and
+    rate. Deployment knobs: `FRENS_TREASURY`, `FRENS_TREASURY_INDEXER`, `FRENS_TREASURY_MAX_CREDITS`,
+    `FRENS_TREASURY_CHAIN_ID`, `FRENS_TREASURY_TOKEN`.
+  - Tests: `server/test_economy.py` (transfers), `server/test_indexer.py` (decode + scan),
+    `server/test_robot_care.py` (charging + game), `server/test_admin.py`, `server/test_app.py`.
+  - **Not yet (P4b):** the client/native wiring that reports robot care actions to
+    `/api/robots/care/action` and shows the FRENS balance + paid prompts — kept separate because it
+    touches shared web + Android/iOS/desktop code. On-chain live deposits are **not yet enabled** and
+    must be rehearsed read-only against Base mainnet first (§6, ⚠️).
 - **P5 — Polish.** Native overlay affordances, balance pass, telemetry, docs.
 
 ## 10. Decisions
@@ -200,11 +244,17 @@ Resolved:
 3. **Deposit rollout:** **mainnet only** (FRENS is live on Base); no testnet. Indexer rehearsed
    read-only, live deposits gated by `economy_settings()`, small cap first. ✅
 
-Still open:
+Still open (deploy-time values, not code):
 
-4. **Dev wallet address(es)** for mainnet FRENS deposits.
-5. **Exact FRENS prices** for food / energy / actions / revive, and the daily free allowance. Can be
-   set later in the admin page; only the *shape* is needed to build P2–P4.
+4. **Dev wallet address(es)** for mainnet FRENS deposits — set `FRENS_TREASURY` (env-only, fail-closed;
+   no default). The code ships without it, so the path is inert until an operator sets it **and**
+   `FRENS_TREASURY_INDEXER=true`.
+5. **Exact FRENS prices** for food / energy / actions / revive, and the daily free allowance — set on
+   the admin page (`dailyAllowance`, `prices`, `gameRewardCredits`); only the *shape* was needed to
+   build P2–P4.
+6. **`CREDITS_PER_FRENS` re-anchor** — now configurable (`Economy.credits_per_frens`, default 100).
+   The existing `save_nft_changes` spend still assumes 100; changing the rate is a deploy decision
+   that must not silently reprice saved looks.
 
 ## 11. Non-goals
 

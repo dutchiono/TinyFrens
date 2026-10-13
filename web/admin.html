@@ -49,9 +49,12 @@ token to load. See <code>docs/tamagotchi-robots.md</code>.</p>
       <label>Free daily allowance
         <input id="allowance" type="number" min="0" step="1">
       </label>
+      <label>Game reward (credits)
+        <input id="gameReward" type="number" min="0" step="1">
+      </label>
     </div>
-    <p class="muted">FRENS price of one use once the free allowance is spent. Charging lands in P4; today the
-      care API only reports these.</p>
+    <p class="muted">FRENS price of one use once the free allowance is spent, and the credits earned back
+      per finished game round (0 = off). Credits convert at <span id="cpf">?</span> per FRENS.</p>
     <div class="grid" id="prices"></div>
     <div class="row" style="margin-top:16px">
       <button id="save">Save tunables</button>
@@ -107,6 +110,7 @@ token to load. See <code>docs/tamagotchi-robots.md</code>.</p>
   function render(){
     var s = state.settings || {}, overrides = state.overrides || {}, prices = s.prices || {};
     $('allowance').value = s.dailyAllowance;
+    $('gameReward').value = s.gameRewardCredits != null ? s.gameRewardCredits : 0;
     var box = $('prices');
     box.textContent = '';
     (state.actions || []).forEach(function(action){
@@ -130,10 +134,13 @@ token to load. See <code>docs/tamagotchi-robots.md</code>.</p>
       d.appendChild(b); d.appendChild(span); stats.appendChild(d);
     });
     var e = state.economy || {};
-    $('economy').textContent = e.enabled
+    $('cpf').textContent = e.creditsPerFrens != null ? e.creditsPerFrens : '?';
+    $('economy').textContent = (e.enabled
       ? ('Economy: ' + (e.mode || '?') + ' · chain ' + (e.chainId || '?') + ' · ' + (e.symbol || 'FRENS') +
          ' · deposits ' + (e.depositsEnabled ? 'on' : 'off'))
-      : 'Economy is not enabled on this relay.';
+      : 'Economy is not enabled on this relay.')
+      + ' · treasury ' + (e.treasury || 'not set')
+      + (e.maxCreditsPerTransfer ? (' · cap ' + e.maxCreditsPerTransfer + ' credits/transfer') : '');
 
     var audit = $('audit'); audit.textContent = '';
     (state.audit || []).forEach(function(row){
@@ -193,7 +200,8 @@ token to load. See <code>docs/tamagotchi-robots.md</code>.</p>
     Array.prototype.forEach.call($('prices').querySelectorAll('input'), function(input){
       prices[input.dataset.action] = parseInt(input.value, 10);
     });
-    var body = {dailyAllowance: parseInt($('allowance').value, 10), prices: prices};
+    var body = {dailyAllowance: parseInt($('allowance').value, 10),
+                gameRewardCredits: parseInt($('gameReward').value, 10), prices: prices};
     var msg = $('savemsg'); msg.textContent = 'Saving…'; msg.className = 'muted';
     return api('/api/admin/settings', {
       method: 'POST',

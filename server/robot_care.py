@@ -1,15 +1,16 @@
-"""Robots v1 (Tamagotchi) care economy: ownership gate, action quotes, and the
-free daily allowance ledger.
+"""Robots v1 (Tamagotchi) care economy: ownership gate, action quotes, the free
+daily allowance ledger, and the paid top-up.
 
 The care *simulation* stays in `web/pet-engine.js`; the server only owns what
 touches money (see docs/tamagotchi-robots.md). That is:
 
   * which care actions exist and what each costs once the free allowance is gone,
-  * how much of today's free allowance a pet has left.
+  * how much of today's free allowance a pet has left,
+  * charging the paid top-up (and the paid revive) from the credit ledger.
 
-This module never moves FRENS. Charging the paid top-up, the paid revive and the
-game pay-back land in P4, once the deposit path exists. For now the paid branch
-just reports the price so the client can prompt for a top-up.
+Charging is optional: without an `economy` handle the paid branch only *reports*
+the price (`requiresPayment`/`priceFrens`) and moves nothing, which is how the
+tests and any economy-disabled deployment behave.
 """
 import inspect
 import json
@@ -18,6 +19,8 @@ import re
 import time
 
 from aiohttp import web
+
+import economy as economy_ledger
 
 log = logging.getLogger("robot_care")
 
@@ -43,6 +46,9 @@ DEFAULT_PRICES_FRENS = {
     'revive': 100000,
 }
 DEFAULT_DAILY_ALLOWANCE = 24
+# Small credit earn-back for a finished game round. 0 = off until the admin sets it;
+# the shape is fixed here so the client and admin agree on the key.
+DEFAULT_GAME_REWARD_CREDITS = 0
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS robot_care_daily(
@@ -75,7 +81,7 @@ def _day(ts):
 class RobotCare:
     """Per-pet free daily allowance plus the price of one paid top-up action."""
 
-    def __init__(self, db, now=time.time, allowance=DEFAULT_DAILY_ALLOWANCE, prices=None, settings=None):
+    def __init__(self, db, now=time.time, allowance=DEFAULT_DAILY_ALLOWANCE, prices=None, settings=None, economy=None):
         self.db = db
         self.now = now
         self._allowance = max(0, int(allowance))
@@ -85,6 +91,9 @@ class RobotCare:
         # When given, `settings` is re-read on every call so the admin page can
         # retune live; otherwise the baked defaults above are used.
         self._settings = settings
+        # When given, the paid branch charges the credit ledger; otherwise it only
+        # reports the price and moves nothing.
+        self._economy = economy
         self.db.executescript(SCHEMA)
         self.db.commit()
 
@@ -127,14 +136,18 @@ class RobotCare:
             'prices': {a: prices.get(a, 0) for a in CARE_ACTIONS},
             'actions': list(CARE_ACTIONS),
             'freeActions': list(FREE_ACTIONS),
+            'creditsPerFrens': self._economy.credits_per_frens if self._economy is not None else None,
+            'balance': self._economy.balance(pet_id) if self._economy is not None else None,
         }
 
     def consume(self, pet_id, action, ts=None):
         """Record one use of `action`.
 
         Within the free allowance this is silent (allowed, charged 0). Once the
-        allowance is spent it reports `requiresPayment` and the FRENS price; P4
-        charges it. Raises UnknownAction for anything the care loop cannot do.
+        allowance is spent the action is charged from the credit ledger at its FRENS
+        price (paid top-up, and the paid revive). With no economy handle — or no
+        price set — the paid branch only reports `requiresPayment`/`priceFrens`.
+        Raises UnknownAction for anything the care loop cannot do.
         """
         if action not in CARE_ACTIONS:
             raise UnknownAction(action)
@@ -152,12 +165,34 @@ class RobotCare:
             return {'allowed': True, 'free': True, 'charged': 0, 'action': action,
                     'allowance': self._left(pet_id, allowance, ts)}
         price = prices.get(action, 0)
-        return {'allowed': False, 'free': False, 'charged': 0, 'action': action,
-                'requiresPayment': bool(price), 'priceFrens': price,
-                'allowance': self._left(pet_id, allowance, ts)}
+        if not price:
+            return {'allowed': True, 'free': True, 'charged': 0, 'action': action,
+                    'allowance': self._left(pet_id, allowance, ts)}
+        return self._charge(pet_id, action, price, allowance, ts)
+
+    def _charge(self, pet_id, action, price, allowance, ts):
+        """Charge one paid use of `action`. Never touches the free allowance ledger."""
+        result = {'free': False, 'action': action, 'priceFrens': price,
+                  'allowance': self._left(pet_id, allowance, ts)}
+        if self._economy is None:
+            result.update({'allowed': False, 'charged': 0, 'requiresPayment': True})
+            return result
+        per_frens = self._economy.credits_per_frens
+        credits = price * per_frens
+        try:
+            self._economy.spend(pet_id, credits, reason='care', ref_type='care', ref_id=action)
+        except economy_ledger.InsufficientCredits:
+            balance = self._economy.balance(pet_id)
+            result.update({'allowed': False, 'charged': 0, 'requiresPayment': True,
+                           'balance': balance, 'creditsPerFrens': per_frens,
+                           'shortfall': max(0, credits - balance)})
+            return result
+        result.update({'allowed': True, 'charged': credits, 'requiresPayment': False,
+                       'balance': self._economy.balance(pet_id), 'creditsPerFrens': per_frens})
+        return result
 
 
-def install(app, db, *, token_pet, limit, settings, owner_check):
+def install(app, db, *, token_pet, limit, settings, owner_check, economy=None):
     """Register the robots care routes.
 
     token_pet(token) -> pet_id            raises ValueError on a bad token
@@ -166,8 +201,10 @@ def install(app, db, *, token_pet, limit, settings, owner_check):
     owner_check(pet_id, token_id) -> wallet | None
                                           sync or async; raises NotLinked when the
                                           pet has no wallet to check against
+    economy                               optional credit ledger to charge the paid
+                                          branch; without it nothing moves
     """
-    care = RobotCare(db, settings=settings)
+    care = RobotCare(db, settings=settings, economy=economy)
 
     async def _owned(pid, tid):
         wallet = owner_check(pid, tid)
@@ -219,6 +256,37 @@ def install(app, db, *, token_pet, limit, settings, owner_check):
             log.exception('robot care action failed')
             return web.json_response({'error': 'Robot care unavailable'}, status=503)
 
+    async def game_reward(request):
+        """Grant the small game earn-back for a finished game round.
+
+        Money-affecting: only robots, rate-limited, and the amount comes from the
+        admin-tunable `gameRewardCredits` (0 by default, so it stays off until set).
+        """
+        try:
+            pid, tid, body = await _parse(request)
+            limit(('robot-game', pid), 60, 3600)
+            if not await _owned(pid, tid):
+                return web.json_response({'error': 'You do not own this robot'}, status=403)
+            game = re.sub(r'[^a-z0-9_-]', '', str(body.get('game') or '').strip().lower())[:40]
+            if not game:
+                return web.json_response({'error': 'Unknown game'}, status=400)
+            reward_credits = int((settings() or {}).get('gameRewardCredits', 0) or 0)
+            if economy is None or reward_credits <= 0:
+                return web.json_response({'tokenId': tid, 'game': game, 'granted': 0,
+                                          'balance': economy.balance(pid) if economy is not None else None})
+            economy.grant(pid, reward_credits, reason='game', ref_type='game', ref_id=game)
+            return web.json_response({'tokenId': tid, 'game': game, 'granted': reward_credits,
+                                      'balance': economy.balance(pid),
+                                      'creditsPerFrens': economy.credits_per_frens})
+        except NotLinked as exc:
+            return web.json_response({'error': str(exc)}, status=403)
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            return web.json_response({'error': str(exc) or 'Bad request'}, status=400)
+        except Exception:
+            log.exception('robot game reward failed')
+            return web.json_response({'error': 'Robot game reward unavailable'}, status=503)
+
     app.router.add_post('/api/robots/care', care_status)
     app.router.add_post('/api/robots/care/action', care_action)
+    app.router.add_post('/api/robots/game', game_reward)
     return care
