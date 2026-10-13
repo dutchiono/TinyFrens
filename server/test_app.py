@@ -806,7 +806,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                                    headers={'X-Hub-Signature-256': 'sha256=deadbeef'})
         self.assertEqual(r.status, 401)
 
-    async def test_github_webhook_relays_comment_back_to_chat(self):
+    async def test_github_webhook_relays_comment_after_restart(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token
         secret = 'whsec_test'
         os.environ['GITHUB_WEBHOOK_SECRET'] = secret
@@ -843,6 +843,9 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.status, 200)
             self.assertTrue(any('Opened issue #77' in m['text'] for m in sent), sent)
 
+            await self.client.close()
+            self.client = TestClient(TestServer(create_app(self.db, [ORIGIN])))
+            await self.client.start_server()
             sent.clear()
             r = await self.client.post('/api/github/webhook', data=body,
                                        headers={'X-Hub-Signature-256': signature, 'X-GitHub-Event':'issue_comment'})

@@ -258,7 +258,7 @@ def create_app(database=None, origins=None):
         tg_history_size = gh.history_from_env(os.environ.get('TELEGRAM_ISSUE_HISTORY'))
     tg_history = defaultdict(lambda: deque(maxlen=tg_history_size))
     # (repo, issue_number) -> Telegram chat_id, so inbound GitHub events can be
-    # relayed back to the chat that filed the issue. In-memory, like tg_history.
+    # relayed back to the chat that filed the issue, including after a restart.
     db.execute('CREATE TABLE IF NOT EXISTS github_issue_chats(repo TEXT, issue_number INTEGER, chat_id TEXT, PRIMARY KEY(repo,issue_number))')
     db.commit()
     issue_chats = {}
