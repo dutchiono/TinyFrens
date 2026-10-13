@@ -23,7 +23,7 @@ class TurtleStore(context: Context) {
         const val SERVER = "https://tinyfrens.miono.live"
         private val paths = setOf("/api/register", "/api/wallet-link/status", "/api/wallet-link/challenge",
             "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle",
-            "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept")
+            "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept", "/api/turtle-connect/from-device")
     }
 
     fun request(server: String, path: String, body: JSONObject): JSONObject {
