@@ -24,4 +24,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+# GitHub App private keys - server-side only, never commit.
+*.pem
 .playwright-mcp/
