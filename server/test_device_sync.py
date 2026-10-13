@@ -57,6 +57,22 @@ class DeviceSyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(linked_wallets(self.db, 'second')), 2)
         self.assertEqual((await self.post('accept', code=code['code'], requestId=request['requestId']))[0], 400)
 
+    async def test_sync_keeps_wallet_order_consistent_across_devices(self):
+        # A wallet linked to each device at different times must end up in the same
+        # order on both once synced, even when the copy lands in a later second.
+        # Regression: accept used a fresh per-device timestamp for the copied links,
+        # so linked_wallets (ORDER BY created,address) disagreed across devices.
+        self.db.execute("INSERT INTO wallet_links VALUES('first',?,100)", ('0x' + '1' * 40,))
+        self.db.execute("INSERT INTO wallet_links VALUES('second',?,200)", ('0x' + '2' * 40,))
+        self.db.commit()
+        _, code = await self.post('start')
+        _, request = await self.post('request', 'second', code=code['code'])
+        with patch('device_sync.time.time', return_value=300):
+            status, data = await self.post('accept', code=code['code'], requestId=request['requestId'])
+        self.assertEqual(status, 200)
+        self.assertEqual((await self.post('state', 'second'))[1]['addresses'], data['addresses'])
+        self.assertEqual(linked_wallets(self.db, 'first'), linked_wallets(self.db, 'second'))
+
     async def test_wallet_changes_selection_versions_and_unsync(self):
         await self.pair()
         address = '0x' + '3'*40
