@@ -47,6 +47,7 @@
     }
   ],
   "redirects": [
+    { "source": "/web/robot-preview.html", "destination": "/web/gallery.html", "permanent": true },
     { "source": "/skill.md", "destination": "/import/skill.md", "permanent": true }
   ],
   "rewrites": [
