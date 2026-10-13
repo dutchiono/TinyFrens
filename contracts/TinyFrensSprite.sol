@@ -6,11 +6,53 @@ import {LibString} from "solady/utils/LibString.sol";
 contract TinyFrensSprite {
     using LibString for uint256;
 
+    // Fixed CSS lives beside sprite data to leave room for packed scene artwork.
+    function sceneryStyle() external pure returns (string memory) {
+        return '.orb,.halo{animation:hover var(--float) steps(4) infinite alternate}@keyframes hover{from{transform:translateY(0)}to{transform:translateY(-2px)}}.parallax{animation:parallax var(--depth) steps(4) infinite alternate}.light{animation:lighting var(--light) steps(4) infinite alternate}.sheen{animation:shade var(--light) steps(4) infinite alternate}.drift{animation:breeze var(--cloud) steps(10) infinite alternate}.twinkle{animation:sparkle var(--stars) steps(8) infinite alternate}.glow{animation:glimmer var(--glow) steps(4) infinite alternate}.sway{animation:sway var(--sway) steps(4) infinite alternate}.leaf{animation:fall var(--leaves) steps(14) infinite}.shadow{animation:shade var(--light) steps(6) infinite alternate}.late{animation-delay:-7s}@keyframes parallax{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes lighting{from{opacity:.02}to{opacity:.18}}@keyframes breeze{from{transform:translateX(-5px)}to{transform:translateX(5px)}}@keyframes sparkle{0%,15%{opacity:0}70%,100%{opacity:1}}@keyframes glimmer{from{opacity:.35}to{opacity:1}}@keyframes sway{from{transform:translateX(-1px)}to{transform:translateX(1px)}}@keyframes fall{0%{transform:translate(-3px,-3px);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(4px,18px);opacity:0}}@keyframes shade{from{opacity:.65}to{opacity:1}}';
+    }
+
+    function _motionSeconds(uint8 family, uint8 variant) internal pure returns (uint256) {
+        if (family == 0) return variant == 0 ? 8 : variant == 1 ? 6 : variant == 2 ? 4 : 10;
+        if (family == 1) return variant == 0 ? 3 : variant == 1 ? 2 : variant == 2 ? 4 : 5;
+        if (family == 2) return variant == 0 ? 10 : variant == 1 ? 8 : variant == 2 ? 14 : 6;
+        if (family == 3) return variant == 0 ? 6 : variant == 1 ? 4 : variant == 2 ? 8 : 3;
+        if (family == 4) return variant == 0 ? 8 : variant == 1 ? 6 : variant == 2 ? 12 : 4;
+        if (family == 5) return variant == 0 ? 5 : variant == 1 ? 3 : variant == 2 ? 7 : 4;
+        if (family == 6) return variant == 0 ? 20 : variant == 1 ? 16 : variant == 2 ? 24 : 12;
+        if (family == 7) return variant == 0 ? 4 : variant == 1 ? 3 : variant == 2 ? 6 : 5;
+        revert("Invalid motion");
+    }
+
+    function _motionKey(uint8 family) internal pure returns (string memory) {
+        if (family == 0) return "cloud";
+        if (family == 1) return "stars";
+        if (family == 2) return "leaves";
+        if (family == 3) return "sway";
+        if (family == 4) return "light";
+        if (family == 5) return "glow";
+        if (family == 6) return "depth";
+        if (family == 7) return "float";
+        revert("Invalid motion");
+    }
+
+    function motionStyle(uint16 ambience) external pure returns (string memory result) {
+        result = ":root{";
+        for (uint8 i; i < 8; i++) {
+            result = string.concat(result, i == 0 ? "" : ";", "--", _motionKey(i), ":",
+                _motionSeconds(i, uint8((ambience >> (i * 2)) & 3)).toString(), "s");
+        }
+        return string.concat(result, "}");
+    }
+
     function _box(uint256 x, uint256 y, uint256 width, uint256 height, string memory color)
         internal pure returns (string memory)
     {
-        return string.concat('<rect x="', x.toString(), '" y="', y.toString(), '" width="',
-            width.toString(), '" height="', height.toString(), '" fill="', color, '"/>');
+        width = (x + width) * 3 / 2 - x * 3 / 2;
+        height = (y + height) * 3 / 2 - y * 3 / 2;
+        x = x * 3 / 2;
+        y = y * 3 / 2;
+        return string.concat('<path fill="', color, '" d="M', x.toString(), ' ', y.toString(),
+            'h', width.toString(), 'v', height.toString(), 'H', x.toString(), 'z"/>');
     }
 
     function _eyes(uint8 expression, uint256 left, uint256 right, uint256 y, string memory ink)
@@ -50,15 +92,18 @@ contract TinyFrensSprite {
 
     function _robot(string memory body, string memory ink, uint8 expression) internal pure returns (string memory) {
         return string.concat(
-            _box(31, 10, 2, 5, ink), _box(29, 8, 6, 3, "#f0bd5e"), _box(31, 7, 2, 1, "#ffe078"),
+            '<g class="body">',
             _box(17, 18, 30, 24, ink), _box(19, 20, 26, 20, body),
+            '<g class="sheen">', _box(20, 20, 23, 1, "#d5e5eb"), _box(19, 21, 1, 16, "#b9c6e4"), '</g>',
+            _box(43, 22, 2, 18, ink), _box(21, 21, 1, 1, ink), _box(42, 21, 1, 1, ink),
             _box(16, 24, 3, 8, "#6bdce3"), _box(45, 24, 3, 8, "#6bdce3"),
             _box(22, 23, 20, 12, "#192a41"), _eyes(expression, 26, 36, 27, "#79e3e3"),
+            _box(23, 33, 3, 1, "#80c9ab"), _box(28, 33, 2, 1, "#f0bd5e"),
             _box(25, 36, 14, 2, ink), _box(30, 36, 4, 1, "#f0bd5e"),
             _box(21, 41, 22, 4, ink), _box(23, 41, 18, 2, "#2b4767"),
             '<g class="arm-a">', _box(12, 27, 5, 11, ink), _box(13, 30, 3, 6, body), _box(11, 38, 5, 3, "#f0bd5e"), '</g>',
             '<g class="arm-b">', _box(47, 27, 5, 11, ink), _box(48, 30, 3, 6, body), _box(48, 38, 5, 3, "#f0bd5e"), '</g>',
-            _feet(1, ink, body)
+            '</g>', _feet(1, ink, body)
         );
     }
 

@@ -5,19 +5,21 @@
  const savePref=(name,value)=>{try{localStorage.setItem('tinyfrens-'+name,JSON.stringify(value));}catch{}};
  $('autoCheck').checked=pref('autoCheck',true);$('autoDownload').checked=pref('autoDownload',false);$('autoApply').checked=pref('autoApply',true);
  for(const id of ['autoCheck','autoDownload','autoApply'])$(id).onchange=()=>{savePref(id,$(id).checked);if(id==='autoCheck'&&$(id).checked)check(true);};
+ const dismiss=()=>{banner.close();banner.hidden=true;};
+ banner.addEventListener("cancel",event=>{event.preventDefault();dismiss();});
  let action=()=>{},lastCheck=0,inFlight=false,registration=null,started=false;
- const show=(title,detail,run,label='Update')=>{$('updateTitle').textContent=title;$('updateDetail').textContent=detail;nowButton.textContent=label;action=run;banner.hidden=false;};
- nowButton.onclick=()=>action();$('updateLater').onclick=()=>banner.hidden=true;
+ const show=(title,detail,run,label='Update')=>{$('updateTitle').textContent=title;$('updateDetail').textContent=detail;nowButton.textContent=label;action=run;nowButton.disabled=false;banner.hidden=false;if(!banner.open)banner.showModal();};
+ nowButton.onclick=()=>action();$('updateLater').onclick=dismiss;
  const quietError=()=>{status.textContent='Couldn’t check right now. Your pet still works. Try again when you’re online.';};
  function androidResult(result){
   inFlight=false;$('checkUpdate').disabled=false;$('downloadUpdate').hidden=!result.available;
   $('installPetUpdate').hidden=!result.available;
   if(result.error){quietError();return;}
   status.textContent=result.available?'A new app version is ready.':'You’re up to date.';
-  if(!result.available){banner.hidden=true;return;}
+  if(!result.available){dismiss();return;}
   const install=()=>PetAndroid.installUpdate();
   $('downloadUpdate').onclick=()=>PetAndroid.openUpdate(result.url);
-  show('An update is ready','Ask a grown-up to install it. Your fren comes with you.',install,'Install update');
+  show('An update is ready','Download and install the latest TinyFrens. Your wallets and companions stay saved.',install,'Install update');
   if($('autoDownload').checked&&PetAndroid.canAutoDownload())PetAndroid.prepareUpdate();
  }
  if(window.TinyFrensDesktop){
@@ -38,15 +40,15 @@
   $('updateExplanation').textContent='Checks when you open the app and while it’s in use. Wi-Fi downloads are optional; Android still asks before installing.';
   const install=document.createElement('button');install.id='installPetUpdate';install.textContent='Install update';install.hidden=true;install.onclick=()=>PetAndroid.installUpdate();$('downloadUpdate').before(install);
   window.onPetUpdate=androidResult;
-  window.onUpdateDownload=message=>{status.textContent=message;$('updateDetail').textContent=message;};
-  window.onUpdateReady=()=>show('Your update is downloaded','Ask a grown-up to finish installing. Your pet stays saved.',()=>PetAndroid.installUpdate(),'Install update');
+  window.onUpdateDownload=message=>{status.textContent=message;$('updateDetail').textContent=message;nowButton.disabled=/^Downloading/i.test(message);if(!nowButton.disabled)nowButton.textContent='Try again';};
+  window.onUpdateReady=()=>show('Your update is downloaded','Android will ask you to confirm installation. Your wallets and companions stay saved.',()=>PetAndroid.installUpdate(),'Install update');
  }else if(window.PetIOS){
   $('updateExplanation').textContent='Checks for new iPhone builds. Native updates need your signing/AltStore setup; they cannot install themselves.';
   window.onIOSUpdate=result=>{
    inFlight=false;$('checkUpdate').disabled=false;
    if(result.error){quietError();return;}
    status.textContent=result.available?'A new iPhone build is ready.':'You’re up to date.';
-   if(!result.available){banner.hidden=true;return;}
+   if(!result.available){dismiss();return;}
    show('An iPhone update is ready','Ask a grown-up to install the new build using AltStore.',()=>window.open('https://github.com/dutchiono/TinyFrens/blob/main/ios/README.md','_blank'),'Update help');
   };
  }else{
@@ -88,9 +90,9 @@
     inFlight=false;$('checkUpdate').disabled=false;
     if(result.error){quietError();return;}
     if(result.downloaded){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your pet stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');return;}
-    if(result.auto){status.textContent=result.available?'Downloading the new version…':'You’re up to date.';if(!result.available)banner.hidden=true;return;}
+    if(result.auto){status.textContent=result.available?'Downloading the new version…':'You’re up to date.';if(!result.available)dismiss();return;}
     status.textContent=result.available?'A new desktop version is ready.':result.unpublished?'Your desktop build is ready; the first download is still publishing.':'You’re up to date.';
-    if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your pet stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else banner.hidden=true;
+    if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your pet stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else dismiss();
    }else if(native){
     if(!PetAndroid.saveUpdateRepo($('updateRepo').value.trim()))throw new Error('Invalid source');
     PetAndroid.checkUpdate();

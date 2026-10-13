@@ -22,8 +22,10 @@ def companion(image):
         start = next(i for i, n in enumerate(nodes) if n.tag == NS + 'rect' and
                      all(n.get(k) == v for k, v in dict(x='5', y='18', width='3', height='2').items()))
         character = nodes[start:]
-        if any(n.tag != NS + 'rect' or any(k not in {'x', 'y', 'width', 'height', 'fill'} for k in n.attrib)
+        if any(n.tag != NS + 'rect' or any(k not in {'x', 'y', 'width', 'height', 'fill', 'opacity'} for k in n.attrib)
                for n in character):
+            return None
+        if any(not 0 <= float(n.get('opacity', '1')) <= 1 for n in character):
             return None
         legs = [('7', '20'), ('12', '21'), ('17', '20'), ('21', '21')]
         if not all(any(n.get('x') == x and n.get('y') == y and n.get('height') == '4' for n in character) for x, y in legs):

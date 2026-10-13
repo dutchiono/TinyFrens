@@ -8,6 +8,7 @@
   let turtleData = JSON.parse(bridge.getTurtle());
   function renderTurtle(data = turtleData) {
     turtleData = data;
+    if (data.active) pet.style.setProperty('--pet-scale', String((data.motion?.size || 80) / 80));
     pet.dataset.turtle = String(data.selected);
     turtle.hidden = !data.active || !data.companion || Date.now() >= data.validUntil * 1000;
     if (!turtle.hidden) { const image = data.companion?.idle || data.image; if (turtle.getAttribute('src') !== image) turtle.src = image; turtle.alt = data.name; }
@@ -19,7 +20,7 @@
     if (!art || !art.frames?.length || turtle.hidden) return;
     const reduced = lastState?.reduceMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
     turtle.src = reduced || !turtleWalking ? art.idle : art.frames[Math.floor(Date.now() / art.frameMs) % art.frames.length];
-  }, 160);
+  }, 40);
   function hitRegions() {
     bridge.regions([pet, ...(!bubbles.hidden ? [...bubbles.querySelectorAll('button'), close] : []), ...(!toy.hidden ? [toy] : [])].map(el => {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -41,7 +42,7 @@
     pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
     bubbles.querySelector('[data-action=clean]').hidden = !(Number(s.poops) > 0);
     bubbles.querySelector('[data-action=vitamin]').hidden = !s.sick;
-    pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String(s.size / 80));
+    pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String((turtleData.active ? turtleData.motion?.size || 80 : s.size) / 80));
     pet.style.opacity=String(s.opacity/100);const reduced=s.reduceMotion||matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(reduced);bridge.motion(reduced);
     pet.setAttribute('aria-label', s.name + '. Click for care, drag to move.');
     const r = pet.getBoundingClientRect(); close.style.left = Math.min(296, r.right + 3) + 'px'; close.style.top = Math.max(40, r.top - 8) + 'px';

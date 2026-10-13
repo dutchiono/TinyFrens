@@ -1,0 +1,93 @@
+{
+  "collection": "tinyfrens-robots-v1",
+  "status": "compiled build artifact; live mint instructions at /robots/skill.md",
+  "compiler": "0.8.28+commit.7893614a",
+  "optimizerRuns": 200,
+  "viaIR": true,
+  "evmVersion": "cancun",
+  "sourceBaseCommit": "b1a2d98398b1b7f2460aebe98428b760ffc06f50",
+  "provenance": "Exact compiled source bytes are embedded in verification files. sourceLfSha256 normalizes CRLF to LF for cross-platform freshness checks; fileSha256 hashes exact package bytes. Base commit may precede this package commit.",
+  "chain": {
+    "name": "Base",
+    "chainId": 8453
+  },
+  "creator": "Authenticated owner wallet; explicit second argument to TinyFrensNFT. Never the CREATE2 factory.",
+  "nativeValueForAllDeployments": "0",
+  "contracts": [
+    {
+      "name": "TinyFrensSprite",
+      "bytecodeFile": "TinyFrensSprite.bytecode.txt",
+      "abiFile": "TinyFrensSprite.abi.json",
+      "verificationFile": "TinyFrensSprite.verification.json",
+      "constructor": [],
+      "initBytes": 16834,
+      "runtimeBytes": 16808
+    },
+    {
+      "name": "TinyFrensArt",
+      "bytecodeFile": "TinyFrensArt.bytecode.txt",
+      "abiFile": "TinyFrensArt.abi.json",
+      "verificationFile": "TinyFrensArt.verification.json",
+      "constructor": [
+        {
+          "name": "spriteRenderer_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "initBytes": 15627,
+      "runtimeBytes": 15413
+    },
+    {
+      "name": "TinyFrensNFT",
+      "bytecodeFile": "TinyFrensNFT.bytecode.txt",
+      "abiFile": "TinyFrensNFT.abi.json",
+      "verificationFile": "TinyFrensNFT.verification.json",
+      "constructor": [
+        {
+          "name": "artRenderer_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "creator_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "initBytes": 21199,
+      "runtimeBytes": 19420
+    }
+  ],
+  "sourceLfSha256": {
+    "foundry.toml": "79027c5b98d399e9a43ebe935dce51be5bd20c551ad06cc2690d02fd1f59ff09",
+    "contracts/TinyFrensSprite.sol": "b0132c78ecca1e6cf34e4128b8948be4146bf951c657964ae5b6370407e295ce",
+    "lib/solady/src/utils/LibBytes.sol": "163fbab6b2c84609c55371ec54e1dc029b85e97bd6b3db6df141ce75795eefa9",
+    "lib/solady/src/utils/LibString.sol": "af977db918909a91c1613df076cd0b893bbf7193dec824a91a6e45c5b9696cd1",
+    "contracts/TinyFrensArt.sol": "41c8af98204d0203e19065f9d461732c2786bd3eef1d813c559f15f4e33c2932",
+    "contracts/NetIntegratedERC721A.sol": "16fd4ec856e25373e155d9ae967ac8011b40252b13750a4ef1755118be963801",
+    "contracts/TinyFrensNFT.sol": "c56bb748d98ab89132403dfd06314105a297b72c43f09e3bd724cd2c6702d0c5",
+    "lib/ERC721A/contracts/ERC721A.sol": "79a309548fceac7996545154fc705947728932b187794e4de4fd9c354b156ac0",
+    "lib/ERC721A/contracts/IERC721A.sol": "cd411799895996e5c1ec6074306ef0b75c42e8ae1b969aa36757640433fdc144",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol": "9c3a75a925a6dac9e88b03cddc58d42fe3131b0aaaad84408521f3f7af2f991b",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol": "dfb3f56fa928a7c6cae41a7ce2c86b9210fa18d33fa26389099d66a0fa790368",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol": "0158e2d3e0e28bedd99eec13dcf1a8aa3a70a5b7e4bb2ad709609c95fcc740d1",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol": "0ef8d844d8e066abd5c0d8cc1c550c89f2628a4ea9c9bb16c7593d4207800ca8",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": "01b6f5c4fa45fd38822b286ecef6daf983d27306dd6362496fa71b3e4600b72c",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol": "0b7132f17d14d1d84b41b0bb429be62dafdff00fd3470f68724d8018eb07f57a",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol": "93685e4e976be584a5e6abfc37376fe17c99bee53e07610efcc1ce51868e90d1",
+    "lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": "9055c2994b37dea1a41b7b7926dcb510f05dbe2540b0aafc5fbee9558fffd0ca",
+    "lib/solady/src/utils/Base64.sol": "e36796deff15768dece161909e678b38e9e2a5d388c3cfd3649686748b373f15"
+  },
+  "fileSha256": {
+    "TinyFrensSprite.bytecode.txt": "bcd6a92b0563fa425a4706d7b61ea73ae390d93b44e17a8e741e4bde5824ecfa",
+    "TinyFrensSprite.abi.json": "ef70d3e9c2a7d309cb6cbcec878d98a0dd80d4f3f9c5e884919019a7475f99c4",
+    "TinyFrensSprite.verification.json": "84cc7a0e0c26fe8b005b96e273bc449112f54c26ea9baf1c72dcdd85d8d98d0c",
+    "TinyFrensArt.bytecode.txt": "bb096d9d96c8b51a3a21b54ff32c91c7c31cd4a353f860690f8725744aa99c79",
+    "TinyFrensArt.abi.json": "46a86263c92cb9e4dc672a913a2533845d041a769409abbfec2a6eb923b3171d",
+    "TinyFrensArt.verification.json": "5e2edc487cf6ebe08cedeb181558c1d8d804ddd2a04630225e61ab81e5fd18bf",
+    "TinyFrensNFT.bytecode.txt": "dbdef766f8f242d3038a9df859e1ce036732a7575fb1894a355912a0466f3e35",
+    "TinyFrensNFT.abi.json": "e52f73d50a54abb436beb2ba0610893f9e2f503e891e1fff960a37779f97e03e",
+    "TinyFrensNFT.verification.json": "ca0807fd3785ba9d8708afb8249eaea8a74d5a8049f9a627c8fa8b851adc2a82"
+  }
+}

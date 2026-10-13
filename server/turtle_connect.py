@@ -39,11 +39,31 @@ def linked_wallets(db, pid):
     return [row[0] for row in db.execute('SELECT address FROM wallet_links WHERE pet_id=? ORDER BY created,address', (pid,))]
 
 
+def wallet_devices(db, pid):
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name='device_sync_members'").fetchone():
+        return [pid]
+    row = db.execute('SELECT account FROM device_sync_members WHERE device=?', (pid,)).fetchone()
+    return [r[0] for r in db.execute('SELECT device FROM device_sync_members WHERE account=?', (row[0],))] if row else [pid]
+
+
 def add_wallet(db, pid, address):
     addresses = linked_wallets(db, pid)
     if address.lower() not in [a.lower() for a in addresses] and len(addresses) >= 10:
-        raise ValueError('Up to 10 wallets can be linked to this device. Remove one first.')
-    db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (pid, to_checksum_address(address), int(time.time())))
+        raise ValueError('Up to 10 wallets can be linked. Remove one first.')
+    for device in wallet_devices(db, pid):
+        db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (device, to_checksum_address(address), int(time.time())))
+
+
+def remove_wallet(db, pid, address=None):
+    for device in wallet_devices(db, pid):
+        if address is None:
+            db.execute('DELETE FROM wallet_links WHERE pet_id=?', (device,))
+        else:
+            db.execute('DELETE FROM wallet_links WHERE pet_id=? AND address=? COLLATE NOCASE', (device, to_checksum_address(address)))
+        db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (device,))
+        db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (device,))
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='device_sync_codes'").fetchone():
+            db.execute('DELETE FROM device_sync_codes WHERE device=? OR requester=?', (device, device))
 
 
 async def rpc_candidates(address):
@@ -117,6 +137,8 @@ async def discover_wallets(addresses, ownership):
                     params = {'type': 'ERC-721', **next_page}
         try:
             await indexer_candidates()
+            if not candidates:
+                candidates, partial = await rpc_candidates(address)
         except Exception:
             candidates, partial = await rpc_candidates(address)
         async def verify(tid):
