@@ -55,7 +55,9 @@
   async function post(path, body) {
     const device = identity();
     if (!device) throw new Error('Connect your wallet to care for your robot.');
-    return window.TinyFrensTurtleAPI(base(), path, {token: device.token, ...body});
+    const data = await window.TinyFrensTurtleAPI(base(), path, {token: device.token, ...body});
+    if (path !== '/api/robots/care' && data.balance != null) window.dispatchEvent(new Event('tinyfrens-balance-updated'));
+    return data;
   }
 
   // ---- formatting (pure, unit-tested) -------------------------------------

@@ -16,6 +16,7 @@ const context = {
   localStorage: {getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k)},
   document: {readyState: 'complete', getElementById: () => null, createElement: () => ({style: {}, setAttribute() {}, append() {}, insertBefore() {}}), addEventListener: () => {}},
   CustomEvent: function (type, init) { this.type = type; this.detail = init?.detail; },
+  Event: function (type) { this.type = type; },
   console, Date, Error, JSON, Math, String, Number, Array, Object, Boolean, RegExp, parseInt, parseFloat,
 };
 context.window.window = context.window;

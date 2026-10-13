@@ -264,7 +264,10 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await r.json())["status"], "duplicate")
 
         r = await self.client.post("/api/credits/balance", json={"token": "tok"})
-        self.assertEqual((await r.json())["balance"], 5000)
+        balance = await r.json()
+        self.assertEqual(balance["balance"], 5000)
+        self.assertEqual(balance["creditsPerFrens"], econ.CREDITS_PER_FRENS)
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
 
     async def test_status_endpoint(self):
         r = await self.client.post("/api/deposits/open", json={"token": "tok", "package": 10})
