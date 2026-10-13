@@ -346,7 +346,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/snap', '/api/github/webhook', '/api/farcaster/notify', '/api/snap/interact', '/api/snap', '/api/discord/interactions', '/api/nft/uri', '/admin', '/api/hood-turtles/preview', '/', '/api/robots/gallery', '/api/farcaster/cast', '/.well-known/farcaster.json', '/api/telegram/webhook', '/health', '/api/farcaster/webhook', '/api/telegram/auth', '/api/discord/token'}
+        public_paths={'/','/admin','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/github/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
