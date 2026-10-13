@@ -129,7 +129,9 @@
             link.disabled = true;
             try {
               const verified = await post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
-              if (!verified.active || !verified.companion || Date.now() >= verified.validUntil * 1000) throw new Error('Ownership could not be verified. Try again.');
+              if (!verified.active) throw new Error('None of your linked wallets currently owns this NFT. Check the wallet address shown on its card.');
+              if (!verified.companion) throw new Error('Ownership verified, but this NFT’s artwork could not be prepared for animation.');
+              if (Date.now() >= verified.validUntil * 1000) throw new Error('Your ownership check expired. Refresh NFTs and try again.');
               const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => window.TinyFrensCompanionKey(item) !== window.TinyFrensCompanionKey(verified));
               if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
               if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId, originalAddress:verified.originalAddress, chainId:verified.chainId});
