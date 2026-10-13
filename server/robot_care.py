@@ -75,15 +75,34 @@ def _day(ts):
 class RobotCare:
     """Per-pet free daily allowance plus the price of one paid top-up action."""
 
-    def __init__(self, db, now=time.time, allowance=DEFAULT_DAILY_ALLOWANCE, prices=None):
+    def __init__(self, db, now=time.time, allowance=DEFAULT_DAILY_ALLOWANCE, prices=None, settings=None):
         self.db = db
         self.now = now
-        self.allowance = max(0, int(allowance))
-        self.prices = dict(DEFAULT_PRICES_FRENS)
+        self._allowance = max(0, int(allowance))
+        self._prices = dict(DEFAULT_PRICES_FRENS)
         if prices:
-            self.prices.update({str(a): max(0, int(p)) for a, p in prices.items()})
+            self._prices.update({str(a): max(0, int(p)) for a, p in prices.items()})
+        # When given, `settings` is re-read on every call so the admin page can
+        # retune live; otherwise the baked defaults above are used.
+        self._settings = settings
         self.db.executescript(SCHEMA)
         self.db.commit()
+
+    def _policy(self):
+        if self._settings is None:
+            return self._allowance, dict(self._prices)
+        raw = self._settings() or {}
+        try:
+            allowance = max(0, int(raw.get('dailyAllowance', self._allowance)))
+        except (TypeError, ValueError):
+            allowance = self._allowance
+        prices = dict(DEFAULT_PRICES_FRENS)
+        for action, value in (raw.get('prices') or {}).items():
+            try:
+                prices[str(action)] = max(0, int(value))
+            except (TypeError, ValueError):
+                continue
+        return allowance, prices
 
     def _used(self, pet_id, day):
         row = self.db.execute(
@@ -91,16 +110,21 @@ class RobotCare:
         ).fetchone()
         return row[0] if row else 0
 
-    def allowance_left(self, pet_id, ts=None):
+    def _left(self, pet_id, allowance, ts):
         day = _day(ts if ts is not None else self.now())
         used = self._used(pet_id, day)
-        return {'day': day, 'limit': self.allowance, 'used': used,
-                'remaining': max(0, self.allowance - used)}
+        return {'day': day, 'limit': allowance, 'used': used,
+                'remaining': max(0, allowance - used)}
+
+    def allowance_left(self, pet_id, ts=None):
+        allowance, _ = self._policy()
+        return self._left(pet_id, allowance, ts)
 
     def status(self, pet_id, ts=None):
+        allowance, prices = self._policy()
         return {
-            'allowance': self.allowance_left(pet_id, ts),
-            'prices': {a: self.prices.get(a, 0) for a in CARE_ACTIONS},
+            'allowance': self._left(pet_id, allowance, ts),
+            'prices': {a: prices.get(a, 0) for a in CARE_ACTIONS},
             'actions': list(CARE_ACTIONS),
             'freeActions': list(FREE_ACTIONS),
         }
@@ -114,10 +138,11 @@ class RobotCare:
         """
         if action not in CARE_ACTIONS:
             raise UnknownAction(action)
+        allowance, prices = self._policy()
         ts = ts if ts is not None else self.now()
         day = _day(ts)
         used = self._used(pet_id, day)
-        if used < self.allowance:
+        if used < allowance:
             self.db.execute(
                 'INSERT INTO robot_care_daily(pet_id,day,used,updated) VALUES(?,?,?,?) '
                 'ON CONFLICT(pet_id,day) DO UPDATE SET used=excluded.used, updated=excluded.updated',
@@ -125,11 +150,11 @@ class RobotCare:
             )
             self.db.commit()
             return {'allowed': True, 'free': True, 'charged': 0, 'action': action,
-                    'allowance': self.allowance_left(pet_id, ts)}
-        price = self.prices.get(action, 0)
+                    'allowance': self._left(pet_id, allowance, ts)}
+        price = prices.get(action, 0)
         return {'allowed': False, 'free': False, 'charged': 0, 'action': action,
                 'requiresPayment': bool(price), 'priceFrens': price,
-                'allowance': self.allowance_left(pet_id, ts)}
+                'allowance': self._left(pet_id, allowance, ts)}
 
 
 def install(app, db, *, token_pet, limit, settings, owner_check):
@@ -142,8 +167,7 @@ def install(app, db, *, token_pet, limit, settings, owner_check):
                                           sync or async; raises NotLinked when the
                                           pet has no wallet to check against
     """
-    s = settings() or {}
-    care = RobotCare(db, allowance=s.get('dailyAllowance', DEFAULT_DAILY_ALLOWANCE), prices=s.get('prices'))
+    care = RobotCare(db, settings=settings)
 
     async def _owned(pid, tid):
         wallet = owner_check(pid, tid)

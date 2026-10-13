@@ -104,6 +104,17 @@ class AllowanceUnitTests(unittest.TestCase):
         self.assertEqual(care.status('pet-1')['prices']['feed'], 7)
         self.assertEqual(care.status('pet-1')['prices']['play'], rc.DEFAULT_PRICES_FRENS['play'])
 
+    def test_settings_callable_is_read_live(self):
+        policy = {'dailyAllowance': 1, 'prices': {'feed': 5}}
+        care = rc.RobotCare(sqlite3.connect(':memory:'), now=self.clock, settings=lambda: policy)
+        self.assertEqual(care.status('pet-1')['allowance']['limit'], 1)
+        self.assertEqual(care.status('pet-1')['prices']['feed'], 5)
+        # A retune is visible on the next call, without re-creating the object.
+        policy['dailyAllowance'] = 4
+        policy['prices']['feed'] = 8
+        self.assertEqual(care.status('pet-1')['allowance']['limit'], 4)
+        self.assertEqual(care.status('pet-1')['prices']['feed'], 8)
+
 
 def build_app(*, ownership='ok', token_pet=None, limit=None, key='tok', value='pet-1'):
     db = sqlite3.connect(':memory:')
