@@ -33,7 +33,7 @@ Needs arise from stats and time. Clean or Vitamin appears as an extra button onl
 
 Joy tiers: happy at 75 or more, okay in between, sad at 25 or less.
 
-Weight, discipline and care mistakes are Tamagotchi-style extras. Weight rises with food and falls with play and adventuring; being very heavy or very light (and low discipline) makes illness a little likelier. Care mistakes count toward being downed. There is no permanent death: a downed fren revives, and the paid revive cost is planned for the economy phase.
+Weight, discipline and care mistakes are Tamagotchi-style extras. Weight rises with food and falls with play and adventuring; being very heavy or very light (and low discipline) makes illness a little likelier. Care mistakes count toward being downed. There is no permanent death: a downed fren revives — a Robots v1 revive is paid in FRENS (see *Robots v1 and FRENS*).
 
 ## Visits
 
@@ -68,6 +68,17 @@ More → Games opens the mini-game picker inside the app. Choose a player from y
 - **Snack Catch:** drag, tap or use ←/→ (A/D) to slide your fren. Catch 🍓 (+1), 🍪 (+2) and ⭐ (+5). Catching a 🧦 costs one of three hearts; missed snacks cost nothing. Snacks fall faster over time.
 
 Best scores save on this device. A completed round lasting at least 15 active seconds with a positive score invokes the existing Play care action once, through the same engine/native bridge as the Care screen. Existing hunger, energy, sickness and activity rules apply. This affects the app’s existing care state; it does not create NFT attributes or token rewards. Each finished round fires `tinyfrens-game-finished` (game, score, best, player collection identity, duration). Leaving the screen cancels without a reward. Hiding the app pauses the clock and sprite; returning resumes. The player inventory is cached for five minutes between rounds; Refresh NFTs or wallet changes clear it. Ownership is checked before each round and expired proof stops the round.
+
+## Robots v1 and FRENS
+
+Robots v1 (Base mainnet, collection `tinyfrens-robots-v1`) are the gamified pets. When a verified Robots v1 is one of your companions, the Care screen tracks that robot: a free daily allowance of care actions, then a FRENS top-up for more. Everything is shown in FRENS, never "credits".
+
+- **Free daily loop.** Each robot gets a daily allowance of care actions (24 by default). Nap and time still regenerate Energy, so a patient player can keep a robot alive without paying.
+- **Paid top-up.** Once the free allowance is spent, a care action costs its FRENS price (set on the admin page). The balance comes from FRENS deposits and from game earn-back.
+- **Games.** A finished round grants the usual Play care **and** a small FRENS earn-back, when the admin enables it (Snack Catch for v1).
+- **Revive.** A downed robot revives as usual; the revive cost is a FRENS price.
+
+The care **simulation** runs on your device exactly as before, so offline, floating-overlay, desktop and native play are unchanged. Only the money-affecting parts — the free allowance, the FRENS charge and the game earn-back — are decided by the server, against a fresh on-chain ownership check. If the relay is offline, care keeps working locally and nothing is charged or earned. This release **reports** care actions and shows the FRENS balance and today's free allowance; hard-blocking a care action on payment and the top-up/deposit screen ship in the next slice.
 
 ## Appearance
 
