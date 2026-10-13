@@ -45,8 +45,12 @@
     pet.dataset.expression = s.expression || 'happy';
     pet.dataset.accessory = s.accessory || 'none';
     pet.dataset.stage = String(Math.min(2, Math.floor((Date.now() - s.born) / 86400000)));
-    bubbles.querySelector('[data-action=clean]').hidden = !(Number(s.poops) > 0);
-    bubbles.querySelector('[data-action=vitamin]').hidden = !s.sick;
+    const downed=Boolean(s.downed);
+    for(const action of ['feed','play','rest'])bubbles.querySelector(`[data-action=${action}]`).hidden=downed;
+    bubbles.querySelector('[data-action=clean]').hidden = downed || !(Number(s.poops) > 0);
+    bubbles.querySelector('[data-action=vitamin]').hidden = downed || !s.sick;
+    bubbles.querySelector('[data-action=scold]').hidden = downed || !s.misbehaving;
+    bubbles.querySelector('[data-action=revive]').hidden = !downed;
     pet.style.setProperty('--pet-color', s.color); pet.style.setProperty('--pet-scale', String((turtleData.active ? turtleData.motion?.size || 80 : s.size) / 80));
     pet.style.opacity=String(s.opacity/100);const reduced=s.reduceMotion||matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(reduced);bridge.motion(reduced);
     pet.setAttribute('aria-label', s.name + '. Click for care, drag to move.');

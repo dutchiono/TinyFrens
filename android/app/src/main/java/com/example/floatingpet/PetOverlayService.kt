@@ -343,9 +343,14 @@ class PetOverlayService:Service(){
    setPadding(dp(4),dp(4),dp(4),dp(4))
   }
   val resting=state.optString("activity")=="resting"
-  val actions=mutableListOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple(if(resting)"☀" else "☾","rest",if(resting)"Wake up" else "Nap"))
-  if(state.optInt("poops",0)>0)actions.add(Triple("🧼","clean","Clean"))
-  if(state.optBoolean("sick",false))actions.add(Triple("💊","vitamin","Vitamin"))
+  val actions=mutableListOf<Triple<String,String,String>>()
+  if(state.optBoolean("downed",false))actions.add(Triple("🔌","revive","Revive"))
+  else{
+   actions.add(Triple("🍓","feed","Feed"));actions.add(Triple("🎾","play","Play"));actions.add(Triple(if(resting)"☀" else "☾","rest",if(resting)"Wake up" else "Nap"))
+   if(state.optInt("poops",0)>0)actions.add(Triple("🧼","clean","Clean"))
+   if(state.optBoolean("sick",false))actions.add(Triple("💊","vitamin","Vitamin"))
+   if(state.optBoolean("misbehaving",false))actions.add(Triple("😤","scold","Scold"))
+  }
   actions.add(Triple("💬","chat","Chat"));actions.add(Triple("☰","care","More"))
   val compact=actions.size>5
   val cellW=dp(if(actions.size>=7)44 else if(compact)50 else 56)
