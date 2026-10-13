@@ -1,4 +1,5 @@
-import asyncio, base64, json, os, tempfile, unittest
+import asyncio, base64, json, os, sqlite3, tempfile, unittest
+from pathlib import Path
 from unittest import mock
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -455,6 +456,10 @@ class IntegrationUnitTests(unittest.TestCase):
     def test_classify_and_room_ids(self):
         self.assertEqual(tg.classify({'message': {'text': '/start', 'chat': {'id': 5}}})[0], 'start')
         self.assertEqual(tg.classify({'my_chat_member': {'new_chat_member': {'status': 'member'}, 'chat': {'id': 9}}})[0], 'added')
+        self.assertEqual(tg.link_code({'message': {'text': '/link ABCD-EFGH-JKLM', 'chat': {'type': 'private'}}}), 'ABCDEFGHJKLM')
+        self.assertIsNone(tg.link_code({'message': {'text': '/link ABCD-EFGH-JKLM', 'chat': {'type': 'group'}}}))
+        self.assertIn('web_app', tg.reply_markup('https://tinyfrens.lol')['inline_keyboard'][0][0])
+        self.assertIn('url', tg.reply_markup('https://t.me/TinyFrensBot?startapp', private=False)['inline_keyboard'][0][0])
         self.assertEqual(tg.party_room_id({'id': -100123}), 'tg:-100123')
         self.assertEqual(dc.channel_room_id('999'), 'dc:999')
 
@@ -469,7 +474,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.client = TestClient(TestServer(create_app(self.db, [ORIGIN])))
         await self.client.start_server(); self.sockets = []
         self.token = '999:TESTTOKEN'
-        self.saved = {k: os.environ.get(k) for k in ('TELEGRAM_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')}
+        self.saved = {k: os.environ.get(k) for k in ('TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')}
     async def asyncTearDown(self):
         for ws in self.sockets:
             try: await ws.close()
@@ -479,8 +484,9 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             if v is None: os.environ.pop(k, None)
             else: os.environ[k] = v
 
-    def _init(self, tg_id=42, name='Ada'):
+    def _init(self, tg_id=42, name='Ada', username=None):
         user = {'id': tg_id, 'first_name': name}
+        if username: user['username'] = username
         return sign_init_data(self.token, {'auth_date': str(int(_time.time())), 'query_id': 'AAH', 'user': _json.dumps(user, separators=(',', ':'))})
 
     async def register(self, name):
@@ -515,6 +521,86 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         r2 = await self.client.post('/api/telegram/auth', json={'initData': init})
         data2 = await r2.json()
         self.assertEqual(data2['id'], data['id'])  # stable identity per Telegram user
+        self.assertTrue(data2['profile']['identities'][0]['verified'])
+
+    async def test_telegram_dm_links_verified_handle_to_existing_account(self):
+        source = await self.register('Source')
+        code_response = await self.client.post('/api/device-sync/start', headers={'Origin': ORIGIN}, json={'token': source['token']})
+        sync = await code_response.json()
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['TELEGRAM_WEBHOOK_SECRET'] = 'telegram-secret'
+        update = {'message': {'text': '/link ' + sync['code'], 'chat': {'id': 55, 'type': 'private'},
+                              'from': {'id': 77, 'first_name': 'Tess', 'username': 'tess_nft'}}}
+        with mock.patch('app.bot_api', new=mock.AsyncMock(return_value=({'ok': True}, 200))) as send:
+            rejected = await self.client.post('/api/telegram/webhook', json=update)
+            self.assertEqual(rejected.status, 403)
+            linked = await self.client.post('/api/telegram/webhook', json=update,
+                                            headers={'X-Telegram-Bot-Api-Secret-Token': 'telegram-secret'})
+            self.assertEqual(linked.status, 200)
+            self.assertEqual(send.await_count, 1)
+        pending = await (await self.client.post('/api/device-sync/status', headers={'Origin': ORIGIN},
+            json={'token': source['token'], 'code': sync['code']})).json()
+        self.assertEqual(pending['label'], 'Telegram @tess_nft')
+        accepted = await self.client.post('/api/device-sync/accept', headers={'Origin': ORIGIN},
+            json={'token': source['token'], 'code': sync['code'], 'requestId': pending['requestId']})
+        self.assertEqual(accepted.status, 200)
+        auth = await (await self.client.post('/api/telegram/auth', json={'initData': self._init(77, 'Tess', 'tess_nft')})).json()
+        profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN},
+            json={'token': auth['token'], 'displayName': 'Tess and the bots', 'xHandle': '@tess_on_x'})).json()
+        self.assertEqual(profile['displayName'], 'Tess and the bots')
+        self.assertEqual(profile['xHandle'], 'tess_on_x')
+        self.assertEqual(profile['identities'][0]['handle'], 'tess_nft')
+        self.assertTrue(profile['identities'][0]['verified'])
+
+    async def test_telegram_show_requires_a_selected_verified_nft(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['TELEGRAM_WEBHOOK_SECRET'] = 'telegram-secret'
+        update = {'message': {'text': '/show', 'chat': {'id': 88, 'type': 'private'},
+                              'from': {'id': 89, 'first_name': 'No NFT', 'username': 'empty_fren'}}}
+        with mock.patch('app.bot_api', new=mock.AsyncMock(return_value=({'ok': True}, 200))) as send:
+            response = await self.client.post('/api/telegram/webhook', json=update,
+                headers={'X-Telegram-Bot-Api-Secret-Token': 'telegram-secret'})
+            self.assertEqual(response.status, 200)
+            self.assertEqual(send.await_args.args[0], 'sendMessage')
+            self.assertIn('Choose an NFT', send.await_args.args[1]['text'])
+
+    async def test_telegram_show_renders_selected_nft_once_then_reuses_file_id(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['TELEGRAM_WEBHOOK_SECRET'] = 'telegram-secret'
+        auth = await (await self.client.post('/api/telegram/auth',
+            json={'initData': self._init(91, 'Robot', 'robot_owner')})).json()
+        wallet = Account.create().address
+        database = sqlite3.connect(self.db)
+        try:
+            with database:
+                database.execute('INSERT INTO wallet_links VALUES(?,?,?)', (auth['id'], wallet, int(_time.time())))
+        finally:
+            database.close()
+        item = {'chainId': 8453, 'originalAddress': '0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff',
+                'tokenId': 1, 'motion': {'mode': 'roam', 'speed': 60, 'size': 80}}
+        state = await (await self.client.post('/api/device-sync/state', headers={'Origin': ORIGIN},
+            json={'token': auth['token']})).json()
+        changed = await self.client.post('/api/device-sync/state', headers={'Origin': ORIGIN},
+            json={'token': auth['token'], 'revision': state['revision'], 'selection': [item]})
+        self.assertEqual(changed.status, 200)
+        from robot_companion import companion as robot_rig
+        image = 'data:image/svg+xml;base64,' + base64.b64encode((Path(__file__).parent / 'fixtures/robots-v1/1.svg').read_bytes()).decode()
+        verified = {**item, 'wallet': wallet, 'active': True, 'name': 'TinyFrens Robot v1 #1', 'companion': robot_rig(image)}
+        update = {'message': {'text': '/show', 'chat': {'id': -100, 'type': 'group'},
+                              'from': {'id': 91, 'first_name': 'Robot', 'username': 'robot_owner'}}}
+        bot_result = {'ok': True, 'result': {'animation': {'file_id': 'telegram-file-id'}}}
+        with mock.patch('app.Robots.read', new=mock.AsyncMock(return_value=verified)), \
+             mock.patch('app.bot_api', new=mock.AsyncMock(return_value=(bot_result, 200))) as send:
+            first = await self.client.post('/api/telegram/webhook', json=update,
+                headers={'X-Telegram-Bot-Api-Secret-Token': 'telegram-secret'})
+            self.assertEqual(first.status, 200)
+            self.assertEqual(send.await_args.args[0], 'sendAnimation')
+            self.assertTrue(send.await_args.args[3]['animation'].startswith(b'GIF'))
+            second = await self.client.post('/api/telegram/webhook', json=update,
+                headers={'X-Telegram-Bot-Api-Secret-Token': 'telegram-secret'})
+            self.assertEqual(second.status, 200)
+            self.assertEqual(send.await_args.args[1]['animation'], 'telegram-file-id')
+            self.assertIsNone(send.await_args.args[3])
 
     async def test_telegram_auth_rejects_bad_signature(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token

@@ -6,13 +6,14 @@ from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
 import turtle_connect
 import robot_gallery
+from telegram_media import companion_gif
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
-    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
+    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify, link_code
     from discord_integration import verify_interaction, exchange_code
 except Exception:  # pragma: no cover - integration modules always ship together
-    validate_init_data = user_profile = bot_api = reply_markup = classify = None
+    validate_init_data = user_profile = bot_api = reply_markup = classify = link_code = None
     verify_interaction = exchange_code = None
 
 SHAPES = {'cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle', 'dog', 'bear'}
@@ -193,6 +194,7 @@ def create_app(database=None, origins=None):
     CREATE TABLE IF NOT EXISTS fren_nfts(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, name TEXT, traits TEXT, created INTEGER, locked_frens TEXT DEFAULT '0');
     CREATE TABLE IF NOT EXISTS frens_burn_log(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT, token_id INTEGER, action TEXT, amount_burned TEXT, amount_treasury TEXT, created INTEGER);
     CREATE TABLE IF NOT EXISTS tg_users(tg_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
+    CREATE TABLE IF NOT EXISTS tg_media_cache(chain INTEGER, collection TEXT, token_id INTEGER, file_id TEXT, updated INTEGER, PRIMARY KEY(chain,collection,token_id));
     CREATE TABLE IF NOT EXISTS dc_users(user_id TEXT PRIMARY KEY, pet_id TEXT, updated INTEGER);
     CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, pid TEXT NOT NULL, created INTEGER);''')
     try:
@@ -1175,6 +1177,58 @@ def create_app(database=None, origins=None):
         db.execute('UPDATE pets SET token=? WHERE id=?',(hashlib.sha256(token.encode()).hexdigest(),pid))
         code=db.execute('SELECT code FROM pets WHERE id=?',(pid,)).fetchone()
         return token, (code[0] if code else '')
+    def telegram_pet(user, issue_token=False):
+        """Return the stable TinyFrens device represented by a Telegram account."""
+        tg_id=str(user.get('id',''))
+        if not tg_id: raise ValueError('No Telegram user in request')
+        row=db.execute('SELECT pet_id FROM tg_users WHERE tg_id=?',(tg_id,)).fetchone()
+        if row and db.execute('SELECT 1 FROM pets WHERE id=?',(row[0],)).fetchone():
+            pid=row[0]
+            bearer,code=reissue_token(pid) if issue_token else (None,db.execute('SELECT code FROM pets WHERE id=?',(pid,)).fetchone()[0])
+        else:
+            pid,bearer,code=mint_pet(user_profile(user))
+            db.execute('INSERT OR REPLACE INTO tg_users VALUES(?,?,?)',(tg_id,pid,int(now())))
+        account_profile.telegram_identity(db,pid,user)
+        db.commit()
+        return pid,bearer,code
+    async def telegram_companion(pid, position=1):
+        aid=device_sync.ensure_account(db,pid)
+        row=db.execute('SELECT selection FROM device_sync_accounts WHERE account=?',(aid,)).fetchone()
+        selected=json.loads(row[0]) if row else []
+        if not selected:
+            raise ValueError('Choose an NFT to show in TinyFrens first')
+        if not 1 <= position <= len(selected):
+            raise ValueError(f'Choose a number from 1 to {len(selected)}')
+        item=selected[position-1];collection=str(item['originalAddress']).lower();tid=item['tokenId']
+        addresses=turtle_connect.linked_wallets(db,pid)
+        if not addresses:
+            raise ValueError('Link a wallet first')
+        robot=collection==ROBOTS_CONTRACT;extra=collection in EXTRA_COLLECTIONS
+        if collection!=turtle_connect.COLLECTION and not robot and not extra:
+            raise ValueError('That collection is not supported')
+        verifier=robots if robot else turtle_ownership
+        data=None
+        for address in addresses:
+            data=await extras.read(address,tid,collection) if extra else await verifier.read(address,tid)
+            if data['active']: break
+        if not data or not data.get('active') or not data.get('companion'):
+            raise ValueError('TinyFrens could not verify that NFT right now')
+        return data
+    async def send_telegram_companion(chat_id,pid,position,token,private):
+        data=await telegram_companion(pid,position)
+        key=(data['chainId'],data['originalAddress'].lower(),data['tokenId'])
+        cached=db.execute('SELECT file_id FROM tg_media_cache WHERE chain=? AND collection=? AND token_id=?',key).fetchone()
+        deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot')
+        payload={'chat_id':chat_id,'animation':cached[0] if cached else 'attach://animation',
+                 'caption':str(data['name'])[:900],
+                 'reply_markup':reply_markup(os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/') if private else deep_link,
+                                             '🐾 Open TinyFrens',private)}
+        response,status=await bot_api('sendAnimation',payload,token,None if cached else {'animation':await asyncio.to_thread(companion_gif,data['companion'])})
+        if status>=400 or not response.get('ok'):
+            raise RuntimeError('Telegram could not post the NFT animation')
+        file_id=((response.get('result') or {}).get('animation') or {}).get('file_id')
+        if file_id and not cached:
+            with db: db.execute('INSERT OR REPLACE INTO tg_media_cache VALUES(?,?,?,?,?)',(*key,file_id,int(now())))
     async def telegram_auth(request):
         # Exchange a validated Telegram initData for the same friends-relay
         # identity ({id,token,code}) so friends.js/party.js work unchanged inside
@@ -1190,36 +1244,59 @@ def create_app(database=None, origins=None):
             user=data['user'] or {}
             tg_id=str(user.get('id',''))
             if not tg_id: raise ValueError('No Telegram user in initData')
-            p=user_profile(user)
-            row=db.execute('SELECT pet_id FROM tg_users WHERE tg_id=?',(tg_id,)).fetchone()
-            if row and db.execute('SELECT 1 FROM pets WHERE id=?',(row[0],)).fetchone():
-                pid=row[0]
-                db.execute('UPDATE pets SET profile=? WHERE id=?',(json.dumps(p),pid))
-                bearer,code=reissue_token(pid)
-            else:
-                pid,bearer,code=mint_pet(p)
-                db.execute('INSERT OR REPLACE INTO tg_users VALUES(?,?,?)',(tg_id,pid,int(now())))
-            db.commit()
-            return web.json_response({'id':pid,'token':bearer,'code':code,'chat':data['chat'],'startParam':data['start_param']})
+            pid,bearer,code=telegram_pet(user,issue_token=True)
+            return web.json_response({'id':pid,'token':bearer,'code':code,'chat':data['chat'],
+                                      'chatInstance':data['chat_instance'],'startParam':data['start_param'],
+                                      'profile':account_profile.read(db,pid)})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:
             return web.json_response({'error':str(e) or 'Telegram sign-in failed'},status=400)
     async def telegram_webhook(request):
-        # Bot webhook: greet /start in DMs and, when added to a group, post an
-        # inline web_app button that opens the Mini App in that group (== party room).
+        # Bot webhook: account linking, NFT animation messages, and valid launch
+        # buttons for both private chats and groups.
         try:
             if bot_api is None: return web.json_response({'error':'Telegram support is unavailable'},status=503)
             token=os.environ.get('TELEGRAM_BOT_TOKEN')
             if not token: return web.json_response({'error':'Telegram bot is not configured'},status=503)
+            secret=os.environ.get('TELEGRAM_WEBHOOK_SECRET','')
+            if secret and request.headers.get('X-Telegram-Bot-Api-Secret-Token') != secret:
+                raise web.HTTPForbidden(text='Telegram webhook secret did not match')
             update=await request.json()
             kind,chat_id,chat=classify(update)
             miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/')
+            message=update.get('message') or {}
+            sender=message.get('from') or {}
+            text=str(message.get('text') or '')
+            sync_code=link_code(update) if link_code else None
+            if sync_code and chat_id is not None:
+                if not secret: return web.json_response({'error':'Telegram webhook secret is required'},status=503)
+                pid,_,_=telegram_pet(sender)
+                label='Telegram @'+str(sender.get('username')) if sender.get('username') else 'Telegram Mini App'
+                device_sync.request_sync(db,pid,sync_code,label)
+                await bot_api('sendMessage',{'chat_id':chat_id,
+                    'text':'Link requested. Approve it on the TinyFrens device that made the code, then open TinyFrens here.',
+                    'reply_markup':reply_markup(miniapp,'🐾 Open TinyFrens',True)},token)
+                return web.json_response({'ok':True})
+            show=re.fullmatch(r'/show(?:@\w+)?(?:\s+([1-5]))?\s*',text,re.I)
+            if show and chat_id is not None:
+                if not secret: return web.json_response({'error':'Telegram webhook secret is required'},status=503)
+                pid,_,_=telegram_pet(sender)
+                try:
+                    await send_telegram_companion(chat_id,pid,int(show.group(1) or 1),token,(chat or {}).get('type')=='private')
+                except ValueError as exc:
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':str(exc),
+                        'reply_markup':reply_markup(miniapp,'🐾 Open TinyFrens',(chat or {}).get('type')=='private')},token)
+                return web.json_response({'ok':True})
             if kind=='start' and chat_id is not None:
-                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Hi! 🐾 I\'m your TinyFren. Tap below to wake me up — then invite me to a group so everyone\'s frens can hang out together.'},token)
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Bring your NFTs into TinyFrens. Open the Mini App below, send /link followed by a sync code, or use /show to post your selected NFT animation.'},token)
                 await bot_api('sendMessage',{'chat_id':chat_id,'text':'Ready when you are.','reply_markup':reply_markup(miniapp)},token)
             elif kind=='added' and chat_id is not None:
                 title=(chat or {}).get('title') or 'this chat'
-                await bot_api('sendMessage',{'chat_id':chat_id,'text':'A TinyFren has arrived in '+title+'! 🎉 Everyone here can open the app below to drop their fren into this shared room.','reply_markup':reply_markup(miniapp,'🐾 Open the room')},token)
+                deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot')
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'TinyFrens is ready in '+title+'. Open it to bring an NFT into the room, then use /show to post your selected companion.',
+                    'reply_markup':reply_markup(deep_link,'🐾 Open TinyFrens',False)},token)
             return web.json_response({'ok':True})
+        except web.HTTPException:
+            raise
         except Exception as e: return web.json_response({'error':str(e)},status=400)
     async def discord_token(request):
         try:
@@ -1556,6 +1633,8 @@ def create_app(database=None, origins=None):
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync
     device_sync.install(app, db, token_pet, limit)
+    import account_profile
+    account_profile.install(app, db, token_pet, limit)
     import collection_suggestions
     collection_suggestions.install(app, db, token_pet, limit)
     turtle_previews = {}

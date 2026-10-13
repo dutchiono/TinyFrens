@@ -18,7 +18,9 @@
  */
 (() => {
   const tg = window.Telegram && window.Telegram.WebApp;
-  const active = Boolean(tg);
+  // telegram-web-app.js also defines WebApp in ordinary browsers. Signed launch
+  // data is the boundary that makes this an actual Telegram session.
+  const active = Boolean(tg && tg.initData);
   if (active) window.__TINYFRENS_DEFER_AUTH__ = true; // tell friends.js to wait for us
   if (!active) { window.TinyFrensTelegram = { active: false }; return; }
 
@@ -80,8 +82,9 @@
     const attempt = () => {
       const api = window.TinyFrensFriends;
       if (api && api.connected()) {
-        if (chat && chat.id != null && window.TinyFrensParty) {
-          window.TinyFrensParty.joinChat('telegram', String(chat.id), chat.title || 'this Telegram group');
+        if ((chat && chat.id != null || data?.chatInstance) && window.TinyFrensParty) {
+          const room = chat && chat.id != null ? String(chat.id) : String(data.chatInstance);
+          window.TinyFrensParty.joinChat('telegram', room, chat?.title || 'this Telegram chat');
         } else if (data && data.startParam && window.TinyFrensParty) {
           const code = String(data.startParam).toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
           if (code.length >= 3) window.TinyFrensParty.joinPrivate(code);

@@ -1,122 +1,39 @@
-# Playing TinyFrens in Telegram 🐾
+# TinyFrens in Telegram
 
-Your tiny fren now lives **right inside Telegram** — no app store, no download, no
-"add to home screen." Open the bot, tap a button, and your companion is there to feed,
-play with, and watch grow.
+Open [@TinyFrensBot](https://t.me/TinyFrensBot) and choose **Open TinyFrens**. The Mini App runs the same NFT companion interface as the browser inside Telegram.
 
-> **New here?** Open [@TinyFrensBot](https://t.me/TinyFrensBot) and tap **🐾 Play
-> TinyFrens**. That's it — your fren hatches in a few seconds.
+Telegram signs the Mini App launch data. The TinyFrens relay verifies that signature before attaching the Telegram user ID and handle to a TinyFrens account. A plain username typed into a form is never marked as a verified Telegram identity.
 
----
+## Link an existing TinyFrens account
 
-## Meet your fren
+1. On a device that already has your wallets and companions, open **More → Settings → Sync devices**.
+2. Copy a sync code.
+3. DM `@TinyFrensBot` with `/link YOUR-CODE`.
+4. Approve the request on the device that created the code.
+5. Open TinyFrens from the bot.
 
-Everyone gets a companion the moment they open the Mini App. Yours is picked just for
-you (based on your Telegram account) and starts as a **Hatchling** on **Day 0**. Give it
-a name, pick a look, and it's yours. It remembers you every time you come back.
+The account then shares linked wallets, shown NFTs, size and movement settings, display name, and verified Telegram identity. The approval keeps a code pasted by someone else from taking over an account. Device credentials are never posted into Telegram.
 
-Your fren has three needs, shown as **Food**, **Joy**, and **Energy**:
+## Wallets and NFTs
 
-| Action | What it does | When it's not available |
-|---|---|---|
-| 🍓 **Feed** | Food +25 (max 100) | Already full |
-| 🎾 **Play** | Joy +20, costs some food & energy | Too hungry or too tired |
-| ☾ **Nap** | Energy +25 (max 100) | Already wide awake |
+TinyFrens supports Hood Turtles, TinyFrens: Robots v1, The Nubs, and Bots Computers. Wallets stay read-only: linking uses a signed text message and does not transfer an NFT, approve spending, or cost gas.
 
-Wave 👋, Dance 💃 and Toy 🧸 are just for fun — they don't change the numbers. Over time
-your fren grows through stages: **Hatchling → Sprout → Elder**.
+The preferred wallet path is Bankr. Copy the prepared Bankr message from TinyFrens, send it to Bankr, and approve the resulting wallet on the waiting device. Manual wallet signing remains available as a fallback.
 
----
+## Messages, buttons, and animation
 
-## The tabs
+The bot can send inline buttons in DMs and groups. Telegram only permits a `web_app` keyboard button in a private chat, so group messages use a Telegram Mini App deep link.
 
-Along the bottom of the Mini App you'll see:
+Use `/show` after linking your account to post the first selected NFT as a transparent animated GIF. Use `/show 2` through `/show 5` for another selected companion. The relay rechecks NFT ownership, renders the collection-specific animation frames, and caches Telegram's `file_id` after the first upload. It never substitutes a made-up character or a square NFT thumbnail. Live interaction and games stay in the Mini App.
 
-- **♡ Pet** — your fren, its mood, and the Feed / Play / Nap buttons.
-- **◌ Party** — hop into a shared room and see other people's frens (see below).
-- **◈ Wallet** — on-chain extras and NFT looks (advanced).
-- **✎ Looks** — change colour, species, expression, accessories, and size.
-- **⚙ Settings** — updates, help, and grown-up options.
+## Groups
 
-### Talk to your fren 💬
+Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open the Mini App and can join the shared room with their linked NFT companions. Android and desktop can also show companions over other apps; Telegram keeps them inside the Mini App sandbox.
 
-There's no separate Chat tab — just **tap your character** (or the *"Tap your fren to
-chat"* hint under it) and a little chat window pops up. Say hi, ask something, and your
-fren replies. Tap the ✕ or anywhere outside the window to close it.
+## Troubleshooting
 
----
+If the Mini App is blank, update Telegram, close the bot, and open it again. If account linking is waiting, return to the device that generated the sync code and approve the Telegram request before the ten-minute code expires.
 
-## Party rooms — frens together 🎉
-
-This is the fun part. **A Telegram group becomes a shared room.** When you add
-[@TinyFrensBot](https://t.me/TinyFrensBot) to a group, it posts an **"Open the room"**
-button. Everyone in that group who taps it drops their fren into the *same* room, so you
-can all see each other's companions hanging out together.
-
-- Tap **◌ Party** inside the Mini App to join the room for the group you opened it from.
-- You can also join the **public room** (everyone, everywhere) or a **private room** with
-  a code you share with friends.
-- Leaving is one tap. Your own fren and its progress always stay yours — visitors never
-  take over your pet.
-
-> Think of it like a shared aquarium: same water, different fish. 🐟
->
-> Want the full breakdown of rooms, private codes, and visits? See
-> [Party rooms & visits](party-rooms.md).
-
----
-
-## Your fren follows you around ✨
-
-Inside the Mini App your fren can float in the corner as a little buddy you can **drag
-anywhere** on screen. **Tap it** to pop out quick care buttons (Feed / Play / Nap / Wave)
-so you can look after it without leaving what you're doing.
-
-*(A note for the curious: on Android and desktop, TinyFrens can float over other apps as
-a true overlay. Inside Telegram that isn't allowed by the platform, so the floating buddy
-lives inside the app instead — same friendly idea, platform-appropriate.)*
-
----
-
-## Saving, accounts & privacy
-
-- **Your fren is saved automatically** — no account or password. It's tied to your
-  Telegram identity, so it's waiting for you next time.
-- Party rooms and the "friends" features run on the TinyFrens server so multiple people
-  can share a room. **Your care stats and look always stay yours** — other people only
-  ever *see* a snapshot of your fren, never control it.
-- Want the full rules? See [Game rules](../GAMEPLAY.md).
-
----
-
-## FAQ / Troubleshooting
-
-**The Mini App won't open / shows a blank screen.**
-Make sure your Telegram is up to date, then close and reopen the bot. If it persists,
-tap **🐾 Play TinyFrens** again from the chat.
-
-**It says "Connecting to the TinyFrens server…"**
-The shared rooms need the TinyFrens server. Your fren and care still work — it just may
-take a moment to join a room. Try again in a few seconds.
-
-**My fren looks different from before.**
-Check **✎ Looks** — you may have changed its appearance, or it grew into a new stage.
-You can always restyle it there.
-
-**Can I use it in a group *and* a DM?**
-Yes! Open the bot in a DM for your own fren, or in a group to share a room with everyone.
-
-**Does it cost anything?**
-No. TinyFrens in Telegram is free to play.
-
----
-
-## What's the same everywhere
-
-Your fren follows the same rules on every platform — Android, desktop, the web, and now
-Telegram. Feed, Play, Nap, growth stages, looks, and the friendly personality are
-identical. Each place you play keeps its own save.
-
-- **Play in your browser:** https://tinyfrens.lol/web/
-- **All the ways to bring a fren home:** see the [README](../README.md)
-- **Full documentation:** see the [docs index](README.md)
+- Browser app: https://tinyfrens.lol/web/
+- Account and device setup: https://tinyfrens.lol/#install
+- Party rooms: [Party rooms and visits](party-rooms.md)
