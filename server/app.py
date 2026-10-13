@@ -245,6 +245,8 @@ def create_app(database=None, origins=None):
     tg_history = defaultdict(lambda: deque(maxlen=tg_history_size))
     # (repo, issue_number) -> Telegram chat_id, so inbound GitHub events can be
     # relayed back to the chat that filed the issue. In-memory, like tg_history.
+    db.execute('CREATE TABLE IF NOT EXISTS github_issue_chats(repo TEXT, issue_number INTEGER, chat_id TEXT, PRIMARY KEY(repo,issue_number))')
+    db.commit()
     issue_chats = {}
     now = time.time
     def limit(key, maximum, seconds):
@@ -1390,6 +1392,7 @@ def create_app(database=None, origins=None):
             result=gh.response_summary(data,status,owner,name)
             if not result['ok']: return await say('I couldn\'t open the issue: '+result['error'])
             issue_chats[(result['repo'],result['number'])]=chat_id
+            with db: db.execute('INSERT OR REPLACE INTO github_issue_chats VALUES(?,?,?)',(result['repo'],result['number'],str(chat_id)))
             await say('✅ Opened issue #'+str(result['number'])+': '+result['title']+'\n'+result['url'])
         except ValueError as e:
             await say('I couldn\'t file that issue: '+str(e))
@@ -1403,7 +1406,7 @@ def create_app(database=None, origins=None):
             if gh is None: return web.json_response({'ok':True})
             secret=os.environ.get('GITHUB_WEBHOOK_SECRET')
             if not secret: return web.json_response({'ok':True})
-            body=await request.read()
+            body=await request.clone(client_max_size=1024*1024).read()
             if not gh.verify_webhook_signature(secret,body,request.headers.get('X-Hub-Signature-256')):
                 return web.json_response({'error':'invalid signature'},status=401)
             limit(('gh-webhook',request.remote or '?'),120,60)
@@ -1414,6 +1417,9 @@ def create_app(database=None, origins=None):
             details=gh.issue_event(payload)
             if details is None: return web.json_response({'ok':True})
             chat_id=issue_chats.get((details['repo'],details['number']))
+            if chat_id is None:
+                saved_chat=db.execute('SELECT chat_id FROM github_issue_chats WHERE repo=? AND issue_number=?',(details['repo'],details['number'])).fetchone()
+                if saved_chat: chat_id=int(saved_chat[0])
             token=os.environ.get('TELEGRAM_BOT_TOKEN')
             if chat_id is not None and token and bot_api is not None:
                 text=gh.issue_event_message(details)

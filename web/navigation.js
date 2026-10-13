@@ -11,7 +11,7 @@
     ? `<button id="tab-${screen}" type="button" data-screen="${screen}">${label}</button>`
     : `<a href="${web('index.html#' + screen)}">${label}</a>`;
   const link = (key, href, label) => `<a href="${href}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
-  host.innerHTML = `<div class="tf-header-frens" aria-hidden="true"></div><div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">●</span></a><a class="tf-back" href="${home}"${page === 'home' ? ' hidden' : ''}>← Back</a></div>
+  host.innerHTML = `<div class="tf-header-frens" aria-hidden="true"></div><div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">●</span></a><a class="tf-back" href="${home}"${page === 'home' || inApp ? ' hidden' : ''}>← Back</a></div>
     <nav class="tf-nav-links" aria-label="Main navigation">${link('home', home, 'Home')}${item('pet', 'My NFTs')}${link('gallery', web('gallery.html'), 'Gallery')}${link('vote', web('vote.html'), 'Vote')}${item('account', 'Account')}
     <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('games', 'Games')}${item('care', 'Care')}${item('party', 'Party')}${item('help', 'Help')}<a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
   host.querySelector('.tf-back').addEventListener('click', event => {
@@ -25,7 +25,7 @@
   if (nativeApp && inApp) for (const anchor of host.querySelectorAll(`a[href="${home}"]`)) anchor.addEventListener('click', event => {
     event.preventDefault(); window.showScreen?.('pet');
   });
-  const march = document.createElement('script'); march.src = web('header-frens.js?v=3'); document.body.append(march);
+  const march = document.createElement('script'); march.src = web('header-frens.js?v=4'); document.body.append(march);
   const more = document.getElementById('moreMenu');
   document.addEventListener('click', event => { if (!more.contains(event.target)) more.open = false; });
   document.addEventListener('keydown', event => {

@@ -90,7 +90,9 @@ class RobotGallery:
                     with self.db:
                         self.db.execute('INSERT OR REPLACE INTO robot_gallery_art VALUES(?,?)', (tid, json.dumps(metadata)))
                 owner = self.db.execute('SELECT wallet FROM robot_gallery_owners WHERE token=?', (tid,)).fetchone()
-                items.append({'tokenId': tid, 'metadata': metadata, 'owner': owner[0] if owner else None})
+                social = self.db.execute('SELECT x_handle FROM wallet_social_profiles WHERE address=? COLLATE NOCASE',(owner[0],)).fetchone() if owner and self.db.execute("SELECT 1 FROM sqlite_master WHERE name='wallet_social_profiles'").fetchone() else None
+                items.append({'tokenId': tid, 'metadata': metadata, 'owner': owner[0] if owner else None,
+                              'xHandle': social[0] if social else None})
             last = selected[-1] if selected else after
             return {'contract': CONTRACT, 'chainId': 8453, 'supply': len(ids), 'items': items,
                     'nextAfter': last if any(tid > last for tid in ids) else None,
