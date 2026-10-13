@@ -48,6 +48,9 @@ jobs:
           node scripts/test-snack-catch.cjs
           node scripts/test-game-players.cjs
 
+      - name: Test pet engine care rules
+        run: node scripts/test-pet-engine.cjs
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:

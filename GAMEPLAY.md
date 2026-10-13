@@ -4,11 +4,13 @@ The Pet screen and the floating pet use the same three care actions, plus Clean 
 
 | Action | Result | When unavailable |
 |---|---|---|
-| Feed | Food +25, capped at 100; eating animation | Already full |
-| Play | Joy +20, capped at 100; food −8, energy −12; dancing animation | Food below 8 or energy below 12 |
+| Feed | Food +25, capped at 100; weight +4; eating animation | Already full |
+| Play | Joy +20, capped at 100; food −8, energy −12, weight −3; dancing animation | Food below 8 or energy below 12 |
 | Nap | Energy +25, capped at 100; sleeping animation | Energy already 100 |
 | Clean | Clears mess; small Joy gain | Nothing to clean |
 | Vitamin | Cures sickness immediately | Already healthy |
+| Scold | Discipline +12 and settles the fren while misbehaving; Discipline −8 if they did nothing wrong | A downed fren |
+| Revive | Brings a downed fren back at Food/Joy/Energy 50 | Not downed |
 | More (bubble menu) | Open the full app | Never changes care stats |
 
 Wave, Dance and Toy in the app are flavour interactions, not extra care rewards. A toy caught by the floating pet does not grant a second Play reward. Feedback reports actual capped gains. Saves, names and looks persist through signed updates.
@@ -26,8 +28,12 @@ Needs arise from stats and time. Clean or Vitamin appears as an extra button onl
 | Sad | Joy is 25 or less | Play; a play session always cheers a sad fren |
 | Sick | Anytime; time spent hungry, sleepy, bored, sad or dirty raises the odds | Vitamin (instant), or a few calm hours with no other needs |
 | Lost | Anytime; time spent sad or adventuring raises the odds | Wait — your fren walks home on their own, tired |
+| Misbehaving | On its own every few hours while awake | Scold |
+| Downed | A care need left unmet for 45 minutes at a time counts a care mistake; too many mistakes (12) run a fren down | Revive |
 
 Joy tiers: happy at 75 or more, okay in between, sad at 25 or less.
+
+Weight, discipline and care mistakes are Tamagotchi-style extras. Weight rises with food and falls with play and adventuring; being very heavy or very light (and low discipline) makes illness a little likelier. Care mistakes count toward being downed. There is no permanent death: a downed fren revives, and the paid revive cost is planned for the economy phase.
 
 ## Visits
 
