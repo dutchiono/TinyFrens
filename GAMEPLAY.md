@@ -78,7 +78,7 @@ Robots v1 (Base mainnet, collection `tinyfrens-robots-v1`) are the gamified pets
 - **Games.** A finished round grants the usual Play care **and** a small FRENS earn-back, when the admin enables it (Snack Catch for v1).
 - **Revive.** A downed robot revives as usual; the revive cost is a FRENS price.
 
-The care **simulation** runs on your device exactly as before, so offline, floating-overlay, desktop and native play are unchanged. Only the money-affecting parts — the free allowance, the FRENS charge and the game earn-back — are decided by the server, against a fresh on-chain ownership check. If the relay is offline, care keeps working locally and nothing is charged or earned. This release **reports** care actions and shows the FRENS balance and today's free allowance; hard-blocking a care action on payment and the top-up/deposit screen ship in the next slice.
+The care **simulation** runs on your device exactly as before. Only the money-affecting parts — the free allowance, the FRENS charge and the game earn-back — are decided by the server, against a fresh on-chain ownership check. Robot care waits for server approval before changing local state; an offline or unconfirmed request pauses that action. Other collections keep their local offline care loop. The Care screen shows the FRENS balance, today's free allowance, paid confirmation, and deposit guidance; deposits remain closed until the operator enables the rehearsed mainnet path.
 
 ## Appearance
 

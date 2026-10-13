@@ -204,8 +204,9 @@ in FRENS.
   Revive buttons were added to the shared web care screen (web + desktop) so a downed fren is never
   a dead end. Tests: `scripts/test-pet-engine.cjs`, wired into the quality gate. Non-robot shapes
   keep their existing behavior.
-  - Not yet: the paid revive cost and the blocking paid top-up (P4), and the Scold/Revive affordance
-    in the native Android/iOS overlays (P5) — those can still reach the web care screen via "More".
+  Paid revive and blocking paid care now ship in P4. Android and desktop floating menus expose
+  Scold or Revive when the current state needs them. iOS does not provide an over-other-apps
+  overlay; its widget and `tinyfrens://care` route open the shared Care screen.
 - **P2 — Server parity. ✅ shipped in this branch.** `server/robot_care.py` is the small server
   mirror for the money-affecting checks only: the care-action catalogue, the per-action FRENS price,
   and the free daily allowance. `POST /api/robots/care` (status/quotes) and
@@ -239,9 +240,10 @@ in FRENS.
     action. The Care screen includes a multi-robot picker and disabled-deposit guidance. Tests:
     `scripts/test-robot-care.cjs` (resolution, FRENS formatting, paid prompts, endpoint wiring,
     offline safety), wired into `quality-gate.yml`.
-  - **Not yet:** native Android/iOS overlay affordances (P5). On-chain live deposits are
-    **not yet enabled** and must be rehearsed read-only against Base mainnet first (§6, ⚠️).
-- **P5 — Polish.** Native overlay affordances, balance pass, telemetry, docs.
+  - On-chain live deposits remain **disabled by operator decision** (§6, ⚠️).
+- **P5 — Polish. ✅ shipped.** Android and desktop floating menus surface Scold/Revive only when
+  applicable; iOS deep-links from its widget to the shared Care screen. The balance/deposit UX,
+  admin care-usage counts, and final rollout docs are in place.
 
 ## 10. Decisions
 
