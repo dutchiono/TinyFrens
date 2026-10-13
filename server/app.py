@@ -10,11 +10,13 @@ from telegram_media import companion_gif
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
-    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify, link_code
+    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify, link_code, chat_message
     from discord_integration import verify_interaction, exchange_code
+    import github_integration as gh
 except Exception:  # pragma: no cover - integration modules always ship together
-    validate_init_data = user_profile = bot_api = reply_markup = classify = link_code = None
+    validate_init_data = user_profile = bot_api = reply_markup = classify = link_code = chat_message = None
     verify_interaction = exchange_code = None
+    gh = None
 
 SHAPES = {'cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle', 'dog', 'bear'}
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
@@ -205,6 +207,16 @@ def create_app(database=None, origins=None):
     allowed = set(origins or os.environ.get('ALLOWED_ORIGINS', 'https://tinyfrens.lol,https://www.tinyfrens.lol').split(','))
     if os.environ.get('ALLOW_NATIVE_ORIGIN') == 'true': allowed.add('null')
     sockets, visits, pending, rooms, room_by_pet, rates, battles, pending_battles = {}, {}, {}, defaultdict(dict), {}, defaultdict(deque), {}, {}
+    # Recent non-command chat messages per Telegram chat, used to draft GitHub issues.
+    # The Bot API cannot read past history, so this is whatever the relay has seen
+    # since it started — same in-memory, single-process model as rooms/presence.
+    tg_history_size = gh.HISTORY_SIZE if gh is not None else 25
+    if gh is not None:
+        tg_history_size = gh.history_from_env(os.environ.get('TELEGRAM_ISSUE_HISTORY'))
+    tg_history = defaultdict(lambda: deque(maxlen=tg_history_size))
+    # (repo, issue_number) -> Telegram chat_id, so inbound GitHub events can be
+    # relayed back to the chat that filed the issue. In-memory, like tg_history.
+    issue_chats = {}
     now = time.time
     def limit(key, maximum, seconds):
         q=rates[key]; t=now()
@@ -318,7 +330,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/github/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
@@ -1262,12 +1274,19 @@ def create_app(database=None, origins=None):
             if secret and request.headers.get('X-Telegram-Bot-Api-Secret-Token') != secret:
                 raise web.HTTPForbidden(text='Telegram webhook secret did not match')
             update=await request.json()
+            if not isinstance(update,dict): return web.json_response({'ok':True})
             kind,chat_id,chat=classify(update)
             miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/').split('#',1)[0]
             deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=home')
             message=update.get('message') or {}
             sender=message.get('from') or {}
             text=str(message.get('text') or '')
+            # Buffer ordinary chatter so the transcript is complete when someone asks
+            # for an issue. The command itself (and /start, /show, /link) is never part
+            # of the issue.
+            if kind=='message' and chat_id is not None:
+                entry=chat_message(update) if chat_message is not None else None
+                if entry is not None: tg_history[str(chat_id)].append(entry)
             sync_code=link_code(update) if link_code else None
             if sync_code and chat_id is not None:
                 if not secret: return web.json_response({'error':'Telegram webhook secret is required'},status=503)
@@ -1302,9 +1321,72 @@ def create_app(database=None, origins=None):
                 deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=party')
                 await bot_api('sendMessage',{'chat_id':chat_id,'text':'TinyFrens is ready in '+title+'. Open it to bring an NFT into the room, then use /show to post your selected companion.',
                     'reply_markup':reply_markup(deep_link,'🐾 Open TinyFrens',False)},token)
+            elif kind=='issue' and chat_id is not None:
+                await file_issue_from_chat(chat_id,chat,token)
             return web.json_response({'ok':True})
         except web.HTTPException:
             raise
+        except Exception as e: return web.json_response({'error':str(e)},status=400)
+    async def file_issue_from_chat(chat_id,chat,token):
+        # Read the last N buffered messages, ask the model for a title + body, and
+        # open the issue. Every failure mode answers in chat so nobody waits on a
+        # silent bot. Optional feature: unconfigured means "unavailable", not broken.
+        async def say(text):
+            try: await bot_api('sendMessage',{'chat_id':chat_id,'text':text},token)
+            except Exception: pass
+        if gh is None or bot_api is None:
+            return await say('I can\'t file issues from here yet — this build has no GitHub support.')
+        try:
+            limit(('tg-issue',str(chat_id)),5,3600)
+            api_key=os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+            if not api_key: return await say('I have no AI key set, so I can\'t summarise the chat yet. (Set GEMINI_API_KEY.)')
+            gh_token=os.environ.get('GITHUB_TOKEN')
+            repo=os.environ.get('GITHUB_REPO')
+            if not gh_token or not repo: return await say('Issue filing isn\'t set up yet — the server needs GITHUB_TOKEN and GITHUB_REPO.')
+            owner,name=gh.parse_repo(repo)
+            messages=list(tg_history.get(str(chat_id),()))
+            lines=gh.transcript(messages,tg_history_size)
+            if not lines:
+                return await say('I haven\'t seen enough of this conversation yet to write an issue. Say a bit about what\'s happening, then ask me again.')
+            await say('📝 Reading the last '+str(min(len(messages),tg_history_size))+' messages and drafting an issue…')
+            draft=await gh.draft_issue(lines,api_key,(chat or {}).get('title',''),os.environ.get('GEMINI_MODEL'))
+            available=await gh.list_labels(owner,name,gh_token)
+            labels=gh.filter_labels(gh.labels_from_env(os.environ.get('GITHUB_ISSUE_LABELS'))+draft['labels'],available)
+            footer=('_Filed from Telegram chat `'+str(chat_id)+'` by the TinyFrens bot, summarising '+str(len(messages))+' recent message(s). Please edit if the summary missed something._')
+            data,status=await gh.create_issue(owner,name,gh_token,draft['title'],gh.issue_body(draft,footer),labels)
+            result=gh.response_summary(data,status,owner,name)
+            if not result['ok']: return await say('I couldn\'t open the issue: '+result['error'])
+            issue_chats[(result['repo'],result['number'])]=chat_id
+            await say('✅ Opened issue #'+str(result['number'])+': '+result['title']+'\n'+result['url'])
+        except ValueError as e:
+            await say('I couldn\'t file that issue: '+str(e))
+        except Exception as e:
+            await say('Something went wrong while filing that issue. Please try again.')
+    async def github_webhook(request):
+        # Inbound GitHub App webhook. Verifies the HMAC-SHA256 signature over the
+        # RAW body, then relays issue comments/closes back to the Telegram chat
+        # that filed the issue. Unconfigured = ignored, not an error.
+        try:
+            if gh is None: return web.json_response({'ok':True})
+            secret=os.environ.get('GITHUB_WEBHOOK_SECRET')
+            if not secret: return web.json_response({'ok':True})
+            body=await request.read()
+            if not gh.verify_webhook_signature(secret,body,request.headers.get('X-Hub-Signature-256')):
+                return web.json_response({'error':'invalid signature'},status=401)
+            limit(('gh-webhook',request.remote or '?'),120,60)
+            try: payload=json.loads(body)
+            except json.JSONDecodeError: return web.json_response({'ok':True})
+            details=gh.issue_event(payload)
+            if details is None: return web.json_response({'ok':True})
+            chat_id=issue_chats.get((details['repo'],details['number']))
+            token=os.environ.get('TELEGRAM_BOT_TOKEN')
+            if chat_id is not None and token and bot_api is not None:
+                text=gh.issue_event_message(details)
+                if text:
+                    try: await bot_api('sendMessage',{'chat_id':chat_id,'text':text},token)
+                    except Exception: pass
+            return web.json_response({'ok':True})
+        except ValueError as e: return web.json_response({'error':str(e)},status=429)
         except Exception as e: return web.json_response({'error':str(e)},status=400)
     async def discord_token(request):
         try:
@@ -1538,6 +1620,8 @@ def create_app(database=None, origins=None):
     # Telegram Mini App + bot
     app.router.add_post('/api/telegram/auth',telegram_auth)
     app.router.add_post('/api/telegram/webhook',telegram_webhook)
+    # GitHub App (inbound issue events) — see "Open an issue" in server/README.md
+    app.router.add_post('/api/github/webhook',github_webhook)
     # Discord Activity + interactions
     app.router.add_post('/api/discord/token',discord_token)
     app.router.add_post('/api/discord/interactions',discord_interactions)
