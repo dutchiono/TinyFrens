@@ -192,7 +192,7 @@ class RobotCare:
         return result
 
 
-def install(app, db, *, token_pet, limit, settings, owner_check, economy=None):
+def install(app, db, *, token_pet, limit, settings, owner_check, economy=None, deposit_settings=None):
     """Register the robots care routes.
 
     token_pet(token) -> pet_id            raises ValueError on a bad token
@@ -226,6 +226,10 @@ def install(app, db, *, token_pet, limit, settings, owner_check, economy=None):
                 return web.json_response({'error': 'You do not own this robot'}, status=403)
             data = care.status(pid)
             data['tokenId'] = tid
+            deposit = deposit_settings() if deposit_settings else {}
+            data['deposit'] = {'enabled': bool(deposit.get('enabled') and deposit.get('address') and economy is not None),
+                               'chainId': deposit.get('chainId', 8453), 'token': deposit.get('token'),
+                               'address': deposit.get('address') if deposit.get('enabled') and economy is not None else None}
             return web.json_response(data)
         except NotLinked as exc:
             return web.json_response({'error': str(exc)}, status=403)

@@ -1737,6 +1737,7 @@ def create_app(database=None, origins=None):
         settings=lambda: admin_surface.care_settings(db),
         owner_check=robot_owner_check,
         economy=economy,
+        deposit_settings=treasury_settings,
     )
     admin_surface.install(
         app, db,

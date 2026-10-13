@@ -609,3 +609,5 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 @media(prefers-reduced-motion:reduce){#bankrWalletPrompt{transition:none}}
 
 #screen-help{max-width:720px;margin-inline:auto}#screen-help>h1{text-align:center}#screen-account #settingsPanel>.overlay{background:transparent;border:0;border-bottom:1px solid #403350;border-radius:0;padding:20px 0}
+
+.care-robot-picker{display:flex;align-items:center;gap:12px;margin:16px 0}.care-robot-picker select{background:#211c39;color:#f7f1ff;padding:10px;border:1px solid #594276;border-radius:8px;max-width:100%}.care-deposit{padding:18px 0;border-top:1px solid #403350}.deposit-address{overflow-wrap:anywhere;cursor:copy;font-family:monospace}
