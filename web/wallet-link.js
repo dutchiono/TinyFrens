@@ -104,7 +104,7 @@
     try {
       const result = await post('/api/wallet-link/nfts');
       const data = {...result, errors:[], nfts:result.nfts.map(nft => ({...nft,
-        contract:nft.originalAddress, chain:'Robinhood Chain', standard:'ERC-721', hoodTurtle:true}))};
+        contract:nft.originalAddress, chain:nft.chainId === 8453 ? 'Base' : 'Robinhood Chain', standard:'ERC-721', companionSupported:true}))};
       matches.replaceChildren();
       const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);
       for (const nft of supported) {
@@ -122,17 +122,17 @@
         const detail = document.createElement('p');
         detail.textContent = nft.chain + ' · ' + nft.collection + ' · ' + nft.standard + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
         card.append(title,detail);
-        if (nft.hoodTurtle) {
+        if (nft.companionSupported) {
           const link = document.createElement('button');
           link.type = 'button'; link.textContent = 'Show companion';
           link.onclick = async () => {
             link.disabled = true;
             try {
-              const verified = await post('/api/featured/hood-turtle', {tokenId:nft.tokenId});
+              const verified = await post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
               if (!verified.active || !verified.companion || Date.now() >= verified.validUntil * 1000) throw new Error('Ownership could not be verified. Try again.');
-              const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => !(item.tokenId === verified.tokenId && item.originalAddress === verified.originalAddress));
+              const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => window.TinyFrensCompanionKey(item) !== window.TinyFrensCompanionKey(verified));
               if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
-              if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId});
+              if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId, originalAddress:verified.originalAddress, chainId:verified.chainId});
               saved.push(verified);
               localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
               window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));

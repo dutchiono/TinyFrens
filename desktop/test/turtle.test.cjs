@@ -6,6 +6,26 @@ const os = require('node:os');
 const path = require('node:path');
 const {TurtleStore, SERVER} = require('../turtle.cjs');
 
+test('same token number in Robots and Hood Turtles keeps separate imports, motion and removal', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-collections-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  const hood = {tokenId:1,chainId:4663,originalAddress:'0xca28587b61eac19a87dfcfd9420870867a916675'};
+  const robot = {tokenId:1,chainId:8453,originalAddress:'0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff'};
+  const store = new TurtleStore(path.join(dir,'pets.json'), async (url, options) => {
+    assert.equal(url, SERVER + '/api/featured/companion');
+    const body = JSON.parse(options.body);
+    return {ok:true,text:async()=>JSON.stringify({...body,active:true,image:'data:image/png;base64,AAAA',validUntil:Date.now()/1000+3600})};
+  });
+  await store.import(SERVER,{token:'private',...hood});
+  await store.import(SERVER,{token:'private',...robot});
+  store.setMotion(1,'bubble',40,robot);
+  assert.equal(store.view().items.length,2);
+  assert.deepEqual(store.view().items.map(n=>n.motion.mode),['roam','bubble']);
+  store.remove(1,robot);
+  assert.equal(store.view().items.length,1);
+  assert.equal(store.view().items[0].chainId,4663);
+});
+
 test('each companion keeps its own movement through reopening and ownership renewal', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-motion-'));
   t.after(() => fs.rmSync(dir, {recursive:true, force:true}));

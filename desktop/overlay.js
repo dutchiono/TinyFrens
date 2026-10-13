@@ -19,7 +19,7 @@
     if (!art || !art.frames?.length || turtle.hidden) return;
     const reduced = lastState?.reduceMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
     turtle.src = reduced || !turtleWalking ? art.idle : art.frames[Math.floor(Date.now() / art.frameMs) % art.frames.length];
-  }, 160);
+  }, 40);
   function hitRegions() {
     bridge.regions([pet, ...(!bubbles.hidden ? [...bubbles.querySelectorAll('button'), close] : []), ...(!toy.hidden ? [toy] : [])].map(el => {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };

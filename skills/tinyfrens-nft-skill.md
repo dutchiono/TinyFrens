@@ -37,7 +37,7 @@ Use **Base (8453), NFT contract `0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff`**. 
 2. Call `mint(uint256 amount)` from the customer's Bankr wallet. NFT recipient is the caller. No FRENS transfer/approval or vault deposit is required.
 3. **Bankr agent native amounts use whole ETH units**: one robot attaches `0.001` ETH, plus gas. **Wallet REST `/wallet/submit` uses wei**: the same attachment is `1000000000000000`. Never pass a wei amount as the agent's whole-unit value. Explicitly state the ETH amount when asking Bankr to submit.
 4. Disclose quantity, price and current fees before purchase. Confirm receipt, Transfer IDs, `ownerOf()` and stored `tokenURI()`. Inspect a pending hash before retrying.
-5. To pair/import onto a device, use https://www.tinyfrens.lol/import/skill.md. Minting does not pair a device or enable a collection in the companion registry.
+5. To pair/import onto a device, use https://www.tinyfrens.lol/import/skill.md. Robots v1 is supported for companion import. Minting does not pair a device; link the minting wallet on the destination device, refresh My NFTs, then choose Show companion. Native Android and desktop require the robot-support update.
 
 Browser SVG animation works in the gallery. Wallet thumbnails/marketplace animation have not been confirmed for this revision. Future collections need their own identities and deployments.
 

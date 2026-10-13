@@ -1,12 +1,14 @@
 (() => {
   const key = 'tinyfrens-companions';
+  const identity = window.TinyFrensCompanionKey;
+  const selection = nft => ({tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
   const motionKey = 'tinyfrens-companion-motion';
   function motions() { try { return JSON.parse(localStorage.getItem(motionKey) || '{}'); } catch { return {}; } }
-  function movement(nft) { return motions()[nft.tokenId] || nft.motion || {mode:'roam', speed:60}; }
+  function movement(nft) { return motions()[identity(nft)] || (nft.chainId !== 8453 ? motions()[nft.tokenId] : null) || nft.motion || {mode:'roam', speed:60}; }
   async function saveMovement(nft, motion) {
     if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest)
-      await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/companion-motion', {tokenId:nft.tokenId, ...motion});
-    const settings = motions(); settings[nft.tokenId] = motion;
+      await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/companion-motion', {...selection(nft), ...motion});
+    const settings = motions(); settings[identity(nft)] = motion;
     localStorage.setItem(motionKey, JSON.stringify(settings));
     nft.motion = motion;
   }
@@ -28,32 +30,32 @@
       return Array.isArray(list) ? list : legacy ? [legacy] : [];
     } catch { return []; }
   }
-  async function remove(id) {
+  async function remove(nft) {
     if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest)
-      await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/remove-turtle', {tokenId:id});
-    items = saved().filter(nft => nft.tokenId !== id);
+      await window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, '/native/remove-turtle', selection(nft));
+    items = saved().filter(item => identity(item) !== identity(nft));
     localStorage.setItem(key, JSON.stringify(items));
     localStorage.removeItem('tinyfrens-hood-turtle');
     render();
   }
   function render() {
-    const active = items.filter(nft => nft.active !== false && nft.companion?.adapter === 'hood-turtles-v1' && Date.now() < nft.validUntil * 1000);
+    const active = items.filter(nft => nft.active !== false && ['hood-turtles-v1', 'tinyfrens-robots-v1'].includes(nft.companion?.adapter) && Date.now() < nft.validUntil * 1000);
     stage.closest('.pet-card').hidden = !active.length;
     const floating = document.querySelector('#screen-pet .floating-controls');
     if (floating) floating.hidden = !active.length;
     pet.style.visibility = 'hidden';
     empty.hidden = active.length > 0;
-    const ids = new Set(active.map(nft => nft.tokenId));
+    const ids = new Set(active.map(identity));
     for (const [id, sprite] of sprites) if (!ids.has(id)) { sprite.element.remove(); sprites.delete(id); }
     controls.replaceChildren();
     for (const nft of active) {
-      if (!sprites.has(nft.tokenId)) {
+      if (!sprites.has(identity(nft))) {
         const element = document.createElement('img');
         element.className = 'collection-companion'; element.alt = nft.name;
         stage.append(element);
-        sprites.set(nft.tokenId, {element, x:Math.random() * .6 + .1, direction:1, nft});
+        sprites.set(identity(nft), {element, x:Math.random() * .6 + .1, direction:1, nft});
       }
-      sprites.get(nft.tokenId).nft = nft;
+      sprites.get(identity(nft)).nft = nft;
       const row = document.createElement('section'); row.className = 'companion-settings';
       const title = document.createElement('h3'); title.textContent = nft.name;
       const modeLabel = document.createElement('label'); modeLabel.textContent = 'Movement';
@@ -75,7 +77,7 @@
       mode.onchange = update; speed.onchange = update;
       const button = document.createElement('button'); button.className = 'secondary';
       button.textContent = 'Remove ' + nft.name;
-      button.onclick = () => remove(nft.tokenId).catch(error => { button.textContent = error.message; });
+      button.onclick = () => remove(nft).catch(error => { button.textContent = error.message; });
       modeLabel.append(mode); speedLabel.append(speed);
       row.append(title, modeLabel, speedLabel, button, status); controls.append(row);
     }
@@ -92,14 +94,14 @@
       }
       items = saved(); render();
       const base = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
-      const identity = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base) || 'null');
-      if (!identity?.token) return;
+      const device = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base) || 'null');
+      if (!device?.token) return;
       for (const nft of [...items]) {
-        const data = await window.TinyFrensTurtleAPI(base, '/api/featured/hood-turtle', {token:identity.token, tokenId:nft.tokenId});
+        const data = await window.TinyFrensTurtleAPI(base, '/api/featured/companion', {token:device.token, ...selection(nft)});
         const current = saved();
-        const index = current.findIndex(item => item.tokenId === nft.tokenId);
+        const index = current.findIndex(item => identity(item) === identity(nft));
         if (index < 0) continue;
-        if (data.active) current[index] = data; else current.splice(index, 1);
+        if (data.active) current[index] = {...data, motion:current[index].motion}; else current.splice(index, 1);
         localStorage.setItem(key, JSON.stringify(current)); items = current; render();
       }
     } catch { render(); }

@@ -21,6 +21,7 @@ class PetView(context: Context) : View(context) {
  var expression = "happy"
  var accessory = "none"
  var reducedMotion = false
+ var turtleFrameMs = 160L
  var turtleSelected = false
  var turtleBitmap: Bitmap? = null
  var turtleFrames: List<Bitmap> = emptyList()
@@ -64,7 +65,7 @@ class PetView(context: Context) : View(context) {
   super.onDraw(c)
   if (turtleSelected) {
    val walking = !reducedMotion && mood in listOf("walk", "dance")
-   val bitmap = turtleFrames.getOrNull(if (walking) (frame / 3) % turtleFrames.size.coerceAtLeast(1) else 0) ?: turtleBitmap ?: return
+   val bitmap = turtleFrames.getOrNull(if (walking) (android.os.SystemClock.elapsedRealtime() / turtleFrameMs.coerceAtLeast(40)).toInt() % turtleFrames.size.coerceAtLeast(1) else 0) ?: turtleBitmap ?: return
    c.save()
    if (direction < 0) c.scale(-1f, 1f, width / 2f, height / 2f)
    val inset = width * .06f

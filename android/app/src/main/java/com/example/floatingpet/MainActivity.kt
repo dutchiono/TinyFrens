@@ -54,7 +54,7 @@ class MainActivity : Activity() {
                     require(json.length <= 4096)
                     val body = org.json.JSONObject(json)
                     if (path == "/native/import-turtle") {
-                        turtles.importTurtle(server, body.getString("token"), body.getInt("tokenId"))
+                        turtles.importTurtle(server, body.getString("token"), body.getInt("tokenId"), body.optString("originalAddress", "0xca28587b61eac19a87dfcfd9420870867a916675"), body.optInt("chainId", 4663))
                     } else turtles.request(server, path, body)
                 } catch (e: Exception) { org.json.JSONObject().put("error", e.message ?: "Turtle connection failed") }
                 val response = org.json.JSONObject().put("requestId", requestId).put("result", result)

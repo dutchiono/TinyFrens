@@ -6,7 +6,7 @@
   ];
   const HOOD_TURTLES = '0xca28587b61eac19a87dfcfd9420870867a916675';
   // Only collections with a companion adapter in the released relay belong here.
-  const SUPPORTED_COLLECTIONS = [{chainId:4663, contract:HOOD_TURTLES}];
+  const SUPPORTED_COLLECTIONS = [{chainId:4663, contract:HOOD_TURTLES}, {chainId:8453, contract:'0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff'}];
   const isSupported = nft => SUPPORTED_COLLECTIONS.some(collection =>
     nft.chainId === collection.chainId && String(nft.contract || '').toLowerCase() === collection.contract);
   const addressOK = address => /^0x[a-fA-F0-9]{40}$/.test(address);

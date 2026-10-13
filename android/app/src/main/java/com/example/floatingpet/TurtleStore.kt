@@ -20,9 +20,10 @@ class TurtleStore(context: Context) {
         private var refreshing = false
         private var retryAt = 0L
         private var generation = 0L
+        fun key(data: JSONObject): String = "${data.optInt("chainId", 4663)}:${data.optString("originalAddress", "0xca28587b61eac19a87dfcfd9420870867a916675").lowercase()}:${data.optInt("tokenId")}"
         const val SERVER = "https://tinyfrens.miono.live"
         private val paths = setOf("/api/register", "/api/wallet-link/status", "/api/wallet-link/challenge",
-            "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle",
+            "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle", "/api/featured/companion",
             "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept", "/api/turtle-connect/from-device")
     }
 
@@ -32,7 +33,7 @@ class TurtleStore(context: Context) {
             require(mode in setOf("roam", "bubble") && speed in 20..140) { "Invalid companion movement" }
             synchronized(lock) {
                 val selected = items()
-                val nft = selected.firstOrNull { it.optInt("tokenId") == body.optInt("tokenId") }
+                val nft = selected.firstOrNull { key(it) == key(body) }
                     ?: throw IllegalArgumentException("Companion not found")
                 nft.put("motion", JSONObject().put("mode", mode).put("speed", speed))
                 save(selected)
@@ -44,7 +45,7 @@ class TurtleStore(context: Context) {
                 generation++
                 save(items().filter {
                     if (path == "/native/remove-wallet") !it.optString("wallet", it.optString("originalOwner")).equals(body.optString("address"), true)
-                    else it.optInt("tokenId") != body.optInt("tokenId")
+                    else key(it) != key(body)
                 })
                 framesCache.clear()
             }
@@ -115,16 +116,16 @@ class TurtleStore(context: Context) {
         return data.optBoolean("active") && until > System.currentTimeMillis() &&
             until <= System.currentTimeMillis() + 86_405_000
     }
-    fun importTurtle(server: String, token: String, tokenId: Int): JSONObject {
+    fun importTurtle(server: String, token: String, tokenId: Int, collection: String = "0xca28587b61eac19a87dfcfd9420870867a916675", chainId: Int = 4663): JSONObject {
         val ticket = synchronized(lock) { generation }
-        val result = request(server, "/api/featured/hood-turtle", JSONObject().put("token", token).put("tokenId", tokenId))
+        val result = request(server, "/api/featured/companion", JSONObject().put("token", token).put("tokenId", tokenId).put("originalAddress", collection).put("chainId", chainId))
         require(valid(result)) { "Your turtle ownership could not be verified" }
-        require(result.optInt("tokenId") == tokenId) { "Unexpected turtle" }
+        require(result.optInt("tokenId") == tokenId && result.optInt("chainId") == chainId && result.optString("originalAddress").equals(collection, true)) { "Unexpected turtle" }
         result.put("token", token)
         synchronized(lock) {
             require(ticket == generation) { "Turtle selection changed. Please retry." }
             val selected = items()
-            val old = selected.firstOrNull { it.optInt("tokenId") == tokenId }
+            val old = selected.firstOrNull { key(it) == key(result) }
             require(old != null || selected.size < 5) { "Show up to five companions. Remove one first." }
             result.put("motion", old?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
             save(if (old == null) selected + result else selected.map { if (it === old) result else it })
@@ -134,9 +135,9 @@ class TurtleStore(context: Context) {
     fun all(): List<JSONObject> = synchronized(lock) { items().filter { valid(it) } }
     fun frames(data: JSONObject): List<Bitmap> = synchronized(lock) {
         val art = data.optJSONObject("companion") ?: return@synchronized emptyList()
-        if (art.optString("adapter") != "hood-turtles-v1") return@synchronized emptyList()
+        if (art.optString("adapter") !in setOf("hood-turtles-v1", "tinyfrens-robots-v1")) return@synchronized emptyList()
         val images = art.optJSONArray("frames") ?: return@synchronized emptyList()
-        if (images.length() != 4) return@synchronized emptyList()
+        if (images.length() != if (art.optString("adapter") == "tinyfrens-robots-v1") 8 else 4) return@synchronized emptyList()
         val key = images.toString()
         framesCache.getOrPut(key) {
             try { (0 until images.length()).map { decode(images.getString(it)) } }
@@ -167,12 +168,12 @@ class TurtleStore(context: Context) {
         Thread {
             try {
                 for (old in expired) {
-                    val result = request(SERVER, "/api/featured/hood-turtle", JSONObject()
-                        .put("token", old.optString("token")).put("tokenId", old.optInt("tokenId")))
+                    val result = request(SERVER, "/api/featured/companion", JSONObject()
+                        .put("token", old.optString("token")).put("tokenId", old.optInt("tokenId")).put("originalAddress", old.optString("originalAddress", "0xca28587b61eac19a87dfcfd9420870867a916675")).put("chainId", old.optInt("chainId", 4663)))
                     synchronized(lock) {
                         if (ticket == generation) {
                             val current = items()
-                            val existing = current.firstOrNull { it.optInt("tokenId") == old.optInt("tokenId") }
+                            val existing = current.firstOrNull { key(it) == key(old) }
                             if (valid(result)) {
                                 result.put("token", old.optString("token")).put("motion", existing?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
                                 save(current.map { if (it === existing) result else it })

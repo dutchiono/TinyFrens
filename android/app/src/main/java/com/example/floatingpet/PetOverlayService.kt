@@ -23,6 +23,7 @@ class PetOverlayService:Service(){
   private const val CHAT_SERVER="https://tinyfrens.miono.live"
  }
  class GuestPet(val view:PetView,val params:WindowManager.LayoutParams,var name:String,var shape:String,var color:Int,var tokenId:Int){
+  var companionId:String=""
   var mode="roam";var speed=60
   var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
  }
@@ -81,7 +82,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrameMs=turtles.all().firstOrNull()?.optJSONObject("companion")?.optLong("frameMs",160)?:160;v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
@@ -166,15 +167,15 @@ class PetOverlayService:Service(){
  private fun clearOwnedPets(){for(g in ownedPets)removeGuest(g);ownedPets.clear()}
  private fun syncOwnedPets(){
   val active=turtles.all().drop(1)
-  val ids=active.map{it.optInt("tokenId")}.toSet()
-  for(g in ownedPets.toList())if(g.tokenId !in ids){removeGuest(g);ownedPets.remove(g)}
+  val ids=active.map{TurtleStore.key(it)}.toSet()
+  for(g in ownedPets.toList())if(g.companionId !in ids){removeGuest(g);ownedPets.remove(g)}
   val(bx,by)=bounds()
   for(nft in active){
-   val id=nft.optInt("tokenId");val existing=ownedPets.find{it.tokenId==id}
-   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
+   val id=nft.optInt("tokenId");val existing=ownedPets.find{it.companionId==TurtleStore.key(nft)}
+   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.view.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
    val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
-   gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.reducedMotion=reducedMotion()
-   val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
+   gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;gv.reducedMotion=reducedMotion()
+   val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{companionId=TurtleStore.key(nft);x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
    g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60
    gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
    gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}

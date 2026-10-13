@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
 import turtle_connect
+from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
     from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
     from discord_integration import verify_interaction, exchange_code
@@ -494,7 +495,13 @@ def create_app(database=None, origins=None):
             addresses = turtle_connect.linked_wallets(db, pid)
             if not addresses:
                 raise ValueError('Link a wallet first')
-            data = await turtle_connect.discover_wallets(addresses, turtle_ownership)
+            results = await asyncio.gather(turtle_connect.discover_wallets(addresses, turtle_ownership),
+                *(robots.discover(address) for address in addresses), return_exceptions=True)
+            successes = [result for result in results if isinstance(result, dict)]
+            if not successes:
+                raise RuntimeError('NFT discovery unavailable')
+            data = {'nfts':[nft for result in successes for nft in result['nfts']],
+                    'partial':len(successes) != len(results) or any(result['partial'] for result in successes)}
             # Filter again if a wallet was removed while discovery was in flight.
             current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
             data['nfts'] = [nft for nft in data['nfts'] if nft['wallet'].lower() in current]
@@ -1544,6 +1551,7 @@ def create_app(database=None, origins=None):
             return web.json_response({'error': 'RPC unavailable'}, status=503)
 
     turtle_ownership = turtle_connect.TurtleOwnership(db)
+    robots = Robots(db)
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import collection_suggestions
     collection_suggestions.install(app, db, token_pet, limit)
@@ -1576,10 +1584,17 @@ def create_app(database=None, origins=None):
             addresses = turtle_connect.linked_wallets(db, pid)
             if not addresses:
                 return web.json_response({'error': 'Link your wallet first'}, status=403)
-            token_id = turtle_connect.turtle_id(body.get('tokenId'))
+            collection = str(body.get('originalAddress', turtle_connect.COLLECTION)).lower()
+            robot = request.path == '/api/featured/companion' and collection == ROBOTS_CONTRACT
+            if collection != turtle_connect.COLLECTION and not robot:
+                raise ValueError('Unsupported companion collection')
+            if int(body.get('chainId', 8453 if robot else 4663)) != (8453 if robot else 4663):
+                raise ValueError('Wrong companion chain')
+            token_id = robot_token_id(body.get('tokenId')) if robot else turtle_connect.turtle_id(body.get('tokenId'))
+            verifier = robots if robot else turtle_ownership
             data = None
             for address in addresses:
-                data = await turtle_ownership.read(address, token_id)
+                data = await verifier.read(address, token_id)
                 if data['active']:
                     break
             current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}
@@ -1589,8 +1604,9 @@ def create_app(database=None, origins=None):
         except (ValueError, TypeError, OverflowError) as exc:
             return web.json_response({'error': str(exc)}, status=400)
         except Exception:
-            return web.json_response({'error': 'Robinhood Chain RPC unavailable'}, status=503)
+            return web.json_response({'error': 'Collection RPC unavailable'}, status=503)
 
+    app.router.add_post('/api/featured/companion', hood_turtle_status)
     app.router.add_post('/api/register',register);app.router.add_post('/api/chat',chat);app.router.add_get('/api/bankr/status',bankr_status);app.router.add_get('/api/economy/status',economy_status);app.router.add_post('/api/wallet-link/status',wallet_link_status);app.router.add_post('/api/wallet-link/challenge',wallet_link_challenge);app.router.add_post('/api/wallet-link/confirm',wallet_link_confirm);app.router.add_post('/api/wallet-link/disconnect',wallet_link_disconnect);app.router.add_post('/api/wallet-link/nfts',wallet_link_nfts);app.router.add_post('/api/bankr/wallet',bankr_wallet);app.router.add_post('/api/bankr/nfts',bankr_nfts);app.router.add_post('/api/bankr/transform',bankr_transform);app.router.add_post('/api/bankr/monitor',bankr_monitor);app.router.add_get('/api/nft/price',nft_price);app.router.add_get('/api/nft/uri',nft_uri);app.router.add_post('/api/featured/hood-turtle',hood_turtle_status);app.router.add_post('/api/wallet/mint',wallet_mint);app.router.add_post('/api/wallet/rename-nft',wallet_rename_nft);app.router.add_post('/api/wallet/evolve-nft',wallet_evolve_nft);app.router.add_post('/api/wallet/unwrap-nft',wallet_unwrap_nft);app.router.add_post('/api/wallet/save-nft-changes',wallet_save_nft_changes);app.router.add_post('/api/wallet/magic-link',wallet_magic_link);app.router.add_post('/api/wallet/restore',wallet_restore);app.router.add_get('/ws',websocket);app.router.add_get('/api/push/public-key',push_public_key);app.router.add_post('/api/push/subscribe',push_subscribe);app.router.add_post('/api/push/unsubscribe',push_unsubscribe)
     app.router.add_route('OPTIONS','/{path:.*}',options)
     # Serve the static front-end (web/) so the gallery and app are viewable from the relay

@@ -7,7 +7,7 @@ description: Link a user's wallet to their waiting TinyFrens phone, desktop, or 
 
 TinyFrens API: `https://tinyfrens.miono.live`. Phone setup: `https://tinyfrens.lol/web/hood-turtles.html`.
 Public skill URL: `https://tinyfrens.lol/import/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
-Collection: `0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain, chain ID **4663**. Token IDs 1–2222. Do not use Base holdings or the original TinyFrens minting contracts.
+Supported collections: Hood Turtles (`0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain **4663**) and TinyFrens: Robots v1 (`0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff`, Base **8453**). Link the wallet once; the app discovers supported collections on both chains. Historical TinyFrens testnet contracts are not supported.
 
 ## Phone pairing
 
