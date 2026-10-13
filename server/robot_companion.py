@@ -139,6 +139,22 @@ class Robots:
             self.db.commit()
             return result
 
+    async def owner_of(self, wallet, tid):
+        """Fresh ownerOf check with no cache and no metadata, for money paths.
+
+        `read()` intentionally caches an *active* result for up to 24h; charging and
+        crediting must see current ownership, so they use this instead.
+        """
+        tid = token_id(tid)
+        wallet = to_checksum_address(wallet)
+        if await self.rpc('eth_chainId', []) != '0x2105':
+            raise RuntimeError('Robots v1 RPC must be Base mainnet')
+        owner_raw = await self.call('0x6352211e', tid)
+        if owner_raw is not None and not re.fullmatch(r'0x0{24}[0-9a-fA-F]{40}', owner_raw):
+            raise RuntimeError('Invalid robot ownership response')
+        owner = to_checksum_address('0x' + owner_raw[-40:]) if owner_raw else None
+        return owner == wallet
+
     async def owner_batch(self, ids):
         requests = [{'jsonrpc':'2.0','id':tid,'method':'eth_call',
                      'params':[{'to':CONTRACT,'data':'0x6352211e' + format(tid,'064x')},'latest']} for tid in ids]

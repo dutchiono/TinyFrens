@@ -11,6 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import robot_care as rc
+import economy as econ
 
 WEB_ROOT = Path(__file__).resolve().parent.parent / 'web'
 ORIGIN = 'https://tinyfrens.lol'
@@ -116,7 +117,73 @@ class AllowanceUnitTests(unittest.TestCase):
         self.assertEqual(care.status('pet-1')['prices']['feed'], 8)
 
 
-def build_app(*, ownership='ok', token_pet=None, limit=None, key='tok', value='pet-1'):
+class PaidCareUnitTests(unittest.TestCase):
+    """The paid top-up: charging the credit ledger once the free allowance is gone."""
+
+    def setUp(self):
+        self.clock = FakeClock()
+        self.db = sqlite3.connect(':memory:')
+        self.economy = econ.Economy(self.db, now=self.clock)
+        self.care = rc.RobotCare(self.db, now=self.clock, allowance=1, economy=self.economy)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_free_use_does_not_touch_the_ledger(self):
+        self.economy.grant('pet-1', 1000)
+        r = self.care.consume('pet-1', 'feed')
+        self.assertTrue(r['free'])
+        self.assertEqual(self.economy.balance('pet-1'), 1000)
+        self.assertEqual([h['reason'] for h in self.economy.history('pet-1')], ['grant'])
+
+    def test_paid_use_charges_price_times_rate(self):
+        self.care.consume('pet-1', 'feed')  # spend the one free action
+        expected = rc.DEFAULT_PRICES_FRENS['feed'] * self.economy.credits_per_frens
+        self.economy.grant('pet-1', expected + 5000)
+        r = self.care.consume('pet-1', 'feed')
+        self.assertTrue(r['allowed'])
+        self.assertFalse(r['free'])
+        self.assertEqual(r['priceFrens'], rc.DEFAULT_PRICES_FRENS['feed'])
+        self.assertEqual(r['charged'], expected)
+        self.assertEqual(r['balance'], 5000)
+        self.assertEqual(self.economy.history('pet-1')[0]['reason'], 'care')
+
+    def test_insufficient_balance_reports_shortfall_and_charges_nothing(self):
+        self.care.consume('pet-1', 'feed')
+        self.economy.grant('pet-1', 10)
+        r = self.care.consume('pet-1', 'feed')
+        self.assertFalse(r['allowed'])
+        self.assertTrue(r['requiresPayment'])
+        self.assertEqual(r['charged'], 0)
+        self.assertEqual(r['balance'], 10)
+        self.assertGreater(r['shortfall'], 0)
+        self.assertEqual(self.economy.balance('pet-1'), 10)
+
+    def test_paid_revive(self):
+        self.care.consume('pet-1', 'feed')
+        price = rc.DEFAULT_PRICES_FRENS['revive']
+        self.economy.grant('pet-1', price * self.economy.credits_per_frens)
+        r = self.care.consume('pet-1', 'revive')
+        self.assertTrue(r['allowed'])
+        self.assertEqual(r['charged'], price * self.economy.credits_per_frens)
+        self.assertEqual(self.economy.balance('pet-1'), 0)
+
+    def test_status_reports_rate_and_balance(self):
+        self.economy.grant('pet-1', 250)
+        status = self.care.status('pet-1')
+        self.assertEqual(status['creditsPerFrens'], self.economy.credits_per_frens)
+        self.assertEqual(status['balance'], 250)
+
+    def test_without_economy_paid_branch_cannot_charge(self):
+        care = rc.RobotCare(sqlite3.connect(':memory:'), now=self.clock, allowance=0)
+        r = care.consume('pet-1', 'feed')
+        self.assertFalse(r['allowed'])
+        self.assertTrue(r['requiresPayment'])
+        self.assertEqual(r['charged'], 0)
+
+
+def build_app(*, ownership='ok', token_pet=None, limit=None, key='tok', value='pet-1',
+              economy=None, settings=None, economy_db=None):
     db = sqlite3.connect(':memory:')
     app = web.Application()
 
@@ -136,8 +203,9 @@ def build_app(*, ownership='ok', token_pet=None, limit=None, key='tok', value='p
         app, db,
         token_pet=token_pet or default_token_pet,
         limit=limit or (lambda *a: None),
-        settings=lambda: {'dailyAllowance': 2, 'prices': {'feed': 42}},
+        settings=settings or (lambda: {'dailyAllowance': 2, 'prices': {'feed': 42}, 'gameRewardCredits': 0}),
         owner_check=owner_check,
+        economy=economy,
     )
     return app, db
 
@@ -223,6 +291,75 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.status, 400)
         finally:
             await client.close()
+
+
+class PaidRouteTests(unittest.IsolatedAsyncioTestCase):
+    """Paid top-up and game earn-back through the HTTP routes."""
+
+    async def asyncSetUp(self):
+        self.db = sqlite3.connect(':memory:')
+        self.economy = econ.Economy(self.db)
+        self.economy.grant('pet-1', 10_000)
+        app, _ = build_app(
+            economy=self.economy,
+            settings=lambda: {'dailyAllowance': 1, 'prices': {'feed': 10}, 'gameRewardCredits': 250},
+        )
+        self.client = TestClient(TestServer(app))
+        await self.client.start_server()
+
+    async def asyncTearDown(self):
+        await self.client.close()
+        self.db.close()
+
+    async def test_second_action_charges(self):
+        r = await self.client.post('/api/robots/care/action', json={'token': 'tok', 'tokenId': 1, 'action': 'feed'})
+        self.assertTrue((await r.json())['free'])
+        r = await self.client.post('/api/robots/care/action', json={'token': 'tok', 'tokenId': 1, 'action': 'feed'})
+        data = await r.json()
+        self.assertTrue(data['allowed'])
+        self.assertFalse(data['free'])
+        self.assertEqual(data['charged'], 10 * self.economy.credits_per_frens)
+
+    async def test_insufficient_payment_rejected(self):
+        self.economy.spend('pet-1', 10_000)  # drain the balance
+        await self.client.post('/api/robots/care/action', json={'token': 'tok', 'tokenId': 1, 'action': 'feed'})
+        r = await self.client.post('/api/robots/care/action', json={'token': 'tok', 'tokenId': 1, 'action': 'feed'})
+        data = await r.json()
+        self.assertFalse(data['allowed'])
+        self.assertTrue(data['requiresPayment'])
+        self.assertEqual(data['balance'], 0)
+
+    async def test_game_reward_grants_credits(self):
+        before = self.economy.balance('pet-1')
+        r = await self.client.post('/api/robots/game', json={'token': 'tok', 'tokenId': 1, 'game': 'snack-catch'})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertEqual(data['granted'], 250)
+        self.assertEqual(self.economy.balance('pet-1'), before + 250)
+
+    async def test_game_reward_off_by_default(self):
+        app, _ = build_app(economy=self.economy)  # default settings: gameRewardCredits 0
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            r = await client.post('/api/robots/game', json={'token': 'tok', 'tokenId': 1, 'game': 'snack-catch'})
+            self.assertEqual((await r.json())['granted'], 0)
+        finally:
+            await client.close()
+
+    async def test_game_requires_ownership(self):
+        app, _ = build_app(economy=self.economy, ownership='other')
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            r = await client.post('/api/robots/game', json={'token': 'tok', 'tokenId': 1, 'game': 'snack-catch'})
+            self.assertEqual(r.status, 403)
+        finally:
+            await client.close()
+
+    async def test_game_requires_game_name(self):
+        r = await self.client.post('/api/robots/game', json={'token': 'tok', 'tokenId': 1})
+        self.assertEqual(r.status, 400)
 
 
 class AppWiringTests(unittest.IsolatedAsyncioTestCase):

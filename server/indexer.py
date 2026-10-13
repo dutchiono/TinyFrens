@@ -25,6 +25,7 @@ from economy import Economy, UnknownSession
 log = logging.getLogger("economy.indexer")
 
 DEPOSIT_TOPIC = "0x" + keccak(text="Deposit(bytes32,address,address,uint256)").hex()
+TRANSFER_TOPIC = "0x" + keccak(text="Transfer(address,address,uint256)").hex()
 OPEN_STATUSES = ("open", "confirmed")
 
 SCHEMA = "CREATE TABLE IF NOT EXISTS indexer_state(key TEXT PRIMARY KEY, value TEXT);"
@@ -45,6 +46,18 @@ def decode_deposit_log(log):
     token = to_checksum_address("0x" + log["topics"][3][-40:])
     amount = int.from_bytes(bytes.fromhex(log.get("data", "")[-64:]), "big") if log.get("data") else 0
     return session_id, sender, token, amount
+
+
+def decode_transfer_log(log):
+    """Return (sender, recipient, amount) from an ERC-20 Transfer log."""
+    topics = log.get("topics") or []
+    if len(topics) != 3 or topics[0].lower() != TRANSFER_TOPIC:
+        raise IndexerError("not a Transfer log")
+    sender = to_checksum_address("0x" + topics[1][-40:])
+    recipient = to_checksum_address("0x" + topics[2][-40:])
+    data = log.get("data") or ""
+    amount = int.from_bytes(bytes.fromhex(data[-64:]), "big") if data and data != "0x" else 0
+    return sender, recipient, amount
 
 
 class DepositIndexer:
@@ -213,6 +226,196 @@ class DepositIndexer:
         self._stop = True
 
     # asyncio task helpers ----------------------------------------------
+    def start(self):
+        loop = asyncio.get_event_loop()
+        self._task = loop.create_task(self.run_forever())
+        return self._task
+
+    async def aclose(self):
+        self._stop = True
+        if self._task:
+            try:
+                await asyncio.wait_for(self._task, timeout=10)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                self._task.cancel()
+
+
+class TreasuryTransferIndexer:
+    """Credit FRENS sent directly to a fixed treasury address (ERC-20 Transfer).
+
+    Unlike `DepositIndexer`, there is no per-session deposit address: players send
+    FRENS straight to the Dev wallet, and we attribute each Transfer to the pet whose
+    linked wallets include the sender via the injected ``resolve(sender)`` callable.
+
+    Fail closed. A Transfer whose sender maps to zero or several pets, exceeds the
+    per-transfer cap, or is below a whole credit is recorded (``unmatched`` / ``over_cap``
+    / ``dust``) but credits nothing. Idempotent on ``(chain_id, tx_hash, log_index)``.
+    """
+
+    def __init__(
+        self,
+        economy,
+        rpc_url,
+        chain_id,
+        *,
+        treasury,
+        token=None,
+        poll_seconds=6,
+        lookback=300,
+        start_block="latest",
+        max_block_span=2000,
+        resolve=None,
+        max_credits=None,
+    ):
+        self.economy = economy
+        self.chain_id = int(chain_id)
+        self.rpc_url = rpc_url.rstrip("/")
+        self.poll = float(poll_seconds)
+        self.lookback = int(lookback)
+        self.start_block = start_block
+        self.max_span = int(max_block_span)
+        self.treasury = to_checksum_address(treasury)
+        self.token = to_checksum_address(token) if token else None
+        self.resolve = resolve
+        self.max_credits = max_credits
+        self.economy.db.executescript(SCHEMA)
+        self._task = None
+        self._stop = False
+
+    # -- rpc (mirrors DepositIndexer) -------------------------------------
+    async def _rpc(self, method, params):
+        async with ClientSession(timeout=ClientTimeout(total=30)) as session:
+            async with session.post(
+                self.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+            ) as response:
+                data = await response.json(content_type=None)
+        if "error" in data:
+            raise IndexerError(f"rpc {method}: {data['error']}")
+        return data["result"]
+
+    async def block_number(self):
+        return int(await self._rpc("eth_blockNumber", []), 16)
+
+    def _recipient_topic(self):
+        return "0x" + self.treasury[2:].lower().rjust(64, "0")
+
+    # -- matching ---------------------------------------------------------
+    def resolve_sender(self, sender):
+        if self.resolve is None:
+            return None
+        return self.resolve(sender)
+
+    # -- scanning ---------------------------------------------------------
+    async def scan(self, from_block, to_block):
+        """Scan a range for Transfer logs to the treasury. Returns credits granted."""
+        params = {
+            "fromBlock": hex(int(from_block)),
+            "toBlock": hex(int(to_block)),
+            "topics": [TRANSFER_TOPIC, None, self._recipient_topic()],
+        }
+        if self.token:
+            params["address"] = self.token
+        logs = await self._rpc("eth_getLogs", [params])
+        credited = 0
+        for raw in logs:
+            try:
+                sender, recipient, amount = decode_transfer_log(raw)
+            except IndexerError as exc:
+                log.warning(f"skipping log: {exc}")
+                continue
+            if recipient.lower() != self.treasury.lower():
+                continue
+            pet_id = self.resolve_sender(sender)
+            try:
+                result = self.economy.credit_transfer(
+                    raw["transactionHash"],
+                    amount,
+                    self.chain_id,
+                    int(raw["logIndex"], 16),
+                    sender,
+                    pet_id=pet_id,
+                    token=raw.get("address"),
+                    max_credits=self.max_credits,
+                )
+            except Exception as exc:  # noqa: BLE001 - indexer must never die on a bad log
+                log.warning(f"treasury credit {raw.get('transactionHash')}: {exc}")
+                continue
+            if result["status"] == "credited":
+                credited += 1
+                log.info(
+                    f"credited {result['credits']} credits for treasury transfer "
+                    f"{raw['transactionHash']} (pet {pet_id})"
+                )
+            elif result["status"] == "unmatched":
+                log.warning(
+                    f"treasury transfer {raw['transactionHash']} from {sender} has no unique "
+                    f"pet link; recorded for manual reconciliation"
+                )
+            elif result["status"] == "over_cap":
+                log.warning(f"treasury transfer {raw['transactionHash']} over cap; not credited")
+        return credited
+
+    def _state_last(self):
+        row = self.economy.db.execute(
+            "SELECT value FROM indexer_state WHERE key='treasury_last_block'"
+        ).fetchone()
+        return int(row[0]) if row else None
+
+    def _state_save(self, block):
+        self.economy.db.execute(
+            "INSERT INTO indexer_state(key,value) VALUES('treasury_last_block',?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (str(block),),
+        )
+        self.economy.db.commit()
+
+    async def run_once(self):
+        head = await self.block_number()
+        last = self._state_last()
+        if last is None:
+            if self.start_block == "latest":
+                last = max(0, head - self.lookback)
+            elif self.start_block == "earliest":
+                last = 0
+            else:
+                last = max(0, int(self.start_block))
+            if last > head:
+                last = head
+            self._state_save(last)
+        frm = last + 1
+        if frm > head:
+            return 0, 0
+        credited = 0
+        lo = frm
+        while lo <= head:
+            hi = min(lo + self.max_span - 1, head)
+            credited += await self.scan(lo, hi)
+            lo = hi + 1
+        self._state_save(head)
+        return credited, head - frm + 1
+
+    async def run_forever(self, stop_event=None):
+        self._stop = False
+        while not self._stop:
+            try:
+                credited, _ = await self.run_once()
+                if credited:
+                    log.info(f"processed {credited} new treasury deposit(s)")
+            except Exception as exc:
+                log.warning(f"treasury indexer scan failed (will retry): {exc}")
+            if stop_event is not None:
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=self.poll)
+                    break
+                except asyncio.TimeoutError:
+                    continue
+            else:
+                await asyncio.sleep(self.poll)
+        return self
+
+    def stop(self):
+        self._stop = True
+
     def start(self):
         loop = asyncio.get_event_loop()
         self._task = loop.create_task(self.run_forever())

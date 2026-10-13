@@ -29,12 +29,15 @@ class SettingsUnitTests(unittest.TestCase):
     def test_defaults_when_empty(self):
         eff = admin_mod.effective_settings(self.db)
         self.assertEqual(eff['dailyAllowance'], rc.DEFAULT_DAILY_ALLOWANCE)
+        self.assertEqual(eff['gameRewardCredits'], rc.DEFAULT_GAME_REWARD_CREDITS)
         self.assertEqual(set(eff['prices']), set(rc.CARE_ACTIONS))
 
     def test_env_overrides_default(self):
-        with patch.dict(os.environ, {'ROBOT_CARE_DAILY_ALLOWANCE': '5', 'ROBOT_CARE_PRICE_FEED': '7'}):
+        with patch.dict(os.environ, {'ROBOT_CARE_DAILY_ALLOWANCE': '5', 'ROBOT_CARE_PRICE_FEED': '7',
+                                     'ROBOT_CARE_GAME_REWARD_CREDITS': '250'}):
             eff = admin_mod.effective_settings(self.db)
         self.assertEqual(eff['dailyAllowance'], 5)
+        self.assertEqual(eff['gameRewardCredits'], 250)
         self.assertEqual(eff['prices']['feed'], 7)
 
     def test_admin_overrides_beat_env(self):
@@ -47,8 +50,9 @@ class SettingsUnitTests(unittest.TestCase):
         self.assertEqual(eff['prices']['feed'], 11)
 
     def test_shape_overrides(self):
-        shaped = admin_mod._shape_overrides({'dailyAllowance': 4, 'price_feed': 9, 'ignored': 1})
-        self.assertEqual(shaped, {'dailyAllowance': 4, 'prices': {'feed': 9}})
+        shaped = admin_mod._shape_overrides({'dailyAllowance': 4, 'gameRewardCredits': 50,
+                                             'price_feed': 9, 'ignored': 1})
+        self.assertEqual(shaped, {'dailyAllowance': 4, 'gameRewardCredits': 50, 'prices': {'feed': 9}})
 
     def test_clamp_int_rejects_bad_values(self):
         for bad in (True, 'x', None, -1, admin_mod.MAX_ALLOWANCE + 1):
@@ -75,33 +79,43 @@ class AdminStoreTests(unittest.TestCase):
         self.assertTrue(self.admin.enabled)
 
     def test_save_persists_and_audits(self):
-        eff = self.admin.save({'dailyAllowance': 7, 'prices': {'feed': 12}})
+        eff = self.admin.save({'dailyAllowance': 7, 'gameRewardCredits': 250, 'prices': {'feed': 12}})
         self.assertEqual(eff['dailyAllowance'], 7)
+        self.assertEqual(eff['gameRewardCredits'], 250)
         self.assertEqual(eff['prices']['feed'], 12)
-        self.assertEqual(admin_mod.overrides_only(self.db), {'dailyAllowance': 7, 'price_feed': 12})
+        self.assertEqual(admin_mod.overrides_only(self.db),
+                         {'dailyAllowance': 7, 'gameRewardCredits': 250, 'price_feed': 12})
         audit = self.admin.recent_audit()
         self.assertEqual(audit[0]['action'], 'settings')
-        self.assertEqual(audit[0]['detail'], {'dailyAllowance': 7, 'price_feed': 12})
+        self.assertEqual(audit[0]['detail'],
+                         {'dailyAllowance': 7, 'gameRewardCredits': 250, 'price_feed': 12})
 
     def test_save_rejects_bad_payloads(self):
         for body in ({}, {'unknown': 1}, {'prices': {'teleport': 1}}, {'prices': []},
-                     {'dailyAllowance': 'x'}, {'dailyAllowance': -1}, {'dailyAllowance': True}):
+                     {'dailyAllowance': 'x'}, {'dailyAllowance': -1}, {'dailyAllowance': True},
+                     {'gameRewardCredits': -1}, {'gameRewardCredits': admin_mod.MAX_GAME_REWARD + 1}):
             self.assertRaises(admin_mod.BadRequest, self.admin.save, body)
 
 
-def build_app(*, token='secret', economy_settings=None):
+def build_app(*, token='secret', economy_settings=None, treasury_settings=None, economy=None):
     db = sqlite3.connect(':memory:')
     econ.Economy(db)   # credit_accounts / credit_ledger / deposits, as the real app creates
     rc.RobotCare(db)   # robot_care_daily
     app = web.Application()
-    admin_mod.install(app, db, token=token, economy_settings=economy_settings)
+    admin_mod.install(app, db, token=token, economy_settings=economy_settings,
+                      treasury_settings=treasury_settings, economy=economy)
     return app, db
 
 
 class RouteTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.app, self.db = build_app(economy_settings=lambda: {'enabled': True, 'mode': 'production',
-                                                                'chainId': 8453, 'frensSymbol': 'FRENS'})
+        self.economy = econ.Economy(sqlite3.connect(':memory:'))
+        self.app, self.db = build_app(
+            economy_settings=lambda: {'enabled': True, 'mode': 'production',
+                                      'chainId': 8453, 'symbol': 'FRENS'},
+            treasury_settings=lambda: {'address': '0x' + 'de' * 20, 'maxCreditsPerTransfer': 50000},
+            economy=self.economy,
+        )
         self.client = TestClient(TestServer(self.app))
         await self.client.start_server()
 
@@ -128,10 +142,24 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r.status, 200)
         data = await r.json()
         self.assertEqual(data['settings']['dailyAllowance'], rc.DEFAULT_DAILY_ALLOWANCE)
+        self.assertEqual(data['settings']['gameRewardCredits'], rc.DEFAULT_GAME_REWARD_CREDITS)
         self.assertEqual(data['actions'], list(rc.CARE_ACTIONS))
         self.assertTrue(data['economy']['enabled'])
         self.assertEqual(data['economy']['chainId'], 8453)
+        self.assertEqual(data['economy']['symbol'], 'FRENS')
+        self.assertEqual(data['economy']['treasury'], '0x' + 'de' * 20)
+        self.assertEqual(data['economy']['maxCreditsPerTransfer'], 50000)
+        self.assertEqual(data['economy']['creditsPerFrens'], self.economy.credits_per_frens)
         self.assertEqual(data['counts']['pets'], 0)
+
+    async def test_update_game_reward_round_trips(self):
+        r = await self.client.post('/api/admin/settings', headers=AUTH, json={'gameRewardCredits': 750})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertEqual(data['settings']['gameRewardCredits'], 750)
+        self.assertEqual(data['overrides']['gameRewardCredits'], 750)
+        again = await (await self.client.get('/api/admin/state', headers=AUTH)).json()
+        self.assertEqual(again['settings']['gameRewardCredits'], 750)
 
     async def test_update_settings_round_trips(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH,

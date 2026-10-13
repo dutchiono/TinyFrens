@@ -37,8 +37,10 @@ CREATE TABLE IF NOT EXISTS admin_audit(
 """
 
 PRICE_KEYS = tuple('price_' + action for action in robot_care.CARE_ACTIONS)
-ALLOWED_KEYS = ('dailyAllowance',) + PRICE_KEYS
+INT_KEYS = ('dailyAllowance', 'gameRewardCredits')
+ALLOWED_KEYS = INT_KEYS + PRICE_KEYS
 MAX_ALLOWANCE = 100_000
+MAX_GAME_REWARD = 10 ** 12
 MAX_PRICE = 10 ** 15
 
 
@@ -87,10 +89,11 @@ def overrides_only(db):
 
 
 def _shape_overrides(stored):
-    """Flat overrides -> the shape the page edits: ``{dailyAllowance, prices}``."""
+    """Flat overrides -> the shape the page edits: ``{dailyAllowance, gameRewardCredits, prices}``."""
     shaped = {}
-    if 'dailyAllowance' in stored:
-        shaped['dailyAllowance'] = stored['dailyAllowance']
+    for key in INT_KEYS:
+        if key in stored:
+            shaped[key] = stored[key]
     prices = {action: stored['price_' + action]
               for action in robot_care.CARE_ACTIONS if 'price_' + action in stored}
     if prices:
@@ -104,6 +107,9 @@ def effective_settings(db):
     allowance = stored.get('dailyAllowance')
     if allowance is None:
         allowance = _env_int('ROBOT_CARE_DAILY_ALLOWANCE', robot_care.DEFAULT_DAILY_ALLOWANCE)
+    reward = stored.get('gameRewardCredits')
+    if reward is None:
+        reward = _env_int('ROBOT_CARE_GAME_REWARD_CREDITS', robot_care.DEFAULT_GAME_REWARD_CREDITS)
     prices = {}
     for action in robot_care.CARE_ACTIONS:
         value = stored.get('price_' + action)
@@ -111,7 +117,8 @@ def effective_settings(db):
             value = _env_int('ROBOT_CARE_PRICE_' + action.upper(),
                              robot_care.DEFAULT_PRICES_FRENS[action])
         prices[action] = max(0, int(value))
-    return {'dailyAllowance': max(0, int(allowance)), 'prices': prices}
+    return {'dailyAllowance': max(0, int(allowance)),
+            'gameRewardCredits': max(0, int(reward)), 'prices': prices}
 
 
 def care_settings(db):
@@ -156,12 +163,14 @@ class Admin:
         """Validate + persist a settings patch, then audit it."""
         if not isinstance(body, dict):
             raise BadRequest('Expected an object')
-        unknown = set(body) - {'dailyAllowance', 'prices'}
+        unknown = set(body) - {'dailyAllowance', 'gameRewardCredits', 'prices'}
         if unknown:
             raise BadRequest('Unknown setting(s): ' + ', '.join(sorted(unknown)))
         changed = {}
         if 'dailyAllowance' in body:
             changed['dailyAllowance'] = _clamp_int(body['dailyAllowance'], 0, MAX_ALLOWANCE)
+        if 'gameRewardCredits' in body:
+            changed['gameRewardCredits'] = _clamp_int(body['gameRewardCredits'], 0, MAX_GAME_REWARD)
         prices = body.get('prices')
         if prices is not None:
             if not isinstance(prices, dict):
@@ -184,8 +193,12 @@ class Admin:
         return effective_settings(self.db)
 
 
-def install(app, db, *, token, economy_settings=None):
-    """Register the admin routes. `economy_settings()` is read for a status view."""
+def install(app, db, *, token, economy_settings=None, treasury_settings=None, economy=None):
+    """Register the admin routes.
+
+    `economy_settings()` / `treasury_settings()` are read for a status view and must
+    never move money; `economy` is read for the credits-per-FRENS rate.
+    """
     admin = Admin(db, token)
 
     def guard(request):
@@ -213,16 +226,29 @@ def install(app, db, *, token, economy_settings=None):
         }
 
     def economy_view():
-        if economy_settings is None:
-            return {}
-        try:
-            s = economy_settings() or {}
-        except Exception:
-            log.warning('economy settings unavailable', exc_info=True)
-            return {}
-        return {'enabled': bool(s.get('enabled')), 'mode': s.get('mode'),
-                'chainId': s.get('chainId'), 'symbol': s.get('frensSymbol'),
-                'depositsEnabled': bool(s.get('depositsEnabled'))}
+        view = {'treasury': None, 'creditsPerFrens': None,
+                'maxCreditsPerTransfer': None}
+        if economy is not None:
+            try:
+                view['creditsPerFrens'] = economy.credits_per_frens
+            except Exception:
+                pass
+        if treasury_settings is not None:
+            try:
+                t = treasury_settings() or {}
+                view['treasury'] = t.get('address') or None
+                view['maxCreditsPerTransfer'] = t.get('maxCreditsPerTransfer')
+            except Exception:
+                log.warning('treasury settings unavailable', exc_info=True)
+        if economy_settings is not None:
+            try:
+                s = economy_settings() or {}
+                view.update({'enabled': bool(s.get('enabled')), 'mode': s.get('mode'),
+                             'chainId': s.get('chainId'), 'symbol': s.get('symbol'),
+                             'depositsEnabled': bool(s.get('depositsEnabled'))})
+            except Exception:
+                log.warning('economy settings unavailable', exc_info=True)
+        return view
 
     def guarded(handler):
         async def wrapped(request):

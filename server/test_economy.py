@@ -158,6 +158,61 @@ class LedgerUnitTests(unittest.TestCase):
         self.assertEqual(history[0]["balance"], 120)
 
 
+class TreasuryTransferUnitTests(unittest.TestCase):
+    def setUp(self):
+        self.clock = FakeClock()
+        self.e, self.db = new_economy(self.clock)
+
+    def credit(self, **kw):
+        kw.setdefault("tx_hash", "0x" + "aa" * 32)
+        kw.setdefault("chain_id", 8453)
+        kw.setdefault("log_index", 0)
+        kw.setdefault("sender", ADDRESS)
+        kw.setdefault("amount_wei", 10 * 10**18)
+        return self.e.credit_transfer(**kw)
+
+    def test_credits_resolved_sender(self):
+        result = self.credit(pet_id="pet-1")
+        self.assertEqual(result, {"status": "credited", "credits": 1_000, "petId": "pet-1"})
+        self.assertEqual(self.e.balance("pet-1"), 1_000)
+        reasons = [h["reason"] for h in self.e.history("pet-1")]
+        self.assertEqual(reasons, ["treasury"])
+
+    def test_idempotent_on_chain_tx_index(self):
+        first = self.credit(pet_id="pet-1")
+        again = self.credit(pet_id="pet-1")
+        self.assertEqual(first["status"], "credited")
+        self.assertEqual(again["status"], "duplicate")
+        self.assertEqual(self.e.balance("pet-1"), 1_000)
+
+    def test_unmatched_sender_credits_nothing(self):
+        result = self.credit(pet_id=None)
+        self.assertEqual(result["status"], "unmatched")
+        self.assertEqual(result["credits"], 0)
+        self.assertEqual(self.e.balance("pet-1"), 0)
+        self.assertIsNotNone(self.e.treasury_transfer(8453, "0x" + "aa" * 32, 0))
+
+    def test_over_cap_records_but_credits_nothing(self):
+        result = self.credit(pet_id="pet-1", amount_wei=10**21, max_credits=100)
+        self.assertEqual(result["status"], "over_cap")
+        self.assertEqual(result["credits"], 0)
+        self.assertEqual(self.e.balance("pet-1"), 0)
+
+    def test_dust_below_one_credit_recorded(self):
+        result = self.credit(pet_id="pet-1", amount_wei=10**16)  # 0.01 FRENS -> 1 credit? no: 100/100
+        self.assertEqual(result["credits"], 1)
+        result = self.credit(pet_id="pet-1", amount_wei=10**15, log_index=1)  # below one credit
+        self.assertEqual(result["status"], "dust")
+        self.assertEqual(result["credits"], 0)
+
+    def test_configurable_credits_per_frens(self):
+        db = sqlite3.connect(":memory:")
+        e = econ.Economy(db, now=self.clock, credits_per_frens=250)
+        self.assertEqual(e.credits_per_frens, 250)
+        result = e.credit_transfer("0x" + "bb" * 32, 10 * 10**18, 8453, 0, ADDRESS, pet_id="pet-1")
+        self.assertEqual(result["credits"], 2_500)
+
+
 def build_app():
     db = sqlite3.connect(":memory:")
     app = web.Application()
