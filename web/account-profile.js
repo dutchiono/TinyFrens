@@ -1,10 +1,10 @@
 'use strict';
 (() => {
-  const settings = document.getElementById('settingsPanel');
+  const settings = document.getElementById('accountControls');
   if (!settings) return;
   const panel = document.createElement('section');
   panel.className = 'overlay account-profile';
-  panel.innerHTML = `<h2>Your account</h2><p class="small">One name and the same wallets, NFTs, and settings across your linked devices.</p>
+  panel.innerHTML = `<h3>Profile</h3><p class="small">One name and the same wallets, NFTs, and settings across your linked devices.</p>
     <form id="accountProfileForm"><label for="accountDisplayName">Display name</label><input id="accountDisplayName" maxlength="32" autocomplete="nickname" placeholder="How people see you">
     <label for="accountXHandle">X handle · optional</label><input id="accountXHandle" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@handle"><p class="small">Telegram handles are verified automatically. X verification needs a trusted Bankr identity callback; for now this is your chosen profile handle.</p>
     <button type="submit">Save profile</button></form><div id="accountIdentities"></div><p id="accountProfileStatus" role="status"></p>

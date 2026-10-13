@@ -21,9 +21,9 @@ class RobotGallery:
         self.db.execute('CREATE TABLE IF NOT EXISTS robot_gallery_art(token INTEGER PRIMARY KEY, metadata TEXT)')
         self.db.commit()
 
-    async def inventory(self):
+    async def inventory(self, force=False):
         state = self.db.execute('SELECT block,checked FROM robot_gallery_state WHERE id=1').fetchone()
-        if state and 0 <= time.time() - state[1] < REFRESH_SECONDS:
+        if state and not force and 0 <= time.time() - state[1] < REFRESH_SECONDS:
             return state, False
         if state and time.time() < self.retry_after:
             return state, True
@@ -31,28 +31,22 @@ class RobotGallery:
             if await self.robots.rpc('eth_chainId', []) != '0x2105':
                 raise RuntimeError('Gallery RPC must be Base mainnet')
             head = int(await self.robots.rpc('eth_blockNumber', []), 16)
-            # Replay the recent window so a short reorg cannot strand mint/burn entries.
-            start = max(START_BLOCK, state[0] - 64) if state and state[0] <= head else START_BLOCK
-            if head - start > 2_000_000:
-                raise RuntimeError('Gallery needs an inventory checkpoint')
-            events = []
-            for block in range(start, head + 1, 2000):
-                logs = await self.robots.rpc('eth_getLogs', [{'address': CONTRACT, 'fromBlock': hex(block),
-                    'toBlock': hex(min(head, block + 1999)), 'topics': [TRANSFER]}])
-                if not isinstance(logs, list):
-                    raise RuntimeError('Invalid gallery transfer history')
-                for log in logs:
-                    topics = log.get('topics', [])
-                    if (log.get('removed') or log.get('address', '').lower() != CONTRACT or len(topics) != 4
-                            or topics[0].lower() != TRANSFER):
-                        continue
-                    if topics[1].lower() == ZERO or topics[2].lower() == ZERO:
-                        events.append((int(log['blockNumber'], 16), int(log['logIndex'], 16),
-                                       token_id(int(topics[3], 16)), int(topics[1].lower() == ZERO)))
-            # Do not advance the checkpoint or mutate inventory until every range succeeded.
+            # Reuse current ownerOf batching; archive Transfer logs are unnecessary.
+            supply_raw = await self.robots.rpc('eth_call', [{'to': CONTRACT, 'data': '0x18160ddd'}, 'latest'])
+            supply = int(supply_raw, 16)
+            if not 0 <= supply <= 2664:
+                raise RuntimeError('Invalid robot supply')
+            owners = {}
+            for start in range(1, 2665, 20):
+                if len(owners) >= supply:
+                    break
+                owners.update(await self.robots.owner_batch(range(start, min(start + 20, 2665))))
+            if len(owners) != supply:
+                raise RuntimeError('Gallery inventory does not match current supply')
             with self.db:
-                self.db.execute('DELETE FROM robot_gallery_events WHERE block>=?', (start,))
-                self.db.executemany('INSERT OR REPLACE INTO robot_gallery_events VALUES(?,?,?,?)', events)
+                self.db.execute('DELETE FROM robot_gallery_events')
+                self.db.executemany('INSERT INTO robot_gallery_events VALUES(?,?,?,1)',
+                                    [(head, int(tid), int(tid)) for tid in owners])
                 self.db.execute('INSERT OR REPLACE INTO robot_gallery_state VALUES(1,?,?)', (head, time.time()))
             return self.db.execute('SELECT block,checked FROM robot_gallery_state WHERE id=1').fetchone(), False
         except Exception:
@@ -61,9 +55,9 @@ class RobotGallery:
                 raise
             return state, True
 
-    async def page(self, after=0):
+    async def page(self, after=0, force=False):
         async with self.lock:
-            state, stale = await self.inventory()
+            state, stale = await self.inventory(force)
             ids = set()
             for tid, minted in self.db.execute('SELECT token,minted FROM robot_gallery_events ORDER BY block,position'):
                 if minted: ids.add(tid)
@@ -77,7 +71,7 @@ class RobotGallery:
                 else:
                     if stale:
                         raise RuntimeError('Artwork is not cached yet; Base is unavailable')
-                    encoded = await self.robots.call('0xc87b56dd', tid, hex(state[0]))
+                    encoded = await self.robots.call('0xc87b56dd', tid, 'latest')
                     if encoded is None:
                         raise RuntimeError('Mint inventory and artwork disagree')
                     raw = bytes.fromhex(encoded[2:])
@@ -105,8 +99,9 @@ def install(app, robots):
         try:
             after = int(request.query.get('after', '0'))
             if not 0 <= after <= 2664: raise ValueError('Invalid gallery cursor')
-            data = await gallery.page(after)
-            return web.json_response(data, headers={'Cache-Control': 'public, max-age=30' if not data['stale'] else 'no-cache'})
+            force = request.query.get("refresh") == "1"
+            data = await gallery.page(after, force)
+            return web.json_response(data, headers={'Cache-Control': 'public, max-age=30' if not data['stale'] and not force else 'no-store'})
         except ValueError:
             return web.json_response({'error': 'Invalid gallery cursor'}, status=400)
         except Exception:

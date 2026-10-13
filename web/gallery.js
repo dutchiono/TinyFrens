@@ -18,13 +18,13 @@ function render(cached = false) {
     (cached || snapshot.stale ? ' · Saved gallery; waiting for a live refresh.' : '');
   $('more').hidden = snapshot.nextAfter === null;
 }
-async function load(more = false, quiet = false) {
+async function load(more = false, quiet = false, force = false) {
   if (busy) return;
   busy = true; $('refresh').disabled = true; $('more').disabled = true;
   try {
     const after = more ? snapshot?.nextAfter : 0;
     if (after === null) return;
-    const response = await fetch(`${endpoint}?after=${after}`, {signal: AbortSignal.timeout(45000)});
+    const response = await fetch(`${endpoint}?after=${after}${force ? "&refresh=1" : ""}`, {cache: force ? "no-store" : "default", signal: AbortSignal.timeout(45000)});
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Gallery unavailable');
     if (data.contract !== CONTRACT || data.chainId !== 8453 || !Array.isArray(data.items)) throw new Error('Unexpected gallery response');
@@ -43,7 +43,7 @@ async function load(more = false, quiet = false) {
     $('status').textContent = (snapshot ? 'Showing saved artwork. ' : '') + `Could not refresh the gallery: ${error.message}`;
   } finally { busy = false; $('refresh').disabled = false; $('more').disabled = false; }
 }
-$('refresh').addEventListener('click', () => load());
+$('refresh').addEventListener('click', () => load(false, false, true));
 $('more').addEventListener('click', () => load(true));
 $('copy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('mint-message').value); $('copy-status').textContent = ' Copied'; }

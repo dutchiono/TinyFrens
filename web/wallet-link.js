@@ -10,7 +10,7 @@
       <p class="small">Bankr can connect the wallet you already use. Nothing moves and there is no gas.</p>
       <div id="linkedWallet" class="wallet-link-address"></div>
       <div class="bankr-connect">
-        <h4>1. Send this to Bankr</h4>
+        <h4>Connect with Bankr</h4>
         <p class="small">Paste it to @bankrbot on X or in Bankr chat, then return here to approve.</p>
         <label for="bankrWalletPrompt">Ready-to-send message</label>
         <textarea id="bankrWalletPrompt" readonly rows="5" placeholder="Preparing your device code…"></textarea>
@@ -22,14 +22,12 @@
       <p id="walletLinkStatus" role="status"></p><p id="deviceConnectCode" class="small"></p>
     </section></details>
     <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
-      <h3>Your supported NFTs</h3>
-      <p class="small">NFTs from collections available as TinyFrens companions appear here.</p>
-      <button type="button" id="scanWallet" class="secondary" disabled>Refresh NFTs</button>
+      <div class="collection-toolbar"><h2>Your collection</h2><button type="button" id="scanWallet" class="secondary" disabled>Refresh</button></div>
       <label class="nft-search">Find an NFT<input id="nftSearch" type="search" placeholder="Name, collection or token number"></label>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
     </section>
-    <p class="small">Each wallet stays linked to this device until you remove it.</p>
+
   `;
 
   const linkedWallet = document.getElementById('linkedWallet');
@@ -41,6 +39,9 @@
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   let linkedAddresses = [];
   const manager = document.getElementById('walletManager');
+  const accountDialog = document.getElementById('accountDialog');
+  document.getElementById('openAccount').onclick = () => accountDialog.showModal();
+  document.getElementById('closeAccount').onclick = () => accountDialog.close();
 
   function identity() {
     const current = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base()) || 'null');
@@ -56,7 +57,8 @@
     linkedAddresses = addresses;
     const approvingDevice = Boolean(remoteDeviceCode);
     manager.open = !addresses.length || approvingDevice;
-    manager.querySelector('summary').textContent = addresses.length ? `Wallets (${addresses.length}) · Add another` : 'Add wallets';
+    (addresses.length && !approvingDevice ? document.getElementById('accountControls') : target).prepend(manager);
+    manager.querySelector('summary').textContent = addresses.length ? `Connected wallets (${addresses.length})` : 'Add wallets';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
     if (!addresses.length) linkedWallet.textContent = 'No wallets linked yet.';
@@ -115,6 +117,7 @@
         contract:nft.originalAddress, chain:nft.chainId === 8453 ? 'Base' : 'Robinhood Chain', standard:'ERC-721', companionSupported:true}))};
       matches.replaceChildren();
       const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);
+      document.querySelector('.nft-search').hidden = supported.length === 0;
       const previews = [];
       for (const nft of supported) {
         const card = document.createElement('article');
@@ -190,7 +193,7 @@
       const worker = async () => { while (queue.length) await queue.shift()(); };
       void Promise.all([worker(), worker()]);
       const failed = data.errors.length;
-      scanStatus.textContent = (supported.length ? supported.length + ' supported NFT(s) found.' : 'No NFTs from available collections found in your linked wallets.') +
+      scanStatus.textContent = (supported.length ? supported.length + ' supported NFT(s) found.' : 'No supported NFTs found yet. Check your wallets in Account, or refresh after your next mint.') +
         (data.partial ? ' Partial scan: ' + failed + ' indexer request(s) failed or pages were limited.' : '') +
         (failed ? ' ' + data.errors.slice(0,2).join('; ') : '');
     } catch(error) {

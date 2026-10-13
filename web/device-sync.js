@@ -7,7 +7,7 @@
     <label for="enterSyncCode">Code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
     <p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
     <dialog id="syncApproval" class="update-modal"><h2>Sync this device?</h2><p id="syncApprovalText"></p><p>Approve only if you just entered this code on your other device. This device’s NFT choices and settings will be used on both.</p><div class="actions"><button id="approveSync" type="button">Approve sync</button><button id="denySync" type="button" class="secondary">Cancel</button></div></dialog>`;
-  host.before(panel);
+  document.getElementById('accountControls').append(panel);
   const $ = id => document.getElementById(id), key = window.TinyFrensCompanionKey;
   document.body.append($('syncApproval'));
   const storage = 'tinyfrens-companions', motionStorage = 'tinyfrens-companion-motion';
