@@ -1,10 +1,10 @@
 (() => {
   const host = document.getElementById('externalWalletPanel');
   if (!host) return;
-  const panel = document.createElement('details'); panel.className = 'device-sync-panel';
-  panel.innerHTML = `<summary>Sync devices</summary><p>Share your wallets, shown NFTs, sizes and movement settings. Copy a code from the device you want to use, then enter it on the other device.</p>
-    <div class="sync-code-row"><button id="createSyncCode" type="button" class="secondary">Copy a sync code</button><output id="syncCode"></output></div>
-    <label for="enterSyncCode">Code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
+  const panel = document.createElement('section'); panel.className = 'device-sync-panel';
+  panel.innerHTML = `<h2>Link another device</h2><p>Share your wallets, shown NFTs, sizes and movement settings. Copy a code from the device you want to use, then enter it on the other device.</p>
+    <div class="sync-code-row"><button id="syncCode" class="sync-code-display" type="button" title="Copy this code">Connecting…</button><button id="createSyncCode" type="button" class="secondary" hidden>Get a new code</button></div>
+    <label for="enterSyncCode">Enter a code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
     <p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
     <dialog id="syncApproval" class="update-modal"><h2>Sync this device?</h2><p id="syncApprovalText"></p><p>Approve only if you just entered this code on your other device. This device’s NFT choices and settings will be used on both.</p><div class="actions"><button id="approveSync" type="button">Approve sync</button><button id="denySync" type="button" class="secondary">Cancel</button></div></dialog>`;
   document.getElementById('accountControls').append(panel);
@@ -87,7 +87,7 @@
         catch (error) { if (error.message.includes('Code expired or not found')) { pending = null; $('syncStatus').textContent = 'Sync request expired or was cancelled. Create a new code and try again.'; } }
       }
       if (!pending) $('syncStatus').textContent = data.devices > 1 ? `Synced across ${data.devices} devices.` : 'This device is not synced yet.';
-      if (code && Date.now() >= code.expires * 1000) { code = null; saveCode(); $('syncCode').textContent = 'Code expired'; }
+      if (code && Date.now() >= code.expires * 1000) { code = null; saveCode(); $('syncCode').textContent = 'Code expired'; $('createSyncCode').hidden=false; }
       if (code) {
         try {
           const request = await post('status', {code:code.code});
@@ -100,15 +100,23 @@
     } catch (error) { $('syncStatus').textContent = error.message; }
     finally { busy = false; }
   }
+  $('syncCode').onclick = async () => {
+    if (!code) return;
+    try { await navigator.clipboard.writeText(code.code.match(/.{1,4}/g).join('-')); $('syncStatus').textContent='Copied. Enter this code on your other device.'; } catch { $('syncStatus').textContent='Enter the displayed code on your other device.'; }
+  };
   $('createSyncCode').onclick = async () => {
     try {
       await tick(); if (busy || revision === null) throw Error('Wait for your device to finish connecting.');
       code = await post('start'); saveCode(); pending = null; denied = null;
       const formatted = code.code.match(/.{1,4}/g).join('-'); $('syncCode').textContent = formatted;
-      try { await navigator.clipboard.writeText(formatted); $('syncStatus').textContent = 'Copied. Paste on your other device, then approve here.'; }
-      catch { $('syncStatus').textContent = 'Enter the code shown here on your other device.'; }
+      $('syncStatus').textContent = 'Tap the code to copy. Enter it on your other device, then approve here.';
+      $('createSyncCode').hidden=true;
     } catch (error) { $('syncStatus').textContent = error.message; }
   };
+  let preparingCode=false;
+  const prepareCode=async()=>{if(code||preparingCode)return;preparingCode=true;try{await $('createSyncCode').onclick();}finally{preparingCode=false;}};
+  window.addEventListener('tinyfrens-identity-ready',()=>setTimeout(prepareCode,500));
+  if(identity()?.token)setTimeout(prepareCode,500);
   $('joinSync').onclick = async () => {
     const button = $('joinSync'); button.disabled = true;
     try {

@@ -255,6 +255,7 @@ def install(app, db, token_pet, limit, ownership):
     db.execute('''CREATE TABLE IF NOT EXISTS turtle_pairings(
         code TEXT PRIMARY KEY, pet_id TEXT UNIQUE, expires REAL, challenge_id TEXT,
         address TEXT, token_id INTEGER, message TEXT, verified INTEGER DEFAULT 0)''')
+    db.execute('CREATE TABLE IF NOT EXISTS wallet_social_profiles(address TEXT PRIMARY KEY COLLATE NOCASE, x_handle TEXT NOT NULL, source TEXT NOT NULL, updated INTEGER NOT NULL)')
     db.commit()
 
     def pairing(body):
@@ -289,9 +290,13 @@ def install(app, db, token_pet, limit, ownership):
         tid = turtle_id(body['tokenId']) if body.get('tokenId') is not None else None
         challenge_id = secrets.token_urlsafe(32)
         scope = str(tid) if tid is not None else 'All supported collections'
+        handle = str(body.get('xHandle') or '').strip().lstrip('@')
+        if handle and not re.fullmatch(r'[A-Za-z0-9_]{1,15}', handle):
+            raise ValueError('Invalid X handle')
+        social = f'X handle: @{handle} (wallet assertion)\n' if handle else ''
         message = (f'TinyFrens read-only phone pairing\nDomain: tinyfrens.lol\n'
                    f'Wallet: {address}\nCollection: {COLLECTION}\nChain ID: {CHAIN_ID}\n'
-                   f'Token: {scope}\nPairing: {code}\nNonce: {challenge_id}\nExpires: {int(row[1])}\n\n'
+                   f'{social}Token: {scope}\nPairing: {code}\nNonce: {challenge_id}\nExpires: {int(row[1])}\n\n'
                    'Connect this wallet to the waiting TinyFrens device only after it accepts. '
                    'This does not authorize transactions, transfers, approvals, or spending.')
         db.execute('UPDATE turtle_pairings SET challenge_id=?,address=?,token_id=?,message=? WHERE code=?',
@@ -353,6 +358,10 @@ def install(app, db, token_pet, limit, ownership):
         # No await between consuming the pairing and assigning the signed address.
         with db:
             add_wallet(db, pid, row[3])
+            social = re.search(r'^X handle: @([A-Za-z0-9_]{1,15}) \(wallet assertion\)$', row[5] or '', re.M)
+            if social:
+                db.execute('INSERT OR REPLACE INTO wallet_social_profiles VALUES(?,?,?,?)',
+                           (row[3], social.group(1), 'wallet-signed', int(time.time())))
             db.execute('DELETE FROM turtle_pairings WHERE code=?', (code,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
         return {'linked': True, 'address': row[3], 'addresses': linked_wallets(db, pid), 'tokenId': row[4]}

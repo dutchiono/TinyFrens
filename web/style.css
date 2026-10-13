@@ -571,7 +571,7 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .game-player-picker{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px 12px;align-items:center;margin:0 0 12px}.game-player-preview{grid-row:1/3;width:64px;height:64px;object-fit:contain;image-rendering:pixelated}.game-player-picker label{font-weight:700}.game-player-picker select{width:100%;min-width:0;background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;border-radius:10px;padding:10px}.games-list{margin:16px 0}.game-card:disabled{opacity:.55}.game-fren .game-fren-img{max-width:none}
 
 /* A single collection flow across screen sizes. */
-#screen-pet{display:block!important;max-width:1120px;margin-inline:auto}
+#screen-pet:not([hidden]){display:block;max-width:1120px;margin-inline:auto}
 .collection-heading,.collection-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .collection-heading{margin:24px 0}.collection-heading h1{margin:0}.collection-heading .screen-intro{margin:8px 0 0}.collection-heading button{flex:none}
 .collection-toolbar{margin-bottom:18px}.collection-toolbar h2{margin:0;font-size:20px}
@@ -579,3 +579,33 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .account-dialog{box-sizing:border-box;width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;padding:24px;background:#171328;color:#f7f1ff;border:1px solid #594276;border-radius:18px}.account-dialog::backdrop{background:#090614b8}.account-dialog .wallet-manager,.account-dialog .device-sync-panel{margin:16px 0;width:100%;box-sizing:border-box}.account-dialog .overlay{border:0;padding:0}.linked-wallet-row span{overflow-wrap:anywhere;min-width:0}
 #externalWalletPanel>.wallet-manager{max-width:620px;margin:0 auto 28px}#externalWalletPanel>.wallet-manager>summary{display:none}
 @media(max-width:600px){.collection-heading{margin:16px 0 24px;gap:12px}.collection-heading h1{font-size:28px}.collection-heading .screen-intro{font-size:14px}.wallet-nfts{grid-template-columns:1fr}.account-dialog{padding:18px;width:calc(100% - 20px);max-height:90dvh}.account-dialog .sync-code-row{flex-wrap:wrap}.account-dialog input{min-width:0}.collection-toolbar button,.collection-heading button{min-height:44px}}
+
+.bankr-connect .pairing-renew{background:#302445;color:#e4d5ff;border:1px solid #594276;box-shadow:none;min-height:44px;padding:10px 14px;font-size:13px;margin-top:12px}
+
+#screen-account{max-width:720px;margin-inline:auto}#screen-account .wallet-manager>summary{display:none}#screen-account .wallet-manager{border:0;padding:0}#screen-account .device-sync-panel{margin:24px 0;padding:20px;box-sizing:border-box;width:100%}.sync-code-display{font:700 clamp(20px,5vw,30px)/1.5 monospace;letter-spacing:2px;background:transparent;color:#d1b2ff;border:1px dashed #796198;box-shadow:none;padding:14px;width:100%;overflow-wrap:anywhere}.sync-code-row{flex-wrap:wrap}.sync-code-row input{min-width:0;flex:1}#screen-account .linked-wallet-row span{overflow-wrap:anywhere}
+
+/* Hidden screens always win over their layout rules. */
+.screen[hidden]{display:none!important}
+#screen-account>.collection-heading{justify-content:center;text-align:center;margin:24px 0 32px}
+#screen-account .overlay,#screen-account .device-sync-panel{background:transparent;border:0;border-radius:0;padding:20px 0;margin:0;border-bottom:1px solid #403350}
+#screen-account .bankr-connect{background:transparent;border:0;border-radius:0;padding:0;margin:18px 0}
+#screen-account button{width:auto;box-shadow:none}#screen-account .actions{justify-content:flex-start}
+#screen-account .manual-wallet{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;margin:0}
+#screen-account .manual-wallet button{margin:0;min-height:44px}
+#screen-account textarea{min-height:88px}#screen-account .device-reset{padding:24px 0}#screen-account .device-reset p{font-size:13px;color:#b8add3}
+#screen-account .sync-code-display{width:100%;border-radius:8px}#screen-account .account-profile form{max-width:460px}
+@media(max-width:600px){#screen-account{padding-inline:4px}#screen-account>.collection-heading{margin:16px 0 24px}#screen-account .manual-wallet{align-items:flex-start;flex-direction:column}}
+
+#screen-pet[hidden],#screen-account[hidden]{display:none!important}
+#screen-pet>.collection-heading{justify-content:center;text-align:center}
+#screen-account .wallet-manager,#screen-account .wallet-link-panel{background:transparent!important;border:0!important;border-radius:0!important}
+#bankrWalletPrompt{font-size:clamp(17px,2vw,21px);line-height:1.6;color:#e8dcff;overflow-wrap:anywhere;cursor:copy;margin:12px 0;user-select:text}
+#bankrWalletPrompt:focus-visible{outline:2px solid #a474f1;outline-offset:6px}
+
+#bankrWalletPrompt{border-radius:8px;transition:background .15s,color .15s,box-shadow .15s}
+@media(hover:hover){#bankrWalletPrompt:hover{background:#a474f116;box-shadow:0 0 0 8px #a474f116;color:#fff}}
+#bankrWalletPrompt:focus-visible{background:#a474f116}
+#bankrWalletPrompt.copied{background:#a474f126;box-shadow:0 0 0 8px #a474f126;color:#fff}
+@media(prefers-reduced-motion:reduce){#bankrWalletPrompt{transition:none}}
+
+#screen-help{max-width:720px;margin-inline:auto}#screen-help>h1{text-align:center}#screen-account #settingsPanel>.overlay{background:transparent;border:0;border-bottom:1px solid #403350;border-radius:0;padding:20px 0}

@@ -79,7 +79,7 @@
   function joinChatRoom(data) {
     const chat = tg.initDataUnsafe && tg.initDataUnsafe.chat;
     const start = String(data?.startParam || '').toLowerCase();
-    const routes = { home: 'pet', account: 'settings', wallet: 'wallet', party: 'party' };
+    const routes = { home: 'pet', account: 'account', wallet: 'wallet', party: 'party' };
     let tries = 0;
     const attempt = () => {
       const api = window.TinyFrensFriends;
@@ -110,5 +110,5 @@
 
   auth().then(joinChatRoom);
   window.TinyFrensTelegram = { active: true, tg, auth, share, haptic };
-  window.TinyFrensCompanion && window.TinyFrensCompanion.enable('telegram');
+
 })();

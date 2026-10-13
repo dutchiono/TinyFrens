@@ -71,7 +71,17 @@ def read(db, pid):
     identities = [dict(platform=r[0], handle=r[1], displayName=r[2], verified=bool(r[3]))
                   for r in db.execute('SELECT platform,handle,display_name,verified FROM account_identities '
                                       'WHERE account=? ORDER BY platform,updated', (account,))]
-    return {'displayName': row[0] if row else '', 'xHandle': row[1] if row else '', 'identities': identities}
+    x_handle = row[1] if row else ''
+    source = 'profile' if x_handle else None
+    if not x_handle:
+        from turtle_connect import linked_wallets
+        for wallet in linked_wallets(db, pid):
+            social = db.execute('SELECT x_handle,source FROM wallet_social_profiles WHERE address=? COLLATE NOCASE', (wallet,)).fetchone()
+            if social:
+                x_handle, source = social
+                break
+    return {'displayName': row[0] if row else '', 'xHandle': x_handle,
+            'xHandleSource': source, 'identities': identities}
 
 
 def install(app, db, token_pet, limit):

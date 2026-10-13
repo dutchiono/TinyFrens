@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const banner=$('updateBanner'),nowButton=$('updateNow'),status=$('updateStatus');
+ if(window.Telegram?.WebApp?.initData){$('updates').hidden=true;banner.hidden=true;return;}
  const pref=(name,fallback)=>{try{return JSON.parse(localStorage.getItem('tinyfrens-'+name))??fallback;}catch{return fallback;}};
  const savePref=(name,value)=>{try{localStorage.setItem('tinyfrens-'+name,JSON.stringify(value));}catch{}};
  $('autoCheck').checked=pref('autoCheck',true);$('autoDownload').checked=pref('autoDownload',false);$('autoApply').checked=pref('autoApply',true);

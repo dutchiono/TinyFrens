@@ -98,7 +98,7 @@
     joinChannelRoom();
 
     window.TinyFrensDiscord = { active: true, discordSdk, accessToken, channelId };
-    window.TinyFrensCompanion && window.TinyFrensCompanion.enable('discord');
+
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -8,13 +8,14 @@ from aiohttp import web
 from robot_companion import CONTRACT, START_BLOCK, TRANSFER, token_id
 
 ZERO = '0x' + '0' * 64
-REFRESH_SECONDS = 60
+REFRESH_SECONDS = 600
 
 
 class RobotGallery:
     def __init__(self, robots):
         self.robots, self.db = robots, robots.db
         self.lock = asyncio.Lock()
+        self.db.execute('CREATE TABLE IF NOT EXISTS robot_gallery_owners(token INTEGER PRIMARY KEY, wallet TEXT)')
         self.retry_after = 0
         self.db.execute('CREATE TABLE IF NOT EXISTS robot_gallery_state(id INTEGER PRIMARY KEY, block INTEGER, checked REAL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS robot_gallery_events(block INTEGER, position INTEGER, token INTEGER, minted INTEGER, PRIMARY KEY(block,position))')
@@ -44,6 +45,8 @@ class RobotGallery:
             if len(owners) != supply:
                 raise RuntimeError('Gallery inventory does not match current supply')
             with self.db:
+                self.db.execute('DELETE FROM robot_gallery_owners')
+                self.db.executemany('INSERT INTO robot_gallery_owners VALUES(?,?)', [(int(tid), wallet) for tid, wallet in owners.items()])
                 self.db.execute('DELETE FROM robot_gallery_events')
                 self.db.executemany('INSERT INTO robot_gallery_events VALUES(?,?,?,1)',
                                     [(head, int(tid), int(tid)) for tid in owners])
@@ -86,7 +89,8 @@ class RobotGallery:
                         raise RuntimeError('Unexpected gallery artwork format')
                     with self.db:
                         self.db.execute('INSERT OR REPLACE INTO robot_gallery_art VALUES(?,?)', (tid, json.dumps(metadata)))
-                items.append({'tokenId': tid, 'metadata': metadata})
+                owner = self.db.execute('SELECT wallet FROM robot_gallery_owners WHERE token=?', (tid,)).fetchone()
+                items.append({'tokenId': tid, 'metadata': metadata, 'owner': owner[0] if owner else None})
             last = selected[-1] if selected else after
             return {'contract': CONTRACT, 'chainId': 8453, 'supply': len(ids), 'items': items,
                     'nextAfter': last if any(tid > last for tid in ids) else None,
