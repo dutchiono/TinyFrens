@@ -1,6 +1,6 @@
 # TinyFrens in Telegram
 
-Open [@TinyFrensBot](https://t.me/TinyFrensBot) and choose **Open TinyFrens**. The Mini App runs the same NFT companion interface as the browser inside Telegram.
+Open [@TinyFrensBot](https://t.me/TinyFrensBot?start=connect) and choose **Open TinyFrens**. Links from the website and installed apps open this private bot conversation. Buttons in the conversation open the Mini App directly; buttons posted in groups use the bot's `startapp` deep link.
 
 Telegram signs the Mini App launch data. The TinyFrens relay verifies that signature before attaching the Telegram user ID and handle to a TinyFrens account. A plain username typed into a form is never marked as a verified Telegram identity.
 

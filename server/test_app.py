@@ -474,7 +474,11 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.client = TestClient(TestServer(create_app(self.db, [ORIGIN])))
         await self.client.start_server(); self.sockets = []
         self.token = '999:TESTTOKEN'
-        self.saved = {k: os.environ.get(k) for k in ('TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')}
+        keys = ('TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'TELEGRAM_MINIAPP_URL',
+                'TELEGRAM_MINIAPP_DEEP_LINK', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')
+        self.saved = {k: os.environ.get(k) for k in keys}
+        os.environ.pop('TELEGRAM_MINIAPP_URL', None)
+        os.environ.pop('TELEGRAM_MINIAPP_DEEP_LINK', None)
     async def asyncTearDown(self):
         for ws in self.sockets:
             try: await ws.close()
@@ -600,6 +604,8 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                 headers={'X-Telegram-Bot-Api-Secret-Token': 'telegram-secret'})
             self.assertEqual(second.status, 200)
             self.assertEqual(send.await_args.args[1]['animation'], 'telegram-file-id')
+            button = send.await_args.args[1]['reply_markup']['inline_keyboard'][0][0]
+            self.assertEqual(button['url'], 'https://t.me/TinyFrensBot?startapp=home')
             self.assertIsNone(send.await_args.args[3])
 
     async def test_telegram_auth_rejects_bad_signature(self):
@@ -611,6 +617,17 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         os.environ.pop('TELEGRAM_BOT_TOKEN', None)
         r = await self.client.post('/api/telegram/webhook', json={'message': {'text': '/start', 'chat': {'id': 1}}})
         self.assertEqual(r.status, 503)
+
+    async def test_telegram_link_deep_link_opens_account_settings(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        update = {'message': {'text': '/start link', 'chat': {'id': 55, 'type': 'private'},
+                              'from': {'id': 77, 'first_name': 'Tess'}}}
+        with mock.patch('app.bot_api', new=mock.AsyncMock(return_value=({'ok': True}, 200))) as send:
+            response = await self.client.post('/api/telegram/webhook', json=update)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(send.await_count, 2)
+            button = send.await_args.args[1]['reply_markup']['inline_keyboard'][0][0]
+            self.assertEqual(button['web_app']['url'], 'https://tinyfrens.lol/web/#settings')
 
     async def test_discord_token_unconfigured_returns_503(self):
         os.environ.pop('DISCORD_CLIENT_ID', None); os.environ.pop('DISCORD_CLIENT_SECRET', None)

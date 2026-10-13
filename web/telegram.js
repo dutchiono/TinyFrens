@@ -78,6 +78,8 @@
 
   function joinChatRoom(data) {
     const chat = tg.initDataUnsafe && tg.initDataUnsafe.chat;
+    const start = String(data?.startParam || '').toLowerCase();
+    const routes = { home: 'pet', account: 'settings', wallet: 'wallet', party: 'party' };
     let tries = 0;
     const attempt = () => {
       const api = window.TinyFrensFriends;
@@ -85,13 +87,14 @@
         if ((chat && chat.id != null || data?.chatInstance) && window.TinyFrensParty) {
           const room = chat && chat.id != null ? String(chat.id) : String(data.chatInstance);
           window.TinyFrensParty.joinChat('telegram', room, chat?.title || 'this Telegram chat');
-        } else if (data && data.startParam && window.TinyFrensParty) {
+        } else if (data && data.startParam && !routes[start] && window.TinyFrensParty) {
           const code = String(data.startParam).toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
           if (code.length >= 3) window.TinyFrensParty.joinPrivate(code);
           else window.TinyFrensParty.joinPublic();
         } else if (window.TinyFrensParty) {
           window.TinyFrensParty.joinPublic();
         }
+        if (routes[start] && window.showScreen) window.showScreen(routes[start]);
       } else if (tries++ < 25) {
         setTimeout(attempt, 400);
       }

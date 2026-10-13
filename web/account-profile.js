@@ -8,7 +8,7 @@
     <form id="accountProfileForm"><label for="accountDisplayName">Display name</label><input id="accountDisplayName" maxlength="32" autocomplete="nickname" placeholder="How people see you">
     <label for="accountXHandle">X handle · optional</label><input id="accountXHandle" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@handle"><p class="small">Telegram handles are verified automatically. X verification needs a trusted Bankr identity callback; for now this is your chosen profile handle.</p>
     <button type="submit">Save profile</button></form><div id="accountIdentities"></div><p id="accountProfileStatus" role="status"></p>
-    <a class="telegram-account-link" href="https://t.me/TinyFrensBot" target="_blank" rel="noopener">Open @TinyFrensBot ↗</a>
+    <a class="telegram-account-link" href="https://t.me/TinyFrensBot?start=link" target="_blank" rel="noopener">DM @TinyFrensBot ↗</a>
     <p class="small">To link Telegram to this account, copy a code under Sync devices and DM <strong>/link CODE</strong> to @TinyFrensBot. Approve the request here.</p>`;
   settings.prepend(panel);
   const form = document.getElementById('accountProfileForm');

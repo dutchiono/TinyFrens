@@ -1218,10 +1218,11 @@ def create_app(database=None, origins=None):
         data=await telegram_companion(pid,position)
         key=(data['chainId'],data['originalAddress'].lower(),data['tokenId'])
         cached=db.execute('SELECT file_id FROM tg_media_cache WHERE chain=? AND collection=? AND token_id=?',key).fetchone()
-        deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot')
+        deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=home')
+        miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/').split('#',1)[0]
         payload={'chat_id':chat_id,'animation':cached[0] if cached else 'attach://animation',
                  'caption':str(data['name'])[:900],
-                 'reply_markup':reply_markup(os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/') if private else deep_link,
+                 'reply_markup':reply_markup(miniapp+'#pet' if private else deep_link,
                                              '🐾 Open TinyFrens',private)}
         response,status=await bot_api('sendAnimation',payload,token,None if cached else {'animation':await asyncio.to_thread(companion_gif,data['companion'])})
         if status>=400 or not response.get('ok'):
@@ -1262,7 +1263,8 @@ def create_app(database=None, origins=None):
                 raise web.HTTPForbidden(text='Telegram webhook secret did not match')
             update=await request.json()
             kind,chat_id,chat=classify(update)
-            miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/')
+            miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/').split('#',1)[0]
+            deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=home')
             message=update.get('message') or {}
             sender=message.get('from') or {}
             text=str(message.get('text') or '')
@@ -1274,24 +1276,30 @@ def create_app(database=None, origins=None):
                 device_sync.request_sync(db,pid,sync_code,label)
                 await bot_api('sendMessage',{'chat_id':chat_id,
                     'text':'Link requested. Approve it on the TinyFrens device that made the code, then open TinyFrens here.',
-                    'reply_markup':reply_markup(miniapp,'🐾 Open TinyFrens',True)},token)
+                    'reply_markup':reply_markup(miniapp+'#settings','🐾 Open linked account',True)},token)
                 return web.json_response({'ok':True})
             show=re.fullmatch(r'/show(?:@\w+)?(?:\s+([1-5]))?\s*',text,re.I)
             if show and chat_id is not None:
                 if not secret: return web.json_response({'error':'Telegram webhook secret is required'},status=503)
                 pid,_,_=telegram_pet(sender)
                 try:
-                    await send_telegram_companion(chat_id,pid,int(show.group(1) or 1),token,(chat or {}).get('type')=='private')
+                    private=(chat or {}).get('type')=='private'
+                    await send_telegram_companion(chat_id,pid,int(show.group(1) or 1),token,private)
                 except ValueError as exc:
                     await bot_api('sendMessage',{'chat_id':chat_id,'text':str(exc),
-                        'reply_markup':reply_markup(miniapp,'🐾 Open TinyFrens',(chat or {}).get('type')=='private')},token)
+                        'reply_markup':reply_markup(miniapp+'#pet' if private else deep_link,'🐾 Open TinyFrens',private)},token)
                 return web.json_response({'ok':True})
             if kind=='start' and chat_id is not None:
-                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Bring your NFTs into TinyFrens. Open the Mini App below, send /link followed by a sync code, or use /show to post your selected NFT animation.'},token)
-                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Ready when you are.','reply_markup':reply_markup(miniapp)},token)
+                start_payload=text.partition(' ')[2].strip().lower()
+                intro=('Copy a sync code from TinyFrens Settings, then send /link CODE here. Approve the request on the device that made the code.'
+                       if start_payload=='link' else
+                       'Bring your NFTs into TinyFrens. Open the Mini App below. If you already use TinyFrens elsewhere, link this Telegram account from Settings.')
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':intro},token)
+                target=miniapp+('#settings' if start_payload=='link' else '#pet')
+                await bot_api('sendMessage',{'chat_id':chat_id,'text':'Ready when you are.','reply_markup':reply_markup(target)},token)
             elif kind=='added' and chat_id is not None:
                 title=(chat or {}).get('title') or 'this chat'
-                deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot')
+                deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=party')
                 await bot_api('sendMessage',{'chat_id':chat_id,'text':'TinyFrens is ready in '+title+'. Open it to bring an NFT into the room, then use /show to post your selected companion.',
                     'reply_markup':reply_markup(deep_link,'🐾 Open TinyFrens',False)},token)
             return web.json_response({'ok':True})
