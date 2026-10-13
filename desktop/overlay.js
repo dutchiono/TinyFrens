@@ -36,6 +36,11 @@
   function scheduleClose() { clearTimeout(leaveTimer); leaveTimer = setTimeout(() => { if (!pointer) menu(false); }, 900); }
   function render(s) {
     lastState = s;
+    const resting=s.activity==='resting', rest=bubbles.querySelector('[data-action=rest]');
+    rest.textContent=resting?'☀':'☾';
+    rest.setAttribute('aria-label',resting?'Wake up':'Nap');
+    rest.setAttribute('aria-pressed',String(resting));
+    rest.dataset.label=resting?'Wake up · Stop resting':'Nap · Energy recovers while sleeping';
     pet.dataset.shape = s.shape;
     pet.dataset.expression = s.expression || 'happy';
     pet.dataset.accessory = s.accessory || 'none';

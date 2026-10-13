@@ -40,6 +40,11 @@ function action(name){
   if(native)return JSON.parse(PetAndroid.action(name));
   return localBridge('act',name);
 }
+// Games share the existing engine and native persistence instead of editing stats.
+window.TinyFrensGameCare = {
+  canPlay: () => Engine.act(read(), 'play', Date.now()),
+  complete: () => { const state = action('play'); render(state); return state; }
+};
 function render(s){
   const stage=Number(s.stage)||0;
   $('pet').dataset.stage=String(stage);
@@ -55,7 +60,12 @@ function render(s){
   $('needsActions').hidden=needActions.length===0;
   const who=s.name||'Your fren';
   $('petName').textContent=who;
-  $('mood').textContent=s.feedback||s.mood||who+' is curious.';
+  const resting=s.activity==='resting';
+  $('mood').textContent=(s.feedback||s.mood||who+' is curious.')+(resting&&!s.feedback?' · Energy +'+Engine.RULES.restPerHour+'/hour':'');
+  $('rest').lastChild.textContent=resting?'Wake up':'Nap';
+  $('rest').firstElementChild.textContent=resting?'☀':'☾';
+  $('rest').setAttribute('aria-pressed',String(resting));
+  $('rest').title=resting?'Wake up and stop resting':'Recover '+Engine.RULES.restPerHour+' energy per hour while resting';
   $('age').textContent=`Day ${Number(s.day)||0}`;
   $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
@@ -88,7 +98,12 @@ $('editName').onclick=()=>editName(true);
 $('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
 $('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n){render(rename(n));window.dispatchEvent(new Event('pet-profile-changed'));}editName(false);};
 $('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
-window.onAndroidResume=()=>{const s=read();render(s);window.stylePet?.(s);refreshFloatingButton();};
+function refreshCare(){const s=read();render(s);window.stylePet?.(s);refreshFloatingButton();}
+window.onAndroidResume=refreshCare;
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCare();});
+const careScreen=$('screen-care');
+new MutationObserver(()=>{if(!careScreen.hidden)refreshCare();}).observe(careScreen,{attributes:true,attributeFilter:['hidden']});
+if(!desktop)setInterval(()=>{if(!document.hidden&&!careScreen.hidden)refreshCare();},10000);
 const _initS = ensureName(read());
 render(_initS);
 window.stylePet?.(_initS);

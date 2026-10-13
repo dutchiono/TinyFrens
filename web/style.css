@@ -540,3 +540,32 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .companion-movement-menu{margin:16px 0;color:#b8add3}.companion-movement-menu>summary{cursor:pointer;font-size:13px;padding:8px 0}
 
 .device-sync-panel{padding:14px 16px;margin:18px 0;border:1px solid #4a3b68;border-radius:12px;background:#211c39;color:#f7f1ff}.device-sync-panel>summary{cursor:pointer;color:#c9a5ff;font-size:14px}.device-sync-panel p{font:13px/1.6 system-ui;color:#b8add3}.device-sync-panel label{display:block;font-size:12px;margin:18px 0 6px}.sync-code-row{display:flex;align-items:center;gap:10px}.sync-code-row input{min-width:0;flex:1;padding:12px;background:#171328;color:#f7f1ff;border:1px solid #584573;border-radius:8px;font:14px system-ui}.sync-code-row output{font:600 13px monospace;letter-spacing:1px;overflow-wrap:anywhere}.device-sync-panel button{font-size:13px}.device-sync-panel dialog h2{font-size:21px}
+
+/* Mini-games */
+.games-list{display:grid;gap:12px}
+.game-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;border-bottom-width:3px;border-radius:14px;padding:14px 16px}
+.game-card:hover,.game-card:focus-visible{border-color:#a474f1}
+.game-card-emoji{font-size:34px;line-height:1}
+.game-card-text{display:grid;gap:3px;min-width:0}
+.game-card-text strong{font-size:16px}
+.game-card-text small{color:#b8add3;font-weight:500}
+.game-card-text .game-card-best{color:#cbb6ff;font-weight:700}
+.games-note{margin-top:16px}
+.game-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.game-back{min-height:40px;padding:8px 12px}
+.game-title{margin:0;font-size:18px}
+.game-stage{position:relative;width:min(100%,calc(70vh * 3 / 4));margin:0 auto}
+.game-area{position:relative;aspect-ratio:3/4;overflow:hidden;border:1px solid #4a3b68;border-radius:18px;background-color:#130f25;background-image:radial-gradient(#3c3155 1px,transparent 1px);background-size:18px 18px;touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
+.game-area:focus-visible{border-color:#a474f1}
+.game-area canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.game-fren{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.game-fren .pet{position:absolute;left:50%;bottom:0;margin-left:-70px;transform-origin:50% 100%}
+.game-fren-img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.game-ouch{animation:game-shake .3s linear}
+@keyframes game-shake{25%{translate:-6px 0}75%{translate:6px 0}}
+.game-result{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:4px;text-align:center;background:#17142acc;border-radius:18px;padding:20px}
+.game-result h3{margin:0;font-size:22px}
+.game-result-score{margin:4px 0 0;font-size:34px;font-weight:800;color:#ffe38a}
+.game-result .actions{display:flex;gap:10px;margin-top:12px}.game-result .actions button{white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.game-ouch{animation:none}}
+.game-player-picker{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px 12px;align-items:center;margin:0 0 12px}.game-player-preview{grid-row:1/3;width:64px;height:64px;object-fit:contain;image-rendering:pixelated}.game-player-picker label{font-weight:700}.game-player-picker select{width:100%;min-width:0;background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;border-radius:10px;padding:10px}.games-list{margin:16px 0}.game-card:disabled{opacity:.55}.game-fren .game-fren-img{max-width:none}

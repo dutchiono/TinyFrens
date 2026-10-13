@@ -43,6 +43,11 @@ jobs:
             node --check "$file"
           done
 
+      - name: Test mini-game rules and NFT players
+        run: |
+          node scripts/test-snack-catch.cjs
+          node scripts/test-game-players.cjs
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:

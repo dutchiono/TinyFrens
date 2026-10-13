@@ -55,6 +55,14 @@ Friends can challenge each other to a friendly "fightski fight" / spar right fro
   - Both frens square up (`battle_hop`), charge forward with a head-boop collision (`💥 BOOP!`), execute playful trait antics (lasers, flaps, pounces, hops), followed by dizzy swirl eyes (`@_@`) and a celebratory victory dance with sparkles.
 - **Friendly & Safe:** Spars are slapstick, cozy fun with zero negative penalties or pet injury. Both participants gain a Joy boost (+15 Joy) for playing together!
 
+## Mini-games
+
+More → Games opens the mini-game picker inside the app. Choose a player from your linked wallets. Only supported NFTs with verified ownership and a collection animation rig can play; there is no drawn-character fallback. Games do not change which NFTs are floating.
+
+- **Snack Catch:** drag, tap or use ←/→ (A/D) to slide your fren. Catch 🍓 (+1), 🍪 (+2) and ⭐ (+5). Catching a 🧦 costs one of three hearts; missed snacks cost nothing. Snacks fall faster over time.
+
+Best scores save on this device. A completed round lasting at least 15 active seconds with a positive score invokes the existing Play care action once, through the same engine/native bridge as the Care screen. Existing hunger, energy, sickness and activity rules apply. This affects the app’s existing care state; it does not create NFT attributes or token rewards. Each finished round fires `tinyfrens-game-finished` (game, score, best, player collection identity, duration). Leaving the screen cancels without a reward. Hiding the app pauses the clock and sprite; returning resumes. The player inventory is cached for five minutes between rounds; Refresh NFTs or wallet changes clear it. Ownership is checked before each round and expired proof stops the round.
+
 ## Appearance
 
 Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately.

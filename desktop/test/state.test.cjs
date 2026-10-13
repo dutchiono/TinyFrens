@@ -30,6 +30,29 @@ test('hourly decay and migrated robot preserve stats', () => {
   const now = Date.now(), state = decay({ hunger: 80, happiness: 80, energy: 80, last: now - 2 * 3600000, shape: 'mascot' }, now);
   assert.deepEqual([state.hunger, state.happiness, state.energy], [74, 76, 78]); assert.equal(state.shape, 'robot');
 });
+
+test('nap restores energy across repeated persisted reads and wakes when full', () => {
+  const now=1700000000000;
+  let result=JSON.parse(Engine.bridge('act',JSON.stringify({energy:60,hunger:80,happiness:80,last:now,born:now}),JSON.stringify('rest'),now));
+  assert.equal(result.view.activity,'resting');
+  for(let elapsed=10000;elapsed<=180000;elapsed+=10000){
+    result=JSON.parse(Engine.bridge('read',JSON.stringify(result.state),'',now+elapsed));
+  }
+  assert.equal(result.view.energy,61);
+  result=JSON.parse(Engine.bridge('read',JSON.stringify(result.state),'',now+2*3600000));
+  assert.equal(result.view.energy,100);
+  assert.equal(result.view.activity,'idle');
+});
+
+test('waking stops nap recovery and subsequent reads preserve the wake state', () => {
+  const now=1700000000000;
+  const asleep=Engine.act({energy:60,hunger:80,happiness:80,last:now,born:now},'rest',now,()=>1);
+  const awake=Engine.act(asleep.state,'rest',now+180000,()=>1);
+  assert.equal(awake.state.activity,'idle');
+  assert.equal(Engine.view(awake.state).energy,61);
+  const later=Engine.advance(Engine.save(awake.state),now+3600000,()=>1);
+  assert.ok(later.energy<61,'awake energy decays rather than continuing nap regeneration');
+});
 test('effect preferences persist and changing shape preserves them', () => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tinyfrens-effects-'));
   try{const file=path.join(dir,'pet.json'),store=new PetStore(file);store.customize({opacity:55,sparkles:false,screenEffects:false,fade:false,haptics:false,reduceMotion:true});store.customize({shape:'blob'});const s=new PetStore(file).read();assert.equal(s.opacity,55);assert.equal(s.reduceMotion,true);for(const k of ['sparkles','screenEffects','fade','haptics'])assert.equal(s[k],false);assert.equal(s.shape,'blob');}finally{fs.rmSync(dir,{recursive:true,force:true});}

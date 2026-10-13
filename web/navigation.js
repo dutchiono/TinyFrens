@@ -13,7 +13,7 @@
   const link = (key, href, label) => `<a href="${href}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
   host.innerHTML = `<div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">●</span></a><a class="tf-back" href="${home}"${page === 'home' ? ' hidden' : ''}>← Back</a></div>
     <nav class="tf-nav-links" aria-label="Main navigation">${link('home', home, 'Home')}${item('pet', 'My NFTs')}${link('gallery', web('gallery.html'), 'Gallery')}${link('vote', web('vote.html'), 'Vote')}
-    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('care', 'Care')}${item('party', 'Party')}${item('looks', 'Looks')}${item('settings', 'Settings')}<a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
+    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('games', 'Games')}${item('care', 'Care')}${item('party', 'Party')}${item('looks', 'Looks')}${item('settings', 'Settings')}<a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
   host.querySelector('.tf-back').addEventListener('click', event => {
     if (inApp && window.showScreen) {
       event.preventDefault(); window.showScreen('pet'); return;
