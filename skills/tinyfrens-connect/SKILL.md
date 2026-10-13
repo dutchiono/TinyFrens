@@ -7,7 +7,7 @@ description: Link a user's wallet to their waiting TinyFrens phone, desktop, or 
 
 TinyFrens API: `https://tinyfrens.miono.live`. Phone setup: `https://tinyfrens.lol/web/hood-turtles.html`.
 Public skill URL: `https://tinyfrens.lol/import/skill.md`. Users can supply this URL and their pairing code in a message to Bankr; do not send them to GitHub or ask for a separate installation conversation. Load/install the skill if needed, then continue the requested connection.
-Supported collections: Hood Turtles (`0xca28587b61eac19a87dfcfd9420870867a916675`, Robinhood Chain **4663**) and TinyFrens: Robots v1 (`0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff`, Base **8453**). Link the wallet once; the app discovers supported collections on both chains. Historical TinyFrens testnet contracts are not supported.
+This skill connects a wallet, independent of collections. Do not reject a wallet connection because an NFT collection is absent from this document. After device acceptance, TinyFrens discovers currently supported NFTs on Refresh NFTs; new collection support does not require another Bankr message or signature. Collection availability is controlled by the app and relay, not this skill. Connecting does not guarantee an NFT has an animation adapter.
 
 ## Phone pairing
 
@@ -16,7 +16,7 @@ Supported collections: Hood Turtles (`0xca28587b61eac19a87dfcfd9420870867a916675
 3. POST JSON to `/api/turtle-connect/challenge`: `{"code":"DEVICE_CODE","address":"USER_WALLET"}`. No TinyFrens API key or device credential is needed. Hyphens are accepted. On expiry, ask for a fresh code from the device.
 4. Inspect the returned `message`: it must identify TinyFrens, domain `tinyfrens.lol`, the selected wallet, pairing code, nonce, expiry and read-only device linking. Sign the **exact returned text** with `personal_sign`. Never sign a transaction or spending approval.
 5. POST `/api/turtle-connect/confirm`: `{"code":"DEVICE_CODE","challengeId":"RETURNED_ID","signature":"0x..."}`. Success verifies the wallet signature; it does not mean the device accepted or imported anything.
-6. Tell the user to return to the device, check the wallet, tap **Accept wallet link**, and choose companions from the supported NFTs found there. One turtle is added automatically when it is the only match. Users can add up to five companions separately. Android users then tap **Show pet** and grant overlay permission. Desktop imports use the installed app; browser companions stay inside TinyFrens. Native iOS App Store distribution is planned. Pair each device separately.
+6. Tell the user to return to the device, check the wallet, tap **Accept wallet link**, and choose companions from the supported NFTs found there. Users can add up to five companions separately. Android users then tap **Show pet** and grant overlay permission. Desktop imports use the installed app; browser companions stay inside TinyFrens. Native iOS App Store distribution is planned. Pair each device separately.
 
 ## Signing with Bankr
 

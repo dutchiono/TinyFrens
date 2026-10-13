@@ -18,6 +18,8 @@ ORIGIN = 'https://tinyfrens.lol'
 
 class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        extras = mock.patch('app.ExtraCompanions.discover', new=mock.AsyncMock(return_value={'nfts':[], 'partial':False}))
+        extras.start(); self.addCleanup(extras.stop)
         robot_discovery = mock.patch('app.Robots.discover', new=mock.AsyncMock(return_value={'nfts':[], 'partial':False}))
         robot_discovery.start(); self.addCleanup(robot_discovery.stop)
         self.tmp = tempfile.TemporaryDirectory()

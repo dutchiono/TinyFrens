@@ -52,7 +52,7 @@ class PetOverlayService:Service(){
  private fun bounds():Pair<Float,Float>{
   val b=if(Build.VERSION.SDK_INT>=30)wm.currentWindowMetrics.bounds else null
   return Pair(((b?.width()?:resources.displayMetrics.widthPixels)-(params?.width?:0)).coerceAtLeast(0).toFloat(),
-   ((b?.height()?:resources.displayMetrics.heightPixels)-(params?.height?:0)-dp(28)).coerceAtLeast(0).toFloat())
+   ((b?.height()?:resources.displayMetrics.heightPixels)*0.42f-(params?.height?:0)-dp(28)).coerceAtLeast(0f).toFloat())
  }
  private fun chooseWalk(){val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by;behavior="walk";nextDecision=SystemClock.elapsedRealtime()+12000}
  private fun clamp(){val(bx,by)=bounds();x=x.coerceIn(0f,bx);y=y.coerceIn(0f,by);params?.let{it.x=x.roundToInt();it.y=y.roundToInt()}}
@@ -82,6 +82,7 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
+  if(turtles.selected()&&turtles.all().isEmpty()){stopSelf();return}
   turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrameMs=turtles.all().firstOrNull()?.optJSONObject("companion")?.optLong("frameMs",160)?:160;v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
@@ -179,7 +180,8 @@ class PetOverlayService:Service(){
    g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60
    gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
    gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}
-   gv.onTap={say(g.name)}
+   gv.onTap={removeMenu();showCloseButton(g)}
+   gv.onHold={removeMenu();showCloseButton(g)}
    try{wm.addView(gv,gp);ownedPets.add(g)}catch(_:Exception){}
   }
  }
@@ -314,7 +316,7 @@ class PetOverlayService:Service(){
   battleRunnable=runner;handler.post(runner)
  }
  private fun overlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-  WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
+  WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
  private fun chatOverlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
   WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;softInputMode=WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE}
  private fun createOverlay(){
@@ -379,18 +381,21 @@ class PetOverlayService:Service(){
   p.y=(if(menuAbove)y-p.height else y+ph-dp(6)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
   try{wm.addView(panel,p);menu=panel;showCloseButton();refreshMenuTimer()}catch(_:Exception){}
  }
- private fun showCloseButton(){
+ private fun showCloseButton(target:GuestPet?=null){
   removeCloseButton()
   val button=Button(this).apply{
-   text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide pet"
+   text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide this NFT"
    setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
    background=GradientDrawable().apply{shape=GradientDrawable.OVAL;setColor(Color.rgb(65,51,87));setStroke(dp(1),Color.rgb(183,153,235))}
-   setOnClickListener{hideWithFade()}
+   setOnClickListener{
+    val id=target?.companionId?:turtles.all().firstOrNull()?.let{TurtleStore.key(it)}
+    if(id.isNullOrEmpty())hideWithFade()else{turtles.hideCompanion(id);removeMenu();removeCloseButton();lastRead=0;style()}
+   }
    setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say("Hide pet");refreshMenuTimer()};false}
   }
   val p=overlay(dp(48),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
-  p.x=(x+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
-  p.y=(y-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
+  p.x=((target?.x?:x)+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
+  p.y=((target?.y?:y)-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
   try{wm.addView(button,p);closeButton=button}catch(_:Exception){}
  }
  private fun removeCloseButton(){closeButton?.let{try{wm.removeView(it)}catch(_:Exception){}};closeButton=null}

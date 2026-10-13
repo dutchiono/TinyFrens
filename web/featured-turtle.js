@@ -39,10 +39,10 @@
     render();
   }
   function render() {
-    const active = items.filter(nft => nft.active !== false && ['hood-turtles-v1', 'tinyfrens-robots-v1'].includes(nft.companion?.adapter) && Date.now() < nft.validUntil * 1000);
-    stage.closest('.pet-card').hidden = !active.length;
+    const active = items.filter(nft => nft.active !== false && ['hood-turtles-v1', 'tinyfrens-robots-v1', 'nubs-v1', 'bots-computers-v1'].includes(nft.companion?.adapter) && Date.now() < nft.validUntil * 1000);
+    stage.closest('.pet-card').hidden = !!window.PetAndroid || !active.length;
     const floating = document.querySelector('#screen-pet .floating-controls');
-    if (floating) floating.hidden = !active.length;
+    if (floating) floating.hidden = !!window.PetAndroid || !active.length;
     pet.style.visibility = 'hidden';
     empty.hidden = active.length > 0;
     const ids = new Set(active.map(identity));

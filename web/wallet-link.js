@@ -97,6 +97,15 @@
     if (!addresses.length) matches.replaceChildren();
   }
 
+  if (window.PetAndroid) setInterval(() => {
+    if (document.hidden) return;
+    try {
+      const visible = PetAndroid.isPetVisible() ? JSON.parse(PetAndroid.getTurtle()).items || [] : [];
+      const shown = new Set(visible.map(window.TinyFrensCompanionKey));
+      for (const button of document.querySelectorAll('[data-native-companion]')) if (!button.disabled) button.textContent = shown.has(button.dataset.nativeCompanion) ? 'Hide from screen' : 'Show on screen';
+    } catch {}
+  }, 1000);
+
   async function scan() {
     if (!linkedAddresses.length) return;
     scanButton.disabled = true;
@@ -124,22 +133,29 @@
         card.append(title,detail);
         if (nft.companionSupported) {
           const link = document.createElement('button');
-          link.type = 'button'; link.textContent = 'Show companion';
+          link.type = 'button';
+          if (window.PetAndroid) link.dataset.nativeCompanion = window.TinyFrensCompanionKey(nft);
+          const androidShowing = () => { try { return window.PetAndroid?.isPetVisible() && JSON.parse(PetAndroid.getTurtle()).items?.some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft)); } catch { return false; } };
+          link.textContent = androidShowing() ? 'Hide from screen' : window.PetAndroid ? 'Show on screen' : 'Show companion';
           link.onclick = async () => {
             link.disabled = true;
             try {
+              if (androidShowing() && window.PetAndroid?.hideCompanion) { PetAndroid.hideCompanion(window.TinyFrensCompanionKey(nft)); link.textContent = 'Show on screen'; return; }
               const verified = await post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
               if (!verified.active) throw new Error('None of your linked wallets currently owns this NFT. Check the wallet address shown on its card.');
               if (!verified.companion) throw new Error('Ownership verified, but this NFT’s artwork could not be prepared for animation.');
               if (Date.now() >= verified.validUntil * 1000) throw new Error('Your ownership check expired. Refresh NFTs and try again.');
               const saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => window.TinyFrensCompanionKey(item) !== window.TinyFrensCompanionKey(verified));
-              if (saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
+              if (!window.PetAndroid && saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
               if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId, originalAddress:verified.originalAddress, chainId:verified.chainId});
               saved.push(verified);
               localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
               window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
-              window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'});
-              link.textContent = 'Showing';
+              if (window.PetAndroid) {
+                const started = PetAndroid.startPet();
+                link.textContent = started ? 'Hide from screen' : 'Show on screen';
+                scanStatus.textContent = started ? 'Showing on your screen.' : 'Allow TinyFrens to display over other apps, then tap Show on screen again.';
+              } else { window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'}); link.textContent = 'Showing'; }
             } catch (error) { scanStatus.textContent = error.message; }
             finally { link.disabled = false; }
           };

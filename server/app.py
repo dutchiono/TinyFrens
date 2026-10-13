@@ -6,6 +6,7 @@ from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
 import turtle_connect
 import robot_gallery
+from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
     from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
@@ -497,7 +498,8 @@ def create_app(database=None, origins=None):
             if not addresses:
                 raise ValueError('Link a wallet first')
             results = await asyncio.gather(turtle_connect.discover_wallets(addresses, turtle_ownership),
-                *(robots.discover(address) for address in addresses), return_exceptions=True)
+                *(robots.discover(address) for address in addresses),
+                *(extras.discover(addresses, collection) for collection in EXTRA_COLLECTIONS), return_exceptions=True)
             successes = [result for result in results if isinstance(result, dict)]
             if not successes:
                 raise RuntimeError('NFT discovery unavailable')
@@ -1553,6 +1555,7 @@ def create_app(database=None, origins=None):
 
     turtle_ownership = turtle_connect.TurtleOwnership(db)
     robots = Robots(db)
+    extras = ExtraCompanions(db)
     robot_gallery.install(app, robots)
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import collection_suggestions
@@ -1588,15 +1591,17 @@ def create_app(database=None, origins=None):
                 return web.json_response({'error': 'Link your wallet first'}, status=403)
             collection = str(body.get('originalAddress', turtle_connect.COLLECTION)).lower()
             robot = request.path == '/api/featured/companion' and collection == ROBOTS_CONTRACT
-            if collection != turtle_connect.COLLECTION and not robot:
+            extra = request.path == '/api/featured/companion' and collection in EXTRA_COLLECTIONS
+            if collection != turtle_connect.COLLECTION and not robot and not extra:
                 raise ValueError('Unsupported companion collection')
-            if int(body.get('chainId', 8453 if robot else 4663)) != (8453 if robot else 4663):
+            expected_chain = EXTRA_COLLECTIONS[collection][0] if extra else (8453 if robot else 4663)
+            if int(body.get('chainId', expected_chain)) != expected_chain:
                 raise ValueError('Wrong companion chain')
-            token_id = robot_token_id(body.get('tokenId')) if robot else turtle_connect.turtle_id(body.get('tokenId'))
+            token_id = body.get('tokenId') if extra else robot_token_id(body.get('tokenId')) if robot else turtle_connect.turtle_id(body.get('tokenId'))
             verifier = robots if robot else turtle_ownership
             data = None
             for address in addresses:
-                data = await verifier.read(address, token_id)
+                data = await extras.read(address, token_id, collection) if extra else await verifier.read(address, token_id)
                 if data['active']:
                     break
             current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}

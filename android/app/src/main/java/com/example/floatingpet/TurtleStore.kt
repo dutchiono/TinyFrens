@@ -126,18 +126,18 @@ class TurtleStore(context: Context) {
             require(ticket == generation) { "Turtle selection changed. Please retry." }
             val selected = items()
             val old = selected.firstOrNull { key(it) == key(result) }
-            require(old != null || selected.size < 5) { "Show up to five companions. Remove one first." }
+            require(old != null || selected.count { !it.optBoolean("hidden", false) } < 5) { "Show up to five companions. Remove one first." }
             result.put("motion", old?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
             save(if (old == null) selected + result else selected.map { if (it === old) result else it })
         }
         return result
     }
-    fun all(): List<JSONObject> = synchronized(lock) { items().filter { valid(it) } }
+    fun all(): List<JSONObject> = synchronized(lock) { items().filter { valid(it) && !it.optBoolean("hidden", false) } }
     fun frames(data: JSONObject): List<Bitmap> = synchronized(lock) {
         val art = data.optJSONObject("companion") ?: return@synchronized emptyList()
-        if (art.optString("adapter") !in setOf("hood-turtles-v1", "tinyfrens-robots-v1")) return@synchronized emptyList()
+        if (art.optString("adapter") !in setOf("hood-turtles-v1", "tinyfrens-robots-v1", "nubs-v1", "bots-computers-v1")) return@synchronized emptyList()
         val images = art.optJSONArray("frames") ?: return@synchronized emptyList()
-        if (images.length() != if (art.optString("adapter") == "tinyfrens-robots-v1") 8 else 4) return@synchronized emptyList()
+        if (images.length() != when (art.optString("adapter")) { "tinyfrens-robots-v1" -> 8; "bots-computers-v1" -> 6; else -> 4 }) return@synchronized emptyList()
         val key = images.toString()
         framesCache.getOrPut(key) {
             try { (0 until images.length()).map { decode(images.getString(it)) } }
@@ -150,6 +150,10 @@ class TurtleStore(context: Context) {
         JSONObject(first.toString()).put("items", JSONArray(active)).put("selected", selected()).toString()
     }
     fun selected() = synchronized(lock) { items().isNotEmpty() }
+    fun hideCompanion(companionId: String) = synchronized(lock) {
+        generation++
+        save(items().map { if (key(it) == companionId) JSONObject(it.toString()).put("hidden", true) else it })
+    }
     fun bitmap(): Bitmap? = all().firstOrNull()?.let { frames(it).firstOrNull() }
     fun clear() = synchronized(lock) {
         generation++
@@ -175,7 +179,7 @@ class TurtleStore(context: Context) {
                             val current = items()
                             val existing = current.firstOrNull { key(it) == key(old) }
                             if (valid(result)) {
-                                result.put("token", old.optString("token")).put("motion", existing?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
+                                result.put("hidden", existing?.optBoolean("hidden", false) ?: false).put("token", old.optString("token")).put("motion", existing?.optJSONObject("motion") ?: JSONObject().put("mode", "roam").put("speed", 60))
                                 save(current.map { if (it === existing) result else it })
                             } else save(current.filter { it !== existing })
                         }

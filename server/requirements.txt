@@ -7,3 +7,5 @@ pywebpush==2.5.0
 # eth-account 0.8.0 -> eth-keyfile imports pkg_resources; ship setuptools so the import
 # works in a bare env (CI runners and the runtime image otherwise omit it).
 setuptools<81
+
+Pillow==11.3.0
