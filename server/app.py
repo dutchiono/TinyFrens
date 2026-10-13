@@ -7,6 +7,7 @@ import economy as economy_ledger
 import turtle_connect
 import robot_gallery
 import robot_care
+import github_app
 import admin as admin_surface
 from telegram_media import companion_gif
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
@@ -1399,10 +1400,11 @@ def create_app(database=None, origins=None):
             limit(('tg-issue',str(chat_id)),5,3600)
             api_key=os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
             if not api_key: return await say('I have no AI key set, so I can\'t summarise the chat yet. (Set GEMINI_API_KEY.)')
-            gh_token=os.environ.get('GITHUB_TOKEN')
             repo=os.environ.get('GITHUB_REPO')
-            if not gh_token or not repo: return await say('Issue filing isn\'t set up yet — the server needs GITHUB_TOKEN and GITHUB_REPO.')
+            if not repo: return await say('Issue filing isn\'t set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.')
             owner,name=gh.parse_repo(repo)
+            gh_token=await github_app.token(owner,name)
+            if not gh_token: return await say('Issue filing isn\'t set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.')
             messages=list(tg_history.get(str(chat_id),()))
             lines=gh.transcript(messages,tg_history_size)
             if not lines:

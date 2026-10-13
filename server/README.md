@@ -67,13 +67,25 @@ Say **"open an issue"**, **`/issue`**, or **"file a bug report"** in a Telegram 
 includes the bot, and it summarises the recent conversation into a real GitHub issue, then
 replies with the link.
 
-Required: a token with Issues write access for `GITHUB_REPO=owner/name` (`GITHUB_TOKEN`),
-plus an AI key (`GEMINI_API_KEY` or `GOOGLE_API_KEY`) to draft it. Optional
+Required: GitHub App or token credentials with Issues write access for
+`GITHUB_REPO=owner/name`, plus an AI key (`GEMINI_API_KEY` or `GOOGLE_API_KEY`) to draft it. Optional
 `GITHUB_ISSUE_LABELS` (comma-separated, added to every issue) and `TELEGRAM_ISSUE_HISTORY`
 (1–200, default 25).
 
-A GitHub App installation (e.g. TinyFrensAdmin) works once installed on the repo with
-**Issues: read and write**; installation auth replaces the static token when it lands.
+A GitHub App installation (e.g. TinyFrensAdmin) is preferred over a personal token.
+Install it on TinyFrens with **Issues: read and write**, set `GITHUB_REPO`,
+`GITHUB_APP_ID` (the Client ID is also accepted) and `GITHUB_APP_PRIVATE_KEY_PATH`,
+and keep the PEM in an ignored `.secrets/` directory with owner-only permissions.
+`GITHUB_APP_INSTALLATION_ID` is optional; the server otherwise discovers it for
+the configured repository. The server signs short-lived RS256 JWTs, requests an
+installation token limited to that repository's issues, caches it in memory and
+renews it before expiration. Partial App configuration fails closed; it does not
+silently fall back to a personal token. `GITHUB_TOKEN` still works when no App is
+configured. No OAuth client secret is needed for installation authentication.
+
+Configure the App's webhook as `https://tinyfrens.miono.live/api/github/webhook`
+with the same `GITHUB_WEBHOOK_SECRET` as the relay. Subscribe to Issues and Issue
+comment events to send updates back to originating Telegram chats.
 
 Only labels that **already exist** in the repository are applied: the bot lists the repo's
 labels and drops any requested name that isn't there, because GitHub returns 422 Validation
