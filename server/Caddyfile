@@ -1,3 +1,9 @@
 {$PET_DOMAIN} {
     reverse_proxy relay:8080
 }
+
+# Optional, non-public admin host (see README "Admin"). Set ADMIN_DOMAIN to a hostname that
+# points here and uncomment the block to serve the token-protected admin page on its own domain.
+# {$ADMIN_DOMAIN} {
+#     reverse_proxy relay:8080
+# }

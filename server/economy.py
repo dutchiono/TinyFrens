@@ -66,6 +66,21 @@ CREATE TABLE IF NOT EXISTS credit_ledger(
     ref_id TEXT,
     created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS credit_ledger_pet ON credit_ledger(pet_id, id);
+CREATE TABLE IF NOT EXISTS treasury_transfers(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chain_id INTEGER NOT NULL,
+    tx_hash TEXT NOT NULL,
+    log_index INTEGER NOT NULL,
+    sender TEXT NOT NULL,
+    token TEXT,
+    amount TEXT NOT NULL,
+    pet_id TEXT,
+    credits INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    UNIQUE(chain_id, tx_hash, log_index));
+CREATE INDEX IF NOT EXISTS treasury_transfers_sender ON treasury_transfers(sender);
+CREATE INDEX IF NOT EXISTS treasury_transfers_pet ON treasury_transfers(pet_id, id);
 """
 
 
@@ -122,15 +137,16 @@ def wei_from_frens(frens):
 
 
 class Economy:
-    def __init__(self, db, now=time.time):
+    def __init__(self, db, now=time.time, credits_per_frens=CREDITS_PER_FRENS):
         self.db = db
         self.now = now
+        self.credits_per_frens = max(1, int(credits_per_frens))
         self.db.executescript(SCHEMA)
 
     # -- packages ---------------------------------------------------------
     def packages(self):
         return [
-            {"frens": f, "amountWei": str(wei_from_frens(f)), "credits": f * CREDITS_PER_FRENS}
+            {"frens": f, "amountWei": str(wei_from_frens(f)), "credits": f * self.credits_per_frens}
             for f in PACKAGES
         ]
 
@@ -154,7 +170,7 @@ class Economy:
                 address,
                 token,
                 str(wei_from_frens(frens)),
-                frens * CREDITS_PER_FRENS,
+                frens * self.credits_per_frens,
                 "open",
                 chain_id,
                 None,
@@ -259,6 +275,51 @@ class Economy:
         )
         self.db.commit()
         return {"status": "confirmed", "sessionId": session_id, "credits": sess["credits"]}
+
+    # -- treasury transfers ----------------------------------------------
+    def treasury_transfer(self, chain_id, tx_hash, log_index):
+        return self.db.execute(
+            "SELECT id,status FROM treasury_transfers WHERE chain_id=? AND tx_hash=? AND log_index=?",
+            (int(chain_id), str(tx_hash).lower(), int(log_index)),
+        ).fetchone()
+
+    def credit_transfer(self, tx_hash, amount_wei, chain_id, log_index, sender, pet_id=None,
+                        token=None, max_credits=None):
+        """Idempotently credit FRENS sent directly to the treasury (ERC-20 Transfer).
+
+        `pet_id` is the resolved owner of the sending wallet; pass None when the
+        sender maps to zero or several pets. Anything we cannot attribute with
+        confidence — unresolved sender, over `max_credits`, or below a whole credit —
+        is recorded for manual reconciliation but grants nothing (fail closed).
+        """
+        ts = self.now()
+        if self.treasury_transfer(chain_id, tx_hash, log_index):
+            return {"status": "duplicate", "credits": 0, "petId": None}
+        credits = credits_from_wei(int(amount_wei), self.credits_per_frens)
+        if pet_id is None:
+            status, granted = "unmatched", 0
+        elif credits <= 0:
+            status, granted = "dust", 0
+        elif max_credits is not None and credits > int(max_credits):
+            status, granted = "over_cap", 0
+        else:
+            status, granted = "credited", credits
+        try:
+            self.db.execute(
+                "INSERT INTO treasury_transfers"
+                "(chain_id,tx_hash,log_index,sender,token,amount,pet_id,credits,status,created) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (int(chain_id), str(tx_hash).lower(), int(log_index), str(sender).lower(),
+                 str(token).lower() if token else None, str(int(amount_wei)), pet_id, granted,
+                 status, ts),
+            )
+        except sqlite3.IntegrityError:
+            self.db.rollback()
+            return {"status": "duplicate", "credits": 0, "petId": None}
+        if granted:
+            self._grant(pet_id, granted, reason="treasury", ref_type="tx", ref_id=str(tx_hash).lower())
+        self.db.commit()
+        return {"status": status, "credits": granted, "petId": pet_id}
 
     # -- ledger -----------------------------------------------------------
     def balance(self, pet_id):

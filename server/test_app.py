@@ -842,5 +842,47 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sdata['traits']['expression'], 'laser')
         self.assertEqual(sdata['traits']['accessory'], 'crown')
 
-if __name__=='__main__': unittest.main()
+class TreasurySettingsTests(unittest.TestCase):
+    """`treasury_settings()` must fail closed: no address, or no explicit opt-in."""
 
+    def setUp(self):
+        from app import treasury_settings
+        self.treasury_settings = treasury_settings
+        self.clean = mock.patch.dict(os.environ, {}, clear=False)
+        self.clean.start()
+        for key in ('FRENS_TREASURY', 'FRENS_TREASURY_INDEXER', 'FRENS_TREASURY_TOKEN',
+                    'FRENS_TREASURY_CHAIN_ID', 'FRENS_TREASURY_MAX_CREDITS', 'FRENS_TOKEN'):
+            os.environ.pop(key, None)
+
+    def tearDown(self):
+        self.clean.stop()
+
+    def test_off_without_address(self):
+        cfg = self.treasury_settings()
+        self.assertEqual(cfg['address'], '')
+        self.assertFalse(cfg['enabled'])
+        self.assertIsNone(cfg['maxCreditsPerTransfer'])
+
+    def test_off_without_explicit_opt_in(self):
+        with mock.patch.dict(os.environ, {'FRENS_TREASURY': '0x' + 'ab' * 20}):
+            self.assertFalse(self.treasury_settings()['enabled'])
+
+    def test_enabled_and_cap_when_configured(self):
+        with mock.patch.dict(os.environ, {
+            'FRENS_TREASURY': '0x' + 'ab' * 20,
+            'FRENS_TREASURY_INDEXER': 'true',
+            'FRENS_TREASURY_CHAIN_ID': '8453',
+            'FRENS_TREASURY_MAX_CREDITS': '50000',
+        }):
+            cfg = self.treasury_settings()
+        self.assertTrue(cfg['enabled'])
+        self.assertEqual(cfg['address'], '0x' + 'ab' * 20)
+        self.assertEqual(cfg['chainId'], 8453)
+        self.assertEqual(cfg['maxCreditsPerTransfer'], 50000)
+
+    def test_defaults_to_base_mainnet(self):
+        with mock.patch.dict(os.environ, {'FRENS_TREASURY': '0x' + 'ab' * 20}):
+            self.assertEqual(self.treasury_settings()['chainId'], 8453)
+
+
+if __name__=='__main__': unittest.main()
