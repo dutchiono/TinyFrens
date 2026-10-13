@@ -61,6 +61,77 @@ Discord uses `POST /api/discord/token` and
 `POST /api/discord/interactions` (Ed25519 PING). Discord verification needs `pip install
 PyNaCl`. All platform wiring is behind env flags and the app works without them.
 
+### "Open an issue" (Telegram → GitHub)
+
+Say **"open an issue"**, **`/issue`**, or **"file a bug report"** in a Telegram chat that
+includes the bot, and it summarises the recent conversation into a real GitHub issue, then
+replies with the link.
+
+Required: a token with Issues write access for `GITHUB_REPO=owner/name` (`GITHUB_TOKEN`),
+plus an AI key (`GEMINI_API_KEY` or `GOOGLE_API_KEY`) to draft it. Optional
+`GITHUB_ISSUE_LABELS` (comma-separated, added to every issue) and `TELEGRAM_ISSUE_HISTORY`
+(1–200, default 25).
+
+A GitHub App installation (e.g. TinyFrensAdmin) works once installed on the repo with
+**Issues: read and write**; installation auth replaces the static token when it lands.
+
+Only labels that **already exist** in the repository are applied: the bot lists the repo's
+labels and drops any requested name that isn't there, because GitHub returns 422 Validation
+Failed for an unknown label and would fail the whole issue. Model-suggested labels are
+therefore filtered against the real list, so `GITHUB_ISSUE_LABELS` should only name labels
+you have actually created. If the label list can't be fetched, the issue is still filed
+without labels.
+
+The bot replies in chat for every failure mode (missing config, model refusal, GitHub error)
+and rate-limits to 5 requests per chat per hour.
+
+**History limitation:** the Telegram Bot API cannot read a chat's past messages — a bot only
+receives messages that arrive after its webhook is registered. "The last 25 messages" are
+therefore the 25 most recent non-command messages the relay has buffered in memory for that
+chat since it started. Same single-process, in-memory model as rooms and presence: it does
+not survive a restart and does not span multiple instances. Each chat has its own buffer.
+Commands, `/start`, bot posts and non-text messages are never included in the transcript.
+
+The model is instructed to use only facts from the transcript, attribute points to whoever
+said them, and never include private keys, seed phrases, wallet addresses or tokens. Its
+reply is parsed strictly (`TITLE:` / `LABELS:` / `---` / body) so a chatty response cannot
+produce a malformed issue, and every issue carries a footer naming the chat it came from.
+
+### Inbound webhook (GitHub → chat)
+
+Set `GITHUB_WEBHOOK_SECRET` to enable `POST /api/github/webhook`. Each delivery is verified
+against `X-Hub-Signature-256` (HMAC-SHA256 over the **raw** body, constant-time compare) and
+rejected with 401 if it does not match — the endpoint is public, so this check is the only
+thing standing between GitHub and your chat, and it fails closed. Only SHA-256 is accepted;
+the legacy SHA-1 `X-Hub-Signature` header is ignored.
+
+Verified deliveries are relayed back to the Telegram chat that filed the issue: new
+comments, and `closed` / `reopened`. Other actions (`opened`, `edited`, label changes) are
+ignored, as are issues the bot did not file. Comment text is truncated to 300 characters so
+a large comment cannot flood the chat.
+
+The relay remembers which chat filed which issue **in memory**, so the mapping is lost on
+restart — comments arriving after a restart are silently dropped rather than misdelivered.
+GitHub retries failed deliveries for a while, but this endpoint always answers 200 once the
+signature verifies, so it will not retry.
+
+### Published URLs
+
+**TinyFrens on miono** is behind **nginx** (`/etc/nginx/sites-available/tinyfrens.miono.live`),
+which proxies `location /` → `http://127.0.0.1:8790` with **no path rewriting** — the request
+path reaches the relay unchanged. So the real endpoints are:
+
+| Purpose | URL |
+|---|---|
+| GitHub App webhook | `https://tinyfrens.miono.live/api/github/webhook` |
+| Telegram webhook | `https://tinyfrens.miono.live/api/telegram/webhook` |
+| Telegram Mini App auth | `https://tinyfrens.miono.live/api/telegram/auth` |
+
+Note the host is **`tinyfrens.miono.live`**, not `miono.live`. The `miono.live` site is a
+static SPA with `try_files $uri $uri/ /index.html`, so `https://miono.live/api/tinyfrens/...`
+does not reach the relay at all — it falls through to `index.html` (200 on GET, 405 on POST).
+
+
 ## FRENS economy (testnet first)
 
 Production FRENS on Base: `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` (see `contracts/config/economy.json`). Integration uses **Base Sepolia** and `TestFRENS` until deposits and jackpots are verified; see `contracts/testnet/README.md`.

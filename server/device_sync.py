@@ -122,6 +122,16 @@ def install(app, db, token_pet, limit):
         addresses = list(dict.fromkeys(a for device in members for a in linked_wallets(db, device)))
         if len(members) > 20 or len({a.lower() for a in addresses}) > 10:
             raise ValueError('Sync supports up to 20 devices and 10 wallets')
+        # Keep each wallet's original link time across the whole group. Copying with a
+        # fresh per-device timestamp made synced devices disagree on wallet order
+        # whenever the copy crossed a second boundary (linked_wallets orders by created).
+        linked_at = {}
+        for device in members:
+            for address, created in db.execute('SELECT address,created FROM wallet_links WHERE pet_id=?', (device,)):
+                key = address.lower()
+                if key not in linked_at or created < linked_at[key]:
+                    linked_at[key] = created
+        fallback = int(time.time())
         with db:
             from account_profile import merge_accounts
             merge_accounts(db, source, target)
@@ -129,7 +139,8 @@ def install(app, db, token_pet, limit):
             db.execute('DELETE FROM device_sync_accounts WHERE account=?', (target,))
             for device in members:
                 for address in addresses:
-                    db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (device, address, int(time.time())))
+                    db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)',
+                               (device, address, linked_at.get(address.lower(), fallback)))
                 # A request created before account merging must not add another wallet later.
                 db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (device,))
                 db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (device,))
