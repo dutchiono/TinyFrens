@@ -508,7 +508,8 @@ def attach(app, db, *, token_pet, limit, settings, allocator=None, indexer_secre
         try:
             body = await request.json()
             pid = _pet(body)
-            return web.json_response({"balance": economy.balance(pid), "history": economy.history(pid, 20)})
+            return web.json_response({"balance": economy.balance(pid), "creditsPerFrens": economy.credits_per_frens,
+                                      "history": economy.history(pid, 20)}, headers={'Cache-Control': 'no-store'})
         except (ValueError, KeyError, json.JSONDecodeError) as exc:
             return web.json_response({"error": str(exc)}, status=400)
 

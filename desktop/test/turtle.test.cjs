@@ -6,6 +6,21 @@ const os = require('node:os');
 const path = require('node:path');
 const {TurtleStore, SERVER} = require('../turtle.cjs');
 
+test('account profile and FRENS balance use the trusted relay bridge', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-account-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  const store = new TurtleStore(path.join(dir, 'pets.json'), async (url, options) => {
+    assert.equal(JSON.parse(options.body).token, 'device');
+    assert.equal(options.redirect, 'error');
+    return {ok:true, text:async () => JSON.stringify({path:new URL(url).pathname})};
+  });
+  for (const route of ['/api/account/profile', '/api/credits/balance']) {
+    assert.equal((await store.request(SERVER, route, {token:'device'})).path, route);
+    await assert.rejects(store.request('https://other.test', route, {token:'device'}), /Unsupported/);
+  }
+  await assert.rejects(store.request(SERVER, '/api/not-allowed', {token:'device'}), /Unsupported/);
+});
+
 test('same token number in Robots and Hood Turtles keeps separate imports, motion and removal', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-collections-'));
   t.after(() => fs.rmSync(dir, {recursive:true, force:true}));

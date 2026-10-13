@@ -27,13 +27,6 @@ def clean_name(value):
     return value
 
 
-def clean_handle(value):
-    value = str(value or '').strip().lstrip('@')
-    if value and not re.fullmatch(r'[A-Za-z0-9_]{1,30}', value):
-        raise ValueError('Enter an X handle using letters, numbers, or underscores')
-    return value
-
-
 def telegram_identity(db, pid, user):
     install_schema(db)
     account = ensure_account(db, pid)
@@ -71,15 +64,10 @@ def read(db, pid):
     identities = [dict(platform=r[0], handle=r[1], displayName=r[2], verified=bool(r[3]))
                   for r in db.execute('SELECT platform,handle,display_name,verified FROM account_identities '
                                       'WHERE account=? ORDER BY platform,updated', (account,))]
-    x_handle = row[1] if row else ''
-    source = 'profile' if x_handle else None
-    if not x_handle:
-        from turtle_connect import linked_wallets
-        for wallet in linked_wallets(db, pid):
-            social = db.execute('SELECT x_handle,source FROM wallet_social_profiles WHERE address=? COLLATE NOCASE', (wallet,)).fetchone()
-            if social:
-                x_handle, source = social
-                break
+    # Legacy profile values and wallet assertions do not prove X ownership.
+    x_identity = next((item for item in identities if item['platform'] == 'x' and item['verified']), None)
+    x_handle = x_identity['handle'] if x_identity else ''
+    source = 'verified-identity' if x_identity else None
     return {'displayName': row[0] if row else '', 'xHandle': x_handle,
             'xHandleSource': source, 'identities': identities}
 
@@ -92,13 +80,14 @@ def install(app, db, token_pet, limit):
             body = await request.json()
             pid = token_pet(body.get('token'))
             limit(('account-profile', pid), 30, 60)
-            if request.method == 'POST' and ('displayName' in body or 'xHandle' in body):
+            if 'xHandle' in body:
+                raise ValueError('X handles require verified X ownership and cannot be edited manually')
+            if 'displayName' in body:
                 current = read(db, pid)
                 display = clean_name(body.get('displayName', current['displayName']))
-                x_handle = clean_handle(body.get('xHandle', current['xHandle']))
                 with db:
                     db.execute('INSERT OR REPLACE INTO account_profiles VALUES(?,?,?,?)',
-                               (ensure_account(db, pid), display, x_handle, int(time.time())))
+                               (ensure_account(db, pid), display, '', int(time.time())))
             return web.json_response(read(db, pid), headers={'Cache-Control': 'no-store'})
         except (ValueError, TypeError, KeyError) as exc:
             return web.json_response({'error': str(exc)}, status=400, headers={'Cache-Control': 'no-store'})

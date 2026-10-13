@@ -556,11 +556,39 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(accepted.status, 200)
         auth = await (await self.client.post('/api/telegram/auth', json={'initData': self._init(77, 'Tess', 'tess_nft')})).json()
         profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN},
-            json={'token': auth['token'], 'displayName': 'Tess and the bots', 'xHandle': '@tess_on_x'})).json()
+            json={'token': auth['token'], 'displayName': 'Tess and the bots'})).json()
         self.assertEqual(profile['displayName'], 'Tess and the bots')
-        self.assertEqual(profile['xHandle'], 'tess_on_x')
+        self.assertEqual(profile['xHandle'], '')
         self.assertEqual(profile['identities'][0]['handle'], 'tess_nft')
         self.assertTrue(profile['identities'][0]['verified'])
+
+    async def test_account_x_handle_requires_verified_identity(self):
+        auth = await self.register('Tess')
+        body = {'token': auth['token']}
+        response = await self.client.post('/api/account/profile', headers={'Origin': ORIGIN},
+            json={**body, 'displayName': 'Spoof', 'xHandle': '@someone_else'})
+        self.assertEqual(response.status, 400)
+        self.assertIn('verified X ownership', (await response.json())['error'])
+        from device_sync import ensure_account
+        database = sqlite3.connect(self.db)
+        with database:
+            account = ensure_account(database, auth['id'])
+            database.execute('INSERT INTO account_profiles VALUES(?,?,?,?)', (account, 'Tess', 'legacy_claim', 1))
+            database.execute('INSERT INTO wallet_links VALUES(?,?,?)', (auth['id'], '0x' + '11' * 20, 1))
+            database.execute('INSERT INTO wallet_social_profiles VALUES(?,?,?,?)', ('0x' + '11' * 20, 'wallet_claim', 'wallet-signed', 1))
+            database.execute('INSERT INTO account_identities VALUES(?,?,?,?,?,?,?)', (account, 'x', '123', 'unverified_claim', 'X user', 0, 1))
+        profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN}, json=body)).json()
+        self.assertEqual(profile['displayName'], 'Tess')
+        self.assertEqual(profile['xHandle'], '')
+        self.assertIsNone(profile['xHandleSource'])
+        with database:
+            database.execute('UPDATE account_identities SET verified=1,handle=? WHERE platform=?', ('verified_tess', 'x'))
+        database.close()
+        profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN},
+            json={**body, 'displayName': 'New Tess'})).json()
+        self.assertEqual(profile['xHandle'], 'verified_tess')
+        self.assertEqual(profile['xHandleSource'], 'verified-identity')
+        self.assertEqual(profile['displayName'], 'New Tess')
 
     async def test_telegram_show_requires_a_selected_verified_nft(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token
