@@ -213,7 +213,6 @@ class MainActivity : Activity() {
             }.start()
         }
         @JavascriptInterface fun hideCompanion(identity: String) { TurtleStore(this@MainActivity).hideCompanion(identity); runOnUiThread { sendService("refresh") } }
-        @JavascriptInterface fun hideCompanion(identity: String) { TurtleStore(this@MainActivity).hideCompanion(identity); runOnUiThread { sendService("refresh") } }
         @JavascriptInterface fun isPetVisible(): Boolean = PetOverlayService.running
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)
