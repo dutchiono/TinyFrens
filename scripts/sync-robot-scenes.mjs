@@ -15,7 +15,8 @@ ${ROBOT_SCENES.map((layers, i) => `        ${i === 5 ? "return" : `if (habitat =
     }
 
 `;
-const source = fs.readFileSync(path, "utf8");
+// Git may check out CRLF on Windows; compare the generated data using LF.
+const source = fs.readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 const updated = source.replace(/    (?:\/\/ Generated[^\n]*\n    )?function _habitat\([\s\S]*?(?=    function _accessory)/, generated);
 if (updated === source && !source.includes(generated)) throw new Error("Habitat function not found");
 if (process.argv.includes("--check")) {
