@@ -171,7 +171,7 @@
                 const started = PetAndroid.startPet();
                 link.checked = started;
                 scanStatus.textContent = started ? 'Showing on your screen.' : 'Allow TinyFrens to display over other apps, then tap Show on screen again.';
-              } else { window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'}); link.checked = true; }
+              } else { if (window.TinyFrensDesktop && !TinyFrensDesktop.isPetVisible()) TinyFrensDesktop.togglePet(); window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'}); link.checked = true; }
             } catch (error) { scanStatus.textContent = error.message; }
             finally { link.disabled = false; link.checked = isShowing(); }
           };

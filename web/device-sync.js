@@ -59,7 +59,7 @@
       for (const nft of verified) motions[key(nft)] = nft.motion;
       localStorage.setItem(motionStorage, JSON.stringify(motions));
       if (window.PetAndroid) { if (verified.length) PetAndroid.startPet(); else PetAndroid.stopPet(); }
-      if (window.TinyFrensDesktop && verified.length && !TinyFrensDesktop.isPetVisible()) TinyFrensDesktop.togglePet();
+      if (window.TinyFrensDesktop) { if (verified.length && !TinyFrensDesktop.isPetVisible()) TinyFrensDesktop.togglePet(); else if (!verified.length) TinyFrensDesktop.hidePet(); }
       window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
       baseline = signature(localSelection()); revision = data.revision;
     } finally { applying = false; }
@@ -82,6 +82,10 @@
       const wallets = JSON.stringify(data.addresses);
       if (accountWallets !== wallets) { accountWallets = wallets; window.dispatchEvent(new Event('tinyfrens-account-synced')); }
       $('leaveSync').hidden = data.devices < 2;
+      if (pending?.joining) {
+        try { await post('status', {code:pending.code}); }
+        catch (error) { if (error.message.includes('Code expired or not found')) { pending = null; $('syncStatus').textContent = 'Sync request expired or was cancelled. Create a new code and try again.'; } }
+      }
       if (!pending) $('syncStatus').textContent = data.devices > 1 ? `Synced across ${data.devices} devices.` : 'This device is not synced yet.';
       if (code && Date.now() >= code.expires * 1000) { code = null; saveCode(); $('syncCode').textContent = 'Code expired'; }
       if (code) {
@@ -111,7 +115,7 @@
       const value = $('enterSyncCode').value.replace(/[-\s]/g, '').toUpperCase();
       if (!/^[A-HJ-NP-Z2-9]{12}$/.test(value)) throw Error('Enter the 12-character code from your other device.');
       const label = window.PetAndroid ? 'Your Android app' : window.TinyFrensDesktop ? 'Your desktop app' : window.PetIOS ? 'Your iPhone app' : 'Your browser';
-      await post('request', {code:value, label}); pending = {joining:true};
+      await post('request', {code:value, label}); pending = {joining:true, code:value};
       $('syncStatus').textContent = 'Approve the sync on the device that generated the code.';
     } catch (error) { $('syncStatus').textContent = error.message; }
     finally { button.disabled = false; }
