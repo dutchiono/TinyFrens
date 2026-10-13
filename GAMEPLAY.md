@@ -57,11 +57,11 @@ Friends can challenge each other to a friendly "fightski fight" / spar right fro
 
 ## Mini-games
 
-More → Games opens the mini-game picker inside the app. Games use your fren as the player: your imported NFT companion when one is active, otherwise your drawn fren.
+More → Games opens the mini-game picker inside the app. Choose a player from your linked wallets. Only supported NFTs with verified ownership and a collection animation rig can play; there is no drawn-character fallback. Games do not change which NFTs are floating.
 
 - **Snack Catch:** drag, tap or use ←/→ (A/D) to slide your fren. Catch 🍓 (+1), 🍪 (+2) and ⭐ (+5). Catching a 🧦 costs one of three hearts; missed snacks cost nothing. Snacks fall faster over time.
 
-Best scores save on this device. Mini-games do not change care stats yet. Each finished round fires a `tinyfrens-game-finished` event (game, score, best) for future reward wiring.
+Best scores save on this device. A completed round lasting at least 15 active seconds with a positive score invokes the existing Play care action once, through the same engine/native bridge as the Care screen. Existing hunger, energy, sickness and activity rules apply. This affects the app’s existing care state; it does not create NFT attributes or token rewards. Each finished round fires `tinyfrens-game-finished` (game, score, best, player collection identity, duration). Leaving the screen cancels without a reward. Hiding the app pauses the clock and sprite; returning resumes. Ownership is checked before each round and expired proof stops the round.
 
 ## Appearance
 

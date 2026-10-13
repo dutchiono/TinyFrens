@@ -40,6 +40,11 @@ function action(name){
   if(native)return JSON.parse(PetAndroid.action(name));
   return localBridge('act',name);
 }
+// Games share the existing engine and native persistence instead of editing stats.
+window.TinyFrensGameCare = {
+  canPlay: () => Engine.act(read(), 'play', Date.now()),
+  complete: () => { const state = action('play'); render(state); return state; }
+};
 function render(s){
   const stage=Number(s.stage)||0;
   $('pet').dataset.stage=String(stage);

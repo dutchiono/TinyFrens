@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), vm = require('node:vm');
+const root = require('node:path').join(__dirname, '../web');
+const context = {window:{TINYFRENS_SERVER:'https://relay.test',TinyFrensFriends:{identity:()=>({token:'device'})}}, localStorage:{getItem:()=>null}, Date, Set, Map, Error, matchMedia:()=>({matches:false}), document:{createElement:()=>({style:{},getAttribute(){return this.src;}})}};
+context.window.window = context.window; vm.createContext(context);
+for (const name of ['companion-identity.js','nft-discovery.js','game-players.js']) vm.runInContext(fs.readFileSync(root+'/'+name,'utf8'),context);
+const api = context.window.TinyFrensGamePlayers;
+const image = 'data:image/png;base64,AAAA', other = 'data:image/png;base64,BBBB';
+const nft = {tokenId:1,originalAddress:'0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff',chainId:8453,active:true,validUntil:Date.now()/1000+60,name:'Robot #1',companion:{adapter:'tinyfrens-robots-v1',frames:[image,other],idle:image,frameMs:100}};
+(async()=>{
+ assert.equal(api.animated(nft),true);
+ assert.equal(api.animated({...nft,active:false}),false);
+ assert.equal(api.animated({...nft,validUntil:0}),false);
+ assert.equal(api.animated({...nft,originalAddress:'0x1111111111111111111111111111111111111111'}),false);
+ assert.equal(api.animated({...nft,companion:{...nft.companion,adapter:'drawn-pet'}}),false);
+ assert.throws(()=>api.sprite({...nft,active:false}),/verified/);
+ const sprite=api.sprite(nft); sprite.update(150,true,-1); assert.equal(sprite.element.src,other); assert.equal(sprite.element.style.transform,'scaleX(-1)'); sprite.update(200,false,1); assert.equal(sprite.element.src,image);
+ context.matchMedia=()=>({matches:true}); const reduced=api.sprite(nft); reduced.update(150,true,1); assert.equal(reduced.element.src,image);
+ context.window.TinyFrensTurtleAPI=async()=>({...nft,tokenId:2}); await assert.rejects(api.prepare(nft),/verified ownership/);
+ context.window.TinyFrensTurtleAPI=async()=>nft; assert.equal((await api.prepare(nft)).tokenId,1);
+ context.window.TinyFrensTurtleAPI=async()=>({nfts:[nft,nft,{...nft,originalAddress:'invalid'}]}); assert.equal((await api.list()).items.length,1);
+ nft.validUntil=0; assert.throws(()=>sprite.update(200,true,1),/expired/);
+ console.log('NFT game player tests passed: ownership, supported collections, identity, expiry, animation, reduced motion and deduplication.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

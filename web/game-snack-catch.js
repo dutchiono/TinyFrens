@@ -94,7 +94,7 @@
 
   var EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
-  // Browser only. api: { makeFren() -> element, onEnd({ score }) }.
+  // Browser only. The hub supplies a verified animated NFT and the care bridge.
   function mount(host, api) {
     var area = document.createElement('div');
     area.className = 'game-area';
@@ -112,7 +112,7 @@
     var state = create();
     var scale = 1, raf = 0, last = 0, paused = false;
     var pointerX = null, keys = { left: false, right: false };
-    var popups = [], hintFor = 2.5, eatTimer = 0;
+    var popups = [], hintFor = 2.5, eatTimer = 0, direction = 1;
 
     function resize() {
       var rect = area.getBoundingClientRect();
@@ -148,6 +148,7 @@
     var keyDown = onKey(true), keyUp = onKey(false);
     area.addEventListener('keydown', keyDown);
     area.addEventListener('keyup', keyUp);
+    area.addEventListener('blur', function () { keys.left = keys.right = false; pointerX = null; });
 
     function input() {
       if (pointerX !== null) return { targetX: pointerX };
@@ -209,13 +210,18 @@
       if (paused) return;
       var dt = last ? (now - last) / 1000 : 0;
       last = now;
+      var previousX = state.fren.x;
       var events = step(state, dt, input());
+      var moving = Math.abs(state.fren.x - previousX) > 0.01;
+      if (moving) direction = state.fren.x > previousX ? 1 : -1;
+      try { api.updatePlayer(state.time * 1000, moving, direction); }
+      catch (error) { paused = true; api.onError(error); return; }
       react(events);
       hintFor = Math.max(0, hintFor - dt);
       for (var i = popups.length - 1; i >= 0; i--) { popups[i].life -= dt; popups[i].y -= 40 * dt; if (popups[i].life <= 0) popups.splice(i, 1); }
       if (eatTimer > 0) { eatTimer -= dt; if (eatTimer <= 0) fren.dataset.action = ''; }
       draw();
-      if (state.over) { fren.dataset.action = 'sleep'; api.onEnd({ score: state.score }); return; }
+      if (state.over) { api.onEnd({ score: state.score, duration: state.time }); return; }
       raf = requestAnimationFrame(frame);
     }
 
