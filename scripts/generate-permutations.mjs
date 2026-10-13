@@ -1,7 +1,9 @@
+import { robotAmbience, motionAttributes } from "../web/robot-motion.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NFT_PALETTES, NFT_SPECIES, renderNftArt } from "../web/nft-art.mjs";
+import { ROBOT_COLLECTION, robotTokenName } from "../web/robot-collection.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 
@@ -9,9 +11,9 @@ export const TOTAL_SUPPLY = 2664;
 export const SPECIES = NFT_SPECIES.map((name) => ({ id: name.toLowerCase(), name }));
 export const PALETTES = NFT_PALETTES.map(([body, dark, bg, name, tier]) => ({ body, dark, bg, name, tier }));
 export const EXPRESSIONS = ["Classic Happy", "Playful Wink", "Cool Shades", "Star Eyes"];
-export const ACCESSORIES = ["None", "Party Hat", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
+export const ACCESSORIES = ["None", "Pilot Helmet", "Royal Crown", "Angel Halo", "Dapper Bow Tie", "Mystic Orb"];
 export const ERAS = ["Pocket Genesis", "Street Wanderers", "Dream Garden"];
-export const HABITATS = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Room", "Arcade Alley", "Tiny Meadow"];
+export const HABITATS = ["Moonlit Plaza", "Neon Crosswalk", "Snack Garden", "Cloud Terrace", "Arcade Alley", "Tiny Meadow"];
 export const MOTIONS = ["Happy Walk", "Bouncy Strut", "Sleepy Drift", "Excited Wiggle"];
 
 export function generateTraits(tokenId) {
@@ -28,6 +30,7 @@ export function generateTraits(tokenId) {
     era: Math.floor((tokenId - 1) / 888),
     habitat: Math.floor(combination / 24) % HABITATS.length,
     motion: Math.floor(combination / 144) % MOTIONS.length,
+    ambience: robotAmbience(tokenId),
   };
 }
 
@@ -40,8 +43,11 @@ function exportSamples() {
     const traits = generateTraits(tokenId);
     const species = SPECIES[traits.species];
     const metadata = {
-      name: `TinyFren #${tokenId} (${species.name})`,
+      name: robotTokenName(tokenId),
+      description: ROBOT_COLLECTION.description,
       attributes: [
+        { trait_type: "Series", value: ROBOT_COLLECTION.series },
+        { trait_type: "Edition", value: `v${ROBOT_COLLECTION.version}` },
         { trait_type: "Species", value: species.name },
         { trait_type: "Palette", value: PALETTES[traits.palette].name },
         { trait_type: "Rarity Tier", value: PALETTES[traits.palette].tier },
@@ -50,6 +56,7 @@ function exportSamples() {
         { trait_type: "Era", value: ERAS[traits.era] },
         { trait_type: "Habitat", value: HABITATS[traits.habitat] },
         { trait_type: "Motion", value: MOTIONS[traits.motion] },
+        ...motionAttributes(traits).map(([trait_type, value]) => ({ trait_type, value })),
       ],
     };
     const basename = `fren-${tokenId}-${species.id}`;

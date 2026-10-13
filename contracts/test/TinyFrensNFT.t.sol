@@ -7,6 +7,7 @@ import {TinyFrensArt} from "../TinyFrensArt.sol";
 import {TinyFrensSprite} from "../TinyFrensSprite.sol";
 import {TestFRENS} from "../testnet/TestFRENS.sol";
 import {LibString} from "solady/utils/LibString.sol";
+import {Base64} from "solady/utils/Base64.sol";
 
 contract MockNetProtocol {
     bool public fail;
@@ -33,6 +34,13 @@ contract MockNetStorage {
     }
 }
 
+contract TestCreate2Deployer {
+    function deploy(bytes memory code) external returns (address deployed) {
+        assembly { deployed := create2(0, add(code, 32), mload(code), 0) }
+        require(deployed != address(0), "CREATE2 failed");
+    }
+}
+
 contract TinyFrensNFTTest is Test {
     using LibString for string;
     TinyFrensNFT internal nft;
@@ -48,25 +56,69 @@ contract TinyFrensNFTTest is Test {
         token = new TestFRENS(address(this));
         TinyFrensSprite sprite = new TinyFrensSprite();
         TinyFrensArt art = new TinyFrensArt(address(sprite));
-        nft = new TinyFrensNFT(address(art));
+        nft = new TinyFrensNFT(address(art), address(this));
         nft.setFrensToken(address(token));
         vm.deal(alice, 1 ether);
         token.mint(alice, 1_000_000_000 * 10**18);
         token.mint(bob, 1_000_000_000 * 10**18);
     }
 
+    function testCreate2KeepsCreatorPermissionsAndRevenue() public {
+        TestCreate2Deployer factory = new TestCreate2Deployer();
+        TinyFrensNFT deployed = TinyFrensNFT(factory.deploy(abi.encodePacked(
+            type(TinyFrensNFT).creationCode, abi.encode(address(nft.artRenderer()), alice)
+        )));
+        assertEq(deployed.creator(), alice);
+        vm.expectRevert(bytes4(keccak256("NotDeployer()")));
+        deployed.mintToCreator(1, bob);
+        vm.prank(address(factory));
+        vm.expectRevert(bytes4(keccak256("NotDeployer()")));
+        deployed.setFrensToken(address(token));
+        vm.startPrank(alice);
+        deployed.setFrensToken(address(token));
+        deployed.mintToCreator(1, alice);
+        deployed.mint{value: 0.001 ether}(1);
+        vm.stopPrank();
+        uint256 beforeBalance = alice.balance;
+        deployed.withdraw();
+        assertEq(alice.balance, beforeBalance + 0.001 ether);
+        assertEq(address(factory).balance, 0);
+        assertEq(deployed.ownerOf(1), alice);
+        assertGt(bytes(deployed.tokenURI(2)).length, 0);
+    }
+
+    function testZeroCreatorRejected() public {
+        address renderer = address(nft.artRenderer());
+        vm.expectRevert(bytes4(keccak256("InvalidCreator()")));
+        new TinyFrensNFT(renderer, address(0));
+    }
+
+    function testEnvironmentalTraitsMatchStoredArtwork() public {
+        assertLe(address(nft).code.length, 24000, "NFT must fit EIP-170 with deployment headroom");
+        vm.prank(alice);
+        nft.mint{value: 0.001 ether}(1);
+        string memory json = string(Base64.decode(nft.tokenURI(1).slice(29)));
+        assertTrue(json.contains('"trait_type":"Cloud Drift","value":"Easy"'));
+        assertTrue(json.contains('"trait_type":"Star Twinkle","value":"Soft"'));
+        assertFalse(json.contains('"trait_type":"Falling Leaves"'));
+        string memory svg = nft.art(1);
+        assertTrue(svg.contains('--cloud:8s;--stars:4s;'));
+        assertTrue(svg.contains('animation:bob 1.1294s'));
+        assertFalse(svg.contains('scale('));
+    }
+
     function testDeploymentRequiresNet() public {
         address renderer = address(nft.artRenderer());
         vm.etch(NET_ADDRESS, "");
         vm.expectRevert();
-        new TinyFrensNFT(renderer);
+        new TinyFrensNFT(renderer, address(this));
     }
 
     function testDeploymentRequiresNetStorage() public {
         address renderer = address(nft.artRenderer());
         vm.etch(NET_STORAGE_ADDRESS, "");
         vm.expectRevert(TinyFrensNFT.NetStorageUnavailable.selector);
-        new TinyFrensNFT(renderer);
+        new TinyFrensNFT(renderer, address(this));
     }
 
     function testNetMessageFailureRevertsMint() public {
@@ -100,6 +152,23 @@ contract TinyFrensNFTTest is Test {
         assertEq(nft.ownerOf(1), alice);
     }
 
+    function testRobotsEditionIdentityMatchesStoredMetadata() public {
+        assertEq(nft.name(), "TinyFrens: Robots v1");
+        assertEq(nft.symbol(), "TFROB1");
+        assertEq(nft.COLLECTION_ID(), "tinyfrens-robots-v1");
+        assertEq(nft.COLLECTION_VERSION(), 1);
+        vm.prank(alice);
+        nft.mint{value: 0.001 ether}(1);
+        assertEq(nft.tokenName(1), "TinyFrens Robot v1 #1");
+        string memory json = string(Base64.decode(nft.tokenURI(1).slice(29)));
+        assertTrue(json.contains('"name":"TinyFrens Robot v1 #1"'));
+        assertTrue(json.contains('"trait_type":"Series","value":"Robots"'));
+        assertTrue(json.contains('"trait_type":"Edition","value":"v1"'));
+        string memory collection = string(Base64.decode(nft.contractURI().slice(29)));
+        assertTrue(collection.contains('"name":"TinyFrens: Robots v1"'));
+        assertTrue(collection.contains(nft.COLLECTION_DESCRIPTION()));
+    }
+
     function testRobotOnlyArtHasWalkFrames() public {
         vm.prank(alice);
         nft.mint{value: 0.004 ether}(4);
@@ -114,7 +183,7 @@ contract TinyFrensNFTTest is Test {
             assertTrue(artwork.contains('class="arm-b"'));
             assertTrue(artwork.contains("@keyframes step-a"));
             assertTrue(artwork.contains("@keyframes arm-a"));
-            assertTrue(artwork.contains("<rect"));
+            assertTrue(artwork.contains("<path"));
         }
     }
 
@@ -125,7 +194,7 @@ contract TinyFrensNFTTest is Test {
         (address operator, bytes32 key, string memory text) = nft.netStoragePointer(1);
         assertEq(operator, address(nft));
         assertTrue(key != bytes32(0));
-        assertEq(text, "TinyFrens tokenURI #1");
+        assertEq(text, "TinyFrens: Robots v1 tokenURI #1");
 
         vm.prank(alice);
         nft.rename(1, "Lil Button");

@@ -13,4 +13,4 @@ setInterval(() => {
   const src = walking && art.frames?.length ? art.frames[Math.floor(Date.now() / art.frameMs) % art.frames.length] : art.idle;
   if (image.getAttribute('src') !== src) image.src = src;
   image.alt = data.name;
-}, 80);
+}, 40);

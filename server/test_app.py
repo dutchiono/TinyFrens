@@ -9,6 +9,10 @@ from app import create_app
 ORIGIN='https://tinyfrens.lol'
 class RelayTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        extras = mock.patch('app.ExtraCompanions.discover', new=mock.AsyncMock(return_value={'nfts':[], 'partial':False}))
+        extras.start(); self.addCleanup(extras.stop)
+        robot_discovery = mock.patch('app.Robots.discover', new=mock.AsyncMock(return_value={'nfts':[], 'partial':False}))
+        robot_discovery.start(); self.addCleanup(robot_discovery.stop)
         self.tmp=tempfile.TemporaryDirectory();self.db=self.tmp.name+'/pets.db'
         self.client=TestClient(TestServer(create_app(self.db,[ORIGIN])))
         await self.client.start_server();self.sockets=[]
@@ -84,6 +88,38 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.post('/api/register',headers={'Origin':'https://bad.example'},json={});self.assertEqual(r.status,403)
         r=await self.client.post('/api/register',headers={'Origin':ORIGIN},json={'pet':{'name':'A','shape':'unsafe','color':'no'}});self.assertEqual(r.status,400)
         ws=await self.client.ws_connect('/ws',headers={'Origin':ORIGIN});await ws.send_json({'type':'auth','token':'invalid'});await ws.receive();self.assertEqual(ws.close_code,4003)
+
+    async def test_robot_import_requires_signed_link_and_collection_chain(self):
+        from robot_companion import CONTRACT
+        from pathlib import Path
+        fren = await self.register('Robot owner')
+        account = Account.create()
+        image = 'data:image/svg+xml;base64,' + base64.b64encode((Path(__file__).parent / 'fixtures/robots-v1/1.svg').read_bytes()).decode()
+        uri = 'data:application/json;base64,' + base64.b64encode(json.dumps({'name':'Robot #1','image':image}).encode()).decode()
+        encoded = '0x' + format(32,'064x') + format(len(uri),'064x') + uri.encode().hex()
+        async def rpc(method, params):
+            if method == 'eth_chainId': return '0x2105'
+            if method == 'eth_blockNumber': return '0x3219000'
+            return encoded if params[0]['data'].startswith('0xc87b56dd') else '0x'+account.address[2:].lower().zfill(64)
+        payload = {'token':fren['token'],'tokenId':1,'originalAddress':CONTRACT,'chainId':8453}
+        with mock.patch('app.Robots.rpc', new=mock.AsyncMock(side_effect=rpc)):
+            r = await self.client.post('/api/featured/companion',headers={'Origin':ORIGIN},json=payload)
+            self.assertEqual(r.status,403)
+            r = await self.client.post('/api/wallet-link/challenge',headers={'Origin':ORIGIN},json={'token':fren['token'],'address':account.address})
+            challenge = await r.json()
+            signature = Account.sign_message(encode_defunct(text=challenge['message']),account.key).signature.hex()
+            r = await self.client.post('/api/wallet-link/confirm',headers={'Origin':ORIGIN},json={'token':fren['token'],'signature':signature})
+            self.assertEqual(r.status,200)
+            r = await self.client.post('/api/featured/companion',headers={'Origin':ORIGIN},json={**payload,'chainId':4663})
+            self.assertEqual(r.status,400)
+            r = await self.client.post('/api/featured/companion',headers={'Origin':ORIGIN},json=payload)
+            self.assertEqual(r.status,200)
+            result = await r.json()
+            self.assertTrue(result['active'])
+            self.assertEqual(len(result['companion']['frames']),8)
+            await self.client.post('/api/wallet-link/disconnect',headers={'Origin':ORIGIN},json={'token':fren['token'],'address':account.address})
+            r = await self.client.post('/api/featured/companion',headers={'Origin':ORIGIN},json=payload)
+            self.assertEqual(r.status,403)
 
     async def test_hood_turtle_display_requires_signed_link_and_current_owner(self):
         fren=await self.register('Turtle Owner')

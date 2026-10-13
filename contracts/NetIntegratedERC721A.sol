@@ -48,7 +48,9 @@ abstract contract NetIntegratedERC721A is ERC721A {
     /// @notice Tokens minted so far via mintToCreator().
     uint256 public creatorMinted;
 
-    address internal immutable _deployer;
+    /// @notice Creator receiving mint revenue and controlling creator-only settings.
+    /// Explicit because a CREATE2 deployment factory is not the collection creator.
+    address public immutable creator;
 
     /// @notice Per-token entropy for generative art.
     mapping(uint256 => bytes32) internal _tokenToSeed;
@@ -59,9 +61,10 @@ abstract contract NetIntegratedERC721A is ERC721A {
     error CreatorReserveExceeded();
     error NotDeployer();
     error NetProtocolUnavailable();
+    error InvalidCreator();
 
     modifier onlyDeployer() {
-        if (msg.sender != _deployer) revert NotDeployer();
+        if (msg.sender != creator) revert NotDeployer();
         _;
     }
 
@@ -71,9 +74,11 @@ abstract contract NetIntegratedERC721A is ERC721A {
         uint256 price_,
         uint256 maxSupply_,
         uint256 maxMintsPerWallet_,
-        uint256 creatorReserve_
+        uint256 creatorReserve_,
+        address creator_
     ) ERC721A(name_, symbol_) {
-        _deployer = msg.sender;
+        if (creator_ == address(0)) revert InvalidCreator();
+        creator = creator_;
         price = price_;
         maxSupply = maxSupply_;
         maxMintsPerWallet = maxMintsPerWallet_;
@@ -81,7 +86,7 @@ abstract contract NetIntegratedERC721A is ERC721A {
 
         // A collection claiming Net integration must not deploy without it.
         if (address(NET).code.length == 0) revert NetProtocolUnavailable();
-        NET.sendMessage(name_, TOPIC_COLLECTION, abi.encodePacked(tx.origin));
+        NET.sendMessage(name_, TOPIC_COLLECTION, abi.encodePacked(creator_));
     }
 
     /// @dev Token IDs start at 1.
@@ -102,7 +107,7 @@ abstract contract NetIntegratedERC721A is ERC721A {
         _mintSeeded(msg.sender, amount);
     }
 
-    /// @notice Free premint controlled by the deployer, capped at creatorReserve.
+    /// @notice Free premint controlled by the creator, capped at creatorReserve.
     function mintToCreator(uint256 amount, address to) external onlyDeployer {
         if (creatorMinted + amount > creatorReserve) revert CreatorReserveExceeded();
         creatorMinted += amount;
@@ -137,9 +142,9 @@ abstract contract NetIntegratedERC721A is ERC721A {
 
     // ------------------------------------------------------------ withdrawals
 
-    /// @notice Withdraw collected ETH to the deployer.
+    /// @notice Withdraw collected ETH to the creator.
     function withdraw() external {
-        (bool ok, ) = _deployer.call{ value: address(this).balance }("");
+        (bool ok, ) = creator.call{ value: address(this).balance }("");
         require(ok);
     }
 

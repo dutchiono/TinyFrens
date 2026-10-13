@@ -17,6 +17,7 @@ from hood_turtle_art import with_companion
 COLLECTION = '0xca28587b61eac19a87dfcfd9420870867a916675'
 CHAIN_ID = 4663
 OWNERSHIP_TTL = 86400
+TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 PAIRING_TTL = 600
 AGENT_PATHS = {'/api/turtle-connect/challenge', '/api/turtle-connect/confirm'}
 
@@ -38,11 +39,73 @@ def linked_wallets(db, pid):
     return [row[0] for row in db.execute('SELECT address FROM wallet_links WHERE pet_id=? ORDER BY created,address', (pid,))]
 
 
+def wallet_devices(db, pid):
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name='device_sync_members'").fetchone():
+        return [pid]
+    row = db.execute('SELECT account FROM device_sync_members WHERE device=?', (pid,)).fetchone()
+    return [r[0] for r in db.execute('SELECT device FROM device_sync_members WHERE account=?', (row[0],))] if row else [pid]
+
+
 def add_wallet(db, pid, address):
     addresses = linked_wallets(db, pid)
     if address.lower() not in [a.lower() for a in addresses] and len(addresses) >= 10:
-        raise ValueError('Up to 10 wallets can be linked to this device. Remove one first.')
-    db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (pid, to_checksum_address(address), int(time.time())))
+        raise ValueError('Up to 10 wallets can be linked. Remove one first.')
+    for device in wallet_devices(db, pid):
+        db.execute('INSERT OR IGNORE INTO wallet_links VALUES(?,?,?)', (device, to_checksum_address(address), int(time.time())))
+
+
+def remove_wallet(db, pid, address=None):
+    for device in wallet_devices(db, pid):
+        if address is None:
+            db.execute('DELETE FROM wallet_links WHERE pet_id=?', (device,))
+        else:
+            db.execute('DELETE FROM wallet_links WHERE pet_id=? AND address=? COLLATE NOCASE', (device, to_checksum_address(address)))
+        db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (device,))
+        db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (device,))
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='device_sync_codes'").fetchone():
+            db.execute('DELETE FROM device_sync_codes WHERE device=? OR requester=?', (device, device))
+
+
+async def rpc_candidates(address):
+    """Indexer-independent discovery: incoming Transfer logs, then ownerOf verification.
+
+    Scan the entire chain in bounded ranges; never treat a failed range as empty.
+    """
+    rpc = os.environ.get('ROBINHOOD_RPC_URL', 'https://rpc.mainnet.chain.robinhood.com')
+    async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+        async def call(method, params):
+            async with session.post(rpc, json={'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}) as response:
+                response.raise_for_status()
+                body = await response.json(content_type=None)
+            if body.get('error') or 'result' not in body:
+                raise RuntimeError('On-chain NFT discovery unavailable')
+            return body['result']
+        raw = await call('eth_call', [{'to': COLLECTION, 'data': '0x70a08231' + address[2:].lower().zfill(64)}, 'latest'])
+        if not isinstance(raw, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', raw):
+            raise RuntimeError('Invalid collection balance')
+        balance = int(raw, 16)
+        if balance == 0:
+            return set(), False
+        head = int(await call('eth_blockNumber', []), 16)
+        if head > 200_000_000:
+            raise RuntimeError('NFT discovery range exceeds configured budget')
+        candidates = set()
+        for start in range(0, head + 1, 10_000_000):
+            logs = await call('eth_getLogs', [{'address': COLLECTION, 'fromBlock': hex(start),
+                'toBlock': hex(min(head, start + 9_999_999)),
+                'topics': [TRANSFER_TOPIC, None, '0x' + address[2:].lower().zfill(64)]}])
+            if not isinstance(logs, list):
+                raise RuntimeError('Invalid collection transfer logs')
+            for log in logs:
+                topics = log.get('topics', [])
+                if (log.get('removed') or len(topics) != 4 or topics[0].lower() != TRANSFER_TOPIC
+                        or str(log.get('address', '')).lower() != COLLECTION
+                        or topics[2].lower() != '0x' + address[2:].lower().zfill(64)):
+                    continue
+                candidates.add(turtle_id(int(topics[3], 16)))
+        if not candidates:
+            raise RuntimeError('Collection balance exists but transfer history is missing')
+        return candidates, len(candidates) > 50
 
 
 async def discover_wallets(addresses, ownership):
@@ -51,25 +114,33 @@ async def discover_wallets(addresses, ownership):
     async def discover(address):
         root = os.environ.get('ROBINHOOD_BLOCKSCOUT_API_URL', 'https://robinhoodchain.blockscout.com/api/v2').rstrip('/')
         candidates, partial, params = set(), False, {'type': 'ERC-721'}
-        async with ClientSession(timeout=ClientTimeout(total=15)) as session:
-            for page in range(5):
-                async with session.get(root + '/addresses/' + address + '/nft?' + urlencode(params)) as response:
-                    response.raise_for_status()
-                    data = await response.json(content_type=None)
-                if not isinstance(data.get('items'), list):
-                    raise ValueError('NFT indexer returned invalid data')
-                for item in data['items']:
-                    if str((item.get('token') or {}).get('address_hash', '')).lower() == COLLECTION:
-                        try:
-                            candidates.add(turtle_id(item.get('id')))
-                        except ValueError:
-                            continue
-                next_page = data.get('next_page_params')
-                if not next_page:
-                    break
-                if page == 4:
-                    partial = True
-                params = {'type': 'ERC-721', **next_page}
+        async def indexer_candidates():
+            nonlocal partial, params
+            async with ClientSession(timeout=ClientTimeout(total=15)) as session:
+                for page in range(5):
+                    async with session.get(root + '/addresses/' + address + '/nft?' + urlencode(params)) as response:
+                        response.raise_for_status()
+                        data = await response.json(content_type=None)
+                    if not isinstance(data.get('items'), list):
+                        raise ValueError('NFT indexer returned invalid data')
+                    for item in data['items']:
+                        if str((item.get('token') or {}).get('address_hash', '')).lower() == COLLECTION:
+                            try:
+                                candidates.add(turtle_id(item.get('id')))
+                            except ValueError:
+                                continue
+                    next_page = data.get('next_page_params')
+                    if not next_page:
+                        break
+                    if page == 4:
+                        partial = True
+                    params = {'type': 'ERC-721', **next_page}
+        try:
+            await indexer_candidates()
+            if not candidates:
+                candidates, partial = await rpc_candidates(address)
+        except Exception:
+            candidates, partial = await rpc_candidates(address)
         async def verify(tid):
             cached = ownership.db.execute('SELECT checked,payload FROM turtle_ownership WHERE wallet=? AND token_id=?', (address, tid)).fetchone()
             if cached and cached[0] <= time.time() < cached[0] + OWNERSHIP_TTL:
@@ -84,6 +155,9 @@ async def discover_wallets(addresses, ownership):
                         response.raise_for_status()
                         result = await response.json(content_type=None)
                 raw = result.get('result', '')
+                # Incoming history can include NFTs that were later burned.
+                if result.get('error', {}).get('code') == 3:
+                    return None
                 if result.get('error') or not re.fullmatch(r'0x0{24}[0-9a-fA-F]{40}', raw):
                     raise RuntimeError('On-chain ownership check unavailable')
                 active = raw[-40:].lower() == address[2:].lower()
@@ -258,6 +332,19 @@ def install(app, db, token_pet, limit, ownership):
         return {'verified': bool(row[6]), 'wallet': row[3] if row[6] else None,
                 'tokenId': row[4] if row[6] else None, 'expires': row[1]}
 
+    async def from_device(body):
+        source = token_pet(body.get('token'))
+        code, row = pairing(body)
+        if row[0] == source or row[6] or row[2]:
+            raise ValueError('Use a fresh code from the other device')
+        address = str(body.get('address', ''))
+        if address.lower() not in [a.lower() for a in linked_wallets(db, source)]:
+            raise ValueError('This wallet is not linked to the approving device')
+        with db:
+            db.execute('UPDATE turtle_pairings SET address=?,verified=1 WHERE code=?',
+                       (to_checksum_address(address), code))
+        return {'verified': True, 'wallet': to_checksum_address(address)}
+
     async def accept(body):
         pid = token_pet(body.get('token'))
         code, row = pairing(body)
@@ -287,5 +374,5 @@ def install(app, db, token_pet, limit, ownership):
                                          headers={'Cache-Control': 'no-store'})
         return handle
 
-    for name, action in [('start', start), ('challenge', challenge), ('confirm', confirm), ('status', status), ('accept', accept)]:
+    for name, action in [('start', start), ('challenge', challenge), ('confirm', confirm), ('status', status), ('accept', accept), ('from-device', from_device)]:
         app.router.add_post('/api/turtle-connect/' + name, handler(action))

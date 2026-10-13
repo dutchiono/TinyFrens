@@ -54,14 +54,14 @@ class MainActivity : Activity() {
                     require(json.length <= 4096)
                     val body = org.json.JSONObject(json)
                     if (path == "/native/import-turtle") {
-                        turtles.importTurtle(server, body.getString("token"), body.getInt("tokenId"))
+                        turtles.importTurtle(server, body.getString("token"), body.getInt("tokenId"), body.optString("originalAddress", "0xca28587b61eac19a87dfcfd9420870867a916675"), body.optInt("chainId", 4663))
                     } else turtles.request(server, path, body)
                 } catch (e: Exception) { org.json.JSONObject().put("error", e.message ?: "Turtle connection failed") }
                 val response = org.json.JSONObject().put("requestId", requestId).put("result", result)
                 runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.onTurtleResponse?.($response)", null) }
             }.start()
         }
-        @JavascriptInterface fun getTurtle(): String = TurtleStore(this@MainActivity).view()
+        @JavascriptInterface fun getTurtle(): String { val turtles = TurtleStore(this@MainActivity); turtles.refreshIfDue(); return turtles.view() }
         @JavascriptInterface fun clearTurtle() { TurtleStore(this@MainActivity).clear() }
         @JavascriptInterface fun updateInfo(): String = org.json.JSONObject()
             .put("repo", getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO))
@@ -212,6 +212,7 @@ class MainActivity : Activity() {
                 runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.onNativeFriendRegistration?.($response)", null) }
             }.start()
         }
+        @JavascriptInterface fun hideCompanion(identity: String) { TurtleStore(this@MainActivity).hideCompanion(identity); runOnUiThread { sendService("refresh") } }
         @JavascriptInterface fun isPetVisible(): Boolean = PetOverlayService.running
         @JavascriptInterface fun stopPet() { runOnUiThread { sendService("stop") } }
         @JavascriptInterface fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(this@MainActivity)

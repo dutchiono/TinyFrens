@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { PetStore } = require('./state.cjs');
-const { TurtleStore, SERVER } = require('./turtle.cjs');
+const { TurtleStore, SERVER, companionKey } = require('./turtle.cjs');
 const { clampPosition, hits } = require('./geometry.cjs');
 const WIDTH = 340, HEIGHT = 400;
 const RELEASES = 'https://github.com/dutchiono/TinyFrens/releases/tag/desktop-latest';
@@ -57,14 +57,14 @@ function broadcastTurtle() {
 }
 function syncCompanions() {
   const items = (turtles.view().items || []).slice(1);
-  for (const [id, entry] of companionWindows) if (!items.some(nft => nft.tokenId === id)) { entry.win.destroy(); companionWindows.delete(id); }
+  for (const [id, entry] of companionWindows) if (!items.some(nft => companionKey(nft) === id)) { entry.win.destroy(); companionWindows.delete(id); }
   for (const nft of items) {
-    let entry = companionWindows.get(nft.tokenId);
+    let entry = companionWindows.get(companionKey(nft));
     if (!entry) {
       const win = new BrowserWindow({width:128,height:128,frame:false,transparent:true,resizable:false,hasShadow:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:preferences()});
       win.setAlwaysOnTop(true, 'floating'); win.setIgnoreMouseEvents(true);
       if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen:true});
-      entry = {win, nft, point:null, target:null}; companionWindows.set(nft.tokenId, entry);
+      entry = {win, nft, point:null, target:null}; companionWindows.set(companionKey(nft), entry);
       secureWindow(win, path.join(__dirname, 'companion.html')).catch(() => {});
       win.once('ready-to-show', () => { if (petVisible) win.showInactive(); win.webContents.send('tinyfrens:turtle', {active:true, ...entry.nft}); });
     }
@@ -72,6 +72,8 @@ function syncCompanions() {
       entry.nft = nft; entry.win.webContents.send('tinyfrens:turtle', {active:true, ...nft});
     }
     entry.nft = nft;
+    const size = Math.round(128 * (nft.motion?.size || 80) / 80);
+    if (entry.win.getSize()[0] !== size) entry.win.setSize(size, size);
   }
 }
 function moveCompanions(elapsed) {
@@ -264,11 +266,26 @@ async function smokeTest() {
     const firstFixture = turtles.selected[0];
     turtles.selected.push({...firstFixture, tokenId:8}); broadcastTurtle(); await pause(400);
     assert.equal(companionWindows.size, 1);
-    const companionWindow = companionWindows.get(8).win;
+    const companionWindow = companionWindows.get(companionKey({tokenId:8})).win;
     assert.equal(companionWindow.isVisible(), true);
     await pause(200);
     assert.equal(await companionWindow.webContents.executeJavaScript('document.getElementById("companion").hidden'), false);
     turtles.remove(8); broadcastTurtle(); assert.equal(companionWindows.size, 0);
+    const robotFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'test/fixtures/robot-v1.json'), 'utf8'));
+    turtles.fetch = async () => ({ok:true, text:async()=>JSON.stringify({...robotFixture,active:true,validUntil:Date.now()/1000+3600})});
+    await js(`TinyFrensDesktop.turtleRequest('${SERVER}', '/native/import-turtle', ${JSON.stringify({token:'smoke-fixture',tokenId:robotFixture.tokenId,originalAddress:robotFixture.originalAddress,chainId:robotFixture.chainId})})`);
+    await pause(500);
+    assert.equal(turtles.view().items.length, 2);
+    const robotWindow = companionWindows.get(companionKey(robotFixture)).win;
+    // Intel CI can finish creating the window before its SVG has decoded.
+    for (let i = 0; i < 50; i++) {
+      if (await robotWindow.webContents.executeJavaScript('document.getElementById("companion")?.naturalWidth || 0') === 128) break;
+      await pause(100);
+    }
+    assert.equal(await robotWindow.webContents.executeJavaScript('document.getElementById("companion").naturalWidth'),128);
+    assert.equal(turtles.view().items[1].companion.frames.length,8);
+    turtles.remove(robotFixture.tokenId,robotFixture);broadcastTurtle();
+    assert.equal(companionWindows.size,0);
     await js('TinyFrensDesktop.clearTurtle()'); await pause(100);
     assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.turtle'), 'false');
     console.log('Desktop smoke passed: isolated renderer, always-on-top overlay, shared care, movement, packaged import navigation, turtle IPC/artwork/unload.');
@@ -322,9 +339,9 @@ ipcMain.handle('tinyfrens:check-update', async event => {
 });
 ipcMain.handle('tinyfrens:turtle-request', async (event, server, route, body) => {
   if (!trusted(event) || event.sender !== careWindow?.webContents) throw new Error('Untrusted turtle request');
-  if (route === '/native/companion-motion') { if (server !== SERVER) throw new Error('Unsupported turtle server'); const result = turtles.setMotion(body.tokenId, body.mode, body.speed); broadcastTurtle(); return result; }
+  if (route === '/native/companion-motion') { if (server !== SERVER) throw new Error('Unsupported turtle server'); const result = turtles.setMotion(body.tokenId, body.mode, body.speed, body); broadcastTurtle(); return result; }
   if (route === '/native/remove-wallet') { if (server !== SERVER || !/^0x[0-9a-fA-F]{40}$/.test(body.address)) throw new Error('Invalid wallet'); turtles.removeWallet(body.address); broadcastTurtle(); return {removed:true}; }
-  if (route === '/native/remove-turtle') { if (server !== SERVER) throw new Error('Unsupported turtle server'); turtles.remove(body.tokenId); broadcastTurtle(); return {removed:true}; }
+  if (route === '/native/remove-turtle') { if (server !== SERVER) throw new Error('Unsupported turtle server'); turtles.remove(body.tokenId, body); broadcastTurtle(); return {removed:true}; }
   if (route === '/native/import-turtle') {
     if (server !== SERVER) throw new Error('Unsupported turtle server');
     const result = await turtles.import(server, body); broadcastTurtle(); return result;

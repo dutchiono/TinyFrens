@@ -1,9 +1,10 @@
 'use strict';
 const fs = require('node:fs');
+const companionKey = nft => `${nft.chainId || 4663}:${String(nft.originalAddress || '0xca28587b61eac19a87dfcfd9420870867a916675').toLowerCase()}:${nft.tokenId}`;
 const SERVER = 'https://tinyfrens.miono.live';
 const PATHS = new Set(['/api/register', '/api/wallet-link/status', '/api/wallet-link/challenge',
-  '/api/wallet-link/confirm', '/api/wallet-link/disconnect', '/api/wallet-link/nfts', '/api/featured/hood-turtle',
-  '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept']);
+  '/api/wallet-link/confirm', '/api/wallet-link/disconnect', '/api/wallet-link/nfts', '/api/featured/hood-turtle', '/api/featured/companion',
+  "/api/device-sync/state", "/api/device-sync/start", "/api/device-sync/request", "/api/device-sync/status", "/api/device-sync/accept", "/api/device-sync/leave", '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept', '/api/turtle-connect/from-device']);
 
 class TurtleStore {
   constructor(file, fetcher = fetch, clock = Date.now) {
@@ -25,12 +26,14 @@ class TurtleStore {
     fs.renameSync(this.file + '.tmp', this.file);
   }
   clear() { this.generation++; this.selected = []; this.save(); }
-  remove(tokenId) { this.generation++; this.selected = this.selected.filter(nft => nft.tokenId !== tokenId); this.save(); }
-  setMotion(tokenId, mode, speed) {
+  remove(tokenId, collection = {}) { this.generation++; this.selected = this.selected.filter(nft => companionKey(nft) !== companionKey({...collection, tokenId})); this.save(); }
+  setMotion(tokenId, mode, speed, collection = {}) {
     if (!['roam', 'bubble'].includes(mode) || !Number.isInteger(speed) || speed < 20 || speed > 140) throw new Error('Invalid companion movement');
-    const nft = this.selected.find(item => item.tokenId === tokenId);
+    const nft = this.selected.find(item => companionKey(item) === companionKey({...collection, tokenId}));
     if (!nft) throw new Error('Companion not found');
-    nft.motion = {mode, speed}; this.save();
+    const size = collection.size ?? nft.motion?.size ?? 80;
+    if (!Number.isInteger(size) || size < 48 || size > 128) throw new Error('Invalid companion size');
+    nft.motion = {mode, speed, size}; this.save();
     return this.view();
   }
   removeWallet(address) { this.generation++; this.selected = this.selected.filter(nft => (nft.wallet || nft.originalOwner || '').toLowerCase() !== address.toLowerCase()); this.save(); }
@@ -38,20 +41,21 @@ class TurtleStore {
     if (!this.selected.length) return {selected:false, active:false};
     const items = this.selected.filter(nft => Number.isFinite(nft.validUntil) && this.clock() < nft.validUntil * 1000)
       .map(({deviceToken, ...nft}) => nft);
-    if (!items.length) return {selected:true, active:false};
+    if (!items.length) return {selected:true, active:false, pendingExpired:true};
     return {...items[0], selected:true, active:true, items};
   }
   async import(server, body) {
     const generation = this.generation;
-    const data = await this.request(server, '/api/featured/hood-turtle', body);
-    if (!data.active) throw new Error('This wallet no longer owns that turtle');
+    const data = await this.request(server, body.originalAddress ? '/api/featured/companion' : '/api/featured/hood-turtle', body);
+    if (!data.active) throw new Error('This wallet no longer owns that companion');
+    if (body.originalAddress && companionKey(data) !== companionKey(body)) throw new Error('Unexpected companion collection');
     if (!Number.isInteger(data.tokenId) || data.tokenId !== body.tokenId || !Number.isFinite(data.validUntil) ||
         data.validUntil * 1000 <= this.clock() || data.validUntil * 1000 > this.clock() + 86_405_000 ||
         typeof data.image !== 'string' || !/^data:image\/(svg\+xml|png);base64,/.test(data.image)) throw new Error('Invalid turtle artwork or verification');
     if (generation !== this.generation) throw new Error('Turtle selection changed');
-    const remaining = this.selected.filter(nft => nft.tokenId !== data.tokenId);
+    const remaining = this.selected.filter(nft => companionKey(nft) !== companionKey(data));
     if (remaining.length >= 5) throw new Error('Show up to five companions. Remove one first.');
-    const existing = this.selected.find(nft => nft.tokenId === data.tokenId);
+    const existing = this.selected.find(nft => companionKey(nft) === companionKey(data));
     const imported = {...data, deviceToken:body.token, motion:existing?.motion || {mode:'roam', speed:60}};
     this.selected = existing ? this.selected.map(nft => nft === existing ? imported : nft) : [...remaining, imported]; this.save();
     return this.view();
@@ -64,11 +68,11 @@ class TurtleStore {
     try {
       for (const nft of due) {
         if (!this.selected.includes(nft)) continue;
-        try { await this.import(SERVER, {token:nft.deviceToken, tokenId:nft.tokenId}); updated = true; }
+        try { await this.import(SERVER, {token:nft.deviceToken, tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId}); updated = true; }
         catch { /* Expired companions stay hidden; retry after one minute. */ }
       }
       return updated;
     } finally { this.renewing = false; }
   }
 }
-module.exports = {TurtleStore, SERVER};
+module.exports = {TurtleStore, SERVER, companionKey};

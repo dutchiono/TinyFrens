@@ -97,8 +97,8 @@ struct PetWebView: UIViewRepresentable {
         }
         private func turtleRequest(_ message: WKScriptMessage) {
             let paths: Set<String> = ["/api/register", "/api/wallet-link/status", "/api/wallet-link/challenge",
-                "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle",
-                "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept"]
+                "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle", "/api/featured/companion",
+                "/api/device-sync/state", "/api/device-sync/start", "/api/device-sync/request", "/api/device-sync/status", "/api/device-sync/accept", "/api/device-sync/leave", "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept", "/api/turtle-connect/from-device"]
             guard let page = message.frameInfo.request.url, page.isFileURL,
                   let folder = Bundle.main.resourceURL?.appendingPathComponent("web"),
                   page.standardizedFileURL.path.hasPrefix(folder.standardizedFileURL.path + "/"),

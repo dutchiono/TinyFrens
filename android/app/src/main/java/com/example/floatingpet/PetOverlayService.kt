@@ -23,6 +23,7 @@ class PetOverlayService:Service(){
   private const val CHAT_SERVER="https://tinyfrens.miono.live"
  }
  class GuestPet(val view:PetView,val params:WindowManager.LayoutParams,var name:String,var shape:String,var color:Int,var tokenId:Int){
+  var companionId:String=""
   var mode="roam";var speed=60
   var x=0f;var y=0f;var tx=0f;var ty=0f;var nextMove=0L;var direction=1
  }
@@ -51,7 +52,7 @@ class PetOverlayService:Service(){
  private fun bounds():Pair<Float,Float>{
   val b=if(Build.VERSION.SDK_INT>=30)wm.currentWindowMetrics.bounds else null
   return Pair(((b?.width()?:resources.displayMetrics.widthPixels)-(params?.width?:0)).coerceAtLeast(0).toFloat(),
-   ((b?.height()?:resources.displayMetrics.heightPixels)-(params?.height?:0)-dp(28)).coerceAtLeast(0).toFloat())
+   ((b?.height()?:resources.displayMetrics.heightPixels)*0.42f-(params?.height?:0)-dp(28)).coerceAtLeast(0f).toFloat())
  }
  private fun chooseWalk(){val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by;behavior="walk";nextDecision=SystemClock.elapsedRealtime()+12000}
  private fun clamp(){val(bx,by)=bounds();x=x.coerceIn(0f,bx);y=y.coerceIn(0f,by);params?.let{it.x=x.roundToInt();it.y=y.roundToInt()}}
@@ -81,13 +82,14 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
+  if(turtles.selected()&&turtles.all().isEmpty()){stopSelf();return}
+  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrameMs=turtles.all().firstOrNull()?.optJSONObject("companion")?.optLong("frameMs",160)?:160;v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
   if(!hiding)v.alpha=state.optInt("opacity",100).coerceIn(40,100)/100f
   val token=state.optLong("actionUntil");if(token!=lastEffectToken){lastEffectToken=token;if(token>System.currentTimeMillis())careEffect()}
-  val size=dp(state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}
+  val size=dp(primaryMotion?.optInt("size",state.optInt("size",80))?:state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}
  }
  private val animator=object:Runnable{override fun run(){
   val v=pet?:return;val p=params?:return
@@ -166,19 +168,20 @@ class PetOverlayService:Service(){
  private fun clearOwnedPets(){for(g in ownedPets)removeGuest(g);ownedPets.clear()}
  private fun syncOwnedPets(){
   val active=turtles.all().drop(1)
-  val ids=active.map{it.optInt("tokenId")}.toSet()
-  for(g in ownedPets.toList())if(g.tokenId !in ids){removeGuest(g);ownedPets.remove(g)}
+  val ids=active.map{TurtleStore.key(it)}.toSet()
+  for(g in ownedPets.toList())if(g.companionId !in ids){removeGuest(g);ownedPets.remove(g)}
   val(bx,by)=bounds()
   for(nft in active){
-   val id=nft.optInt("tokenId");val existing=ownedPets.find{it.tokenId==id}
-   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
-   val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
-   gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.reducedMotion=reducedMotion()
-   val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
+   val id=nft.optInt("tokenId");val existing=ownedPets.find{it.companionId==TurtleStore.key(nft)}
+   if(existing!=null){val size=dp(nft.optJSONObject("motion")?.optInt("size",80)?:80);if(existing.params.width!=size){existing.params.width=size;existing.params.height=size;update(existing.view,existing.params)};existing.view.turtleFrames=turtles.frames(nft);existing.view.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
+   val gv=PetView(this);val size=dp(nft.optJSONObject("motion")?.optInt("size",80)?:80);val gp=overlay(size,size)
+   gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;gv.reducedMotion=reducedMotion()
+   val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{companionId=TurtleStore.key(nft);x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
    g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60
    gp.x=g.x.roundToInt();gp.y=g.y.roundToInt()
    gv.onDrag={dx,dy->g.x=(g.x+dx).coerceIn(0f,bx);g.y=(g.y+dy).coerceIn(0f,by);gp.x=g.x.roundToInt();gp.y=g.y.roundToInt();update(gv,gp)}
-   gv.onTap={say(g.name)}
+   gv.onTap={removeMenu();showCloseButton(g)}
+   gv.onHold={removeMenu();showCloseButton(g)}
    try{wm.addView(gv,gp);ownedPets.add(g)}catch(_:Exception){}
   }
  }
@@ -313,7 +316,7 @@ class PetOverlayService:Service(){
   battleRunnable=runner;handler.post(runner)
  }
  private fun overlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-  WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
+  WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
  private fun chatOverlay(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
   WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;softInputMode=WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE}
  private fun createOverlay(){
@@ -378,18 +381,21 @@ class PetOverlayService:Service(){
   p.y=(if(menuAbove)y-p.height else y+ph-dp(6)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
   try{wm.addView(panel,p);menu=panel;showCloseButton();refreshMenuTimer()}catch(_:Exception){}
  }
- private fun showCloseButton(){
+ private fun showCloseButton(target:GuestPet?=null){
   removeCloseButton()
   val button=Button(this).apply{
-   text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide pet"
+   text="×";textSize=24f;gravity=Gravity.CENTER;setTextColor(Color.WHITE);contentDescription="Hide this NFT"
    setPadding(0,0,0,0);minWidth=0;minHeight=0;minimumWidth=0;minimumHeight=0
    background=GradientDrawable().apply{shape=GradientDrawable.OVAL;setColor(Color.rgb(65,51,87));setStroke(dp(1),Color.rgb(183,153,235))}
-   setOnClickListener{hideWithFade()}
+   setOnClickListener{
+    val id=target?.companionId?:turtles.all().firstOrNull()?.let{TurtleStore.key(it)}
+    if(id.isNullOrEmpty())hideWithFade()else{turtles.hideCompanion(id);removeMenu();removeCloseButton();lastRead=0;style()}
+   }
    setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say("Hide pet");refreshMenuTimer()};false}
   }
   val p=overlay(dp(48),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
-  p.x=(x+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
-  p.y=(y-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
+  p.x=((target?.x?:x)+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
+  p.y=((target?.y?:y)-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
   try{wm.addView(button,p);closeButton=button}catch(_:Exception){}
  }
  private fun removeCloseButton(){closeButton?.let{try{wm.removeView(it)}catch(_:Exception){}};closeButton=null}

@@ -48,6 +48,9 @@ jobs:
         with:
           version: stable
 
+      - name: Check NFT artwork and storage budget
+        run: node --test scripts/test-nft-art.mjs
+
       - name: Compile Solidity contracts
         run: forge build
 

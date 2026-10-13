@@ -20,6 +20,13 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     using LibString for uint256;
     using SafeERC20 for IERC20;
 
+    string public constant COLLECTION_ID = "tinyfrens-robots-v1";
+    string public constant COLLECTION_NAME = "TinyFrens: Robots v1";
+    string public constant COLLECTION_SYMBOL = "TFROB1";
+    string public constant TOKEN_NAME_PREFIX = "TinyFrens Robot v1 #";
+    string public constant COLLECTION_DESCRIPTION = "TinyFrens: Robots v1. An on-chain robot companion collection with animated pixel artwork.";
+    uint8 public constant COLLECTION_VERSION = 1;
+
     ITinyFrensArt public immutable artRenderer;
     IERC20 public frensToken;
     uint256 public frensPerVaultMint;
@@ -47,14 +54,15 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     error NetStorageUnavailable();
     error NetStorageMetadataMissing();
 
-    constructor(address artRenderer_)
+    constructor(address artRenderer_, address creator_)
         NetIntegratedERC721A(
-            "TinyFrens", // name
-            "FREN",      // symbol
+            COLLECTION_NAME,
+            COLLECTION_SYMBOL,
             0.001 ether, // price (0.001 ETH)
             2664,        // maxSupply
             20,          // maxMintsPerWallet
-            20           // creatorReserve
+            20,          // creatorReserve
+            creator_
         )
     {
         require(artRenderer_.code.length > 0, "Missing art renderer");
@@ -127,7 +135,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         string memory custom = _customName[tokenId];
         if (bytes(custom).length != 0) return custom;
-        return string.concat("TinyFren #", tokenId.toString());
+        return string.concat(TOKEN_NAME_PREFIX, tokenId.toString());
     }
 
     function evolutionStage(uint256 tokenId) public view returns (uint8) {
@@ -189,7 +197,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     }
 
     function _netStorageText(uint256 tokenId) internal pure returns (string memory) {
-        return string.concat("TinyFrens tokenURI #", tokenId.toString());
+        return string.concat(COLLECTION_NAME, " tokenURI #", tokenId.toString());
     }
 
     function _syncNetStorage(uint256 tokenId) internal {
@@ -211,6 +219,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         t.acc = uint8((combination / 4) % 6);
         t.habitat = uint8((combination / 24) % 6);
         t.motion = uint8((combination / 144) % 4);
+        t.ambience = uint16((tokenId * 7919 + 104729) % 65536);
     }
 
     function _speciesName(uint8) internal pure returns (string memory) {
@@ -243,7 +252,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
 
     function _accName(uint8 a) internal pure returns (string memory) {
         if (a == 0) return "None";
-        if (a == 1) return "Party Hat";
+        if (a == 1) return "Pilot Helmet";
         if (a == 2) return "Royal Crown";
         if (a == 3) return "Angel Halo";
         if (a == 4) return "Dapper Bow Tie";
@@ -260,7 +269,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         if (h == 0) return "Moonlit Plaza";
         if (h == 1) return "Neon Crosswalk";
         if (h == 2) return "Snack Garden";
-        if (h == 3) return "Cloud Room";
+        if (h == 3) return "Cloud Terrace";
         if (h == 4) return "Arcade Alley";
         return "Tiny Meadow";
     }
@@ -272,10 +281,46 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return "Excited Wiggle";
     }
 
-    /// @notice 64x64 grid-drawn animated companion.
+    /// @notice 128x128 grid-drawn animated companion scene.
     function art(uint256 tokenId) public view returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         return artRenderer.render(_traits(tokenId), _evolution[tokenId]);
+    }
+
+    function _ambientName(uint8 family, uint8 variant) internal pure returns (string memory) {
+        if (family == 0) return variant == 0 ? "Easy" : variant == 1 ? "Brisk" : variant == 2 ? "Swift" : "Lazy";
+        if (family == 1) return variant == 0 ? "Sparkling" : variant == 1 ? "Lively" : variant == 2 ? "Soft" : "Dreamy";
+        if (family == 2) return variant == 0 ? "Drifting" : variant == 1 ? "Breezy" : variant == 2 ? "Unhurried" : "Playful";
+        if (family == 3) return variant == 0 ? "Gentle" : variant == 1 ? "Breezy" : variant == 2 ? "Calm" : "Lively";
+        if (family == 4) return variant == 0 ? "Warm" : variant == 1 ? "Rolling" : variant == 2 ? "Lingering" : "Shimmering";
+        if (family == 5) return variant == 0 ? "Pulsing" : variant == 1 ? "Lively" : variant == 2 ? "Mellow" : "Glowing";
+        if (family == 6) return variant == 0 ? "Gentle" : variant == 1 ? "Wandering" : variant == 2 ? "Still Air" : "Breezy";
+        if (family == 7) return variant == 0 ? "Buoyant" : variant == 1 ? "Bobbing" : variant == 2 ? "Dreamy" : "Gentle";
+        revert("Invalid motion");
+    }
+
+    function _ambientKey(uint8 family) internal pure returns (string memory) {
+        if (family == 0) return "Cloud Drift";
+        if (family == 1) return "Star Twinkle";
+        if (family == 2) return "Falling Leaves";
+        if (family == 3) return "Foliage Sway";
+        if (family == 4) return "Light Cycle";
+        if (family == 5) return "Neon Glow";
+        if (family == 6) return "Layer Drift";
+        if (family == 7) return "Accessory Float";
+        revert("Invalid motion");
+    }
+
+    function _ambientAttributes(Traits memory t) internal pure returns (string memory result) {
+        for (uint8 i; i < 8; i++) {
+            bool relevant = i == 0 ? t.habitat != 4 : i == 1 ? t.habitat == 0 :
+                i == 2 ? t.habitat == 2 || t.habitat == 5 :
+                i == 3 ? t.habitat == 2 || t.habitat == 3 || t.habitat == 5 :
+                i == 5 ? t.habitat == 1 || t.habitat == 3 || t.habitat == 4 :
+                i == 7 ? t.acc == 3 || t.acc == 5 : true;
+            if (relevant) result = string.concat(result, ',{"trait_type":"', _ambientKey(i),
+                '","value":"', _ambientName(i, uint8((t.ambience >> (i * 2)) & 3)), '"}');
+        }
     }
 
     function _attributes(uint256 tokenId) internal view returns (string memory) {
@@ -293,7 +338,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         }
 
         return string.concat(
-            '[{"trait_type":"Species","value":"', _speciesName(t.species),
+            '[{"trait_type":"Series","value":"Robots"},{"trait_type":"Edition","value":"v1"},{"trait_type":"Species","value":"', _speciesName(t.species),
             '"},{"trait_type":"Palette","value":"', palName,
             '"},{"trait_type":"Rarity Tier","value":"', tier,
             '"},{"trait_type":"Expression","value":"', _exprName(t.expr),
@@ -303,7 +348,7 @@ contract TinyFrensNFT is NetIntegratedERC721A {
             '"},{"trait_type":"Motion","value":"', _motionName(t.motion),
             '"},{"trait_type":"Evolution","value":"Stage ', uint256(_evolution[tokenId]).toString(),
             '"}',
-            vaultAttrs,
+            _ambientAttributes(t), vaultAttrs,
             ']'
         );
     }
@@ -316,11 +361,18 @@ contract TinyFrensNFT is NetIntegratedERC721A {
         return string(data);
     }
 
+    function contractURI() external pure returns (string memory) {
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(string.concat(
+            '{"name":"', COLLECTION_NAME, '","description":"', COLLECTION_DESCRIPTION,
+            '","external_link":"https://tinyfrens.lol"}'
+        ))));
+    }
+
     function _generatedTokenURI(uint256 tokenId) internal view returns (string memory) {
         string memory image = Base64.encode(bytes(art(tokenId)));
         string memory json = string.concat(
             '{"name":"', tokenName(tokenId),
-            '","description":"TinyFrens 1:1 on-chain companion. A little company. A little chaos. Your tiny fren.",',
+            '","description":"', COLLECTION_DESCRIPTION, '",',
             '"image":"data:image/svg+xml;base64,', image, '",',
             '"attributes":', _attributes(tokenId),
             '}'

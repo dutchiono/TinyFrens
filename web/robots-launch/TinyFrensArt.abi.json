@@ -1,0 +1,92 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "spriteRenderer_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "render",
+    "inputs": [
+      {
+        "name": "traits",
+        "type": "tuple",
+        "internalType": "struct Traits",
+        "components": [
+          {
+            "name": "species",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "palette",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "expr",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "acc",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "era",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "habitat",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "motion",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "ambience",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      },
+      {
+        "name": "stage",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "spriteRenderer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract TinyFrensSprite"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]
