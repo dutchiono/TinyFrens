@@ -813,7 +813,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         os.environ['GITHUB_TOKEN'] = 'gh'
         os.environ['GITHUB_REPO'] = 'dutchiono/TinyFrens'
         os.environ['GEMINI_API_KEY'] = 'ai-key'
-        payload = {'event': 'issue_comment', 'action': 'created',
+        payload = {'action': 'created',
                    'repository': {'full_name': 'dutchiono/TinyFrens'},
                    'sender': {'login': 'ada'},
                    'issue': {'number': 77, 'title': 'Vault bug',
@@ -845,7 +845,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
 
             sent.clear()
             r = await self.client.post('/api/github/webhook', data=body,
-                                       headers={'X-Hub-Signature-256': signature})
+                                       headers={'X-Hub-Signature-256': signature, 'X-GitHub-Event':'issue_comment'})
         self.assertEqual(r.status, 200)
         self.assertEqual(len(sent), 1)
         self.assertEqual(sent[0]['chat_id'], chat_id)

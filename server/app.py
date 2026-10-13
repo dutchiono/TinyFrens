@@ -1376,6 +1376,8 @@ def create_app(database=None, origins=None):
             limit(('gh-webhook',request.remote or '?'),120,60)
             try: payload=json.loads(body)
             except json.JSONDecodeError: return web.json_response({'ok':True})
+            if not isinstance(payload, dict): return web.json_response({'ok':True})
+            payload['event']=request.headers.get('X-GitHub-Event',payload.get('event'))
             details=gh.issue_event(payload)
             if details is None: return web.json_response({'ok':True})
             chat_id=issue_chats.get((details['repo'],details['number']))
