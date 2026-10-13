@@ -45,7 +45,7 @@ function getSnapPayload(action?: string) {
         "status-text": {
           type: "text",
           props: {
-            content: "8 companion species · Curated 888 on-chain supply · AR camera snaps · Multiplayer party rooms",
+            content: "Interactive companion · Curated on-chain supply · In-feed pet care · Multiplayer party rooms",
             size: "sm"
           }
         },

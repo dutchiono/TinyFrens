@@ -1175,7 +1175,6 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                                 'from': {'id': 50, 'first_name': 'User'}}})
                 self.assertEqual(res.status, 200)
                 self.assertIn('This command can only be used in group chats.', calls[-1]['payload']['text'])
-
     async def test_telegram_new_member_challenge_verifies_and_restores_access(self):
         os.environ['TELEGRAM_BOT_TOKEN']=self.token;os.environ['TELEGRAM_MODERATION']='true'
         calls=[]
@@ -1396,7 +1395,6 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('4c0883a69102937d6231471b5dbb6204fe5129617082792ae1870199f8d2190f', sent_text)
             self.assertIn('[REDACTED_SECRET]', sent_text)
             self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 888)
-
     async def test_discord_token_unconfigured_returns_503(self):
         os.environ.pop('DISCORD_CLIENT_ID', None); os.environ.pop('DISCORD_CLIENT_SECRET', None)
         r = await self.client.post('/api/discord/token', json={'code': 'abc'})
@@ -1440,6 +1438,18 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r.status, 200)
         data = await r.json()
         self.assertIn('TinyFren #42', data['ui']['elements']['header']['props']['content'])
+
+    async def test_snap_custom_pet_name_and_action(self):
+        r = await self.client.get('/api/snap?name=Mochi&species=Cat', headers={'Accept': 'application/vnd.farcaster.snap+json'})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertIn('Mochi · Cat', data['ui']['elements']['header']['props']['content'])
+
+        r2 = await self.client.post('/api/snap/interact?action=feed&name=Mochi&species=Cat')
+        self.assertEqual(r2.status, 200)
+        data2 = await r2.json()
+        self.assertIn('Mochi', data2['ui']['elements']['hero-img']['props']['subtitle'])
+        self.assertIn('confetti', data2['effects'])
     async def test_nft_price_quote(self):
         r = await self.client.get('/api/nft/price', headers={'Origin': ORIGIN})
         self.assertEqual(r.status, 200)

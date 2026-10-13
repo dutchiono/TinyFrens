@@ -242,36 +242,70 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 @keyframes pageWander{0%{left:11vw;top:25vh}22%{left:72vw;top:18vh}48%{left:68vw;top:44vh}72%{left:22vw;top:46vh}100%{left:13vw;top:32vh}}
 @media(min-width:860px) and (prefers-reduced-motion:reduce){.pet-stage.wandering .pet{position:relative;left:auto;top:auto;z-index:auto}}
 
-/* Farcaster Snap & AR Camera Viewfinder styles */
-.snap-modal{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;overflow:hidden}
-.snap-viewfinder{position:relative;width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between}
-.snap-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
-.snap-studio-bg{position:absolute;inset:0;background:radial-gradient(circle at center, #2d1b4e 0%, #17142a 60%, #0d0a19 100%);z-index:1}
-.snap-pet-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:140px;height:160px;z-index:10;cursor:grab;touch-action:none;user-select:none;filter:drop-shadow(0 12px 18px rgba(0,0,0,0.6))}
-.snap-pet-overlay:active{cursor:grabbing;scale:1.05}
-.snap-pet-svg-host{width:100%;height:100%;pointer-events:none}
-.snap-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:50;transition:opacity .08s ease-out}
-.snap-flash.active{opacity:1;transition:none}
-.snap-header{position:relative;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%)}
-.snap-title{color:#fff;font-weight:700;font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
-.snap-back-btn{background:rgba(255,255,255,0.3);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,0.5);color:#fff;border-radius:999px;font-size:14px;font-weight:700;padding:8px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:42px;box-shadow:0 4px 12px rgba(0,0,0,0.4);touch-action:manipulation}
-.snap-back-btn:active{transform:scale(0.96)}
-.snap-icon-btn{background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);color:#fff;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer}
-.snap-controls{position:relative;z-index:20;padding:16px 20px 32px;background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%);display:flex;flex-direction:column;align-items:center;gap:12px}
-.snap-poses{display:flex;gap:8px;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.15)}
-.snap-pose-btn{background:transparent;color:#d8c6fa;border:0;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
-.snap-pose-btn.active{background:#855DCD;color:#fff}
-.snap-shutter-row{display:flex;align-items:center;justify-content:center;gap:32px;width:100%}
-.snap-shutter-trigger{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.25);border:4px solid #fff;padding:0;display:grid;place-items:center;cursor:pointer;transition:transform .1s ease}
-.snap-shutter-trigger:active{transform:scale(0.92)}
-.snap-shutter-ring{width:54px;height:54px;border-radius:50%;background:#fff}
-.snap-hint{color:rgba(255,255,255,0.7);font-size:12px;margin:0;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.8)}
-.snap-preview-modal{position:absolute;inset:0;z-index:30;background:rgba(15,12,27,0.92);backdrop-filter:blur(12px);display:grid;place-items:center;padding:20px}
-.snap-preview-card{background:#17142a;border:1px solid #42355e;border-radius:20px;padding:14px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.6);text-align:center}
-.snap-preview-img{width:100%;border-radius:14px;display:block;box-shadow:0 4px 14px rgba(0,0,0,0.4)}
-.snap-preview-actions{margin-top:14px}
-.snap-cast-btn{width:100%;background:#855DCD;color:#fff;font-size:15px;font-weight:700;padding:12px;border-radius:12px;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.snap-cast-btn:active{transform:scale(0.98)}
+/* Farcaster Snap 2.0 In-Feed Generator & Preview Modal */
+.snap-modal{position:fixed;inset:0;z-index:9999;background:rgba(12,10,24,0.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.snap-container{background:#18142c;border:1px solid #4a386d;border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,0.65);max-width:440px;width:100%;margin:auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.snap-modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#1d1835}
+.snap-header-left{display:flex;align-items:center;gap:10px}
+.snap-badge-tag{background:linear-gradient(135deg,#855DCD,#a474f1);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:0.02em}
+.snap-header-title{font-size:15px;font-weight:700;color:#f0eaff;margin:0}
+.snap-modal-close{background:rgba(255,255,255,0.1);color:#fff;border:0;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:14px;cursor:pointer;transition:background .15s}
+.snap-modal-close:hover{background:rgba(255,255,255,0.2)}
+.snap-body{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+
+/* Character Selector Pills */
+.snap-char-picker{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.snap-char-picker::-webkit-scrollbar{display:none}
+.snap-char-pill{background:#231c3c;border:1px solid #453564;color:#d8c6fa;font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.snap-char-pill:hover{border-color:#855DCD;color:#fff}
+.snap-char-pill.active{background:#855DCD;border-color:#855DCD;color:#fff;box-shadow:0 2px 10px rgba(133,93,205,0.4)}
+
+/* The Simulated Farcaster Snap Card */
+.snap-card{background:#201b3a;border:1px solid #493769;border-radius:20px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.snap-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a474f1,#66c7d2,#ffb95e)}
+.snap-card-top{display:flex;align-items:center;justify-content:space-between}
+.snap-card-name{font-size:18px;font-weight:800;color:#fff;margin:0}
+.snap-card-badge{font-size:11px;font-weight:700;color:#c8b1fa;background:rgba(133,93,205,0.25);border:1px solid rgba(133,93,205,0.4);border-radius:999px;padding:3px 8px}
+
+/* Hero Stage */
+.snap-hero-frame{position:relative;aspect-ratio:16/9;background:radial-gradient(circle at center,#342557 0%,#19152b 75%);border:1px solid #3d2f5a;border-radius:14px;display:grid;place-items:center;overflow:hidden}
+.snap-hero-sprite{width:110px;height:110px;object-fit:contain;image-rendering:pixelated;transition:transform .2s ease;filter:drop-shadow(0 8px 16px rgba(0,0,0,0.5))}
+.snap-hero-svg-wrap{width:120px;height:120px;display:grid;place-items:center;transition:transform .2s ease;filter:drop-shadow(0 8px 16px rgba(0,0,0,0.5))}
+
+/* Hero Reaction Animations */
+.snap-hero-anim-pet{animation:snapWiggle 0.6s cubic-bezier(0.34,1.56,0.64,1)}
+.snap-hero-anim-feed{animation:snapMunch 0.5s ease-in-out}
+.snap-hero-anim-play{animation:snapBounce 0.55s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes snapWiggle{0%,100%{transform:scale(1) rotate(0)}25%{transform:scale(1.15) rotate(-8deg)}50%{transform:scale(1.1) rotate(8deg)}75%{transform:scale(1.12) rotate(-4deg)}}
+@keyframes snapMunch{0%,100%{transform:translateY(0)}25%{transform:translateY(-12px) scale(1.08)}50%{transform:translateY(2px) scale(0.96)}75%{transform:translateY(-6px)}}
+@keyframes snapBounce{0%,100%{transform:translateY(0) scale(1)}30%{transform:translateY(-18px) scale(1.1,0.9)}50%{transform:translateY(0) scale(0.9,1.1)}70%{transform:translateY(-8px) scale(1.05)}}
+
+/* Floating Reaction Emoji / Confetti */
+.snap-reaction-burst{position:absolute;pointer-events:none;font-size:26px;animation:snapBurst 0.85s forwards ease-out;z-index:10}
+@keyframes snapBurst{0%{opacity:1;transform:translateY(0) scale(0.6)}100%{opacity:0;transform:translateY(-50px) scale(1.4)}}
+
+/* Status Box */
+.snap-status-text{font-size:13px;color:#d5c4f7;line-height:1.45;margin:0;min-height:36px;display:flex;align-items:center}
+.snap-status-highlight{animation:snapTextGlow 0.4s ease}
+@keyframes snapTextGlow{0%{color:#ffd700}100%{color:#d5c4f7}}
+
+/* In-Feed Action Buttons */
+.snap-action-btns{display:flex;gap:8px;width:100%}
+.snap-action-btn{flex:1;background:rgba(255,255,255,0.08);border:1px solid #4a386d;color:#fff;font-size:13px;font-weight:700;padding:10px 8px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .12s ease;touch-action:manipulation}
+.snap-action-btn:hover{background:rgba(133,93,205,0.3);border-color:#855DCD}
+.snap-action-btn:active{transform:scale(0.95)}
+.snap-miniapp-btn{background:#855DCD;border:0;color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
+.snap-miniapp-btn:hover{background:#9a72e8}
+
+/* Bottom Sharing Toolbar */
+.snap-export-bar{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+.snap-cast-primary-btn{background:#855DCD;color:#fff;font-size:15px;font-weight:800;padding:13px;border-radius:14px;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(133,93,205,0.35);transition:all .15s}
+.snap-cast-primary-btn:hover{background:#966fe0;transform:translateY(-1px)}
+.snap-cast-primary-btn:active{transform:scale(0.98)}
+.snap-export-subrow{display:flex;gap:10px}
+.snap-sub-btn{flex:1;background:transparent;border:1px solid #4a386d;color:#d8c6fa;font-size:13px;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.snap-sub-btn:hover{background:rgba(255,255,255,0.06);color:#fff;border-color:#855DCD}
+.snap-footer-help{font-size:11px;color:#9b8eb6;text-align:center;margin:0;line-height:1.4}
 
 /* Farcaster Mini App Loading Screen & Splash Transition */
 .fc-loading-screen{position:fixed;inset:0;z-index:99999;background:#17142a;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;transition:opacity .35s ease-out,visibility .35s ease-out;animation:fcSafetyDismiss 0s 3.5s forwards}

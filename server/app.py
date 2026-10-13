@@ -416,7 +416,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/admin','/api/github/webhook','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/admin','/admin/','/admin.html','/web/admin.html','/api/github/webhook','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
@@ -1098,12 +1098,15 @@ def create_app(database=None, origins=None):
             'motion': motion_labels[motion_idx],
             'tokenId': int(token_id)
         }
-    def make_snap_payload(action=None, nft_id=None):
+    def make_snap_payload(action=None, nft_id=None, name=None, species=None):
         effects=["confetti"] if action in ("pet","feed","play") else []
-        status_text="Your 1:1 on-chain & floating desktop companion."
-        header_text="TinyFrens · Pocket Pet"
-        status_sub="Robot-only NFT set · 3 eras · 2664 on-chain supply · AR camera snaps · Multiplayer party rooms"
+        char_name = name or (f"TinyFren #{nft_id}" if nft_id else "Your fren")
+        char_species = species or "Pocket Pet"
+        header_text=f"{char_name} · {char_species}"
+        status_sub="Interactive pocket pet on Farcaster · Pet, feed, and play with your companion in-feed"
+        status_text=f"{char_name} is hanging out in Farcaster!"
         app_target="https://tinyfrens.lol/"
+        hero_img="https://tinyfrens.lol/icons/og-card.png"
         if nft_id:
             try:
                 traits = nft_traits_by_id(nft_id)
@@ -1112,9 +1115,9 @@ def create_app(database=None, origins=None):
                 status_text = f"TinyFren #{nft_id} is active in the Public Plaza!"
                 app_target = f"https://tinyfrens.lol/?nft={nft_id}"
             except Exception: pass
-        if action=="pet": status_text="You petted the fren! They did a little wiggle 💖"
-        elif action=="feed": status_text="You fed the fren a fresh strawberry 🍓! Nom nom."
-        elif action=="play": status_text="You played ball with your fren 🎾! Joy is at 100%!"
+        if action=="pet": status_text=f"You petted {char_name}! They did a little wiggle 💖"
+        elif action=="feed": status_text=f"You fed {char_name} a fresh strawberry 🍓! Nom nom."
+        elif action=="play": status_text=f"You played ball with {char_name} 🎾! Joy is at 100%!"
         return {
             "version": "2.0",
             "theme": {"accent": "purple"},
@@ -1134,7 +1137,7 @@ def create_app(database=None, origins=None):
                     "hero-img": {
                         "type": "image",
                         "props": {
-                            "url": "https://tinyfrens.lol/icons/og-card.png",
+                            "url": hero_img,
                             "aspect": "16:9",
                             "title": header_text,
                             "subtitle": status_text
@@ -1178,22 +1181,26 @@ def create_app(database=None, origins=None):
     async def get_snap(request):
         accept=request.headers.get('Accept','')
         nft_param=request.query.get('nft') or request.query.get('id')
+        name_param=request.query.get('name')
+        species_param=request.query.get('species')
         nft_id=None
         if nft_param:
             try:
                 v=int(nft_param)
                 if 1<=v<=NFT_MAX_SUPPLY: nft_id=v
             except ValueError: pass
-        link_query=f"?nft={nft_id}" if nft_id else ""
+        link_query=f"?nft={nft_id}" if nft_id else (f"?name={name_param}&species={species_param}" if name_param else "")
         link_hdr=f'<https://www.tinyfrens.lol/snap{link_query}>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
         if 'application/vnd.farcaster.snap+json' not in accept and 'text/html' in accept:
-            card_title=f"TinyFren #{nft_id}" if nft_id else "TinyFrens Snap"
-            card_desc=f"Verified On-Chain #{nft_id} Companion" if nft_id else "An interactive pet built for Farcaster casts."
+            card_title=f"{name_param} · {species_param or 'TinyFren'}" if name_param else (f"TinyFren #{nft_id}" if nft_id else "TinyFrens Snap")
+            card_desc=f"Verified On-Chain #{nft_id} Companion" if nft_id else ("Interactive Pocket Pet on Farcaster" if name_param else "An interactive pet built for Farcaster casts.")
             html=f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{card_title} · Farcaster Snap</title><meta property="og:title" content="{card_title} · In-Feed Pocket Pet"><meta property="og:description" content="{card_desc}"><meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png"><link rel="alternate" type="application/vnd.farcaster.snap+json" href="https://www.tinyfrens.lol/snap{link_query}"><link rel="icon" href="https://tinyfrens.lol/icons/icon.svg"><style>body{{margin:0;min-height:100vh;background:#17142a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;padding:20px;text-align:center;box-sizing:border-box}}.card{{background:#231c3c;border:1px solid #4a3474;border-radius:24px;padding:28px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.5)}}img{{width:100%;border-radius:16px;margin-bottom:16px}}h1{{font-size:24px;margin:0 0 8px}}p{{color:#c8b1fa;font-size:15px;margin:0 0 24px}}a{{display:block;background:#855DCD;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px;border-radius:14px}}</style></head><body><div class="card"><img src="https://tinyfrens.lol/icons/og-card.png" alt="TinyFrens"><h1>{card_title}</h1><p>{card_desc}</p><a href="https://tinyfrens.lol/web/{link_query}">Open Full Web App 🐾</a></div></body></html>"""
             return web.Response(text=html, content_type='text/html', headers={'Vary': 'Accept', 'Link': link_hdr})
-        return web.json_response(make_snap_payload(nft_id=nft_id), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
+        return web.json_response(make_snap_payload(nft_id=nft_id, name=name_param, species=species_param), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
     async def post_snap_interact(request):
         action=request.query.get('action')
+        name_param=request.query.get('name')
+        species_param=request.query.get('species')
         if not action:
             try:
                 body=await request.json()
@@ -1208,7 +1215,7 @@ def create_app(database=None, origins=None):
             except Exception:
                 pass
         link_hdr='<https://www.tinyfrens.lol/snap>; rel="alternate"; type="application/vnd.farcaster.snap+json"'
-        return web.json_response(make_snap_payload(action=action), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
+        return web.json_response(make_snap_payload(action=action, name=name_param, species=species_param), content_type='application/vnd.farcaster.snap+json', headers={'Vary': 'Accept', 'Link': link_hdr})
     async def farcaster_manifest(request):
         candidates=[
             os.path.join(os.path.dirname(__file__),'..','web','.well-known','farcaster.json'),
