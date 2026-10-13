@@ -1912,7 +1912,7 @@ def create_app(database=None, origins=None):
     import account_profile
     account_profile.install(app, db, token_pet, limit)
     import collection_suggestions
-    collection_suggestions.install(app, db, token_pet, limit)
+    collection_suggestions.install(app, db, token_pet, limit, economy=economy, deposit_settings=treasury_settings)
     turtle_previews = {}
 
     async def hood_turtle_preview(request):
