@@ -275,6 +275,11 @@ async function smokeTest() {
     await pause(500);
     assert.equal(turtles.view().items.length, 2);
     const robotWindow = companionWindows.get(companionKey(robotFixture)).win;
+    // Intel CI can finish creating the window before its SVG has decoded.
+    for (let i = 0; i < 50; i++) {
+      if (await robotWindow.webContents.executeJavaScript('document.getElementById("companion")?.naturalWidth || 0') === 128) break;
+      await pause(100);
+    }
     assert.equal(await robotWindow.webContents.executeJavaScript('document.getElementById("companion").naturalWidth'),128);
     assert.equal(turtles.view().items[1].companion.frames.length,8);
     turtles.remove(robotFixture.tokenId,robotFixture);broadcastTurtle();
