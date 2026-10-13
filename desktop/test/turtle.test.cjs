@@ -39,13 +39,14 @@ test('each companion keeps its own movement through reopening and ownership rene
   const store = new TurtleStore(file, fetcher, () => now);
   await store.import(SERVER, {token:'secret', tokenId:1});
   await store.import(SERVER, {token:'secret', tokenId:2});
-  store.setMotion(1, 'bubble', 40);
-  store.setMotion(2, 'roam', 120);
+  store.setMotion(1, 'bubble', 40, {size:56});
+  store.setMotion(2, 'roam', 120, {size:112});
   assert.throws(() => store.setMotion(1, 'invalid', 60), /Invalid/);
   assert.throws(() => store.setMotion(1, 'roam', 141), /Invalid/);
   assert.throws(() => store.setMotion(3, 'roam', 60), /not found/);
   const reopened = new TurtleStore(file, fetcher, () => now);
-  const expected = [{mode:'bubble', speed:40}, {mode:'roam', speed:120}];
+  assert.throws(() => store.setMotion(1, 'roam', 60, {size:500}), /Invalid companion size/);
+  const expected = [{mode:'bubble', speed:40, size:56}, {mode:'roam', speed:120, size:112}];
   assert.deepEqual(reopened.view().items.map(nft => nft.motion), expected);
   now += 3600_000;
   assert.equal(await reopened.renew(), true);

@@ -31,7 +31,9 @@ class TurtleStore {
     if (!['roam', 'bubble'].includes(mode) || !Number.isInteger(speed) || speed < 20 || speed > 140) throw new Error('Invalid companion movement');
     const nft = this.selected.find(item => companionKey(item) === companionKey({...collection, tokenId}));
     if (!nft) throw new Error('Companion not found');
-    nft.motion = {mode, speed}; this.save();
+    const size = collection.size ?? nft.motion?.size ?? 80;
+    if (!Number.isInteger(size) || size < 48 || size > 128) throw new Error('Invalid companion size');
+    nft.motion = {mode, speed, size}; this.save();
     return this.view();
   }
   removeWallet(address) { this.generation++; this.selected = this.selected.filter(nft => (nft.wallet || nft.originalOwner || '').toLowerCase() !== address.toLowerCase()); this.save(); }

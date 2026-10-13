@@ -89,7 +89,7 @@ class PetOverlayService:Service(){
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
   if(!hiding)v.alpha=state.optInt("opacity",100).coerceIn(40,100)/100f
   val token=state.optLong("actionUntil");if(token!=lastEffectToken){lastEffectToken=token;if(token>System.currentTimeMillis())careEffect()}
-  val size=dp(state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}
+  val size=dp(primaryMotion?.optInt("size",state.optInt("size",80))?:state.optInt("size",80));if(p.width!=size){p.width=size;p.height=size;clamp();update(v,p)}
  }
  private val animator=object:Runnable{override fun run(){
   val v=pet?:return;val p=params?:return
@@ -173,8 +173,8 @@ class PetOverlayService:Service(){
   val(bx,by)=bounds()
   for(nft in active){
    val id=nft.optInt("tokenId");val existing=ownedPets.find{it.companionId==TurtleStore.key(nft)}
-   if(existing!=null){existing.view.turtleFrames=turtles.frames(nft);existing.view.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
-   val gv=PetView(this);val gp=overlay(dp(state.optInt("size",80)),dp(state.optInt("size",80)))
+   if(existing!=null){val size=dp(nft.optJSONObject("motion")?.optInt("size",80)?:80);if(existing.params.width!=size){existing.params.width=size;existing.params.height=size;update(existing.view,existing.params)};existing.view.turtleFrames=turtles.frames(nft);existing.view.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;existing.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";existing.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60;continue}
+   val gv=PetView(this);val size=dp(nft.optJSONObject("motion")?.optInt("size",80)?:80);val gp=overlay(size,size)
    gv.turtleSelected=true;gv.turtleFrames=turtles.frames(nft);gv.turtleFrameMs=nft.optJSONObject("companion")?.optLong("frameMs",160)?:160;gv.reducedMotion=reducedMotion()
    val g=GuestPet(gv,gp,nft.optString("name"),"turtle",0,id).apply{companionId=TurtleStore.key(nft);x=Random.nextFloat()*bx;y=Random.nextFloat()*by;nextMove=0}
    g.mode=nft.optJSONObject("motion")?.optString("mode","roam")?:"roam";g.speed=nft.optJSONObject("motion")?.optInt("speed",60)?:60

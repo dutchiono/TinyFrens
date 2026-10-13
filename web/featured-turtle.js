@@ -12,6 +12,12 @@
     localStorage.setItem(motionKey, JSON.stringify(settings));
     nft.motion = motion;
   }
+  window.TinyFrensCompanionSize = nft => movement(nft).size || 80;
+  window.TinyFrensSetCompanionSize = async (nft, size, imported = true) => {
+    const motion = {...movement(nft), size};
+    if (imported) await saveMovement(nft, motion);
+    else { const settings = motions(); settings[identity(nft)] = motion; localStorage.setItem(motionKey, JSON.stringify(settings)); }
+  };
   const stage = document.getElementById('stage'), pet = document.getElementById('pet');
   if (!stage || !pet) return;
   const sprites = new Map();
@@ -21,7 +27,7 @@
   stage.append(empty);
   empty.querySelector('a').onclick = event => { event.preventDefault(); window.showScreen('wallet'); };
   const controls = document.createElement('div');
-  controls.className = 'companion-controls'; stage.after(controls);
+  controls.className = 'companion-controls'; controls.hidden = !!window.PetAndroid; controls.hidden = !!window.PetAndroid; controls.hidden = !!window.PetAndroid; stage.after(controls);
   let items = [], refreshing = false;
   function saved() {
     try {
@@ -47,7 +53,7 @@
     empty.hidden = active.length > 0;
     const ids = new Set(active.map(identity));
     for (const [id, sprite] of sprites) if (!ids.has(id)) { sprite.element.remove(); sprites.delete(id); }
-    controls.replaceChildren();
+    controls.replaceChildren(); movementMenu.hidden = !active.length;
     for (const nft of active) {
       if (!sprites.has(identity(nft))) {
         const element = document.createElement('img');
@@ -70,7 +76,7 @@
       const status = document.createElement('p'); status.className = 'small'; status.setAttribute('role','status');
       const update = async () => {
         mode.disabled = true; speed.disabled = true;
-        try { await saveMovement(nft, {mode:mode.value, speed:Number(speed.value)}); status.textContent = 'Saved on this device.'; }
+        try { await saveMovement(nft, {...movement(nft), mode:mode.value, speed:Number(speed.value)}); status.textContent = 'Saved on this device.'; }
         catch (error) { mode.value = movement(nft).mode; speed.value = movement(nft).speed; status.textContent = error.message; }
         finally { mode.disabled = false; speed.disabled = mode.value === 'bubble'; }
       };
@@ -120,6 +126,7 @@
       if (sprite.x > .8) sprite.direction = -1; if (sprite.x < .02) sprite.direction = 1;
       const frame = walking ? nft.companion.frames[Math.floor(time / nft.companion.frameMs) % nft.companion.frames.length] : nft.companion.idle;
       if (element.getAttribute('src') !== frame) element.src = frame;
+      element.style.width = (motion.size || 80) + 'px'; element.style.height = (motion.size || 80) + 'px';
       element.style.left = sprite.x * 100 + '%';
       element.style.bottom = (14 + i++ * 12) + '%';
       element.style.transform = `scaleX(${sprite.direction})`;

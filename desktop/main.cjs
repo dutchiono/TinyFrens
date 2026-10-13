@@ -72,6 +72,8 @@ function syncCompanions() {
       entry.nft = nft; entry.win.webContents.send('tinyfrens:turtle', {active:true, ...nft});
     }
     entry.nft = nft;
+    const size = Math.round(128 * (nft.motion?.size || 80) / 80);
+    if (entry.win.getSize()[0] !== size) entry.win.setSize(size, size);
   }
 }
 function moveCompanions(elapsed) {

@@ -36,6 +36,7 @@
       <h3>Your supported NFTs</h3>
       <p class="small">NFTs from collections available as TinyFrens companions appear here.</p>
       <button type="button" id="scanWallet" class="secondary" disabled>Refresh NFTs</button>
+      <label class="nft-search">Find an NFT<input id="nftSearch" type="search" placeholder="Name, collection or token number"></label>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
     </section>
@@ -102,10 +103,23 @@
     try {
       const visible = PetAndroid.isPetVisible() ? JSON.parse(PetAndroid.getTurtle()).items || [] : [];
       const shown = new Set(visible.map(window.TinyFrensCompanionKey));
-      for (const button of document.querySelectorAll('[data-native-companion]')) if (!button.disabled) button.textContent = shown.has(button.dataset.nativeCompanion) ? 'Hide from screen' : 'Show on screen';
+      for (const button of document.querySelectorAll('[data-native-companion]')) if (!button.disabled) button.checked = shown.has(button.dataset.nativeCompanion);
     } catch {}
   }, 1000);
 
+  document.getElementById('nftSearch').oninput = event => {
+    const query = event.target.value.trim().toLowerCase();
+    for (const card of matches.children) card.hidden = !card.dataset.search.includes(query);
+  };
+  const verifiedArt = new Map();
+  function verify(nft) {
+    const id = window.TinyFrensCompanionKey(nft);
+    if (!verifiedArt.has(id)) verifiedArt.set(id, post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId}).catch(error => { verifiedArt.delete(id); throw error; }));
+    return verifiedArt.get(id).then(data => {
+      if (Date.now() >= data.validUntil * 1000) { verifiedArt.delete(id); return verify(nft); }
+      return data;
+    });
+  }
   async function scan() {
     if (!linkedAddresses.length) return;
     scanButton.disabled = true;
@@ -116,32 +130,44 @@
         contract:nft.originalAddress, chain:nft.chainId === 8453 ? 'Base' : 'Robinhood Chain', standard:'ERC-721', companionSupported:true}))};
       matches.replaceChildren();
       const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);
+      const previews = [];
       for (const nft of supported) {
         const card = document.createElement('article');
         card.className = 'wallet-nft';
-        if (nft.image) {
-          const art = document.createElement('img');
-          art.src = nft.image; art.alt = nft.name; art.className = 'wallet-nft-art';
-          art.loading = 'lazy'; art.referrerPolicy = 'no-referrer';
-          art.onerror = () => art.remove();
-          card.append(art);
-        }
+        card.dataset.search = `${nft.name} ${nft.collection} ${nft.tokenId}`.toLowerCase();
+        const art = document.createElement('img');
+        art.alt = nft.name; art.className = 'wallet-nft-art'; art.loading = 'lazy'; art.referrerPolicy = 'no-referrer';
+        const previewStatus = document.createElement('span'); previewStatus.className = 'nft-preview-status'; previewStatus.textContent = 'Loading artwork…';
+        art.hidden = true; card.append(art, previewStatus);
+        const showArt = image => { if (image) { art.src = image; art.hidden = false; previewStatus.hidden = true; } };
+        art.onerror = () => { art.hidden = true; previewStatus.hidden = false; previewStatus.textContent = 'Preview unavailable'; };
+        if (nft.image) showArt(nft.image);
+        else previews.push(async () => { try { const data = await verify(nft); showArt(data.image); if (!data.image) previewStatus.textContent = 'Preview unavailable'; } catch { previewStatus.textContent = 'Preview unavailable'; } });
+        const info = document.createElement('div'); info.className = 'nft-row-info';
         const title = document.createElement('strong');
         title.textContent = nft.name;
         const detail = document.createElement('p');
-        detail.textContent = nft.chain + ' · ' + nft.collection + ' · ' + nft.standard + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
-        card.append(title,detail);
+        detail.textContent = nft.collection + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
+        info.append(title,detail); card.append(info);
         if (nft.companionSupported) {
-          const link = document.createElement('button');
-          link.type = 'button';
+          const link = document.createElement('input');
+          link.type = 'checkbox'; link.setAttribute('aria-label', 'Show ' + nft.name + ' on screen');
           if (window.PetAndroid) link.dataset.nativeCompanion = window.TinyFrensCompanionKey(nft);
           const androidShowing = () => { try { return window.PetAndroid?.isPetVisible() && JSON.parse(PetAndroid.getTurtle()).items?.some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft)); } catch { return false; } };
-          link.textContent = androidShowing() ? 'Hide from screen' : window.PetAndroid ? 'Show on screen' : 'Show companion';
-          link.onclick = async () => {
+          const isShowing = () => window.PetAndroid ? androidShowing() : window.TinyFrensDesktop?.getTurtle ? JSON.parse(TinyFrensDesktop.getTurtle()).items?.some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft)) : JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft));
+          link.checked = isShowing();
+          link.onchange = async () => {
             link.disabled = true;
             try {
-              if (androidShowing() && window.PetAndroid?.hideCompanion) { PetAndroid.hideCompanion(window.TinyFrensCompanionKey(nft)); link.textContent = 'Show on screen'; return; }
-              const verified = await post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
+              if (!link.checked) {
+                if (window.PetAndroid?.hideCompanion) PetAndroid.hideCompanion(window.TinyFrensCompanionKey(nft));
+                else {
+                  if (window.TinyFrensDesktop?.turtleRequest) await post('/native/remove-turtle', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
+                  localStorage.setItem('tinyfrens-companions', JSON.stringify(JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').filter(item => window.TinyFrensCompanionKey(item) !== window.TinyFrensCompanionKey(nft))));
+                }
+                window.dispatchEvent(new Event('tinyfrens-wallet-link-changed')); return;
+              }
+              const verified = await verify(nft);
               if (!verified.active) throw new Error('None of your linked wallets currently owns this NFT. Check the wallet address shown on its card.');
               if (!verified.companion) throw new Error('Ownership verified, but this NFT’s artwork could not be prepared for animation.');
               if (Date.now() >= verified.validUntil * 1000) throw new Error('Your ownership check expired. Refresh NFTs and try again.');
@@ -149,20 +175,32 @@
               if (!window.PetAndroid && saved.length >= 5) throw new Error('You can show up to five companions. Remove one first.');
               if (window.PetAndroid?.turtleRequest || window.TinyFrensDesktop?.turtleRequest) await post('/native/import-turtle', {tokenId:verified.tokenId, originalAddress:verified.originalAddress, chainId:verified.chainId});
               saved.push(verified);
+              await window.TinyFrensSetCompanionSize?.(verified, Number(size.value));
               localStorage.setItem('tinyfrens-companions', JSON.stringify(saved));
               window.dispatchEvent(new Event('tinyfrens-wallet-link-changed'));
               if (window.PetAndroid) {
                 const started = PetAndroid.startPet();
-                link.textContent = started ? 'Hide from screen' : 'Show on screen';
+                link.checked = started;
                 scanStatus.textContent = started ? 'Showing on your screen.' : 'Allow TinyFrens to display over other apps, then tap Show on screen again.';
-              } else { window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'}); link.textContent = 'Showing'; }
+              } else { window.showScreen('pet'); document.getElementById('stage').scrollIntoView({block:'center'}); link.checked = true; }
             } catch (error) { scanStatus.textContent = error.message; }
-            finally { link.disabled = false; }
+            finally { link.disabled = false; link.checked = isShowing(); }
           };
-          card.append(link);
+          const toggle = document.createElement('label'); toggle.className = 'nft-show-toggle'; toggle.append(link, document.createTextNode('Show'));
+          const sizeLabel = document.createElement('label'); sizeLabel.className = 'nft-size'; sizeLabel.textContent = 'Size';
+          const size = document.createElement('select'); size.setAttribute('aria-label', nft.name + ' size');
+          for (const [value, text] of [[56,'Small'],[80,'Medium'],[112,'Large']]) { const option = document.createElement('option'); option.value = value; option.textContent = text; size.append(option); }
+          size.value = window.TinyFrensCompanionSize?.(nft) || 80;
+          size.onchange = async () => { try { await window.TinyFrensSetCompanionSize(nft, Number(size.value), isShowing()); } catch (error) { scanStatus.textContent = error.message; } };
+          sizeLabel.append(size); const actions = document.createElement('div'); actions.className = 'nft-row-actions'; actions.append(toggle, sizeLabel); card.append(actions);
         }
         matches.append(card);
       }
+      document.getElementById('nftSearch').dispatchEvent(new Event('input'));
+      // Two artwork requests at a time; ownership/artwork are cached by the relay.
+      const queue = [...previews];
+      const worker = async () => { while (queue.length) await queue.shift()(); };
+      void Promise.all([worker(), worker()]);
       const failed = data.errors.length;
       scanStatus.textContent = (supported.length ? supported.length + ' supported NFT(s) found.' : 'No NFTs from available collections found in your linked wallets.') +
         (data.partial ? ' Partial scan: ' + failed + ' indexer request(s) failed or pages were limited.' : '') +

@@ -34,3 +34,27 @@ class BotsComputerArtTests(unittest.TestCase):
         for raw in (b'<svg/>', b'<!DOCTYPE svg><svg/>', b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320"><script/></svg>'):
             self.assertIsNone(companion('data:image/svg+xml;base64,' + base64.b64encode(raw).decode()))
         self.assertIsNone(companion('https://example.com/art.svg'))
+
+    def test_narrow_eyes_keep_their_shape_and_blink(self):
+        for token in (50, 51):
+            raw = (Path(__file__).parent / 'fixtures' / f'bots-computer-{token}.svg').read_bytes()
+            rig = companion('data:image/svg+xml;base64,' + base64.b64encode(raw).decode())
+            self.assertIsNotNone(rig)
+            idle = ET.fromstring(base64.b64decode(rig['idle'].split(',')[1]))
+            blink = ET.fromstring(base64.b64decode(rig['frames'][4].split(',')[1]))
+            self.assertEqual(len([n for n in idle if n.get('width') == '35' and n.get('height') == '10']), 2)
+            self.assertEqual(len([n for n in blink if n.get('width') == '35' and n.get('height') == '3']), 2)
+
+    def test_official_eye_variants_and_accessories_animate(self):
+        for token in (2, 4, 5, 6, 52, 55):
+            with self.subTest(token=token):
+                raw = (Path(__file__).parent / 'fixtures' / f'bots-computer-{token}.svg').read_text()
+                rig = companion(raw)
+                self.assertIsNotNone(rig)
+                self.assertNotEqual(rig['idle'], rig['frames'][4])
+                idle = ET.fromstring(base64.b64decode(rig['idle'].split(',')[1]))
+                blink = ET.fromstring(base64.b64decode(rig['frames'][4].split(',')[1]))
+                changed = [(a, b) for a, b in zip(idle, blink) if a.attrib != b.attrib and a.get('cy') != '253']
+                self.assertEqual(len(changed), 2)
+                self.assertTrue(all(b.get('height') == '3' or 'scale(1 0.12)' in b.get('transform', '') for a, b in changed))
+                self.assertEqual([a.get('fill') for a, b in changed], [b.get('fill') for a, b in changed])

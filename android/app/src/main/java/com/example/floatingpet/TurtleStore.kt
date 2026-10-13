@@ -35,7 +35,9 @@ class TurtleStore(context: Context) {
                 val selected = items()
                 val nft = selected.firstOrNull { key(it) == key(body) }
                     ?: throw IllegalArgumentException("Companion not found")
-                nft.put("motion", JSONObject().put("mode", mode).put("speed", speed))
+                val size = body.optInt("size", nft.optJSONObject("motion")?.optInt("size", 80) ?: 80)
+                require(size in 48..128) { "Invalid companion size" }
+                nft.put("motion", JSONObject().put("mode", mode).put("speed", speed).put("size", size))
                 save(selected)
             }
             return JSONObject(view())

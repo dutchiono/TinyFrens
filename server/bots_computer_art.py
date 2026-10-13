@@ -41,18 +41,28 @@ def companion(image):
         allowed_tags = {'rect', 'circle', 'ellipse', 'polygon', 'path', 'g', 'line'}
         allowed_attributes = {'x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'd',
                               'points', 'fill', 'stroke', 'stroke-width', 'opacity', 'transform',
-                              'x1', 'y1', 'x2', 'y2', 'stroke-linecap', 'stroke-linejoin'}
+                              'x1', 'y1', 'x2', 'y2', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray'}
         if any(node.tag not in {NS + tag for tag in allowed_tags} or
                any(attribute not in allowed_attributes for attribute in node.attrib)
                for drawing in character for node in drawing.iter()):
             return None
 
-        # Verify eye landmarks exist (2 rects around y=140 with width=25, height=25)
-        eyes = [
-            n for n in character
-            if n.tag == NS + 'rect' and n.get('width') == '25' and n.get('height') == '25' and n.get('y') == '140'
-        ]
-        if len(eyes) < 2:
+        # Official eye traits: square, narrow, visor, rings, happy, crossed, hearts.
+        eye_paths = {
+            'M105,155 Q122,130 140,155', 'M180,155 Q197,130 215,155',
+            'M110,138 L134,162 M134,138 L110,162', 'M185,138 L209,162 M209,138 L185,162',
+            'M110,145 A8,8 0 0,1 122,140 A8,8 0 0,1 134,145 Q122,165 110,145 Z',
+            'M185,145 A8,8 0 0,1 197,140 A8,8 0 0,1 209,145 Q197,165 185,145 Z',
+        }
+        eyes = [n for n in character if (
+            n.tag == NS + 'rect' and (
+                (n.get('x') in {'110', '185'} and n.get('width') == '25' and n.get('height') == '25' and n.get('y') == '140') or
+                (n.get('x') in {'105', '180'} and n.get('width') == '35' and n.get('height') == '10' and n.get('y') == '148') or
+                (n.get('x') == '105' and n.get('width') == '110' and n.get('height') == '16' and n.get('y') == '144') or
+                (n.get('x') == '145' and n.get('width') == '30' and n.get('height') == '12' and n.get('y') == '146')) or
+            n.tag == NS + 'circle' and n.get('cx') in {'122', '197'} and n.get('cy') == '150' and n.get('r') == '14' or
+            n.tag == NS + 'path' and n.get('d') in eye_paths)]
+        if len(eyes) != 2:
             return None
 
         # 6-phase animation cycle:
@@ -73,10 +83,13 @@ def companion(image):
                 tag = n.tag.split('}')[-1]
 
                 # Eyes: blink closed on phase 4
-                if tag == 'rect' and n.get('width') == '25' and n.get('height') == '25' and n.get('y') == '140':
+                if original in eyes:
                     if phase == 4:
-                        n.set('y', '151')
-                        n.set('height', '3')
+                        if n.tag == NS + 'rect':
+                            n.set('y', str(int(original.get('y')) + (int(original.get('height')) - 3) // 2))
+                            n.set('height', '3')
+                        else:
+                            n.set('transform', 'translate(0 150) scale(1 0.12) translate(0 -150)')
 
                 # Status LEDs on bezel
                 elif tag == 'circle' and n.get('cy') == '253':
