@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
 import turtle_connect
+import robot_gallery
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
     from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify
@@ -314,7 +315,7 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
@@ -1552,6 +1553,7 @@ def create_app(database=None, origins=None):
 
     turtle_ownership = turtle_connect.TurtleOwnership(db)
     robots = Robots(db)
+    robot_gallery.install(app, robots)
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import collection_suggestions
     collection_suggestions.install(app, db, token_pet, limit)

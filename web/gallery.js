@@ -1,8 +1,9 @@
-import { CONTRACT, rpc, decodeString, decodeMetadata } from './robot-live.mjs';
+import { CONTRACT } from './robot-live.mjs';
 const $ = id => document.getElementById(id);
-let nextId = 1, supply = 0, shown = 0, busy = false;
-const call = (data, block) => rpc('eth_call', [{to:CONTRACT,data}, block]);
-function card(id, metadata) {
+const CACHE = `tinyfrens-gallery:8453:${CONTRACT}:v1`;
+const endpoint = (window.TINYFRENS_SERVER || 'https://tinyfrens.miono.live') + '/api/robots/gallery';
+let busy = false, snapshot = null;
+function card({tokenId: id, metadata}) {
   if (!metadata.image?.startsWith('data:image/svg+xml;base64,')) throw new Error(`Unexpected artwork format for #${id}`);
   const figure = document.createElement('figure'); figure.className = 'card';
   const image = document.createElement('img'); image.src = metadata.image; image.alt = metadata.name || `Robot #${id}`; image.loading = 'lazy';
@@ -11,35 +12,46 @@ function card(id, metadata) {
   const traits = document.createElement('p'); traits.className = 'traits'; traits.textContent = (metadata.attributes || []).map(t => `${t.trait_type}: ${t.value}`).join(' · ');
   caption.append(link, traits); figure.append(image, caption); return figure;
 }
-async function load(reset = false, quiet = false) {
+function render(cached = false) {
+  $('gallery').replaceChildren(...snapshot.items.map(card));
+  $('status').textContent = (snapshot.supply ? `${snapshot.supply.toLocaleString()} robots minted · Showing ${snapshot.items.length}` : 'No robots minted yet. The gallery will fill as people mint.') +
+    (cached || snapshot.stale ? ' · Saved gallery; waiting for a live refresh.' : '');
+  $('more').hidden = snapshot.nextAfter === null;
+}
+async function load(more = false, quiet = false) {
   if (busy) return;
   busy = true; $('refresh').disabled = true; $('more').disabled = true;
   try {
-    if (await rpc('eth_chainId', []) !== '0x2105') throw new Error('RPC is not connected to Base');
-    const block = await rpc('eth_blockNumber', []);
-    const latestSupply = Number(BigInt(await call('0x18160ddd', block)));
-    if (quiet && latestSupply === supply && shown > 0) return;
-    if (reset) { nextId = 1; shown = 0; $('gallery').replaceChildren(); }
-    supply = latestSupply;
-    const target = Math.min(shown + 24, supply);
-    // Supply is a count, not the highest ID. Skip burned IDs, never RPC failures.
-    while (shown < target && nextId <= 2664) {
-      const id = nextId;
-      const encoded = await call('0xc87b56dd' + BigInt(id).toString(16).padStart(64, '0'), block);
-      if (encoded !== null) { $('gallery').append(card(id, decodeMetadata(decodeString(encoded)))); shown++; }
-      nextId++;
+    const after = more ? snapshot?.nextAfter : 0;
+    if (after === null) return;
+    const response = await fetch(`${endpoint}?after=${after}`, {signal: AbortSignal.timeout(45000)});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Gallery unavailable');
+    if (data.contract !== CONTRACT || data.chainId !== 8453 || !Array.isArray(data.items)) throw new Error('Unexpected gallery response');
+    // An unchanged inventory needs no DOM reset, preserving the animated SVG playback.
+    if (quiet && !data.stale && snapshot && data.supply === snapshot.supply &&
+        JSON.stringify(data.items.map(item => item.tokenId)) === JSON.stringify(snapshot.items.slice(0,24).map(item => item.tokenId))) {
+      snapshot.checkedAt = data.checkedAt; snapshot.stale = false;
+      $('status').textContent = snapshot.supply ? `${snapshot.supply.toLocaleString()} robots minted · Showing ${snapshot.items.length}` : 'No robots minted yet. The gallery will fill as people mint.';
+    } else {
+      snapshot = {...data, items: more ? [...snapshot.items, ...data.items] : data.items};
+      render();
     }
-    if (shown < target) throw new Error('Minted token count does not match the collection');
-    $('status').textContent = supply ? `${supply.toLocaleString()} robots minted · Showing ${shown}` : 'No robots minted yet. The gallery will fill as people mint.';
-    $('more').hidden = shown >= supply;
-  } catch (error) { $('status').textContent = `Could not load the live gallery: ${error.message}. Please try Refresh gallery.`; }
-  finally { busy = false; $('refresh').disabled = false; $('more').disabled = false; }
+    try { localStorage.setItem(CACHE, JSON.stringify(snapshot)); } catch { /* Storage quota must not block the gallery. */ }
+  } catch (error) {
+    if (snapshot) render(true);
+    $('status').textContent = (snapshot ? 'Showing saved artwork. ' : '') + `Could not refresh the gallery: ${error.message}`;
+  } finally { busy = false; $('refresh').disabled = false; $('more').disabled = false; }
 }
-$('refresh').addEventListener('click', () => load(true));
-$('more').addEventListener('click', () => load());
+$('refresh').addEventListener('click', () => load());
+$('more').addEventListener('click', () => load(true));
 $('copy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('mint-message').value); $('copy-status').textContent = ' Copied'; }
   catch { $('mint-message').focus(); $('mint-message').select(); $('copy-status').textContent = ' Select and copy the message above.'; }
 });
-load(true);
-setInterval(() => { if (!document.hidden) load(true, true); }, 60000);
+try {
+  const saved = JSON.parse(localStorage.getItem(CACHE));
+  if (saved?.contract === CONTRACT && saved.chainId === 8453 && Array.isArray(saved.items)) { snapshot = saved; render(true); }
+} catch { /* Ignore unavailable storage or an old invalid snapshot. */ }
+load();
+setInterval(() => { if (!document.hidden) load(false, true); }, 60000);
