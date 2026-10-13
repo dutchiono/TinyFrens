@@ -79,7 +79,7 @@ async function pollPairing() {
   clearTimeout(pollTimer);
   if (!pairing || document.hidden) return;
   if (Date.now() >= pairing.expires * 1000) {
-    $('acceptPairing').hidden = true; message('This code expired. Tap Create a new code for a new one.', $('pairingStatus')); pairing = null; return;
+    $('acceptPairing').hidden = true; message('This code expired. Tap Generate new code for a new one.', $('pairingStatus')); pairing = null; return;
   }
   if (busy) return;
   busy = true; const current = pairing;
@@ -97,6 +97,7 @@ async function startPairing() {
     message('Creating your connection code…', $('connectionStatus'));
     await ensureIdentity();
     pairing = await post('/api/turtle-connect/start'); $('pairing').hidden = false;
+    $('connectBankr').textContent = 'Generate new code';
     $('pairingCode').textContent = pairing.code.match(/.{1,4}/g).join('-');
     $('bankrPrompt').value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${$('pairingCode').textContent}. Keep my NFTs in my wallet.`;
     message('Send this prompt to @bankrbot on X or to your Bankr agent. Return here to accept your wallet link and choose companions.', $('connectionStatus')); await pollPairing();
@@ -112,7 +113,9 @@ $('acceptPairing').addEventListener('click', async () => {
   if (!pairing) return; $('acceptPairing').disabled = true;
   try {
     const result = await post('/api/turtle-connect/accept', {code: pairing.code});
-    pairing = null; clearTimeout(pollTimer); $('pairing').hidden = true; $('tokenId').value = result.tokenId || '';
+    pairing = null; clearTimeout(pollTimer); $('pairing').hidden = true;
+    $('connectBankr').textContent = 'Generate code';
+    $('tokenId').value = result.tokenId || '';
     message('Your Bankr wallet is connected to this device.', $('connectionStatus')); await loadLinkedWallet();
     if (latest?.active) await importTurtle();
   } catch (error) { message(error, $('pairingStatus')); }
@@ -137,9 +140,8 @@ async function initIdentity() {
   }
 }
 ensureIdentity().then(async () => {
-  await startPairing();
   try { await loadLinkedWallet(); } catch (error) { message(error); }
 }).catch(error => {
   $('connectBankr').hidden = false;
-  message('Could not create your code. Tap Create a new code to retry. ' + error.message, $('connectionStatus'));
+  message('Could not prepare your device. Tap Generate code to retry. ' + error.message, $('connectionStatus'));
 });
