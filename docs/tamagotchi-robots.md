@@ -270,3 +270,16 @@ Still open (deploy-time values, not code):
 - No ownership gate, NFT-player rig, or games-hub rebuild — those ship already.
 - No change to non-robot shapes, collections, or visitor behavior.
 - No on-chain care state and no NFT attributes minted by play.
+
+## Integration follow-up
+
+The shared Care screen now asks the server before changing a robot's local care state.
+Insufficient FRENS or an offline/unconfirmed request blocks that action; other NFT
+collections retain their existing care loop. Paid care asks for confirmation first.
+The screen includes a multi-robot picker and authenticated deposit guidance. Deposit
+addresses are exposed only when the env-configured indexer and economy are enabled;
+otherwise the UI states deposits are closed. Live deposits remain disabled pending
+operator treasury/pricing inputs and a read-only mainnet rehearsal.
+Android NFT overlay menus include a Care shortcut; desktop companion double-click
+opens Care. iOS uses its existing tinyfrens://care route and shared Care screen.
+No iOS overlay over other apps is claimed.

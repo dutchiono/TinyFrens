@@ -169,7 +169,7 @@ See [the implemented flow and rollout requirements](../docs/hood-turtles-experie
 
 `POST /api/featured/companion` accepts the private device `token`, `tokenId`, `originalAddress` and `chainId`. It supports Hood Turtles on Robinhood Chain (4663) and Robots v1 at `0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff` on Base (8453). Supplied wallet addresses are ignored: ownership must match a wallet linked by a signature to the authenticated device. A successful check lasts 24 hours; removing a wallet revokes device access immediately. Unsupported collections/chains are rejected. The legacy Hood Turtle endpoint stays available.
 
-Robots use `ROBOTS_RPC_URL` (default `https://base-rpc.publicnode.com`) independently of the legacy testnet economy RPC. Discovery reads collection Transfer logs into a persistent wallet checkpoint, then verifies ownerOf. Failed RPC ranges never count as empty ownership. The robot adapter isolates the character groups from stored tokenURI artwork and samples the deployed eight-step limb animation; the robot's walking trait controls timing. Browser, desktop and Android select frames without a scene background. Each collection keeps its own adapter and identity (chain + contract + token ID). Native releases must include the new adapter and generic API allowlist; existing installed apps need updating.
+Robots use `ROBOTS_RPC_URL` (default `https://base-rpc.publicnode.com`) independently of the legacy testnet economy RPC. Discovery and the gallery batch current ownerOf reads and cache the inventory; no archive Transfer logs are required. Failed RPC ranges never count as empty ownership. The robot adapter isolates the character groups from stored tokenURI artwork and samples the deployed eight-step limb animation; the robot's walking trait controls timing. Browser, desktop and Android select frames without a scene background. Each collection keeps its own adapter and identity (chain + contract + token ID). Native releases must include the new adapter and generic API allowlist; existing installed apps need updating.
 
 ## Robots care loop (Tamagotchi)
 
@@ -184,3 +184,14 @@ Players send FRENS straight to a fixed Dev wallet; the relay's `TreasuryTransfer
 Non-public operator surface (see `docs/tamagotchi-robots.md` §8). Every `/api/admin/*` route needs `Authorization: Bearer $ADMIN_TOKEN`; **without `ADMIN_TOKEN` the whole surface answers 503**, so it is never exposed by accident. The token is a shared secret compared in constant time - generate a long random value and keep it out of git. `GET /admin` redirects to the page at `/web/admin.html`, which lets an operator retune the care allowance, game reward and prices live (stored in `app_settings`, read per request), see the read-only deposit treasury/rate, and read the credit ledger and care usage. It never touches keys, seeds or deployments - in particular the deposit treasury address is env-only, never editable here.
 
 The admin API is origin-independent (its own bearer token) and sends `Cache-Control: no-store`. On Compose, to give it its own host, point `ADMIN_DOMAIN` at the relay and uncomment the block in `server/Caddyfile`; otherwise it is reachable on `PET_DOMAIN` at `/admin`.
+
+### Rollout state
+
+Collection gallery and ownership use cached current-state reads. Gallery visits share
+one 10-minute cache; cached artwork is reused. Telegram uses only NFT companions;
+Mini App sessions do not show native download/update prompts. GitHub webhook URL:
+`https://tinyfrens.miono.live/api/github/webhook` (signed raw-body HMAC verification).
+Issue-to-chat mappings persist across relay restarts. GitHub issue filing still
+requires operator-configured `GITHUB_TOKEN`, `GITHUB_REPO`, and webhook secret.
+FRENS live deposits remain disabled by operator decision; do not enable the treasury
+indexer as part of a routine web/app deployment.

@@ -1,16 +1,16 @@
 'use strict';
 (() => {
-  const settings = document.getElementById('settingsPanel');
+  const settings = document.getElementById('accountControls');
   if (!settings) return;
   const panel = document.createElement('section');
   panel.className = 'overlay account-profile';
-  panel.innerHTML = `<h2>Your account</h2><p class="small">One name and the same wallets, NFTs, and settings across your linked devices.</p>
+  panel.innerHTML = `<h3>Profile</h3><p class="small">One name and the same wallets, NFTs, and settings across your linked devices.</p>
     <form id="accountProfileForm"><label for="accountDisplayName">Display name</label><input id="accountDisplayName" maxlength="32" autocomplete="nickname" placeholder="How people see you">
-    <label for="accountXHandle">X handle · optional</label><input id="accountXHandle" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@handle"><p class="small">Telegram handles are verified automatically. X verification needs a trusted Bankr identity callback; for now this is your chosen profile handle.</p>
+    <label for="accountXHandle">X handle · optional</label><input id="accountXHandle" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@handle"><p class="small">Your X handle is optional. Telegram is verified when you link the bot.</p>
     <button type="submit">Save profile</button></form><div id="accountIdentities"></div><p id="accountProfileStatus" role="status"></p>
     <a class="telegram-account-link" href="https://t.me/TinyFrensBot?start=link" target="_blank" rel="noopener">DM @TinyFrensBot ↗</a>
     <p class="small">To link Telegram to this account, copy a code under Sync devices and DM <strong>/link CODE</strong> to @TinyFrensBot. Approve the request here.</p>`;
-  settings.prepend(panel);
+  settings.append(panel);
   const form = document.getElementById('accountProfileForm');
   const name = document.getElementById('accountDisplayName');
   const xHandle = document.getElementById('accountXHandle');
@@ -43,5 +43,17 @@
   };
   window.addEventListener('tinyfrens-identity-ready', load);
   window.addEventListener('tinyfrens-account-synced', load);
+  const reset = document.getElementById('resetDevice');
+  const nativeApp = Boolean(window.PetAndroid || window.TinyFrensDesktop || window.PetIOS);
+  reset.closest('section').hidden = nativeApp;
+  reset.onclick = () => {
+    if (!confirm('Reset TinyFrens in this browser? This clears its saved sign-in, NFT choices and settings. Other devices and your NFTs stay unchanged. Link another device first if you want to keep access to this account.')) return;
+    document.getElementById('disconnectFriends')?.click();
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('tinyfrens') || key.startsWith('pocket-familiar')) localStorage.removeItem(key);
+    }
+    location.replace(location.pathname + '#account');
+    location.reload();
+  };
   load();
 })();

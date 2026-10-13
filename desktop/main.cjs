@@ -307,7 +307,7 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
       case 'visible': event.returnValue = petVisible; break;
       case 'toggle': if (petVisible) hidePet(); else showPet(); event.returnValue = petVisible; break;
       case 'hide': hidePet(); event.returnValue = true; break;
-      case 'open': openApp(); event.returnValue = true; break;
+      case 'open': openApp(); if (value === 'care') { const route = () => careWindow.webContents.executeJavaScript("window.showScreen?.('care')"); if (careWindow.webContents.isLoading()) careWindow.webContents.once('did-finish-load', route); else route(); } event.returnValue = true; break;
       case 'rename': event.returnValue = JSON.stringify(store.rename(typeof value === 'string' ? value : '')); broadcast(); break;
       case 'customize': {
         const data = typeof value === 'string' && value.length < 1024 ? JSON.parse(value) : {};
@@ -316,7 +316,7 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
       }
       case 'mode': event.returnValue = JSON.stringify(store.mode(value)); broadcast(); break;
       case 'action': {
-        if (!['feed', 'play', 'rest', 'clean', 'vitamin', 'wave', 'dance', 'toy'].includes(value)) throw new Error('Invalid action');
+        if (!['feed', 'play', 'rest', 'clean', 'vitamin', 'scold', 'revive', 'wave', 'dance', 'toy'].includes(value)) throw new Error('Invalid action');
         const result = store.action(value); event.returnValue = JSON.stringify(result); broadcast(result);
         if (!result.blocked) { if (result.animation === 'sleep') sleepingUntil = Date.now() + 15000; animate(result.animation || value); }
         break;

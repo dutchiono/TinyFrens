@@ -25,10 +25,23 @@ class GalleryTests(unittest.IsolatedAsyncioTestCase):
             if method == 'eth_blockNumber': return hex(self.head)
             if method == 'eth_getLogs':
                 return [event for event in self.logs if int(params[0]['fromBlock'],16) <= int(event['blockNumber'],16) <= int(params[0]['toBlock'],16)]
+            if method == 'eth_call' and params[0]['data'] == '0x18160ddd':
+                return hex(len(current_ids()))
             self.metadata_calls += 1
             metadata = {'name':'Robot', 'image':'data:image/svg+xml;base64,' + base64.b64encode(b'<svg/>').decode()}
             uri = 'data:application/json;base64,' + base64.b64encode(json.dumps(metadata).encode()).decode()
             return '0x' + format(32,'064x') + format(len(uri),'064x') + uri.encode().hex()
+        def current_ids():
+            ids = set()
+            for event in self.logs:
+                tid = int(event['topics'][3], 16)
+                if event['topics'][1] == ZERO: ids.add(tid)
+                else: ids.discard(tid)
+            return ids
+        async def owner_batch(ids):
+            if self.fail: raise RuntimeError('RPC unavailable')
+            return {str(tid): '0x' + '1' * 40 for tid in ids if tid in current_ids()}
+        self.robots.owner_batch = AsyncMock(side_effect=owner_batch)
         self.robots.rpc = AsyncMock(side_effect=rpc)
         self.gallery = RobotGallery(self.robots)
 
@@ -53,6 +66,14 @@ class GalleryTests(unittest.IsolatedAsyncioTestCase):
         self.expire()
         await self.gallery.page()
         self.assertEqual(self.metadata_calls,1)
+
+    async def test_explicit_refresh_reads_new_mints_without_expiring_art_cache(self):
+        await self.gallery.page()
+        self.logs.append(self.event(2, True, 1))
+        self.assertEqual((await self.gallery.page())['supply'], 1)
+        page = await self.gallery.page(force=True)
+        self.assertEqual(page['supply'], 2)
+        self.assertEqual(self.metadata_calls, 2)
 
     async def test_new_mint_burn_and_reorg_update_inventory(self):
         await self.gallery.page()

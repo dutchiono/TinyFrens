@@ -23,3 +23,18 @@ body.tf-navigation-page{margin:0;padding:0;max-width:none}
 body.tf-gallery-page>main,body.tf-preview-page>.tf-page-content{max-width:1100px;margin:0 auto;padding:24px 20px 60px}
 body.tf-connect-page>main{padding:0 20px}
 .app-age{display:flex;justify-content:flex-end;margin-bottom:16px}
+
+#mainNavigation .tf-nav-heading{min-height:40px}
+.tf-header-frens{position:relative;flex:1;min-width:40px;max-width:440px;height:40px;overflow:hidden;pointer-events:none;margin:0 16px}
+.tf-header-fren{position:absolute;bottom:0;width:38px;height:38px;object-fit:contain;image-rendering:pixelated;will-change:transform;pointer-events:none}
+@media(max-width:480px){.tf-header-frens{height:34px;margin:0 6px}.tf-header-fren{width:32px;height:32px}}
+@media(prefers-reduced-motion:reduce){.tf-header-fren{will-change:auto}}
+
+/* Companions roam behind the entire header; navigation stays above them. */
+#mainNavigation{isolation:isolate;overflow:visible}
+#mainNavigation>.tf-header-frens{position:absolute;inset:0;width:100%;max-width:none;min-width:0;height:100%;margin:0;z-index:0;overflow:hidden;pointer-events:none}
+#mainNavigation .tf-nav-inner{position:relative;z-index:1}
+#mainNavigation .tf-header-fren{width:42px;height:42px;bottom:9px;opacity:.85}
+@media(max-width:480px){#mainNavigation .tf-header-fren{width:34px;height:34px;bottom:10px}}
+
+#mainNavigation .tf-header-ledge{position:absolute;top:49px;height:3px;border-radius:2px;background:#66517e;opacity:.65;pointer-events:none}

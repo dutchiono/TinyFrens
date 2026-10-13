@@ -1,7 +1,9 @@
 'use strict';
 window.showScreen=name=>{
+ if(name==='settings')name='account';
  const walletRequested=name==='wallet';
- if(walletRequested)name='pet';
+ if(walletRequested)name='account';
+ if(name==='pet' && window.TinyFrensWalletConnected===false)name='account';
  const screens=[...document.querySelectorAll('[data-screen]')].map(tab=>tab.dataset.screen);
  if(!screens.includes(name))name='pet';
  for(const screen of document.querySelectorAll('.screen'))screen.hidden=screen.id!=='screen-'+name;

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -87,6 +88,21 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         data = await response.json()
         self.assertEqual(data['address'], self.account.address)
         self.assertIsNone(data['tokenId'])
+
+    async def test_x_handle_is_signed_and_saved_only_after_device_accepts(self):
+        pairing = await (await self.post('start', {})).json()
+        challenge = await (await self.post('challenge', {'code': pairing['code'], 'address': self.account.address,
+            'xHandle': '@robot_owner'}, agent=True)).json()
+        self.assertIn('X handle: @robot_owner (wallet assertion)', challenge['message'])
+        signature = '0x' + self.account.sign_message(encode_defunct(text=challenge['message'])).signature.hex().removeprefix('0x')
+        response = await self.post('confirm', {'code':pairing['code'], 'challengeId':challenge['challengeId'], 'signature':signature}, agent=True)
+        self.assertEqual(response.status, 200)
+        db = sqlite3.connect(self.tmp.name + "/pets.db")
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM wallet_social_profiles').fetchone()[0], 0)
+        response = await self.post('accept', {'code':pairing['code']})
+        self.assertEqual(response.status, 200)
+        self.assertEqual(db.execute('SELECT x_handle,source FROM wallet_social_profiles').fetchone(), ('robot_owner','wallet-signed'))
+        db.close()
 
     async def test_multiple_wallets_discovery_and_targeted_disconnect(self):
         other_wallet = Account.create()

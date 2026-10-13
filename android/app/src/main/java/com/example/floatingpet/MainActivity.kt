@@ -40,7 +40,7 @@ class MainActivity : Activity() {
                 }
             }
             addJavascriptInterface(Bridge(), "PetAndroid")
-            loadUrl("file:///android_asset/index.html")
+            loadUrl("file:///android_asset/index.html" + if (intent.getStringExtra("screen") == "care") "#care" else "")
         }
         setContentView(web)
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4)
@@ -292,6 +292,11 @@ class MainActivity : Activity() {
     }
     private fun notifyDownloaded() {
         postUpdateNotification(21, "TinyFrens update downloaded", "Open TinyFrens to finish installing it.")
+    }
+    override fun onNewIntent(nextIntent: Intent) {
+        super.onNewIntent(nextIntent)
+        setIntent(nextIntent)
+        if (nextIntent.getStringExtra("screen") == "care") web.evaluateJavascript("window.showScreen?.('care')", null)
     }
     override fun onResume() {
         super.onResume()

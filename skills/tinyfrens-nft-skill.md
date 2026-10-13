@@ -6,7 +6,7 @@ metadata: {"bankr":{"emoji":"🤖"}}
 
 # TinyFrens: Robots v1
 
-Skill: https://www.tinyfrens.lol/robots/skill.md
+Skill: https://www.tinyfrens.lol/NFTS/robotsv1/skill.md
 Compiled package manifest: https://www.tinyfrens.lol/robots/launch/manifest.json
 
 **Status: live on Base (chain 8453).**

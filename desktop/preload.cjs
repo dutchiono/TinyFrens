@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('TinyFrensDesktop', {
   onCompanionMotion: listener => { const handler = (_, data) => listener(data); ipcRenderer.on('tinyfrens:companion-motion', handler); return () => ipcRenderer.removeListener('tinyfrens:companion-motion', handler); },
   getState: () => call('state'), action: name => call('action', name), rename: name => call('rename', name),
   customize: data => call('customize', data), setMode: mode => call('mode', mode),
-  isPetVisible: () => call('visible'), togglePet: () => call('toggle'), hidePet: () => call('hide'), openApp: () => call('open'),
+  isPetVisible: () => call('visible'), togglePet: () => call('toggle'), hidePet: () => call('hide'), openApp: screen => call('open', screen),
   menu: open => call('menu', open), drag: active => call('drag', active),
   motion: reduced => call('motion', reduced),
   regions: regions => ipcRenderer.send('tinyfrens:regions', regions),

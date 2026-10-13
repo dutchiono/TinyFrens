@@ -14,3 +14,5 @@ setInterval(() => {
   if (image.getAttribute('src') !== src) image.src = src;
   image.alt = data.name;
 }, 40);
+
+image.addEventListener('dblclick', () => TinyFrensDesktop.openApp('care'));

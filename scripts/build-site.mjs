@@ -19,5 +19,7 @@ await mkdir(path.join(output, 'import'), { recursive: true });
 await cp(path.join(root, 'skills/tinyfrens-connect/SKILL.md'), path.join(output, 'import/skill.md'));
 await mkdir(path.join(output, 'robots'), { recursive: true });
 await cp(path.join(root, 'skills/tinyfrens-nft-skill.md'), path.join(output, 'robots/skill.md'));
+await mkdir(path.join(output, 'NFTS/robotsv1'), { recursive: true });
+await cp(path.join(root, 'skills/tinyfrens-nft-skill.md'), path.join(output, 'NFTS/robotsv1/skill.md'));
 await cp(path.join(root, 'web/robots-launch'), path.join(output, 'robots/launch'), { recursive: true });
 console.log('Built welcome page, web pet, icons, and Farcaster manifests in dist/');

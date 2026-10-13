@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const banner=$('updateBanner'),nowButton=$('updateNow'),status=$('updateStatus');
+ if(window.Telegram?.WebApp?.initData){$('updates').hidden=true;banner.hidden=true;return;}
  const pref=(name,fallback)=>{try{return JSON.parse(localStorage.getItem('tinyfrens-'+name))??fallback;}catch{return fallback;}};
  const savePref=(name,value)=>{try{localStorage.setItem('tinyfrens-'+name,JSON.stringify(value));}catch{}};
  $('autoCheck').checked=pref('autoCheck',true);$('autoDownload').checked=pref('autoDownload',false);$('autoApply').checked=pref('autoApply',true);
@@ -52,35 +53,14 @@
    show('An iPhone update is ready','Ask a grown-up to install the new build using AltStore.',()=>window.open('https://github.com/dutchiono/TinyFrens/blob/main/ios/README.md','_blank'),'Update help');
   };
  }else{
-  $('autoApplyRow').hidden=false;
-  $('updateExplanation').textContent='New files download in the background. Refresh to use them, or let the update apply next time you open. Your pet stays saved.';
-  const hadController=!!navigator.serviceWorker?.controller;
-  let applying=false,firstVisit=true;
-  const apply=()=>{if(!registration?.waiting){location.reload();return;}applying=true;registration.waiting.postMessage({type:'SKIP_WAITING'});};
-  const waiting=()=>{
-   if(!registration?.waiting)return;
-   status.textContent='An update is downloaded.';
-   if(firstVisit&&$('autoApply').checked){apply();return;}
-   show('A fresh update is ready','Refresh when you’re ready. Your pet is saved.',apply,'Refresh app');
-  };
+  $('updates').hidden=true;
+  banner.hidden=true;
   if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(applying||!hadController){if(applying)location.reload();return;}
-    show('A fresh update is ready','Refresh to use it. Your pet stays saved.',()=>location.reload(),'Refresh app');
-   });
-   navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>{
-    registration=r;status.textContent=$('autoCheck').checked?'Website updates check automatically.':'Automatic checks are off.';waiting();firstVisit=false;
-    r.addEventListener('updatefound',()=>{const worker=r.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)waiting();});});
-    if($('autoCheck').checked)r.update().catch(()=>{});
-   }).catch(quietError);
-  }else status.textContent='Open the online pet in Safari to get website updates.';
-  window.checkWebUpdate=async()=>{
-   if(!registration){status.textContent='The offline update service is still getting ready. Try again shortly.';return;}
-   await registration.update();
-   waiting();
-   if(!registration.waiting&&!registration.installing)status.textContent='You’re up to date.';
-  };
+   navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  }
+  return;
  }
+
  async function check(manual=false){
   if(inFlight||(!manual&&Date.now()-lastCheck<15*60*1000)||(!manual&&!$('autoCheck').checked))return;
   lastCheck=Date.now();inFlight=true;$('checkUpdate').disabled=true;status.textContent='Checking…';
