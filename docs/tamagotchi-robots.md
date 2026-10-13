@@ -233,15 +233,14 @@ in FRENS.
     Robots v1 from the verified `tinyfrens-companions` store, shows the FRENS balance and today's free
     allowance on the Care screen, reports each care action to `/api/robots/care/action`, and collects
     the game earn-back from `/api/robots/game` on the `tinyfrens-game-finished` event (`web/app.js`
-    calls `after()` from the shared care loop; `web/index.html` loads the module). It is **additive and
-    non-blocking**: offline, unknown-identity and no-robot cases fall through so the care simulation —
-    and native/desktop/overlay play — behave exactly as before. Tests: `scripts/test-robot-care.cjs`
-    (resolution, FRENS formatting, paid prompts, endpoint wiring, offline safety), wired into
-    `quality-gate.yml`.
-  - **Not yet (P4c):** hard-blocking a care action on payment (with the top-up/deposit screen and the
-    deposit address shown to the owner), a multi-robot picker UI (`TinyFrensRobotCare.setActive`
-    already backs one), and the native Android/iOS overlay affordances (P5). On-chain live deposits
-    are **not yet enabled** and must be rehearsed read-only against Base mainnet first (§6, ⚠️).
+    calls `before()` before local mutation; `web/index.html` loads the module). Robot care requires
+    server approval and confirms paid actions first; offline robot actions pause, while other
+    collections keep their local care loop. Local eligibility is checked before reserving a paid
+    action. The Care screen includes a multi-robot picker and disabled-deposit guidance. Tests:
+    `scripts/test-robot-care.cjs` (resolution, FRENS formatting, paid prompts, endpoint wiring,
+    offline safety), wired into `quality-gate.yml`.
+  - **Not yet:** native Android/iOS overlay affordances (P5). On-chain live deposits are
+    **not yet enabled** and must be rehearsed read-only against Base mainnet first (§6, ⚠️).
 - **P5 — Polish.** Native overlay affordances, balance pass, telemetry, docs.
 
 ## 10. Decisions
