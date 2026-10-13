@@ -1,7 +1,7 @@
 # Tamagotchi Robots v1 — design plan
 
-Status: **Building in phases.** P1 (mechanics), P2 (server care layer), P3 (admin) and P4 (money —
-server core) ship in stacked branches; P4b (client wiring) and P5 follow. Live mainnet deposits are
+Status: **Building in phases.** P1 (mechanics), P2 (server care layer), P3 (admin), P4 (money —
+server core) and P4b (client wiring) ship in stacked branches; P5 follows. Live mainnet deposits are
 **not yet enabled** (§6.2, §9).
 
 Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/tamagotchi-robots-economy`).
@@ -228,10 +228,19 @@ in FRENS.
     `FRENS_TREASURY_CHAIN_ID`, `FRENS_TREASURY_TOKEN`.
   - Tests: `server/test_economy.py` (transfers), `server/test_indexer.py` (decode + scan),
     `server/test_robot_care.py` (charging + game), `server/test_admin.py`, `server/test_app.py`.
-  - **Not yet (P4b):** the client/native wiring that reports robot care actions to
-    `/api/robots/care/action` and shows the FRENS balance + paid prompts — kept separate because it
-    touches shared web + Android/iOS/desktop code. On-chain live deposits are **not yet enabled** and
-    must be rehearsed read-only against Base mainnet first (§6, ⚠️).
+  - **P4b — client wiring. ✅ shipped in this branch.** `web/robot-care.js`
+    (`window.TinyFrensRobotCare`) is the web client for the P4 server contract: it finds the active
+    Robots v1 from the verified `tinyfrens-companions` store, shows the FRENS balance and today's free
+    allowance on the Care screen, reports each care action to `/api/robots/care/action`, and collects
+    the game earn-back from `/api/robots/game` on the `tinyfrens-game-finished` event (`web/app.js`
+    calls `before()` before local mutation; `web/index.html` loads the module). Robot care requires
+    server approval and confirms paid actions first; offline robot actions pause, while other
+    collections keep their local care loop. Local eligibility is checked before reserving a paid
+    action. The Care screen includes a multi-robot picker and disabled-deposit guidance. Tests:
+    `scripts/test-robot-care.cjs` (resolution, FRENS formatting, paid prompts, endpoint wiring,
+    offline safety), wired into `quality-gate.yml`.
+  - **Not yet:** native Android/iOS overlay affordances (P5). On-chain live deposits are
+    **not yet enabled** and must be rehearsed read-only against Base mainnet first (§6, ⚠️).
 - **P5 — Polish.** Native overlay affordances, balance pass, telemetry, docs.
 
 ## 10. Decisions

@@ -47,6 +47,7 @@ jobs:
         run: |
           node scripts/test-snack-catch.cjs
           node scripts/test-game-players.cjs
+          node scripts/test-robot-care.cjs
 
       - name: Test pet engine care rules
         run: node scripts/test-pet-engine.cjs
