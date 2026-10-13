@@ -1845,6 +1845,11 @@ def create_app(database=None, origins=None):
         treasury_settings=treasury_settings,
         economy=economy,
     )
+    admin_surface.install(
+        app, db,
+        token=os.environ.get('ADMIN_TOKEN'),
+        economy_settings=economy_settings,
+    )
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync
     device_sync.install(app, db, token_pet, limit)
