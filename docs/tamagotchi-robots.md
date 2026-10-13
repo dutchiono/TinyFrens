@@ -1,6 +1,7 @@
 # Tamagotchi Robots v1 — design plan
 
-Status: **DESIGN — awaiting sign-off.** No implementation bundled with this doc.
+Status: **Building in phases.** P1 (mechanics) and P2 (server care layer) ship in stacked
+branches; P4 (money) is not live yet.
 
 Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/tamagotchi-robots-economy`).
 The previous draft of this doc was written against a stale branch and treated games/ownership/
@@ -115,6 +116,26 @@ deposits point at mainnet with no testnet rehearsal. Mitigations before enabling
 rehearse the `TreasuryTransferIndexer` against mainnet logs **read-only**, gate live deposits behind
 the existing `economy_settings()` flag, and start with a small cap. Fail closed on any RPC error.
 
+## 6.1 Server care layer (P2)
+
+`server/robot_care.py` owns only what touches money:
+
+- the catalogue of care actions (`feed, play, rest, adventure, clean, vitamin, scold, revive`)
+  and the flavour actions that are always free (`pet`),
+- the FRENS price of one use once the free daily allowance is spent,
+- the per-pet, per-UTC-day free allowance ledger (`robot_care_daily`).
+
+Endpoints (robots-only, gated by a fresh `ownerOf` against the pet's linked wallets, like the
+companion flow):
+
+- `POST /api/robots/care` `{token, tokenId}` → `{tokenId, allowance, prices, actions, freeActions}`
+- `POST /api/robots/care/action` `{token, tokenId, action}` → `{allowed, free, charged, allowance}`;
+  beyond the allowance it returns `{allowed: false, requiresPayment: true, priceFrens}` for P4 to charge.
+
+Tunables are env-overridable (`ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_PRICE_<ACTION>`) and move to
+the admin page in P3. The care *simulation* stays in `web/pet-engine.js`; nothing here changes offline,
+floating-overlay, desktop or native behavior.
+
 ## 7. Ownership gate
 
 Reuse `server/robot_companion.py`: `Robots(db)`, `robots.discover(address)`, `ROBOTS_CONTRACT`
@@ -138,8 +159,13 @@ authorizes on a fresh `ownerOf`, matching the existing companion flow.
   keep their existing behavior.
   - Not yet: the paid revive cost and the blocking paid top-up (P4), and the Scold/Revive affordance
     in the native Android/iOS overlays (P5) — those can still reach the web care screen via "More".
-- **P2 — Server parity.** Small server mirror for money-affecting checks; `/api/robots/care`;
-  parity tests with `pet-engine.js`.
+- **P2 — Server parity. ✅ shipped in this branch.** `server/robot_care.py` is the small server
+  mirror for the money-affecting checks only: the care-action catalogue, the per-action FRENS price,
+  and the free daily allowance. `POST /api/robots/care` (status/quotes) and
+  `POST /api/robots/care/action` (record one use) are robots-only, authorized on a fresh `ownerOf`
+  against the pet's linked wallets (see §6.1). **It never moves FRENS** — the paid branch reports
+  `requiresPayment`/`priceFrens` for P4 to charge. Tests: `server/test_robot_care.py`, including a
+  parity test that every catalogued action still exists in `web/pet-engine.js`.
 - **P3 — Admin.** Route + page + token auth + `tinyadmin.miono.live`.
 - **P4 — Money.** FRENS deposit to the fixed Dev wallet + `TreasuryTransferIndexer`, the daily free
   allowance + paid top-up enforcement, the paid revive cost, game earn-back, and the

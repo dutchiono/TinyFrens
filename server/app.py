@@ -6,6 +6,7 @@ from aiohttp import web, WSMsgType, ClientSession, ClientTimeout
 import economy as economy_ledger
 import turtle_connect
 import robot_gallery
+import robot_care
 from telegram_media import companion_gif
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
@@ -168,6 +169,20 @@ def economy_settings():
         'depositsEnabled': os.environ.get('ECONOMY_DEPOSITS', '').lower() == 'true' and enabled,
         'productionToken': cfg.get('production', {}).get('frensToken'),
     }
+
+def _env_int(name, default):
+    try:
+        return int(os.environ[name])
+    except (KeyError, TypeError, ValueError):
+        return default
+
+def robot_care_settings():
+    """Tunable prices for the robots care loop (FRENS per paid top-up, §6)."""
+    prices = {
+        action: _env_int('ROBOT_CARE_PRICE_' + action.upper(), robot_care.DEFAULT_PRICES_FRENS.get(action, 0))
+        for action in robot_care.CARE_ACTIONS
+    }
+    return {'dailyAllowance': _env_int('ROBOT_CARE_DAILY_ALLOWANCE', robot_care.DEFAULT_DAILY_ALLOWANCE), 'prices': prices}
 
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
@@ -1724,6 +1739,26 @@ def create_app(database=None, origins=None):
     robots = Robots(db)
     extras = ExtraCompanions(db)
     robot_gallery.install(app, robots)
+
+    async def robot_owner_check(pid, token_id):
+        # Care is robots-only: authorize via the Robots verifier against the linked wallets
+        # (same path the companion flow uses).
+        addresses = turtle_connect.linked_wallets(db, pid)
+        if not addresses:
+            raise robot_care.NotLinked('Link your wallet first')
+        for address in addresses:
+            data = await robots.read(address, token_id)
+            if data['active']:
+                return data['wallet']
+        return None
+
+    robot_care.install(
+        app, db,
+        token_pet=token_pet,
+        limit=limit,
+        settings=robot_care_settings,
+        owner_check=robot_owner_check,
+    )
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync
     device_sync.install(app, db, token_pet, limit)
