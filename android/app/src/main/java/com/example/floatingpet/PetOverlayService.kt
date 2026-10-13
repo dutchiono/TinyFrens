@@ -337,11 +337,13 @@ class PetOverlayService:Service(){
  }
  private fun refreshMenuTimer(){handler.removeCallbacks(closeMenu);handler.postDelayed(closeMenu,8000)}
  private fun showMenu(){
+  state=store.read()
   val panel=LinearLayout(this).apply{
    orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER
    setPadding(dp(4),dp(4),dp(4),dp(4))
   }
-  val actions=mutableListOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple("☾","rest","Nap"))
+  val resting=state.optString("activity")=="resting"
+  val actions=mutableListOf(Triple("🍓","feed","Feed"),Triple("🎾","play","Play"),Triple(if(resting)"☀" else "☾","rest",if(resting)"Wake up" else "Nap"))
   if(state.optInt("poops",0)>0)actions.add(Triple("🧼","clean","Clean"))
   if(state.optBoolean("sick",false))actions.add(Triple("💊","vitamin","Vitamin"))
   actions.add(Triple("💬","chat","Chat"));actions.add(Triple("☰","care","More"))

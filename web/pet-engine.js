@@ -200,7 +200,7 @@
     s.hunger -= foodLoss * h; s.happiness -= joyLoss * h; s.energy -= energyLoss * h;
     clampStats(s);
 
-    if (s.activity === 'resting' && s.energy >= 100) { s.activity = 'idle'; s.inbox.push({ type: 'woke', at: at }); }
+    if (s.activity === 'resting' && lvl(s.energy) >= 100) { s.energy = 100; s.activity = 'idle'; s.inbox.push({ type: 'woke', at: at }); }
     if (s.activity === 'adventuring' && lvl(s.energy) <= r.adventureHomeAt) { s.activity = 'idle'; s.inbox.push({ type: 'home', at: at }); }
 
     // Scheduled needs: they wait until their condition is met, then reschedule.
@@ -328,7 +328,7 @@ else if (name === 'play') {
     }
     else if (name === 'rest') {
       if (s.activity === 'resting') { s.activity = 'idle'; feedback = (s.name || 'Your fren') + ' woke up.'; }
-      else { s.activity = 'resting'; feedback = 'Resting… energy refills over time.'; }
+      else { s.activity = 'resting'; feedback = 'Resting… Energy +' + r.restPerHour + '/hour.'; }
     }
     else if (name === 'adventure') {
       if (s.activity === 'adventuring') { s.activity = 'idle'; feedback = (s.name || 'Your fren') + ' came home.'; }
