@@ -659,17 +659,48 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             return {'ok': True}, 200
         return fake
 
-    async def test_telegram_mention_and_private_message_receive_help(self):
+    async def test_telegram_mention_and_private_message_receive_ai_reply(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['GEMINI_API_KEY'] = 'ai-key'
         sent = []
-        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+        generated = mock.AsyncMock(return_value='Why did the TinyFren cross the blockchain? To get to the other sidechain!')
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.generate_telegram_reply', new=generated):
             for text, kind in [('hi @TinyFrensBot', 'group'), ('hello', 'private')]:
                 response = await self.client.post('/api/telegram/webhook', json={
                     'message': {'text': text, 'chat': {'id': -42, 'type': kind},
                                 'from': {'id': 5, 'first_name': 'Ada'}}})
                 self.assertEqual(response.status, 200)
         self.assertEqual(len(sent), 2)
-        self.assertTrue(all("I'm here!" in message['text'] for message in sent))
+        self.assertTrue(all('other sidechain' in message['text'] for message in sent))
+        self.assertEqual(generated.await_count, 2)
+        self.assertIn('hi @TinyFrensBot', generated.await_args_list[0].args[0][-1]['text'])
+
+    async def test_telegram_reply_to_bot_receives_ai_reply(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['GEMINI_API_KEY'] = 'ai-key'
+        sent = []
+        generated = mock.AsyncMock(return_value='Yes, I am listening.')
+        update={'message': {'message_id': 22, 'text': 'are you there?',
+            'reply_to_message': {'from': {'is_bot': True, 'username': 'TinyFrensBot'}},
+            'chat': {'id': -43, 'type': 'group'}, 'from': {'id': 5, 'first_name': 'Ada'}}}
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.generate_telegram_reply', new=generated):
+            response=await self.client.post('/api/telegram/webhook',json=update)
+        self.assertEqual(response.status,200)
+        self.assertEqual(sent[0]['text'],'Yes, I am listening.')
+
+    async def test_telegram_help_remains_a_command(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        sent=[]
+        generated=mock.AsyncMock()
+        with mock.patch('app.bot_api',new=self._fake_bot_api(sent)), \
+             mock.patch('app.generate_telegram_reply',new=generated):
+            response=await self.client.post('/api/telegram/webhook',json={
+                'message': {'text':'/help','chat':{'id':7,'type':'private'},'from':{'id':5}}})
+        self.assertEqual(response.status,200)
+        self.assertIn('Talk to me normally',sent[0]['text'])
+        generated.assert_not_awaited()
 
     def _clear_issue_env(self):
         for key in ('GITHUB_TOKEN', 'GITHUB_REPO', 'GITHUB_ISSUE_LABELS', 'TELEGRAM_ISSUE_HISTORY',

@@ -157,7 +157,11 @@ def classify(update):
             return 'start', chat.get('id'), chat
         if is_issue_command(text):
             return 'issue', chat.get('id'), chat
+        reply_from = ((msg.get('reply_to_message') or {}).get('from') or {})
+        replying_to_bot = (reply_from.get('is_bot') is True
+                           and str(reply_from.get('username') or '').lower() == 'tinyfrensbot')
         if (re.search(r'(?<!\w)@tinyfrensbot\b', text, re.I)
+                or replying_to_bot
                 or re.fullmatch(r'/help(?:@tinyfrensbot)?\s*', text, re.I)
                 or (chat.get('type') == 'private' and text.strip())):
             return 'mention', chat.get('id'), chat

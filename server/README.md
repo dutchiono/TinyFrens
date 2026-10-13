@@ -24,7 +24,7 @@ No Apple developer membership, external account provider, or paid hosted service
 
 ## Pet chat and Bankr
 
-The relay can also answer TinyFren chat requests from the web app. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to `gemini-2.0-flash`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
+The relay can also answer TinyFren chat requests from the web app and direct Telegram mentions. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to the low-latency `gemini-3.5-flash-lite`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
 
 The web app's Wallet tab uses a read-only, non-custodial link. On first use, the person signs a short EIP-191 text challenge with their own Ethereum wallet. The relay verifies the signer, then stores only that public address against the fren's existing device identity. Later NFT checks use the saved address without another wallet prompt. Disconnect deletes the link. A new device identity or changed wallet requires a new signature. The signature cannot transfer assets or authorize approvals.
 
