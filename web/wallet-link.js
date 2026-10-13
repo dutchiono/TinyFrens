@@ -147,7 +147,7 @@
         const title = document.createElement('strong');
         title.textContent = nft.name;
         const detail = document.createElement('p');
-        detail.textContent = nft.collection + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
+        detail.textContent = nft.chain + ' · ' + nft.wallet.slice(0,6) + '…' + nft.wallet.slice(-4);
         info.append(title,detail); card.append(info);
         if (nft.companionSupported) {
           const link = document.createElement('input');
@@ -188,11 +188,14 @@
           };
           const toggle = document.createElement('label'); toggle.className = 'nft-show-toggle'; toggle.append(link, document.createTextNode('Show'));
           const sizeLabel = document.createElement('label'); sizeLabel.className = 'nft-size'; sizeLabel.textContent = 'Size';
-          const size = document.createElement('select'); size.setAttribute('aria-label', nft.name + ' size');
-          for (const [value, text] of [[56,'Small'],[80,'Medium'],[112,'Large']]) { const option = document.createElement('option'); option.value = value; option.textContent = text; size.append(option); }
+          const size = document.createElement('input'); size.type = 'range'; size.min = '48'; size.max = '128'; size.step = '1'; size.setAttribute('aria-label', nft.name + ' size');
           size.value = window.TinyFrensCompanionSize?.(nft) || 80;
-          size.onchange = async () => { try { await window.TinyFrensSetCompanionSize(nft, Number(size.value), isShowing()); } catch (error) { scanStatus.textContent = error.message; } };
-          sizeLabel.append(size); const actions = document.createElement('div'); actions.className = 'nft-row-actions'; actions.append(toggle, sizeLabel); card.append(actions);
+          const sizeValue = document.createElement('output'); sizeValue.value = size.value;
+          let sizeTimer;
+          const saveSize = async () => { try { await window.TinyFrensSetCompanionSize(nft, Number(size.value), isShowing()); } catch (error) { scanStatus.textContent = error.message; } };
+          size.oninput = () => { sizeValue.value = size.value; clearTimeout(sizeTimer); sizeTimer = setTimeout(saveSize, 100); };
+          size.onchange = () => { clearTimeout(sizeTimer); saveSize(); };
+          sizeLabel.append(size, sizeValue); info.append(sizeLabel); card.append(toggle);
         }
         matches.append(card);
       }
