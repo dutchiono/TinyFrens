@@ -977,6 +977,205 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             button = send.await_args.args[1]['reply_markup']['inline_keyboard'][0][0]
             self.assertEqual(button['web_app']['url'], 'https://tinyfrens.lol/web/#settings')
 
+    async def test_telegram_filter_admin_and_auto_reply(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+        admins = {100}
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            if method == 'getChatMember':
+                uid = payload.get('user_id')
+                status = 'administrator' if uid in admins else 'member'
+                return {'ok': True, 'result': {'status': status}}, 200
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            # 1. Non-admin cannot set filter
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/filter website https://tinyfrens.lol',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 200, 'first_name': 'Bob'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('Only chat administrators', calls[-1]['payload']['text'])
+
+            # 2. Admin sets filter
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/filter website https://tinyfrens.lol',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 100, 'first_name': 'Alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn("Saved filter for 'website'", calls[-1]['payload']['text'])
+
+            # 3. Admin lists filters
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/filter list',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 100, 'first_name': 'Alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('• /website → https://tinyfrens.lol', calls[-1]['payload']['text'])
+
+            # 4. User triggers filter with word in sentence
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 555, 'text': 'Where is your website?',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 200, 'first_name': 'Bob'}}})
+            self.assertEqual(res.status, 200)
+            self.assertEqual(calls[-1]['payload']['text'], 'https://tinyfrens.lol')
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 555)
+
+            # 5. User triggers filter with slash command
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 556, 'text': '/website',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 200, 'first_name': 'Bob'}}})
+            self.assertEqual(res.status, 200)
+            self.assertEqual(calls[-1]['payload']['text'], 'https://tinyfrens.lol')
+
+            # 6. Admin removes filter
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/filter remove website',
+                            'chat': {'id': -100, 'type': 'supergroup'},
+                            'from': {'id': 100, 'first_name': 'Alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn("Removed filter for 'website'", calls[-1]['payload']['text'])
+
+    async def test_telegram_blocklist_two_strikes_and_ban(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+        admins = {100}
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            if method == 'getChatMember':
+                uid = payload.get('user_id')
+                status = 'administrator' if uid in admins else 'member'
+                return {'ok': True, 'result': {'status': status}}, 200
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            # 1. Non-admin cannot add to blocklist
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/blocklist add badlink.xyz',
+                            'chat': {'id': -200, 'type': 'supergroup'},
+                            'from': {'id': 200, 'first_name': 'Bob'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('Only chat administrators', calls[-1]['payload']['text'])
+
+            # 2. Admin adds to blocklist
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/blocklist add badlink.xyz',
+                            'chat': {'id': -200, 'type': 'supergroup'},
+                            'from': {'id': 100, 'first_name': 'Alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn("Added 'badlink.xyz' to the blocklist", calls[-1]['payload']['text'])
+
+            # 3. Spammer sends message with blocklisted phrase -> Strike 1: message deleted, warning sent
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 701, 'text': 'visit badlink.xyz for free gifts',
+                            'chat': {'id': -200, 'type': 'supergroup'},
+                            'from': {'id': 300, 'username': 'spammer300'}}})
+            self.assertEqual(res.status, 200)
+            delete_calls = [c for c in calls if c['method'] == 'deleteMessage']
+            self.assertEqual(len(delete_calls), 1)
+            self.assertEqual(delete_calls[0]['payload']['message_id'], 701)
+            self.assertIn('Warning (1/2)', calls[-1]['payload']['text'])
+            self.assertIn('@spammer300', calls[-1]['payload']['text'])
+
+            # 4. Spammer sends another blocklisted message -> Strike 2: deleted + banned
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 702, 'text': 'try badlink.xyz now',
+                            'chat': {'id': -200, 'type': 'supergroup'},
+                            'from': {'id': 300, 'username': 'spammer300'}}})
+            self.assertEqual(res.status, 200)
+            delete_calls = [c for c in calls if c['method'] == 'deleteMessage']
+            self.assertEqual(len(delete_calls), 2)
+            ban_calls = [c for c in calls if c['method'] == 'banChatMember']
+            self.assertEqual(len(ban_calls), 1)
+            self.assertEqual(ban_calls[0]['payload']['user_id'], 300)
+            self.assertIn('has been banned', calls[-1]['payload']['text'])
+
+            # 5. Admin sends blocklisted word -> not deleted, not banned
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 703, 'text': 'we just blocklisted badlink.xyz',
+                            'chat': {'id': -200, 'type': 'supergroup'},
+                            'from': {'id': 100, 'username': 'admin_alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertEqual(len([c for c in calls if c['method'] in ('deleteMessage', 'banChatMember')]), 3)
+
+    async def test_telegram_ban_and_aiban_commands(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+        admins = {100, 101}
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            if method == 'getChatMember':
+                uid = payload.get('user_id')
+                status = 'administrator' if uid in admins else 'member'
+                return {'ok': True, 'result': {'status': status}}, 200
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            # 1. Non-admin /ban rejected
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/ban', 'chat': {'id': -300, 'type': 'supergroup'},
+                            'from': {'id': 200, 'first_name': 'Bob'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('Only chat administrators', calls[-1]['payload']['text'])
+
+            # 2. Admin /ban without reply message
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'text': '/ban', 'chat': {'id': -300, 'type': 'supergroup'},
+                            'from': {'id': 100, 'first_name': 'Alice'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn("Reply to a user's message with /ban or /aiban", calls[-1]['payload']['text'])
+
+            # 3. Admin /ban in reply to user
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {
+                    'text': '/ban spamming the room',
+                    'chat': {'id': -300, 'type': 'supergroup'},
+                    'from': {'id': 100, 'first_name': 'Alice'},
+                    'reply_to_message': {'message_id': 10, 'from': {'id': 400, 'username': 'bad_guy'}}
+                }})
+            self.assertEqual(res.status, 200)
+            ban_calls = [c for c in calls if c['method'] == 'banChatMember']
+            self.assertEqual(len(ban_calls), 1)
+            self.assertEqual(ban_calls[0]['payload']['user_id'], 400)
+            self.assertIn('🚫 Banned @bad_guy. Reason: spamming the room', calls[-1]['payload']['text'])
+
+            # 4. Admin /aiban in reply to another admin is rejected
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {
+                    'text': '/aiban',
+                    'chat': {'id': -300, 'type': 'supergroup'},
+                    'from': {'id': 100, 'first_name': 'Alice'},
+                    'reply_to_message': {'message_id': 11, 'from': {'id': 101, 'username': 'co_admin'}}
+                }})
+            self.assertEqual(res.status, 200)
+            self.assertIn('Cannot ban a chat administrator', calls[-1]['payload']['text'])
+
+    async def test_telegram_moderation_group_only(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            for cmd in ['/ban', '/blocklist', '/filter test foo']:
+                res = await self.client.post('/api/telegram/webhook', json={
+                    'message': {'text': cmd, 'chat': {'id': 50, 'type': 'private'},
+                                'from': {'id': 50, 'first_name': 'User'}}})
+                self.assertEqual(res.status, 200)
+                self.assertIn('This command can only be used in group chats.', calls[-1]['payload']['text'])
+
     async def test_discord_token_unconfigured_returns_503(self):
         os.environ.pop('DISCORD_CLIENT_ID', None); os.environ.pop('DISCORD_CLIENT_SECRET', None)
         r = await self.client.post('/api/discord/token', json={'code': 'abc'})

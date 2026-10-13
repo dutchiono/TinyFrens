@@ -10,14 +10,15 @@ import robot_care
 import github_app
 import admin as admin_surface
 from telegram_media import companion_gif
+import telegram_moderation as tg_mod
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
 try:
-    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify, link_code, chat_message
+    from telegram_integration import validate_init_data, user_profile, bot_api, reply_markup, classify, link_code, chat_message, is_issue_command
     from discord_integration import verify_interaction, exchange_code
     import github_integration as gh
 except Exception:  # pragma: no cover - integration modules always ship together
-    validate_init_data = user_profile = bot_api = reply_markup = classify = link_code = chat_message = None
+    validate_init_data = user_profile = bot_api = reply_markup = classify = link_code = chat_message = is_issue_command = None
     verify_interaction = exchange_code = None
     gh = None
 
@@ -294,6 +295,7 @@ def create_app(database=None, origins=None):
     # (repo, issue_number) -> Telegram chat_id, so inbound GitHub events can be
     # relayed back to the chat that filed the issue, including after a restart.
     db.execute('CREATE TABLE IF NOT EXISTS github_issue_chats(repo TEXT, issue_number INTEGER, chat_id TEXT, PRIMARY KEY(repo,issue_number))')
+    if tg_mod is not None: tg_mod.install_schema(db)
     db.commit()
     issue_chats = {}
     now = time.time
@@ -1364,6 +1366,114 @@ def create_app(database=None, origins=None):
             message=update.get('message') or {}
             sender=message.get('from') or {}
             text=str(message.get('text') or '')
+            is_group=(chat or {}).get('type') in ('group','supergroup')
+            is_ban,ban_reason=tg_mod.parse_ban_command(text) if tg_mod else (False,None)
+            if is_ban and chat_id is not None:
+                if not is_group:
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'This command can only be used in group chats.'},token)
+                    return web.json_response({'ok':True})
+                if not await tg_mod.is_chat_admin(bot_api,chat,sender,token,message):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Only chat administrators can use this command.'},token)
+                    return web.json_response({'ok':True})
+                reply_msg=message.get('reply_to_message')
+                if not isinstance(reply_msg,dict):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':"Reply to a user's message with /ban or /aiban to ban them."},token)
+                    return web.json_response({'ok':True})
+                target=reply_msg.get('from') or {}
+                target_id=target.get('id')
+                if not target_id:
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Could not identify the user to ban.'},token)
+                    return web.json_response({'ok':True})
+                if target.get('is_bot'):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Cannot ban a bot with this command.'},token)
+                    return web.json_response({'ok':True})
+                if await tg_mod.is_chat_admin(bot_api,chat,target,token):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Cannot ban a chat administrator.'},token)
+                    return web.json_response({'ok':True})
+                data,status=await bot_api('banChatMember',{'chat_id':chat_id,'user_id':target_id},token)
+                target_name=('@'+target['username']) if target.get('username') else (target.get('first_name') or f'User {target_id}')
+                if status==200 and isinstance(data,dict) and data.get('ok'):
+                    ack=f'🚫 Banned {target_name}.'+(f' Reason: {ban_reason}' if ban_reason else '')
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':ack},token)
+                else:
+                    desc=(data or {}).get('description') if isinstance(data,dict) else None
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':f'Could not ban {target_name}: {desc or "Permission denied"}'},token)
+                return web.json_response({'ok':True})
+            blocklist_cmd=tg_mod.parse_blocklist_command(text) if tg_mod else None
+            if blocklist_cmd and chat_id is not None:
+                if not is_group:
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'This command can only be used in group chats.'},token)
+                    return web.json_response({'ok':True})
+                if not await tg_mod.is_chat_admin(bot_api,chat,sender,token,message):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Only chat administrators can configure the blocklist.'},token)
+                    return web.json_response({'ok':True})
+                action,pattern=blocklist_cmd
+                if action=='add':
+                    try:
+                        pat=tg_mod.add_blocklist(db,chat_id,pattern,created_by=str(sender.get('id') or ''))
+                        await bot_api('sendMessage',{'chat_id':chat_id,'text':f"Added '{pat}' to the blocklist."},token)
+                    except ValueError as exc:
+                        await bot_api('sendMessage',{'chat_id':chat_id,'text':str(exc)},token)
+                elif action=='remove':
+                    ok=tg_mod.remove_blocklist(db,chat_id,pattern)
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':f"Removed '{pattern}' from the blocklist." if ok else f"'{pattern}' was not in the blocklist."},token)
+                elif action=='list':
+                    patterns=tg_mod.list_blocklist(db,chat_id)
+                    msg_text='🚫 Blocklisted patterns:\n'+'\n'.join(f'• {p}' for p in patterns) if patterns else 'The blocklist is currently empty.'
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':msg_text},token)
+                return web.json_response({'ok':True})
+            filter_cmd=tg_mod.parse_filter_command(text) if tg_mod else None
+            if filter_cmd and chat_id is not None:
+                if not is_group:
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'This command can only be used in group chats.'},token)
+                    return web.json_response({'ok':True})
+                if not await tg_mod.is_chat_admin(bot_api,chat,sender,token,message):
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':'Only chat administrators can configure filters.'},token)
+                    return web.json_response({'ok':True})
+                action,trigger,resp=filter_cmd
+                if action=='set':
+                    try:
+                        tr=tg_mod.add_filter(db,chat_id,trigger,resp,created_by=str(sender.get('id') or ''))
+                        await bot_api('sendMessage',{'chat_id':chat_id,'text':f"Saved filter for '{tr}'. Saying '{tr}' or '/{tr}' will reply with that message."},token)
+                    except ValueError as exc:
+                        await bot_api('sendMessage',{'chat_id':chat_id,'text':str(exc)},token)
+                elif action=='remove':
+                    ok=tg_mod.remove_filter(db,chat_id,trigger)
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':f"Removed filter for '{trigger}'." if ok else f"Filter '{trigger}' was not found."},token)
+                elif action=='list':
+                    filters=tg_mod.list_filters(db,chat_id)
+                    msg_text='Active filters:\n'+'\n'.join(f"• /{f['trigger']} → {f['response']}" for f in filters) if filters else 'No filters have been set yet. Use /filter <trigger> <response> to add one.'
+                    await bot_api('sendMessage',{'chat_id':chat_id,'text':msg_text},token)
+                return web.json_response({'ok':True})
+            if is_group and text.strip() and not (sender.get('is_bot')) and chat_id is not None and tg_mod:
+                violation=tg_mod.match_blocklist(db,chat_id,text)
+                if violation:
+                    if not await tg_mod.is_chat_admin(bot_api,chat,sender,token,message):
+                        msg_id=message.get('message_id')
+                        if msg_id:
+                            try: await bot_api('deleteMessage',{'chat_id':chat_id,'message_id':msg_id},token)
+                            except Exception: pass
+                        user_id=sender.get('id')
+                        strikes=tg_mod.get_strikes(db,chat_id,user_id)
+                        target_name=('@'+sender['username']) if sender.get('username') else (sender.get('first_name') or 'User')
+                        if strikes==0:
+                            tg_mod.record_strike(db,chat_id,user_id,violation=violation)
+                            await bot_api('sendMessage',{'chat_id':chat_id,'text':f"⚠️ {target_name}, your message was removed for containing blocklisted content. Warning (1/2) — doing it again will result in a ban."},token)
+                        else:
+                            tg_mod.record_strike(db,chat_id,user_id,violation=violation)
+                            try: await bot_api('banChatMember',{'chat_id':chat_id,'user_id':user_id},token)
+                            except Exception: pass
+                            await bot_api('sendMessage',{'chat_id':chat_id,'text':f"🚫 {target_name} has been banned for repeated blocklist violations."},token)
+                        return web.json_response({'ok':True})
+            if chat_id is not None and text.strip() and tg_mod:
+                if not (text.startswith('/start') or text.startswith('/show') or text.startswith('/link') or (is_issue_command and is_issue_command(text)) or re.fullmatch(r'/help(?:@\w+)?\s*',text,re.I)):
+                    f_resp=tg_mod.match_filter(db,chat_id,text)
+                    if f_resp:
+                        msg_id=message.get('message_id')
+                        payload={'chat_id':chat_id,'text':f_resp}
+                        if msg_id: payload['reply_to_message_id']=msg_id
+                        await bot_api('sendMessage',payload,token)
+                        return web.json_response({'ok':True})
             # Buffer ordinary chatter so the transcript is complete when someone asks
             # for an issue. The command itself (and /start, /show, /link) is never part
             # of the issue.
@@ -1415,7 +1525,7 @@ def create_app(database=None, origins=None):
                 if re.fullmatch(r'/help(?:@tinyfrensbot)?\s*',text,re.I):
                     private=(chat or {}).get('type')=='private'
                     await bot_api('sendMessage',{'chat_id':chat_id,
-                        'text':'Talk to me normally, use /show for your selected NFT, or reply to a message with @TinyFrensBot open issue to request a GitHub issue.',
+                        'text':'Talk to me normally, use /show for your selected NFT, or reply to a message with @TinyFrensBot open issue to request a GitHub issue. Group admins can also use /filter, /blocklist, and /ban.',
                         'reply_markup':reply_markup(miniapp+'#pet' if private else deep_link,'🐾 Open TinyFrens',private)},token)
                 else:
                     try:
