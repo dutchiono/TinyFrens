@@ -188,6 +188,36 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await server.close()
 
+    async def test_empty_indexer_checks_rpc_and_verifies_owner(self):
+        from turtle_connect import discover_wallets, TurtleOwnership
+        import sqlite3
+        async def empty(request):
+            return web.json_response({'items': []})
+        app = web.Application(); app.router.add_get('/addresses/{address}/nft', empty)
+        server = TestServer(app); await server.start_server()
+        db = sqlite3.connect(':memory:')
+        try:
+            with mock.patch.dict(os.environ, {'ROBINHOOD_BLOCKSCOUT_API_URL': str(server.make_url('')).rstrip('/')}), \
+                 mock.patch('turtle_connect.rpc_candidates', new=mock.AsyncMock(return_value=({7}, False))):
+                result = await discover_wallets([self.owner], TurtleOwnership(db))
+                self.assertEqual([n['tokenId'] for n in result['nfts']], [7])
+        finally:
+            db.close(); await server.close()
+
+    async def test_partial_scan_reports_missing_collections(self):
+        pairing, proof = await self.begin()
+        await self.post('confirm', proof, agent=True)
+        await self.post('accept', {'code': pairing['code']})
+        with mock.patch('app.turtle_connect.discover_wallets', new=mock.AsyncMock(side_effect=RuntimeError('RPC failure'))), \
+             mock.patch('app.Robots.discover', new=mock.AsyncMock(side_effect=RuntimeError('archive denied'))):
+            response = await self.client.post('/api/wallet-link/nfts', headers={'Origin': ORIGIN}, json={'token':self.phone['token']})
+            data = await response.json()
+            self.assertEqual(response.status, 200)
+            self.assertTrue(data['partial'])
+            self.assertEqual(len(data['errors']), 2)
+            self.assertIn('Hood Turtles', data['errors'][0])
+            self.assertIn('Robots v1', data['errors'][1])
+
     async def test_indexer_failure_falls_back_to_rpc_and_verifies_owner(self):
         from turtle_connect import discover_wallets, TurtleOwnership
         import sqlite3

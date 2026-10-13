@@ -76,8 +76,10 @@ class Robots:
     def __init__(self, db):
         self.db = db
         self.lock = asyncio.Lock()
+        self.inventory_lock = asyncio.Lock()
         db.execute('CREATE TABLE IF NOT EXISTS robot_ownership(wallet TEXT, token_id INTEGER, checked REAL, payload TEXT, PRIMARY KEY(wallet,token_id))')
         db.execute('CREATE TABLE IF NOT EXISTS robot_discovery(wallet TEXT PRIMARY KEY, block INTEGER, ids TEXT)')
+        db.execute('CREATE TABLE IF NOT EXISTS robot_owner_inventory(id INTEGER PRIMARY KEY, checked REAL, owners TEXT)')
         db.commit()
 
     async def rpc(self, method, params):
@@ -137,6 +139,24 @@ class Robots:
             self.db.commit()
             return result
 
+    async def owner_batch(self, ids):
+        requests = [{'jsonrpc':'2.0','id':tid,'method':'eth_call',
+                     'params':[{'to':CONTRACT,'data':'0x6352211e' + format(tid,'064x')},'latest']} for tid in ids]
+        async with ClientSession(timeout=ClientTimeout(total=20), headers={'User-Agent':'TinyFrens/1.0'}) as session:
+            async with session.post(os.environ.get('ROBOTS_RPC_URL', 'https://base-rpc.publicnode.com'), json=requests) as response:
+                response.raise_for_status()
+                data = await response.json()
+        if not isinstance(data, list) or len(data) != len(requests): raise RuntimeError('Invalid robot inventory batch')
+        if {item.get('id') for item in data} != {item['id'] for item in requests}: raise RuntimeError('Invalid robot inventory IDs')
+        owners = {}
+        for item in data:
+            error = item.get('error', {})
+            if error.get('code') == 3 and error.get('data') in {'0xdf2d9b42', '0xa14c4b50'}: continue
+            raw = item.get('result', '')
+            if error or not re.fullmatch(r'0x0{24}[0-9a-fA-F]{40}', raw): raise RuntimeError('Robot inventory ownership unavailable')
+            if int(raw,16): owners[str(item['id'])] = '0x' + raw[-40:]
+        return owners
+
     async def discover(self, wallet):
         wallet = to_checksum_address(wallet)
         if await self.rpc('eth_chainId', []) != '0x2105':
@@ -145,22 +165,25 @@ class Robots:
         if not isinstance(balance, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', balance):
             raise RuntimeError('Invalid robot balance')
         if int(balance, 16) == 0: return {'nfts':[], 'partial':False}
-        head = int(await self.rpc('eth_blockNumber', []), 16)
-        row = self.db.execute('SELECT block,ids FROM robot_discovery WHERE wallet=?', (wallet,)).fetchone()
-        start, ids = (max(START_BLOCK, row[0] - 64), set(json.loads(row[1]))) if row and row[0] <= head else (START_BLOCK, set())
-        if head - start > 2_000_000: raise RuntimeError('Robot discovery needs an index checkpoint')
-        topic = '0x' + wallet[2:].lower().zfill(64)
-        for block in range(start, head + 1, 2000):
-            logs = await self.rpc('eth_getLogs', [{'address':CONTRACT,'fromBlock':hex(block),
-                    'toBlock':hex(min(head, block + 1999)), 'topics':[TRANSFER,None,topic]}])
-            if not isinstance(logs, list): raise RuntimeError('Invalid robot transfer history')
-            for log in logs:
-                topics = log.get('topics', [])
-                if (not log.get('removed') and len(topics) == 4 and log.get('address','').lower() == CONTRACT
-                        and topics[0].lower() == TRANSFER and topics[2].lower() == topic):
-                    ids.add(token_id(int(topics[3], 16)))
-        self.db.execute('INSERT OR REPLACE INTO robot_discovery VALUES(?,?,?)', (wallet, head, json.dumps(sorted(ids))))
-        self.db.commit()
+        # Current ownership reads do not require archive access to old transfers.
+        async with self.inventory_lock:
+            row = self.db.execute('SELECT checked,owners FROM robot_owner_inventory WHERE id=1').fetchone()
+            owners = json.loads(row[1]) if row else {}
+            owned = [tid for tid, owner in owners.items() if owner.lower() == wallet.lower()]
+            if not row or not 0 <= time.time() - row[0] < 600 or len(owned) != int(balance, 16):
+                supply_raw = await self.rpc('eth_call', [{'to':CONTRACT,'data':'0x18160ddd'},'latest'])
+                if not isinstance(supply_raw, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', supply_raw):
+                    raise RuntimeError('Invalid robot supply')
+                supply = int(supply_raw, 16)
+                if supply > 2664: raise RuntimeError('Robot supply exceeds collection limit')
+                owners = {}
+                for start in range(1, 2665, 20):
+                    if len(owners) >= supply: break
+                    owners.update(await self.owner_batch(range(start, min(start + 20, 2665))))
+                if len(owners) != supply: raise RuntimeError('Robot inventory does not match current supply')
+                self.db.execute('INSERT OR REPLACE INTO robot_owner_inventory VALUES(1,?,?)', (time.time(), json.dumps(owners)))
+                self.db.commit()
+            ids = [int(tid) for tid, owner in owners.items() if owner.lower() == wallet.lower()]
         nfts = []
         for tid in sorted(ids):
             data = await self.read(wallet, tid)

@@ -498,6 +498,8 @@ def create_app(database=None, origins=None):
             if not successes:
                 raise RuntimeError('NFT discovery unavailable')
             data = {'nfts':[nft for result in successes for nft in result['nfts']],
+                    'errors':[label + ' discovery unavailable. Try Refresh NFTs.' for label, result in zip(
+                        ['Hood Turtles'] + ['Robots v1'] * len(addresses) + [EXTRA_COLLECTIONS[c][2] for c in EXTRA_COLLECTIONS], results) if isinstance(result, Exception)],
                     'partial':len(successes) != len(results) or any(result['partial'] for result in successes)}
             # Filter again if a wallet was removed while discovery was in flight.
             current = {address.lower() for address in turtle_connect.linked_wallets(db, pid)}

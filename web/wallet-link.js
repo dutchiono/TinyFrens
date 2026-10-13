@@ -115,7 +115,7 @@
     scanStatus.textContent = 'Finding NFTs from available collections…';
     try {
       const result = await post('/api/wallet-link/nfts');
-      const data = {...result, errors:[], nfts:result.nfts.map(nft => ({...nft,
+      const data = {...result, errors:result.errors || [], nfts:result.nfts.map(nft => ({...nft,
         contract:nft.originalAddress, chain:nft.chainId === 8453 ? 'Base' : 'Robinhood Chain', standard:'ERC-721', companionSupported:true}))};
       matches.replaceChildren();
       const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);

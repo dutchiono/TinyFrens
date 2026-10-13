@@ -137,6 +137,8 @@ async def discover_wallets(addresses, ownership):
                     params = {'type': 'ERC-721', **next_page}
         try:
             await indexer_candidates()
+            if not candidates:
+                candidates, partial = await rpc_candidates(address)
         except Exception:
             candidates, partial = await rpc_candidates(address)
         async def verify(tid):
