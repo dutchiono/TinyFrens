@@ -58,7 +58,7 @@ if (process.argv.includes('--check') || process.argv.includes('--check-files')) 
       verificationFile: `${name}.verification.json`, constructor: constructor?.inputs || [], initBytes, runtimeBytes });
   }
   writeFileSync(path.join(folder, 'manifest.json'), json({
-    collection: 'tinyfrens-robots-v1', status: 'compiled; not deployed; Bankr execution unverified',
+    collection: 'tinyfrens-robots-v1', status: 'compiled build artifact; live mint instructions at /robots/skill.md',
     compiler: '0.8.28+commit.7893614a', optimizerRuns: 200, viaIR: true, evmVersion: 'cancun',
     sourceBaseCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     provenance: 'Exact compiled source bytes are embedded in verification files. sourceLfSha256 normalizes CRLF to LF for cross-platform freshness checks; fileSha256 hashes exact package bytes. Base commit may precede this package commit.',

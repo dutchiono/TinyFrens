@@ -102,6 +102,7 @@
  let registrationId=0;const nativeRegistrations=new Map();
  window.onNativeFriendRegistration=data=>{const pending=nativeRegistrations.get(data.requestId);if(!pending)return;nativeRegistrations.delete(data.requestId);clearTimeout(pending.timer);if(data.result?.error)pending.reject(new Error(data.result.error));else pending.resolve(data.result);};
  async function register(){
+  if(window.TinyFrensDesktop?.turtleRequest)return window.TinyFrensDesktop.turtleRequest(endpoint,'/api/register',{pet:pet()});
   if(native&&typeof PetAndroid.registerFriends==='function')return new Promise((resolve,reject)=>{
    const id=++registrationId;const timer=setTimeout(()=>{nativeRegistrations.delete(id);reject(new Error('Friends server took too long. Try again.'));},35000);
    nativeRegistrations.set(id,{resolve,reject,timer});try{PetAndroid.registerFriends(endpoint,JSON.stringify(pet()),id);}catch(e){clearTimeout(timer);nativeRegistrations.delete(id);reject(e);}
@@ -112,7 +113,7 @@
  async function connect(){
   const gen=++generation;clearTimeout(retry);const old=ws;ws=null;old?.close();endVisit();endBattle();$('addFriendButton').disabled=true;status('Connecting…');
   try{
-   if(!identity){const result=await register();if(!/^[a-f0-9]{32}$/.test(result.id||'')||!/^[-_A-Za-z0-9]{40,100}$/.test(result.token||'')||!/^[-A-Z2-9]{8}$/.test(result.code||''))throw new Error('Friends server response was invalid.');if(gen!==generation)return;identity=result;localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));}
+   if(!identity){const result=await register();if(!/^[a-f0-9]{32}$/.test(result.id||'')||!/^[-_A-Za-z0-9]{40,100}$/.test(result.token||'')||!/^[-A-Z2-9]{8}$/.test(result.code||''))throw new Error('Friends server response was invalid.');if(gen!==generation)return;identity=result;localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));window.dispatchEvent(new Event('tinyfrens-identity-ready'));}
    if(gen!==generation)return;
    const socket=new WebSocket(endpoint.replace(/^https:/,'wss:')+'/ws');ws=socket;lastProfile='';
    socket.onopen=()=>{delay=1000;socket.send(JSON.stringify({type:'auth',token:identity.token}));};

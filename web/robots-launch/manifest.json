@@ -1,6 +1,6 @@
 {
   "collection": "tinyfrens-robots-v1",
-  "status": "compiled; not deployed; Bankr execution unverified",
+  "status": "compiled build artifact; live mint instructions at /robots/skill.md",
   "compiler": "0.8.28+commit.7893614a",
   "optimizerRuns": 200,
   "viaIR": true,
