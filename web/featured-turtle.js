@@ -27,7 +27,10 @@
   stage.append(empty);
   empty.querySelector('a').onclick = event => { event.preventDefault(); window.showScreen('wallet'); };
   const controls = document.createElement('div');
-  controls.className = 'companion-controls'; controls.hidden = !!window.PetAndroid; controls.hidden = !!window.PetAndroid; controls.hidden = !!window.PetAndroid; stage.after(controls);
+  controls.className = 'companion-controls';
+  const movementMenu = document.createElement('details'); movementMenu.className = 'companion-movement-menu';
+  const movementTitle = document.createElement('summary'); movementTitle.textContent = 'Movement settings';
+  movementMenu.append(movementTitle, controls); stage.closest('.pet-card').after(movementMenu);
   let items = [], refreshing = false;
   function saved() {
     try {
