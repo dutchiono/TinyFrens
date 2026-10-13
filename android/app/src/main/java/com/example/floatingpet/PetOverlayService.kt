@@ -4,6 +4,7 @@ import android.content.*
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -11,6 +12,8 @@ import android.os.*
 import android.provider.Settings
 import android.view.*
 import android.widget.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlin.math.roundToInt
 import kotlin.random.Random
 class PetOverlayService:Service(){
@@ -49,13 +52,75 @@ class PetOverlayService:Service(){
  private val updateCheck=object:Runnable{override fun run(){checkForUpdate();handler.postDelayed(this,15*60*1000)}}
  private val screenReceiver=object:BroadcastReceiver(){override fun onReceive(c:Context?,i:Intent?){screenOn=i?.action!=Intent.ACTION_SCREEN_OFF}}
  private fun dp(n:Int)=(n*resources.displayMetrics.density).roundToInt()
+ private var keyboardHeight=0
+ private fun detectKeyboardHeight(screenH:Float):Int{
+  var detected=0
+  if(Build.VERSION.SDK_INT>=30){
+   try{
+    val insets=wm.currentWindowMetrics.windowInsets
+    val imeBottom=insets.getInsets(WindowInsets.Type.ime()).bottom
+    if(insets.isVisible(WindowInsets.Type.ime())||imeBottom>0){
+     detected=imeBottom
+    }
+   }catch(_:Exception){}
+  }
+  val v=pet
+  if(v!=null&&v.isAttachedToWindow){
+   try{
+    val r=Rect()
+    v.getWindowVisibleDisplayFrame(r)
+    if(r.bottom>0){
+     val diff=screenH.toInt()-r.bottom
+     if(diff>dp(84)){detected=maxOf(detected,diff)}
+    }
+   }catch(_:Exception){}
+  }
+  chatPanel?.let{cp->
+   if(cp.isAttachedToWindow){
+    try{
+     val r=Rect()
+     cp.getWindowVisibleDisplayFrame(r)
+     if(r.bottom>0){
+      val diff=screenH.toInt()-r.bottom
+      if(diff>dp(84)){detected=maxOf(detected,diff)}
+     }
+    }catch(_:Exception){}
+   }
+  }
+  return detected
+ }
  private fun bounds():Pair<Float,Float>{
   val b=if(Build.VERSION.SDK_INT>=30)wm.currentWindowMetrics.bounds else null
-  return Pair(((b?.width()?:resources.displayMetrics.widthPixels)-(params?.width?:0)).coerceAtLeast(0).toFloat(),
-   ((b?.height()?:resources.displayMetrics.heightPixels)*0.42f-(params?.height?:0)-dp(28)).coerceAtLeast(0f).toFloat())
+  val sw=(b?.width()?:resources.displayMetrics.widthPixels).toFloat()
+  val sh=(b?.height()?:resources.displayMetrics.heightPixels).toFloat()
+  val pw=(params?.width?:dp(80)).toFloat()
+  val ph=(params?.height?:dp(80)).toFloat()
+  val navBottom=if(Build.VERSION.SDK_INT>=30){
+   try{
+    wm.currentWindowMetrics.windowInsets.getInsets(WindowInsets.Type.navigationBars()).bottom.toFloat()
+   }catch(_:Exception){dp(48).toFloat()}
+  }else{
+   val resId=resources.getIdentifier("navigation_bar_height","dimen","android")
+   if(resId>0)resources.getDimensionPixelSize(resId).toFloat() else dp(48).toFloat()
+  }
+  val kb=detectKeyboardHeight(sh)
+  keyboardHeight=kb
+  return PetBounds.calculateBounds(sw,sh,pw,ph,navBottom,kb,dp(8).toFloat(),dp(12).toFloat())
  }
  private fun chooseWalk(){val(bx,by)=bounds();tx=Random.nextFloat()*bx;ty=Random.nextFloat()*by;behavior="walk";nextDecision=SystemClock.elapsedRealtime()+12000}
- private fun clamp(){val(bx,by)=bounds();x=x.coerceIn(0f,bx);y=y.coerceIn(0f,by);params?.let{it.x=x.roundToInt();it.y=y.roundToInt()}}
+ private fun clamp(){
+  val(bx,by)=bounds()
+  x=x.coerceIn(0f,bx)
+  y=y.coerceIn(0f,by)
+  params?.let{it.x=x.roundToInt();it.y=y.roundToInt()}
+  for(g in guestPets+ownedPets){
+   g.x=g.x.coerceIn(0f,bx)
+   g.y=g.y.coerceIn(0f,by)
+   g.params.x=g.x.roundToInt()
+   g.params.y=g.y.roundToInt()
+   update(g.view,g.params)
+  }
+ }
  private fun update(v:View,p:WindowManager.LayoutParams){try{wm.updateViewLayout(v,p)}catch(_:Exception){if(!Settings.canDrawOverlays(this))stopSelf()}}
  private fun reducedMotion()=state.optBoolean("reduceMotion")||Settings.Global.getFloat(contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
  private fun hideWithFade(){
@@ -327,6 +392,17 @@ class PetOverlayService:Service(){
   v.onTap={toggleMenu()}
   v.onHold={toggleMenu()}
   v.setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER&&menu==null){showMenu();say("Hey, you!")};false}
+  v.viewTreeObserver.addOnGlobalLayoutListener{
+   val(_,curBy)=bounds()
+   if(y>curBy&&!v.dragging){clamp();pet?.let{pv->params?.let{pr->update(pv,pr)}}}
+  }
+  ViewCompat.setOnApplyWindowInsetsListener(v){_,insets->
+   val imeH=insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+   val isIme=insets.isVisible(WindowInsetsCompat.Type.ime())||imeH>0
+   val newKb=if(isIme)imeH else 0
+   if(newKb!=keyboardHeight){keyboardHeight=newKb;clamp();pet?.let{pv->params?.let{pr->update(pv,pr)}}}
+   insets
+  }
   try{wm.addView(v,p);lastEffectToken=state.optLong("actionUntil");style();if(state.optBoolean("fade",true)&&!reducedMotion()){val opacity=v.alpha;v.alpha=0f;v.animate().alpha(opacity).setDuration(220).start()};chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
  }
  private fun openCare(){removeMenu();removeChat();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).putExtra("screen","care").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
@@ -447,7 +523,14 @@ class PetOverlayService:Service(){
   send.setOnClickListener{askChat(input.text.toString(),status,send)}
   val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80);val screenWidth=(bx+pw).toInt();val screenHeight=(by+ph).toInt()
   val width=minOf(dp(328),(screenWidth-dp(8)).coerceAtLeast(dp(260)))
-  val p=chatOverlay(width,dp(160));p.x=(x+pw/2f-width/2f).toInt().coerceIn(0,(screenWidth-width).coerceAtLeast(0));p.y=(y+ph+dp(8)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
+  val p=chatOverlay(width,dp(160));p.x=(x+pw/2f-width/2f).toInt().coerceIn(0,(screenWidth-width).coerceAtLeast(0))
+  val chatAbove=y+ph+dp(8)+p.height>screenHeight
+  p.y=(if(chatAbove)y-p.height-dp(8)else y+ph+dp(8)).toInt().coerceIn(0,(screenHeight-p.height).coerceAtLeast(0))
+  ViewCompat.setOnApplyWindowInsetsListener(panel){_,insets->
+   val imeH=insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+   if(imeH>0&&imeH!=keyboardHeight){keyboardHeight=imeH;clamp();pet?.let{pv->params?.let{pr->update(pv,pr)}}}
+   insets
+  }
   try{wm.addView(panel,p);chatPanel=panel;input.requestFocus();(getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(input,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)}catch(_:Exception){}
  }
  private fun askChat(message:String,status:TextView,send:Button){

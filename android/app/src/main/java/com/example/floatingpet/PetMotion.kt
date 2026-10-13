@@ -10,3 +10,24 @@ object PetMotion {
   return Step((x+dx/distance*step).coerceIn(0f,mx.coerceAtLeast(0f)),(y+dy/distance*step).coerceIn(0f,my.coerceAtLeast(0f)),step>=distance)
  }
 }
+object PetBounds {
+ fun calculateBounds(
+  screenWidth: Float,
+  screenHeight: Float,
+  petWidth: Float,
+  petHeight: Float,
+  navBarHeight: Float,
+  keyboardHeight: Int,
+  bottomPadding: Float = 8f,
+  keyboardMargin: Float = 12f
+ ): Pair<Float, Float> {
+  val maxX = (screenWidth - petWidth).coerceAtLeast(0f)
+  val bottomInset = if (keyboardHeight > 0) {
+   keyboardHeight.toFloat() + keyboardMargin
+  } else {
+   navBarHeight.coerceAtLeast(bottomPadding) + bottomPadding
+  }
+  val maxY = (screenHeight - bottomInset - petHeight).coerceAtLeast(0f)
+  return Pair(maxX, maxY)
+ }
+}
