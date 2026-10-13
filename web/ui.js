@@ -1,6 +1,8 @@
 'use strict';
 window.showScreen=name=>{
+ if(typeof name==='string'&&name.includes('?'))name=name.split('?')[0];
  if(name==='settings')name='account';
+ if(name==='plaza'||name==='public')name='party';
  const walletRequested=name==='wallet';
  if(walletRequested)name='account';
  if(name==='pet' && window.TinyFrensWalletConnected===false)name='account';
@@ -14,9 +16,14 @@ window.showScreen=name=>{
   homeBtn.classList.toggle('active',isHome);homeBtn.setAttribute('aria-checked',String(isHome));
   plazaBtn.classList.toggle('active',isPlaza);plazaBtn.setAttribute('aria-checked',String(isPlaza));
  }
- if(name==='party'&&(document.getElementById('visitRequests')?.children.length||document.getElementById('guestVisit'))){const social=document.querySelector('.party-social');if(social)social.open=true;}
+ if(name==='party'){
+  if(window.TinyFrensParty&&!window.TinyFrensParty.getActive()){
+   window.TinyFrensParty.joinPublic();
+  }
+  if(document.getElementById('visitRequests')?.children.length||document.getElementById('guestVisit')){const social=document.querySelector('.party-social');if(social)social.open=true;}
+ }
  const more=document.getElementById('moreMenu');if(more){more.open=false;}
- history.replaceState(null,'','#'+name);window.scrollTo(0,0);
+ history.replaceState(null,'','#'+(name==='party'?'plaza':name));window.scrollTo(0,0);
  if(walletRequested){const manager=document.getElementById('walletManager');if(manager){manager.open=true;manager.scrollIntoView({block:'start'});}}
 };
 for(const tab of document.querySelectorAll('[data-screen]')){
@@ -27,4 +34,6 @@ document.addEventListener('click',event=>{const more=document.getElementById('mo
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){const more=document.getElementById('moreMenu');if(more?.open){more.open=false;more.querySelector('summary').focus();}}});
 let hasImports=false;
 try{const native=window.PetAndroid||window.TinyFrensDesktop;hasImports=native?.getTurtle?JSON.parse(native.getTurtle()).selected:JSON.parse(localStorage.getItem('tinyfrens-companions')||'[]').length>0||!!localStorage.getItem('tinyfrens-hood-turtle');}catch{}
-showScreen(location.hash==='#video-pet'?'pet':location.hash.slice(1)||'pet');
+let initialHash = location.hash==='#video-pet'?'pet':location.hash.slice(1)||'pet';
+if(initialHash.includes('?')) initialHash = initialHash.split('?')[0];
+showScreen(initialHash);
