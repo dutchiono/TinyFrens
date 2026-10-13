@@ -133,6 +133,9 @@ async def discover_wallets(addresses, ownership):
                         response.raise_for_status()
                         result = await response.json(content_type=None)
                 raw = result.get('result', '')
+                # Incoming history can include NFTs that were later burned.
+                if result.get('error', {}).get('code') == 3:
+                    return None
                 if result.get('error') or not re.fullmatch(r'0x0{24}[0-9a-fA-F]{40}', raw):
                     raise RuntimeError('On-chain ownership check unavailable')
                 active = raw[-40:].lower() == address[2:].lower()

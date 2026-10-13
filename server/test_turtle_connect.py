@@ -24,6 +24,7 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         self.calls = 0
         self.unavailable = False
         self.malformed = False
+        self.burned = False
         self.metadata = {'name': 'Hood Turtle #7', 'image': 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg"/>').decode()}
         uri = ('data:application/json;base64,' + base64.b64encode(json.dumps(self.metadata).encode()).decode()).encode()
 
@@ -32,6 +33,8 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
             if self.unavailable:
                 return web.json_response({'error': {'code': -32000}}, status=503)
             body = await request.json()
+            if self.burned and body['params'][0]['data'][:10] == '0x6352211e':
+                return web.json_response({'error': {'code': 3, 'message': 'execution reverted'}})
             self.assertEqual(body['params'][0]['to'], '0xca28587b61eac19a87dfcfd9420870867a916675')
             if self.malformed:
                 result = '0x1234'
@@ -196,6 +199,13 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(result['nfts'][0]['tokenId'], 7)
                 self.assertEqual(result['nfts'][0]['wallet'], self.owner)
                 self.assertFalse(result['partial'])
+                self.burned = True
+                result = await discover_wallets([self.owner], TurtleOwnership(db))
+                self.assertEqual(result['nfts'], [])
+                self.burned = False
+                self.unavailable = True
+                with self.assertRaisesRegex(RuntimeError, 'temporarily unavailable'):
+                    await discover_wallets([self.owner], TurtleOwnership(db))
         finally:
             db.close(); await server.close()
 
