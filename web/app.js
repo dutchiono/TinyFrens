@@ -71,7 +71,7 @@ function render(s){
   $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
-for(const a of ['feed','play','rest','clean','vitamin','scold','revive'])$(a).addEventListener('click',async()=>{if($(a).disabled)return;$(a).disabled=true;try{if(window.TinyFrensRobotCare && !(await window.TinyFrensRobotCare.before(a)))return;const s=action(a);render(s);if(!s.blocked){const animation=s.animation||{feed:'eat',play:'dance',rest:'sleep',clean:'happy',vitamin:'eat',scold:'wave',revive:'happy'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}window.TinyFrensRobotCare?.refresh?.();}finally{$(a).disabled=false;}});
+for(const a of ['feed','play','rest','clean','vitamin','scold','revive'])$(a).addEventListener('click',async()=>{if($(a).disabled)return;$(a).disabled=true;try{const preview=PetEngine.act(read(),a,Date.now());if(preview.blocked){const state=action(a);render(state);return;}if(window.TinyFrensRobotCare && !(await window.TinyFrensRobotCare.before(a)))return;const s=action(a);render(s);if(!s.blocked){const animation=s.animation||{feed:'eat',play:'dance',rest:'sleep',clean:'happy',vitamin:'eat',scold:'wave',revive:'happy'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}window.TinyFrensRobotCare?.refresh?.();}finally{$(a).disabled=false;}});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
   let s;if(desktop)s=JSON.parse(desktop.setMode(b.dataset.mode));
   else if(native)s=JSON.parse(PetAndroid.setMode(b.dataset.mode));
