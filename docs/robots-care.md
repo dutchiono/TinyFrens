@@ -187,8 +187,8 @@ Shipped (P3):
   and read **live** by the care layer (so `RobotCare` re-reads them per request, no restart).
   `GET /api/admin/ledger` and `GET /api/admin/care` — read-only views of the credit ledger and daily
   care usage.
-- `web/admin.html` (reached via `/admin`) — the operator page. The API is origin-independent (it
-  carries its own bearer token) and every response is `Cache-Control: no-store`.
+- `server/admin.html` (reached via `/admin` on the relay server) — the operator page. The API is origin-independent (it
+  authenticates via session bearer tokens or ADMIN_TOKEN) and every response is `Cache-Control: no-store`.
 - Deployment: reachable at `/admin` on `PET_DOMAIN`, or on its own host by setting `ADMIN_DOMAIN`
   and uncommenting the Caddy block (`server/Caddyfile`, `server/README.md`); production runs as
   systemd `tinyfrens-server.service` on `miono`.
@@ -214,8 +214,8 @@ in FRENS.
   against the pet's linked wallets (see §6.1). **It never moves FRENS** — the paid branch reports
   `requiresPayment`/`priceFrens` for P4 to charge. Tests: `server/test_robot_care.py`, including a
   parity test that every catalogued action still exists in `web/pet-engine.js`.
-- **P3 — Admin. ✅ shipped in this branch.** Token-protected `/api/admin/*` plus the operator page
-  at `web/admin.html` (§8). Care tunables move to `app_settings` and are read live, so
+- **P3 — Admin. ✅ shipped in this branch.** Operator `/api/admin/*` surface plus the operator page
+  at `server/admin.html` (§8). Care tunables move to `app_settings` and are read live, so
   `server/robot_care.py` re-resolves its allowance/prices per request. Tests:
   `server/test_admin.py`.
 - **P4 — Money.** Server money core **✅ shipped in this branch**; client wiring follows as P4b.

@@ -12,7 +12,7 @@ code{background:#211c39;border-radius:6px;padding:2px 6px}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#b9aecb}
 input{background:#17142a;color:#f3eeff;border:1px solid #47365f;border-radius:10px;padding:10px 12px;font:inherit;width:150px}
-input.token{width:min(420px,100%)}
+input.wide{width:min(280px,100%)}
 button{background:#a474f1;color:#17142a;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
 button.ghost{background:transparent;color:#c7a6ff;border:1px solid #47365f}
 button:disabled{opacity:.5;cursor:default}
@@ -26,19 +26,41 @@ th{color:#b9aecb;font-weight:600}
 .stat b{display:block;font-size:22px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
 .hidden{display:none}
+.user-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#282142;border:1px solid #47365f;border-radius:12px;margin:16px 0}
 </style></head><body>
 <h1>TinyFrens admin</h1>
-<p>Admin control panel for Robots v1 care allowances, game rewards, pricing, and player balances.</p>
+<p>Operator surface for the robots care loop, credit ledger, and system tunables. Non-public operator access at <code>miono.live</code>.</p>
 
-<div class="card">
+<div class="card" id="loginCard">
+  <h2 style="margin-top:0">Log in</h2>
   <div class="row">
-    <label>Admin token
-      <input class="token" id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
+    <label>Username
+      <input class="wide" id="username" type="text" autocomplete="username" placeholder="Username" value="dutch">
     </label>
-    <button id="connect">Connect</button>
-    <button class="ghost" id="forget">Forget</button>
+    <label>Password
+      <input class="wide" id="password" type="password" autocomplete="current-password" placeholder="Password">
+    </label>
+    <div style="align-self:flex-end">
+      <button id="loginBtn">Log in</button>
+    </div>
   </div>
-  <p id="authmsg" class="muted"></p>
+  <p id="authmsg" class="muted" style="margin-top:12px;margin-bottom:0"></p>
+  <details style="margin-top:16px;font-size:13px;color:#8f83a8">
+    <summary style="cursor:pointer">Or use bearer token</summary>
+    <div class="row" style="margin-top:8px">
+      <label>Admin token
+        <input class="wide" id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
+      </label>
+      <div style="align-self:flex-end">
+        <button class="ghost" id="tokenBtn">Connect with token</button>
+      </div>
+    </div>
+  </details>
+</div>
+
+<div id="userBar" class="user-bar hidden">
+  <div>Logged in as <b id="loggedInUser">dutch</b></div>
+  <button class="ghost" id="logoutBtn">Log out</button>
 </div>
 
 <div id="app" class="hidden">
@@ -82,6 +104,23 @@ th{color:#b9aecb;font-weight:600}
   <div class="card">
     <table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table>
   </div>
+
+  <h2>Admin accounts</h2>
+  <div class="card">
+    <div class="row">
+      <label>New username
+        <input id="newUsername" type="text" placeholder="Username">
+      </label>
+      <label>New password
+        <input id="newPassword" type="password" placeholder="Password">
+      </label>
+      <div style="align-self:flex-end">
+        <button id="addUserBtn">Create user</button>
+      </div>
+      <span id="usermsg" class="muted"></span>
+    </div>
+    <table style="margin-top:16px"><thead><tr><th>Username</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table>
+  </div>
 </div>
 
 <script>
@@ -89,22 +128,68 @@ th{color:#b9aecb;font-weight:600}
   'use strict';
   var $ = function(id){ return document.getElementById(id); };
   var KEY = 'tinyfrens.admin.token';
+  var USER_KEY = 'tinyfrens.admin.user';
   var state = null;
 
-  function token(){ return $('token').value.trim(); }
+  function token(){ return sessionStorage.getItem(KEY) || ''; }
 
   function api(path, options){
     options = options || {};
-    options.headers = Object.assign({'Authorization':'Bearer ' + token()}, options.headers || {});
+    var currentToken = token();
+    var headers = Object.assign({}, options.headers || {});
+    if (currentToken) {
+      headers['Authorization'] = 'Bearer ' + currentToken;
+    }
+    options.headers = headers;
     return fetch(path, options).then(function(r){
       return r.json().catch(function(){ return {}; }).then(function(body){
-        if(!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+        if(!r.ok){
+          if(r.status === 401){
+            sessionStorage.removeItem(KEY);
+            sessionStorage.removeItem(USER_KEY);
+            showLogin('Session expired or unauthorized. Please log in.');
+          }
+          throw new Error(body.error || ('HTTP ' + r.status));
+        }
         return body;
       });
     });
   }
 
   function when(ts){ return ts ? new Date(ts * 1000).toLocaleString() : ''; }
+
+  function showLogin(msg){
+    $('loginCard').classList.remove('hidden');
+    $('userBar').classList.add('hidden');
+    $('app').classList.add('hidden');
+    if(msg){
+      $('authmsg').textContent = msg;
+      $('authmsg').className = 'err';
+    } else {
+      $('authmsg').textContent = '';
+      $('authmsg').className = 'muted';
+    }
+  }
+
+  function showApp(username){
+    $('loginCard').classList.add('hidden');
+    $('userBar').classList.remove('hidden');
+    $('app').classList.remove('hidden');
+    $('loggedInUser').textContent = username || sessionStorage.getItem(USER_KEY) || 'admin';
+  }
+
+  function renderUsers(users){
+    var body = $('usersList');
+    if(!body) return;
+    body.textContent = '';
+    (users || []).forEach(function(u){
+      var tr = document.createElement('tr');
+      var tdUser = document.createElement('td'); tdUser.textContent = u.username;
+      var tdDate = document.createElement('td'); tdDate.textContent = when(u.created);
+      tr.appendChild(tdUser); tr.appendChild(tdDate);
+      body.appendChild(tr);
+    });
+  }
 
   function render(){
     var s = state.settings || {}, overrides = state.overrides || {}, prices = s.prices || {};
@@ -149,6 +234,12 @@ th{color:#b9aecb;font-weight:600}
       });
       audit.appendChild(tr);
     });
+
+    if(state.currentUser) {
+      sessionStorage.setItem(USER_KEY, state.currentUser);
+      $('loggedInUser').textContent = state.currentUser;
+    }
+    renderUsers(state.users);
   }
 
   function loadLedger(){
@@ -177,24 +268,72 @@ th{color:#b9aecb;font-weight:600}
     });
   }
 
-  function load(){
+  function loadState(){
     $('authmsg').textContent = 'Loading…';
+    $('authmsg').className = 'muted';
     return api('/api/admin/state').then(function(data){
       state = data;
-      $('app').classList.remove('hidden');
-      $('authmsg').textContent = 'Connected.';
-      $('authmsg').className = 'ok';
-      sessionStorage.setItem(KEY, token());
+      showApp(state.currentUser || sessionStorage.getItem(USER_KEY));
       render();
       return Promise.all([loadLedger(), loadCare()]);
     }).catch(function(err){
-      $('app').classList.add('hidden');
+      showLogin(err.message);
+    });
+  }
+
+  function login(){
+    var username = $('username').value.trim();
+    var password = $('password').value;
+    if(!username || !password){
+      $('authmsg').textContent = 'Please enter both username and password.';
+      $('authmsg').className = 'err';
+      return;
+    }
+    $('authmsg').textContent = 'Logging in…';
+    $('authmsg').className = 'muted';
+    fetch('/api/admin/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, password: password})
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(body){
+        if(!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+        return body;
+      });
+    }).then(function(data){
+      sessionStorage.setItem(KEY, data.token);
+      sessionStorage.setItem(USER_KEY, data.username);
+      $('password').value = '';
+      $('authmsg').textContent = '';
+      loadState();
+    }).catch(function(err){
       $('authmsg').textContent = err.message;
       $('authmsg').className = 'err';
     });
   }
 
-  function save(){
+  function loginWithToken(){
+    var t = $('token').value.trim();
+    if(!t){
+      $('authmsg').textContent = 'Please enter an admin token.';
+      $('authmsg').className = 'err';
+      return;
+    }
+    sessionStorage.setItem(KEY, t);
+    sessionStorage.setItem(USER_KEY, 'token');
+    $('token').value = '';
+    loadState();
+  }
+
+  function logout(){
+    api('/api/admin/logout', {method: 'POST'}).finally(function(){
+      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(USER_KEY);
+      showLogin();
+    });
+  }
+
+  function saveTunables(){
     var prices = {};
     Array.prototype.forEach.call($('prices').querySelectorAll('input'), function(input){
       prices[input.dataset.action] = parseInt(input.value, 10);
@@ -210,23 +349,64 @@ th{color:#b9aecb;font-weight:600}
       state.settings = data.settings; state.overrides = data.overrides || {};
       render();
       msg.textContent = 'Saved.'; msg.className = 'ok';
-      return load();
+      return loadState();
     }).catch(function(err){
       msg.textContent = err.message; msg.className = 'err';
     });
   }
 
-  $('connect').addEventListener('click', load);
-  $('token').addEventListener('keydown', function(e){ if(e.key === 'Enter') load(); });
-  $('save').addEventListener('click', save);
-  $('refresh').addEventListener('click', function(){ loadLedger(); loadCare(); });
-  $('forget').addEventListener('click', function(){
-    sessionStorage.removeItem(KEY); $('token').value = '';
-    $('app').classList.add('hidden'); $('authmsg').textContent = '';
-  });
+  function createUser(){
+    var u = $('newUsername').value.trim();
+    var p = $('newPassword').value;
+    var msg = $('usermsg');
+    if(!u || !p){
+      msg.textContent = 'Username and password required.';
+      msg.className = 'err';
+      return;
+    }
+    msg.textContent = 'Creating user…';
+    msg.className = 'muted';
+    api('/api/admin/users', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: u, password: p})
+    }).then(function(res){
+      msg.textContent = 'User ' + res.user + ' created.';
+      msg.className = 'ok';
+      $('newUsername').value = '';
+      $('newPassword').value = '';
+      renderUsers(res.users);
+      return api('/api/admin/state').then(function(s){
+        state.audit = s.audit;
+        var audit = $('audit'); audit.textContent = '';
+        (state.audit || []).forEach(function(row){
+          var tr = document.createElement('tr');
+          [row.action, row.detail ? JSON.stringify(row.detail) : '', when(row.created)].forEach(function(v){
+            var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+          });
+          audit.appendChild(tr);
+        });
+      });
+    }).catch(function(err){
+      msg.textContent = err.message;
+      msg.className = 'err';
+    });
+  }
 
-  var saved = sessionStorage.getItem(KEY);
-  if(saved){ $('token').value = saved; load(); }
+  $('loginBtn').addEventListener('click', login);
+  $('username').addEventListener('keydown', function(e){ if(e.key === 'Enter') login(); });
+  $('password').addEventListener('keydown', function(e){ if(e.key === 'Enter') login(); });
+  $('tokenBtn').addEventListener('click', loginWithToken);
+  $('logoutBtn').addEventListener('click', logout);
+  $('save').addEventListener('click', saveTunables);
+  $('refresh').addEventListener('click', function(){ loadLedger(); loadCare(); });
+  $('addUserBtn').addEventListener('click', createUser);
+
+  if(token()){
+    loadState();
+  } else {
+    showLogin();
+  }
 })();
 </script>
 </body></html>
