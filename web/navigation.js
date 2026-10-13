@@ -7,7 +7,7 @@
     : `<a href="index.html#${screen}">${label}</a>`;
   host.innerHTML = `<div class="primary-tabs">${item('pet', 'My NFTs')}<a href="vote.html"${inApp ? '' : ' aria-current="page"'}>Vote</a></div>
     <details class="more-menu" id="moreMenu"><summary>More <span aria-hidden="true">⌃</span></summary>
-    <div class="more-options">${item('care', 'Care')}${item('party', 'Party')}${item('looks', 'Looks')}${item('settings', 'Settings')}</div></details>`;
+    <div class="more-options">${item('care', 'Care')}${item('games', 'Games')}${item('party', 'Party')}${item('looks', 'Looks')}${item('settings', 'Settings')}</div></details>`;
   if (inApp) return; // The app screen controller handles its own menu events.
   const more = document.getElementById('moreMenu');
   document.addEventListener('click', event => { if (!more.contains(event.target)) more.open = false; });

@@ -55,6 +55,14 @@ Friends can challenge each other to a friendly "fightski fight" / spar right fro
   - Both frens square up (`battle_hop`), charge forward with a head-boop collision (`💥 BOOP!`), execute playful trait antics (lasers, flaps, pounces, hops), followed by dizzy swirl eyes (`@_@`) and a celebratory victory dance with sparkles.
 - **Friendly & Safe:** Spars are slapstick, cozy fun with zero negative penalties or pet injury. Both participants gain a Joy boost (+15 Joy) for playing together!
 
+## Mini-games
+
+More → Games opens the mini-game picker inside the app. Games use your fren as the player: your imported NFT companion when one is active, otherwise your drawn fren.
+
+- **Snack Catch:** drag, tap or use ←/→ (A/D) to slide your fren. Catch 🍓 (+1), 🍪 (+2) and ⭐ (+5). Catching a 🧦 costs one of three hearts; missed snacks cost nothing. Snacks fall faster over time.
+
+Best scores save on this device. Mini-games do not change care stats yet. Each finished round fires a `tinyfrens-game-finished` event (game, score, best) for future reward wiring.
+
 ## Appearance
 
 Shape, colour, size and speed changes apply and save immediately. There is no Save step. Reset restores defaults immediately.

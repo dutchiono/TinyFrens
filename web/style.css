@@ -528,3 +528,31 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .bankr-connect{margin-top:24px;padding-top:20px;border-top:1px solid #4a3b68}.bankr-connect h4{margin:0 0 8px}.bankr-connect textarea{width:100%;box-sizing:border-box;background:#17142a;color:#f7f1ff;border:1px solid #63517c;border-radius:12px;padding:14px;font:14px/1.6 system-ui;resize:vertical}.wallet-link-panel .actions{flex-wrap:wrap}.wallet-link-panel button{white-space:normal}
 
 .wallet-manager{grid-column:1/-1;margin:0 0 18px;background:#211c39;border:1px solid #4a3b68;border-radius:14px;padding:14px 18px}.wallet-manager>summary{color:#c9a5ff;font-size:14px;cursor:pointer}.wallet-manager .overlay{border:0;padding:12px 0;margin:0}.wallet-nft-art{display:block;width:100%;max-width:180px;height:160px;object-fit:contain;margin-bottom:12px}.wallet-link-panel .wallet-nft{background:#211c39;border:1px solid #4a3b68;border-radius:12px;padding:16px}.wallet-link-panel button{color:#120f22}.wallet-link-panel button.secondary{color:#f7f1ff}#externalWalletPanel{grid-column:1/-1}
+
+/* Mini-games */
+.games-list{display:grid;gap:12px}
+.game-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;border-bottom-width:3px;border-radius:14px;padding:14px 16px}
+.game-card:hover,.game-card:focus-visible{border-color:#a474f1}
+.game-card-emoji{font-size:34px;line-height:1}
+.game-card-text{display:grid;gap:3px;min-width:0}
+.game-card-text strong{font-size:16px}
+.game-card-text small{color:#b8add3;font-weight:500}
+.game-card-text .game-card-best{color:#cbb6ff;font-weight:700}
+.games-note{margin-top:16px}
+.game-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.game-back{min-height:40px;padding:8px 12px}
+.game-title{margin:0;font-size:18px}
+.game-stage{position:relative;width:min(100%,calc(70vh * 3 / 4));margin:0 auto}
+.game-area{position:relative;aspect-ratio:3/4;overflow:hidden;border:1px solid #4a3b68;border-radius:18px;background-color:#130f25;background-image:radial-gradient(#3c3155 1px,transparent 1px);background-size:18px 18px;touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
+.game-area:focus-visible{border-color:#a474f1}
+.game-area canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.game-fren{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.game-fren .pet{position:absolute;left:50%;bottom:0;margin-left:-70px;transform-origin:50% 100%}
+.game-fren-img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.game-ouch{animation:game-shake .3s linear}
+@keyframes game-shake{25%{translate:-6px 0}75%{translate:6px 0}}
+.game-result{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:4px;text-align:center;background:#17142acc;border-radius:18px;padding:20px}
+.game-result h3{margin:0;font-size:22px}
+.game-result-score{margin:4px 0 0;font-size:34px;font-weight:800;color:#ffe38a}
+.game-result .actions{display:flex;gap:10px;margin-top:12px}.game-result .actions button{white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.game-ouch{animation:none}}
