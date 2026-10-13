@@ -13,11 +13,9 @@
     .card img{width:100%;aspect-ratio:1;display:block;border-radius:8px;image-rendering:pixelated}figcaption{padding:12px 2px 4px;font-size:14px;color:#dacced}
     @media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{padding:8px}}
   </style>
-</head>
-<body>
-  <a href="gallery.html">← Live gallery &amp; mint</a>
-  · <a href="/robots/skill.md">Robot Bankr skill</a>
-  <h1>TinyFrens: Robots v1</h1>
+<link rel="stylesheet" href="navigation.css"></head>
+<body class="tf-navigation-page tf-preview-page"><header id="mainNavigation" data-page="preview"></header>
+  <div class="tf-page-content"><a href="/robots/skill.md">Robot Bankr skill</a><h1>TinyFrens: Robots v1</h1>
   <p>Six robot habitats drawn on a 128-pixel grid, with drifting clouds, layered depth, stepped pools of light and changing casing highlights. Cloud speed, twinkling stars, lighting, foliage and floating accessories have their own motion traits, separate from walking. Robots v1 is live on Base at 0.001 ETH each. These are generated design previews; the live gallery shows actual minted NFTs.</p>
   <button id="motion" type="button" aria-pressed="false">Pause animation</button>
   <p>Pause affects this preview only. The NFT contains an animated SVG; wallets may animate it or show a still thumbnail, depending on their media support.</p>
@@ -25,6 +23,6 @@
   <h2>Places to wander</h2><div id="habitats" class="grid"></div>
   <h2>Walk speeds</h2><div id="walks" class="grid"></div>
   <h2>Environmental motion variants</h2><div id="ambience" class="grid"></div>
-  <script type="module" src="robot-preview.mjs"></script>
-</body>
+</div>  <script type="module" src="robot-preview.mjs"></script>
+<script src="navigation.js"></script></body>
 </html>

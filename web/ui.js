@@ -21,7 +21,6 @@ for(const tab of document.querySelectorAll('[data-screen]')){
  tab.onclick=()=>showScreen(tab.dataset.screen);
  tab.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const tabs=[...document.querySelectorAll('[data-screen]')].filter(tab=>tab.getClientRects().length);const i=(tabs.indexOf(tab)+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length;showScreen(tabs[i].dataset.screen);tabs[i].focus();};
 }
-document.querySelector('.wordmark').onclick=e=>{e.preventDefault();showScreen('pet');};
 document.addEventListener('click',event=>{const more=document.getElementById('moreMenu');if(more&&!more.contains(event.target))more.open=false;});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){const more=document.getElementById('moreMenu');if(more?.open){more.open=false;more.querySelector('summary').focus();}}});
 let hasImports=false;

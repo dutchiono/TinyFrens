@@ -1,0 +1,25 @@
+#mainNavigation{position:sticky;top:0;z-index:100;width:100%;max-width:none;margin:0;padding:env(safe-area-inset-top) 0 0;background:#17142af5;border:0;border-bottom:1px solid #47365f;color:#f3eeff;backdrop-filter:blur(12px);font:14px/1.4 system-ui,sans-serif;box-sizing:border-box}
+#mainNavigation *{box-sizing:border-box}
+#mainNavigation .tf-nav-inner{max-width:1160px;margin:0 auto;padding:12px 20px}
+#mainNavigation .tf-nav-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}
+#mainNavigation .tf-brand{color:#f3eeff;font-size:23px;font-weight:850;letter-spacing:-1px;text-decoration:none}
+#mainNavigation .tf-brand span{color:#a474f1}
+#mainNavigation .tf-back{color:#c9a5ff;text-decoration:none;font-size:13px;padding:6px 10px;border:1px solid #47365f;border-radius:8px}
+#mainNavigation .tf-nav-links{display:flex;gap:4px;align-items:center;margin:0;padding:0;border:0;background:transparent}
+#mainNavigation .tf-nav-links>a,#mainNavigation .tf-nav-links>button,#mainNavigation summary{display:flex;align-items:center;justify-content:center;min-height:42px;margin:0;padding:10px 14px;border:0;border-radius:9px;color:#b9aecb;background:transparent;font:650 14px/1.2 system-ui,sans-serif;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none}
+#mainNavigation .tf-nav-links>[aria-current=page],#mainNavigation .tf-more[open]>summary{background:#362850;color:#f3eeff}
+#mainNavigation .tf-nav-links>a:hover,#mainNavigation .tf-nav-links>button:hover,#mainNavigation summary:hover,#mainNavigation .tf-more-options>*:hover{background:#302443;color:#fff}
+#mainNavigation .tf-more{position:relative;margin:0 0 0 auto;padding:0;border:0;background:transparent}
+#mainNavigation summary{list-style:none;gap:8px}
+#mainNavigation summary::-webkit-details-marker{display:none}
+#mainNavigation .tf-more-options{position:absolute;right:0;top:calc(100% + 8px);display:grid;min-width:190px;padding:6px;border:1px solid #544177;border-radius:12px;background:#211c39;box-shadow:0 12px 32px #0006}
+#mainNavigation .tf-more:not([open]) .tf-more-options{display:none}
+#mainNavigation .tf-more-options>*{display:block;width:100%;min-height:44px;padding:12px;border:0;border-radius:8px;background:transparent;color:#f3eeff;font:550 14px/1.3 system-ui,sans-serif;text-decoration:none;text-align:left;cursor:pointer}
+#mainNavigation :focus-visible{outline:2px solid #c9a5ff;outline-offset:2px}
+#mainNavigation [hidden]{display:none!important}
+@media(max-width:480px){#mainNavigation .tf-nav-inner{padding:10px 12px}#mainNavigation .tf-nav-links{gap:2px}#mainNavigation .tf-nav-links>a,#mainNavigation .tf-nav-links>button,#mainNavigation summary{font-size:12px;padding:10px 9px}}
+/* The same full-width header sits outside each page's content column. */
+body.tf-navigation-page{margin:0;padding:0;max-width:none}
+body.tf-gallery-page>main,body.tf-preview-page>.tf-page-content{max-width:1100px;margin:0 auto;padding:24px 20px 60px}
+body.tf-connect-page>main{padding:0 20px}
+.app-age{display:flex;justify-content:flex-end;margin-bottom:16px}
