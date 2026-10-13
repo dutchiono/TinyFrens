@@ -1,6 +1,6 @@
 # Tamagotchi Robots v1 — design plan
 
-Status: **Building in phases.** P1 (mechanics) and P2 (server care layer) ship in stacked
+Status: **Building in phases.** P1 (mechanics), P2 (server care layer) and P3 (admin) ship in stacked
 branches; P4 (money) is not live yet.
 
 Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/tamagotchi-robots-economy`).
@@ -144,11 +144,26 @@ authorizes on a fresh `ownerOf`, matching the existing companion flow.
 
 ## 8. Admin page
 
-- Server route + web page, **token-protected**, non-public.
-- Hosted at `tinyadmin.miono.live` via the existing Caddy pattern (`server/Caddyfile`,
-  `server/README.md`); production runs as systemd `tinyfrens-server.service` on `miono`.
-- Tunables: `usd_per_credit`, per-action credit costs, game reward amounts, Dev wallet address,
-  feature flags, and a read of the credit ledger.
+Shipped (P3):
+
+- `server/admin.py` — token-protected (`Authorization: Bearer $ADMIN_TOKEN`) routes under
+  `/api/admin/*`. With no `ADMIN_TOKEN` the whole surface answers **503**, so nothing is exposed by
+  accident; the token is compared in constant time. This surface never touches keys, seeds or
+  deployments.
+- `GET /api/admin/state` — care tunables (effective + overrides), the care-action list, economy
+  status, counts and the recent audit log. `POST /api/admin/settings` — retune `dailyAllowance` and
+  the per-action FRENS prices; persisted in `app_settings` and read **live** by the care layer (so
+  `RobotCare` re-reads them per request, no restart). `GET /api/admin/ledger` and
+  `GET /api/admin/care` — read-only views of the credit ledger and daily care usage.
+- `web/admin.html` (reached via `/admin`) — the operator page. The API is origin-independent (it
+  carries its own bearer token) and every response is `Cache-Control: no-store`.
+- Deployment: reachable at `/admin` on `PET_DOMAIN`, or on its own host by setting `ADMIN_DOMAIN`
+  and uncommenting the Caddy block (`server/Caddyfile`, `server/README.md`); production runs as
+  systemd `tinyfrens-server.service` on `miono`.
+
+Deferred to P4: the Dev wallet address and game-reward amounts are not stored yet, because they
+would not take effect until money lands. `usd_per_credit` is dropped — prices are denominated in
+FRENS.
 
 ## 9. Phasing
 
@@ -166,7 +181,10 @@ authorizes on a fresh `ownerOf`, matching the existing companion flow.
   against the pet's linked wallets (see §6.1). **It never moves FRENS** — the paid branch reports
   `requiresPayment`/`priceFrens` for P4 to charge. Tests: `server/test_robot_care.py`, including a
   parity test that every catalogued action still exists in `web/pet-engine.js`.
-- **P3 — Admin.** Route + page + token auth + `tinyadmin.miono.live`.
+- **P3 — Admin. ✅ shipped in this branch.** Token-protected `/api/admin/*` plus the operator page
+  at `web/admin.html` (§8). Care tunables move to `app_settings` and are read live, so
+  `server/robot_care.py` re-resolves its allowance/prices per request. Tests:
+  `server/test_admin.py`.
 - **P4 — Money.** FRENS deposit to the fixed Dev wallet + `TreasuryTransferIndexer`, the daily free
   allowance + paid top-up enforcement, the paid revive cost, game earn-back, and the
   `CREDITS_PER_FRENS` reconciliation.

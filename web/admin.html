@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17142a"><title>TinyFrens admin</title><link rel="icon" href="icons/icon.svg"><style>
+:root{color-scheme:dark;background:#17142a;color:#f3eeff;font-family:system-ui,sans-serif}
+*{box-sizing:border-box}
+body{max-width:1000px;margin:auto;padding:24px 20px 60px}
+h1{font-size:clamp(26px,4vw,40px);margin:0 0 6px}
+h2{font-size:20px;margin:32px 0 12px}
+p{color:#b9aecb;line-height:1.6}
+a{color:#c7a6ff}
+code{background:#211c39;border-radius:6px;padding:2px 6px}
+.card{background:#211c39;border:1px solid #47365f;border-radius:16px;padding:18px;margin:16px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#b9aecb}
+input{background:#17142a;color:#f3eeff;border:1px solid #47365f;border-radius:10px;padding:10px 12px;font:inherit;width:150px}
+input.token{width:min(420px,100%)}
+button{background:#a474f1;color:#17142a;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
+button.ghost{background:transparent;color:#c7a6ff;border:1px solid #47365f}
+button:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #332a4c;white-space:nowrap}
+th{color:#b9aecb;font-weight:600}
+.muted{color:#8f83a8;font-size:13px}
+.err{color:#ff9db1}
+.ok{color:#8ee6b0}
+.stats{display:flex;gap:24px;flex-wrap:wrap}
+.stat b{display:block;font-size:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.hidden{display:none}
+</style></head><body>
+<h1>TinyFrens admin</h1>
+<p>Operator surface for the robots care loop and the credit ledger. Non-public: paste the admin
+token to load. See <code>docs/tamagotchi-robots.md</code>.</p>
+
+<div class="card">
+  <div class="row">
+    <label>Admin token
+      <input class="token" id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
+    </label>
+    <button id="connect">Connect</button>
+    <button class="ghost" id="forget">Forget</button>
+  </div>
+  <p id="authmsg" class="muted"></p>
+</div>
+
+<div id="app" class="hidden">
+  <h2>Care tunables</h2>
+  <div class="card">
+    <div class="row">
+      <label>Free daily allowance
+        <input id="allowance" type="number" min="0" step="1">
+      </label>
+    </div>
+    <p class="muted">FRENS price of one use once the free allowance is spent. Charging lands in P4; today the
+      care API only reports these.</p>
+    <div class="grid" id="prices"></div>
+    <div class="row" style="margin-top:16px">
+      <button id="save">Save tunables</button>
+      <span id="savemsg" class="muted"></span>
+    </div>
+  </div>
+
+  <h2>Status</h2>
+  <div class="card">
+    <div class="stats" id="stats"></div>
+    <p class="muted" id="economy"></p>
+  </div>
+
+  <h2>Credit ledger</h2>
+  <div class="card">
+    <div class="row"><button class="ghost" id="refresh">Refresh</button></div>
+    <table><thead><tr><th>#</th><th>Pet</th><th>Δ</th><th>Balance</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table>
+  </div>
+
+  <h2>Care usage today</h2>
+  <div class="card">
+    <table><thead><tr><th>Pet</th><th>Used</th></tr></thead><tbody id="care"></tbody></table>
+  </div>
+
+  <h2>Recent admin changes</h2>
+  <div class="card">
+    <table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var KEY = 'tinyfrens.admin.token';
+  var state = null;
+
+  function token(){ return $('token').value.trim(); }
+
+  function api(path, options){
+    options = options || {};
+    options.headers = Object.assign({'Authorization':'Bearer ' + token()}, options.headers || {});
+    return fetch(path, options).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(body){
+        if(!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+        return body;
+      });
+    });
+  }
+
+  function when(ts){ return ts ? new Date(ts * 1000).toLocaleString() : ''; }
+
+  function render(){
+    var s = state.settings || {}, overrides = state.overrides || {}, prices = s.prices || {};
+    $('allowance').value = s.dailyAllowance;
+    var box = $('prices');
+    box.textContent = '';
+    (state.actions || []).forEach(function(action){
+      var wrap = document.createElement('label');
+      wrap.textContent = action;
+      var input = document.createElement('input');
+      input.type = 'number'; input.min = '0'; input.step = '1';
+      input.dataset.action = action;
+      input.value = prices[action] != null ? prices[action] : 0;
+      wrap.appendChild(input);
+      box.appendChild(wrap);
+    });
+
+    var counts = state.counts || {};
+    var stats = $('stats'); stats.textContent = '';
+    [['Pets', counts.pets], ['Credit accounts', counts.creditAccounts], ['FRENS credits', counts.credits],
+     ['Deposits', counts.deposits], ['Care actions today', counts.careToday]].forEach(function(pair){
+      var d = document.createElement('div'); d.className = 'stat';
+      var b = document.createElement('b'); b.textContent = pair[1] != null ? pair[1] : '—';
+      var span = document.createElement('span'); span.className = 'muted'; span.textContent = pair[0];
+      d.appendChild(b); d.appendChild(span); stats.appendChild(d);
+    });
+    var e = state.economy || {};
+    $('economy').textContent = e.enabled
+      ? ('Economy: ' + (e.mode || '?') + ' · chain ' + (e.chainId || '?') + ' · ' + (e.symbol || 'FRENS') +
+         ' · deposits ' + (e.depositsEnabled ? 'on' : 'off'))
+      : 'Economy is not enabled on this relay.';
+
+    var audit = $('audit'); audit.textContent = '';
+    (state.audit || []).forEach(function(row){
+      var tr = document.createElement('tr');
+      [row.action, row.detail ? JSON.stringify(row.detail) : '', when(row.created)].forEach(function(v){
+        var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+      });
+      audit.appendChild(tr);
+    });
+  }
+
+  function loadLedger(){
+    return api('/api/admin/ledger?limit=50').then(function(data){
+      var body = $('ledger'); body.textContent = '';
+      (data.entries || []).forEach(function(row){
+        var tr = document.createElement('tr');
+        [row.id, row.petId, row.delta, row.balance, row.reason, when(row.created)].forEach(function(v){
+          var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+    });
+  }
+
+  function loadCare(){
+    return api('/api/admin/care?limit=50').then(function(data){
+      var body = $('care'); body.textContent = '';
+      (data.rows || []).forEach(function(row){
+        var tr = document.createElement('tr');
+        [row.petId, row.used].forEach(function(v){
+          var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+    });
+  }
+
+  function load(){
+    $('authmsg').textContent = 'Loading…';
+    return api('/api/admin/state').then(function(data){
+      state = data;
+      $('app').classList.remove('hidden');
+      $('authmsg').textContent = 'Connected.';
+      $('authmsg').className = 'ok';
+      sessionStorage.setItem(KEY, token());
+      render();
+      return Promise.all([loadLedger(), loadCare()]);
+    }).catch(function(err){
+      $('app').classList.add('hidden');
+      $('authmsg').textContent = err.message;
+      $('authmsg').className = 'err';
+    });
+  }
+
+  function save(){
+    var prices = {};
+    Array.prototype.forEach.call($('prices').querySelectorAll('input'), function(input){
+      prices[input.dataset.action] = parseInt(input.value, 10);
+    });
+    var body = {dailyAllowance: parseInt($('allowance').value, 10), prices: prices};
+    var msg = $('savemsg'); msg.textContent = 'Saving…'; msg.className = 'muted';
+    return api('/api/admin/settings', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(data){
+      state.settings = data.settings; state.overrides = data.overrides || {};
+      render();
+      msg.textContent = 'Saved.'; msg.className = 'ok';
+      return load();
+    }).catch(function(err){
+      msg.textContent = err.message; msg.className = 'err';
+    });
+  }
+
+  $('connect').addEventListener('click', load);
+  $('token').addEventListener('keydown', function(e){ if(e.key === 'Enter') load(); });
+  $('save').addEventListener('click', save);
+  $('refresh').addEventListener('click', function(){ loadLedger(); loadCare(); });
+  $('forget').addEventListener('click', function(){
+    sessionStorage.removeItem(KEY); $('token').value = '';
+    $('app').classList.add('hidden'); $('authmsg').textContent = '';
+  });
+
+  var saved = sessionStorage.getItem(KEY);
+  if(saved){ $('token').value = saved; load(); }
+})();
+</script>
+</body></html>

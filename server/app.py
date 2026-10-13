@@ -7,6 +7,7 @@ import economy as economy_ledger
 import turtle_connect
 import robot_gallery
 import robot_care
+import admin as admin_surface
 from telegram_media import companion_gif
 from extra_companions import ExtraCompanions, COLLECTIONS as EXTRA_COLLECTIONS
 from robot_companion import Robots, CONTRACT as ROBOTS_CONTRACT, token_id as robot_token_id
@@ -345,12 +346,14 @@ def create_app(database=None, origins=None):
     @web.middleware
     async def origin_guard(request, handler):
         origin=request.headers.get('Origin')
-        public_paths={'/','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/github/webhook','/api/discord/token','/api/discord/interactions'}
+        public_paths={'/','/admin','/health','/api/robots/gallery','/api/hood-turtles/preview','/.well-known/farcaster.json','/api/nft/uri','/api/snap','/api/snap/interact','/snap','/api/farcaster/notify','/api/farcaster/webhook','/api/farcaster/cast','/api/telegram/auth','/api/telegram/webhook','/api/github/webhook','/api/discord/token','/api/discord/interactions'}
         is_snap_req='application/vnd.farcaster.snap+json' in request.headers.get('Accept','')
         # Static front-end assets (web/) and the read-only NFT metadata endpoint are public.
         is_public=request.path in public_paths or is_snap_req or request.path.startswith('/web/')
         is_agent=request.path in turtle_connect.AGENT_PATHS and origin is None
-        if not is_public and not is_agent and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
+        # The admin API carries its own bearer token, so it is origin-independent.
+        is_admin=request.path.startswith('/api/admin/')
+        if not is_public and not is_agent and not is_admin and origin not in allowed: raise web.HTTPForbidden(text='Origin not allowed')
         if request.method=='OPTIONS': response=web.Response()
         else: response=await handler(request)
         if not isinstance(response,web.WebSocketResponse):
@@ -358,6 +361,8 @@ def create_app(database=None, origins=None):
                 response.headers['Cache-Control']='no-store'
             if is_public:
                 response.headers.update({'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Accept, X-Snap-Payload','Access-Control-Allow-Methods':'POST, GET, OPTIONS'})
+            elif is_admin:
+                response.headers.update({'Access-Control-Allow-Origin':origin or '*','Vary':'Origin','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
             elif origin in allowed:
                 response.headers.update({'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Cache-Control':'no-store'})
         return response
@@ -1756,8 +1761,13 @@ def create_app(database=None, origins=None):
         app, db,
         token_pet=token_pet,
         limit=limit,
-        settings=robot_care_settings,
+        settings=lambda: admin_surface.care_settings(db),
         owner_check=robot_owner_check,
+    )
+    admin_surface.install(
+        app, db,
+        token=os.environ.get('ADMIN_TOKEN'),
+        economy_settings=economy_settings,
     )
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync
