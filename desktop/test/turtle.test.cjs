@@ -74,7 +74,7 @@ test('verified turtle persists without exposing the device credential and expire
   assert.equal(JSON.stringify(reopened.view()).includes('device-secret'), false);
   assert.equal(await reopened.renew(), false); assert.equal(requests, 1);
   now += 86400_000;
-  assert.deepEqual(reopened.view(), {selected:true, active:false});
+  assert.deepEqual(reopened.view(), {selected:true, active:false, pendingExpired:true});
   assert.equal(await reopened.renew(), true); assert.equal(reopened.view().active, true);
   now += 86400_000; owned = false;
   assert.equal(await reopened.renew(), false); assert.equal(reopened.view().active, false);

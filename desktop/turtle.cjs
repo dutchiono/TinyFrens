@@ -4,7 +4,7 @@ const companionKey = nft => `${nft.chainId || 4663}:${String(nft.originalAddress
 const SERVER = 'https://tinyfrens.miono.live';
 const PATHS = new Set(['/api/register', '/api/wallet-link/status', '/api/wallet-link/challenge',
   '/api/wallet-link/confirm', '/api/wallet-link/disconnect', '/api/wallet-link/nfts', '/api/featured/hood-turtle', '/api/featured/companion',
-  '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept', '/api/turtle-connect/from-device']);
+  "/api/device-sync/state", "/api/device-sync/start", "/api/device-sync/request", "/api/device-sync/status", "/api/device-sync/accept", "/api/device-sync/leave", '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept', '/api/turtle-connect/from-device']);
 
 class TurtleStore {
   constructor(file, fetcher = fetch, clock = Date.now) {
@@ -41,7 +41,7 @@ class TurtleStore {
     if (!this.selected.length) return {selected:false, active:false};
     const items = this.selected.filter(nft => Number.isFinite(nft.validUntil) && this.clock() < nft.validUntil * 1000)
       .map(({deviceToken, ...nft}) => nft);
-    if (!items.length) return {selected:true, active:false};
+    if (!items.length) return {selected:true, active:false, pendingExpired:true};
     return {...items[0], selected:true, active:true, items};
   }
   async import(server, body) {

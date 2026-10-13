@@ -61,7 +61,7 @@ class MainActivity : Activity() {
                 runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.onTurtleResponse?.($response)", null) }
             }.start()
         }
-        @JavascriptInterface fun getTurtle(): String = TurtleStore(this@MainActivity).view()
+        @JavascriptInterface fun getTurtle(): String { val turtles = TurtleStore(this@MainActivity); turtles.refreshIfDue(); return turtles.view() }
         @JavascriptInterface fun clearTurtle() { TurtleStore(this@MainActivity).clear() }
         @JavascriptInterface fun updateInfo(): String = org.json.JSONObject()
             .put("repo", getPreferences(MODE_PRIVATE).getString("updateRepo", BuildConfig.UPDATE_REPO))

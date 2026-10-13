@@ -24,7 +24,7 @@ class TurtleStore(context: Context) {
         const val SERVER = "https://tinyfrens.miono.live"
         private val paths = setOf("/api/register", "/api/wallet-link/status", "/api/wallet-link/challenge",
             "/api/wallet-link/confirm", "/api/wallet-link/disconnect", "/api/wallet-link/nfts", "/api/featured/hood-turtle", "/api/featured/companion",
-            "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept", "/api/turtle-connect/from-device")
+            "/api/device-sync/state", "/api/device-sync/start", "/api/device-sync/request", "/api/device-sync/status", "/api/device-sync/accept", "/api/device-sync/leave", "/api/turtle-connect/start", "/api/turtle-connect/status", "/api/turtle-connect/accept", "/api/turtle-connect/from-device")
     }
 
     fun request(server: String, path: String, body: JSONObject): JSONObject {
@@ -149,7 +149,7 @@ class TurtleStore(context: Context) {
     fun view(): String = synchronized(lock) {
         val active = all().map { JSONObject(it.toString()).apply { remove("token") } }
         val first = active.firstOrNull() ?: JSONObject().put("active", false)
-        JSONObject(first.toString()).put("items", JSONArray(active)).put("selected", selected()).toString()
+        JSONObject(first.toString()).put("items", JSONArray(active)).put("selected", selected()).put("pendingExpired", items().any { !valid(it) && !it.optBoolean("hidden", false) }).toString()
     }
     fun selected() = synchronized(lock) { items().isNotEmpty() }
     fun hideCompanion(companionId: String) = synchronized(lock) {

@@ -16,13 +16,6 @@
       <p id="walletLinkStatus" role="status"></p>
       <p id="deviceConnectCode" class="small"></p>
       <a id="connectInBrowser" hidden target="_blank" rel="noopener noreferrer">Connect using your browser</a>
-      <details id="linkOtherDevice" hidden><summary>Link another device without Bankr</summary>
-        <p class="small">Enter the code shown on your other phone or computer, then accept the wallet link on that device.</p>
-        <label for="deviceWallet">Wallet to link</label><select id="deviceWallet"></select>
-        <label for="otherDeviceCode">Other device’s connect code</label><input id="otherDeviceCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14">
-        <button id="approveOtherDevice" type="button">Link this wallet to that device</button>
-        <p id="otherDeviceStatus" role="status"></p>
-      </details>
       <div class="bankr-connect">
         <h4>Connect with Bankr</h4>
         <p class="small">Send this to @bankrbot on X or in Bankr chat, then accept the wallet link here.</p>
@@ -65,12 +58,8 @@
 
   function showLink(addresses = []) {
     linkedAddresses = addresses;
-    document.getElementById('linkOtherDevice').hidden = !addresses.length;
-    const wallets = document.getElementById('deviceWallet'); wallets.replaceChildren();
-    for (const address of addresses) { const option = document.createElement('option'); option.value = address; option.textContent = address; wallets.append(option); }
     const approvingDevice = Boolean(remoteDeviceCode);
     manager.open = !addresses.length || approvingDevice;
-    document.getElementById('linkOtherDevice').open = approvingDevice;
     manager.querySelector('summary').textContent = addresses.length ? `Manage wallets (${addresses.length}) · Add another` : 'Connect your wallet';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
@@ -151,7 +140,7 @@
         info.append(title,detail); card.append(info);
         if (nft.companionSupported) {
           const link = document.createElement('input');
-          link.type = 'checkbox'; link.setAttribute('aria-label', 'Show ' + nft.name + ' on screen');
+          link.type = 'checkbox'; link.dataset.companion = window.TinyFrensCompanionKey(nft); link.setAttribute('aria-label', 'Show ' + nft.name + ' on screen');
           if (window.PetAndroid) link.dataset.nativeCompanion = window.TinyFrensCompanionKey(nft);
           const androidShowing = () => { try { return window.PetAndroid?.isPetVisible() && JSON.parse(PetAndroid.getTurtle()).items?.some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft)); } catch { return false; } };
           const isShowing = () => window.PetAndroid ? androidShowing() : window.TinyFrensDesktop?.getTurtle ? JSON.parse(TinyFrensDesktop.getTurtle()).items?.some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft)) : JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]').some(item => window.TinyFrensCompanionKey(item) === window.TinyFrensCompanionKey(nft));
@@ -188,7 +177,7 @@
           };
           const toggle = document.createElement('label'); toggle.className = 'nft-show-toggle'; toggle.append(link, document.createTextNode('Show'));
           const sizeLabel = document.createElement('label'); sizeLabel.className = 'nft-size'; sizeLabel.textContent = 'Size';
-          const size = document.createElement('input'); size.type = 'range'; size.min = '48'; size.max = '128'; size.step = '1'; size.setAttribute('aria-label', nft.name + ' size');
+          const size = document.createElement('input'); size.type = 'range'; size.dataset.companionSize = window.TinyFrensCompanionKey(nft); size.min = '48'; size.max = '128'; size.step = '1'; size.setAttribute('aria-label', nft.name + ' size');
           size.value = window.TinyFrensCompanionSize?.(nft) || 80;
           const sizeValue = document.createElement('output'); sizeValue.value = size.value;
           let sizeTimer;
@@ -286,7 +275,7 @@
     try {
       pairing = await post('/api/turtle-connect/start');
       const code = pairing.code.match(/.{1,4}/g).join('-');
-      document.getElementById('deviceConnectCode').textContent = `This device’s connect code: ${code}. You can approve it from another connected TinyFrens device.`;
+      document.getElementById('deviceConnectCode').textContent = `Bankr connection code: ${code}.`;
       const browserLink = document.getElementById('connectInBrowser');
       browserLink.href = 'https://www.tinyfrens.lol/web/#connect-device=' + encodeURIComponent(pairing.code);
       browserLink.hidden = Boolean(window.ethereum?.request);
@@ -301,19 +290,6 @@
     catch { prompt.focus(); prompt.select(); pairingStatus.textContent = 'Select and copy the message above.'; }
   };
   renew.onclick = startPairing;
-  const otherCode = document.getElementById('otherDeviceCode');
-  otherCode.value = remoteDeviceCode;
-  document.getElementById('approveOtherDevice').onclick = async event => {
-    const button = event.currentTarget; button.disabled = true;
-    const status = document.getElementById('otherDeviceStatus');
-    try {
-      const code = otherCode.value.replace(/[-\s]/g, '').toUpperCase();
-      if (!/^[A-HJ-NP-Z2-9]{12}$/.test(code)) throw new Error('Enter the 12-character code from your other device.');
-      await post('/api/turtle-connect/from-device', {code, address:document.getElementById('deviceWallet').value});
-      status.textContent = 'Approved. Accept the wallet link on your other device.';
-    } catch (error) { status.textContent = error.message; }
-    finally { button.disabled = false; }
-  };
   manager.addEventListener('toggle', () => { if (manager.open && !pairing && !renew.disabled) { try { identity(); startPairing(); } catch {} } });
   accept.onclick = async () => {
     if (!pairing) return;
@@ -341,5 +317,20 @@
   }
   window.addEventListener('tinyfrens-identity-ready', initialLoad);
   window.addEventListener('online', initialLoad);
+  window.addEventListener('tinyfrens-account-synced', initialLoad);
+  window.addEventListener('tinyfrens-wallet-link-changed', () => {
+    try {
+      const bridge = window.PetAndroid || window.TinyFrensDesktop;
+      const items = bridge?.getTurtle ? JSON.parse(bridge.getTurtle()).items || [] : JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]');
+      const shown = new Set(items.map(window.TinyFrensCompanionKey));
+      const motions = JSON.parse(localStorage.getItem('tinyfrens-companion-motion') || '{}');
+      for (const input of matches.querySelectorAll('[data-companion]')) input.checked = shown.has(input.dataset.companion);
+      for (const input of matches.querySelectorAll('[data-companion-size]')) {
+        if (document.activeElement === input) continue;
+        input.value = motions[input.dataset.companionSize]?.size || items.find(n => window.TinyFrensCompanionKey(n) === input.dataset.companionSize)?.motion?.size || input.value;
+        input.nextElementSibling.value = input.value;
+      }
+    } catch {}
+  });
   initialLoad();
 })();

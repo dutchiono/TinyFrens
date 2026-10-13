@@ -477,13 +477,7 @@ def create_app(database=None, origins=None):
             body = await request.json()
             pid = token_pet(body.get('token'))
             address = body.get('address')
-            if address is None:
-                db.execute('DELETE FROM wallet_links WHERE pet_id=?', (pid,))
-            else:
-                address = to_checksum_address(address)
-                db.execute('DELETE FROM wallet_links WHERE pet_id=? AND address=? COLLATE NOCASE', (pid, address))
-            db.execute('DELETE FROM turtle_pairings WHERE pet_id=?', (pid,))
-            db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
+            turtle_connect.remove_wallet(db, pid, address)
             db.commit()
             return web.json_response({'linked': bool(turtle_connect.linked_wallets(db, pid)), 'addresses': turtle_connect.linked_wallets(db, pid)})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -1558,6 +1552,8 @@ def create_app(database=None, origins=None):
     extras = ExtraCompanions(db)
     robot_gallery.install(app, robots)
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
+    import device_sync
+    device_sync.install(app, db, token_pet, limit)
     import collection_suggestions
     collection_suggestions.install(app, db, token_pet, limit)
     turtle_previews = {}
