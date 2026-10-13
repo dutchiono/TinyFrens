@@ -148,6 +148,18 @@ class LedgerUnitTests(unittest.TestCase):
 
     def test_grant_rejects_non_positive(self):
         self.assertRaises(ValueError, self.e.grant, "pet-1", 0)
+        self.assertRaises(ValueError, self.e.grant, "pet-1", -10)
+        self.assertRaises(ValueError, self.e.grant, "pet-1", "50")
+        self.assertRaises(ValueError, self.e.grant, "pet-1", True)
+
+    def test_spend_rejects_non_positive_and_invalid_types(self):
+        self.e.grant("pet-1", 100)
+        self.assertRaises(ValueError, self.e.spend, "pet-1", 0)
+        self.assertRaises(ValueError, self.e.spend, "pet-1", -50)
+        self.assertRaises(ValueError, self.e.spend, "pet-1", "50")
+        self.assertRaises(ValueError, self.e.spend, "pet-1", True)
+        self.assertRaises(ValueError, self.e.spend, "pet-1", 50.5)
+        self.assertEqual(self.e.balance("pet-1"), 100)
 
     def test_history_is_append_only_descending(self):
         self.e.grant("pet-1", 100, reason="a")

@@ -338,34 +338,48 @@ class Economy:
         ]
 
     def grant(self, pet_id, credits, reason="grant", ref_type=None, ref_id=None):
-        if credits <= 0:
+        if not isinstance(credits, int) or isinstance(credits, bool) or credits <= 0:
             raise ValueError("credits must be > 0")
         return self._grant(pet_id, credits, reason, ref_type, ref_id)
 
     def spend(self, pet_id, credits, reason="spend", ref_type=None, ref_id=None):
-        if credits <= 0:
+        if not isinstance(credits, int) or isinstance(credits, bool) or credits <= 0:
             raise ValueError("credits must be > 0")
-        if self.balance(pet_id) < credits:
-            raise InsufficientCredits("not enough credits")
         return self._grant(pet_id, -credits, reason, ref_type, ref_id)
 
     def _grant(self, pet_id, delta, reason, ref_type=None, ref_id=None):
         ts = self.now()
-        row = self.db.execute("SELECT balance FROM credit_accounts WHERE pet_id=?", (pet_id,)).fetchone()
-        balance = (row[0] if row else 0) + delta
-        if balance < 0:
-            raise InsufficientCredits("not enough credits")
-        self.db.execute(
-            "INSERT INTO credit_accounts(pet_id,balance,updated_at) VALUES(?,?,?) "
-            "ON CONFLICT(pet_id) DO UPDATE SET balance=excluded.balance, updated_at=excluded.updated_at",
-            (pet_id, balance, ts),
-        )
-        self.db.execute(
-            "INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) VALUES(?,?,?,?,?,?,?)",
-            (pet_id, delta, balance, reason, ref_type, ref_id, ts),
-        )
-        self.db.commit()
-        return balance
+        if delta < 0:
+            spend_amount = -delta
+            with self.db:
+                cur = self.db.execute(
+                    "UPDATE credit_accounts SET balance=balance-?, updated_at=? "
+                    "WHERE pet_id=? AND balance>=?",
+                    (spend_amount, ts, pet_id, spend_amount),
+                )
+                if cur.rowcount == 0:
+                    raise InsufficientCredits("not enough credits")
+                row = self.db.execute("SELECT balance FROM credit_accounts WHERE pet_id=?", (pet_id,)).fetchone()
+                balance = row[0]
+                self.db.execute(
+                    "INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) VALUES(?,?,?,?,?,?,?)",
+                    (pet_id, delta, balance, reason, ref_type, ref_id, ts),
+                )
+            return balance
+        else:
+            with self.db:
+                self.db.execute(
+                    "INSERT INTO credit_accounts(pet_id,balance,updated_at) VALUES(?,?,?) "
+                    "ON CONFLICT(pet_id) DO UPDATE SET balance=credit_accounts.balance+excluded.balance, updated_at=excluded.updated_at",
+                    (pet_id, delta, ts),
+                )
+                row = self.db.execute("SELECT balance FROM credit_accounts WHERE pet_id=?", (pet_id,)).fetchone()
+                balance = row[0]
+                self.db.execute(
+                    "INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) VALUES(?,?,?,?,?,?,?)",
+                    (pet_id, delta, balance, reason, ref_type, ref_id, ts),
+                )
+            return balance
 
     # -- helpers ----------------------------------------------------------
     @staticmethod
