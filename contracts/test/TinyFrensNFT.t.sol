@@ -34,6 +34,13 @@ contract MockNetStorage {
     }
 }
 
+contract TestCreate2Deployer {
+    function deploy(bytes memory code) external returns (address deployed) {
+        assembly { deployed := create2(0, add(code, 32), mload(code), 0) }
+        require(deployed != address(0), "CREATE2 failed");
+    }
+}
+
 contract TinyFrensNFTTest is Test {
     using LibString for string;
     TinyFrensNFT internal nft;
@@ -49,11 +56,41 @@ contract TinyFrensNFTTest is Test {
         token = new TestFRENS(address(this));
         TinyFrensSprite sprite = new TinyFrensSprite();
         TinyFrensArt art = new TinyFrensArt(address(sprite));
-        nft = new TinyFrensNFT(address(art));
+        nft = new TinyFrensNFT(address(art), address(this));
         nft.setFrensToken(address(token));
         vm.deal(alice, 1 ether);
         token.mint(alice, 1_000_000_000 * 10**18);
         token.mint(bob, 1_000_000_000 * 10**18);
+    }
+
+    function testCreate2KeepsCreatorPermissionsAndRevenue() public {
+        TestCreate2Deployer factory = new TestCreate2Deployer();
+        TinyFrensNFT deployed = TinyFrensNFT(factory.deploy(abi.encodePacked(
+            type(TinyFrensNFT).creationCode, abi.encode(address(nft.artRenderer()), alice)
+        )));
+        assertEq(deployed.creator(), alice);
+        vm.expectRevert(bytes4(keccak256("NotDeployer()")));
+        deployed.mintToCreator(1, bob);
+        vm.prank(address(factory));
+        vm.expectRevert(bytes4(keccak256("NotDeployer()")));
+        deployed.setFrensToken(address(token));
+        vm.startPrank(alice);
+        deployed.setFrensToken(address(token));
+        deployed.mintToCreator(1, alice);
+        deployed.mint{value: 0.001 ether}(1);
+        vm.stopPrank();
+        uint256 beforeBalance = alice.balance;
+        deployed.withdraw();
+        assertEq(alice.balance, beforeBalance + 0.001 ether);
+        assertEq(address(factory).balance, 0);
+        assertEq(deployed.ownerOf(1), alice);
+        assertGt(bytes(deployed.tokenURI(2)).length, 0);
+    }
+
+    function testZeroCreatorRejected() public {
+        address renderer = address(nft.artRenderer());
+        vm.expectRevert(bytes4(keccak256("InvalidCreator()")));
+        new TinyFrensNFT(renderer, address(0));
     }
 
     function testEnvironmentalTraitsMatchStoredArtwork() public {
@@ -74,14 +111,14 @@ contract TinyFrensNFTTest is Test {
         address renderer = address(nft.artRenderer());
         vm.etch(NET_ADDRESS, "");
         vm.expectRevert();
-        new TinyFrensNFT(renderer);
+        new TinyFrensNFT(renderer, address(this));
     }
 
     function testDeploymentRequiresNetStorage() public {
         address renderer = address(nft.artRenderer());
         vm.etch(NET_STORAGE_ADDRESS, "");
         vm.expectRevert(TinyFrensNFT.NetStorageUnavailable.selector);
-        new TinyFrensNFT(renderer);
+        new TinyFrensNFT(renderer, address(this));
     }
 
     function testNetMessageFailureRevertsMint() public {

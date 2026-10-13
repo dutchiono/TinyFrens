@@ -1,63 +1,79 @@
 ---
 name: tinyfrens-robots-v1
-description: "Launch TinyFrens: Robots v1 once, or mint robots on demand from its verified deployment, using the user's Bankr wallet and Net Protocol storage."
+description: "Prepare a TinyFrens: Robots v1 NFT launch using compiled bytecode and Bankr contract tools, or mint from its published verified deployment."
 metadata: {"bankr":{"emoji":"🤖"}}
 ---
 
 # TinyFrens: Robots v1
 
-Public skill: `https://www.tinyfrens.lol/robots/skill.md`. Artwork preview: `https://www.tinyfrens.lol/web/robot-preview.html`.
+Skill: https://www.tinyfrens.lol/robots/skill.md
+Art preview: https://www.tinyfrens.lol/web/robot-preview.html
+Compiled package manifest: https://www.tinyfrens.lol/robots/launch/manifest.json
 
-**Status: artwork/source preview; the current Robots v1 revision has no verified mainnet deployment yet.** Do not mint against an older testnet address or describe this edition as live. Publishing this skill does not deploy the collection or register it automatically with Bankr. An end-to-end Bankr launch/mint has not yet been verified.
+**Status: compiled launch candidate, not deployed. Bankr execution remains unverified.** No current mainnet address exists for this revision. Do not use historical testnet addresses. Reading this skill does not authorize a deployment or purchase.
 
-Repository: `https://github.com/dutchiono/TinyFrens`, current review branch `codex/robot-art-refinement`, PR #11. Resolve and record the exact reviewed commit before compiling; do not silently substitute older main-branch artwork. Compilation requires Foundry. Use the host agent's authenticated Bankr contract-deployment/transaction tools to sign and submit; never ask a user to paste a private key. If compilation or arbitrary contract calls are unavailable, explain the missing capability instead of substituting Bankr's fungible-token launcher.
+## Use Bankr's actual capabilities
 
-The source of truth is this repository's `contracts/TinyFrensNFT.sol`, `contracts/TinyFrensArt.sol`, `contracts/TinyFrensSprite.sol`, and `contracts/NetIntegratedERC721A.sol`. Use those exact files and the pinned dependencies in `lib/`; never copy an older embedded contract from a skill response. `web/nft-art.mjs` powers the preview gallery. Minted `tokenURI` and `art()` are authoritative.
+Bankr documents custom deployment from **compiled creation bytecode in Bankr Files**, using its CREATE2 deployment tool. This skill supplies those bytes; **Bankr does not need Foundry, Solidity compilation, a local checkout, or shell access**.
+
+First check whether this session exposes custom-bytecode deployment and can access the package files. A website skill alone does not grant tools. If unavailable, report exactly that limitation and stop before spending; do not replace these NFTs with a fungible token or standard NFT template. Do not invent a deployment API or factory address.
+
+Official references:
+- https://github.com/BankrBot/skills/blob/main/bankr/references/arbitrary-transaction.md
+- https://docs.bankr.bot/agent/files/
+
+The documented file ingestion route is the Bankr website's Files panel upload (or `bankr files upload` from an authenticated local CLI). Download the files below and upload them if this session cannot import them using an available tool. **Automatic URL-to-Files ingestion and custom deployment from X have not been verified.** Do not promise that a tweet alone completes launch.
+
+## Compiled files
+
+All files are under https://www.tinyfrens.lol/robots/launch/:
+
+| Order | Creation bytecode | Constructor arguments |
+|---|---|---|
+| 1 | [TinyFrensSprite.bytecode.txt](https://www.tinyfrens.lol/robots/launch/TinyFrensSprite.bytecode.txt) | None |
+| 2 | [TinyFrensArt.bytecode.txt](https://www.tinyfrens.lol/robots/launch/TinyFrensArt.bytecode.txt) | `address spriteRenderer_`: confirmed address from step 1 |
+| 3 | [TinyFrensNFT.bytecode.txt](https://www.tinyfrens.lol/robots/launch/TinyFrensNFT.bytecode.txt) | `address artRenderer_`: confirmed address from step 2; `address creator_`: authenticated launch owner's wallet |
+
+Each contract also has `<Contract>.abi.json` and `<Contract>.verification.json` (Solidity standard JSON input). Manifest lists SHA-256 hashes, exact source hashes, compiler/settings, byte sizes, and constructor schemas. Bytecode files contain creation code **without appended constructor arguments**. Supply ABI-encoded constructor arguments exactly once using Bankr's tool. `NetIntegratedERC721A` is abstract and already included in NFT bytecode; it is not a fourth deployment.
+
+Compiler: `0.8.28+commit.7893614a`, optimizer 200 runs, viaIR, Cancun. Sources and pinned dependencies are embedded in verification inputs. Review PR: https://github.com/dutchiono/TinyFrens/pull/11. The source base commit in the manifest may precede the package commit; embedded source bytes/hashes identify the actual compiled revision.
+
+## Launch once
+
+1. Confirm target chain and authenticated creator wallet. This candidate targets **Base, chain 8453**. Check Net Protocol code at `0x00000000B24D62781dB359b07880a105cD0b64e6` and Net Storage code at `0x00000000DB40fcB9f4466330982372e27Fd7Bbf5`. Do not silently substitute storage. Base Sepolia support in this Bankr session is not established.
+2. Read the manifest, load the three creation-code files into Bankr Files, and validate hashes using an available file tool. Do not reproduce long bytecode through conversational transcription. If file integrity cannot be checked, stop and report it.
+3. Prepare three sequential CREATE2 deployments, each with **zero attached ETH**, using the constructors above. Record factory, salts, expected addresses, and estimates from the actual tool. The explicit creator argument prevents the factory from receiving creator permissions or mint revenue. Confirm final art and disclose total current fees; obtain owner approval before submitting. A local generic CREATE2 fork rehearsal is not a live Bankr or testnet deployment.
+4. Submit in order, inspect each receipt and deployed code before using its address in the next constructor. A hash means a submission may already exist: inspect it before retrying. Never duplicate a deployment on timeout.
+5. Verify each contract using the corresponding standard JSON input, compiler version, fully qualified contract name (`contracts/<Contract>.sol:<Contract>`) and actual constructor arguments. Confirm `creator()` equals the owner's wallet and `artRenderer()`/`spriteRenderer()` match the deployed dependencies.
+6. Confirm `name()`, `symbol()`, `COLLECTION_ID()`, `COLLECTION_VERSION()`, `price()`, `maxSupply()` and `maxMintsPerWallet()`. Publish the verified chain, addresses and transaction hashes before enabling mint instructions. No premint unless explicitly requested.
+
+Deployment and marketplace display require live rehearsal/confirmation before describing this edition as launch-ready. Current source was locally tested; Bankr's actual factory and wallet execution still need verification.
+
+## Collection and minting model
 
 | Parameter | Value |
 |---|---|
-| Brand | TinyFrens |
-| Collection | TinyFrens: Robots v1 (`TFROB1`) |
-| Collection ID | `tinyfrens-robots-v1` |
-| Default token name | TinyFrens Robot v1 #1 |
-| Supply | 2,664 total robot NFTs across three 888-token eras |
-| Mint price | 0.001 ETH |
-| Wallet limit | 20 |
-| Creator reserve | Optional 20; no purchase price, but mint/storage gas still applies |
-| Art | On-chain 128×128 pixel scene with integer-grid character tiles, animated body and alternating feet |
-| Traits | 8 palettes, 4 expressions, 6 accessories, 6 habitats, 4 walk timings, 3 eras; eight separate environmental motion traits with four variants each |
+| Name / symbol | TinyFrens: Robots v1 / TFROB1 |
+| Collection ID / version | tinyfrens-robots-v1 / 1 |
+| Supply | 2,664 robots, three 888-token eras |
+| Public price / wallet limit | 0.001 ETH each / 20 |
+| Optional creator reserve | 20; no purchase price, but gas and storage still cost |
+| Art | Animated 128×128 SVG pixel scenes with independent movement traits |
 
-## Minting model
+Deploy once; customers mint on demand. Do not mint all 2,664 during launch. Mint transactions write artwork and metadata to Net Storage. Viewing and animation need no recurring transaction. Creator reserve uses `mintToCreator(uint256 amount,address to)` from `creator()`; never assume the factory is the creator.
 
-Deploy the sprite renderer, art renderer and NFT collection once. Do not mint all 2,664 NFTs during launch. Skip preminting unless the owner asks for creator-reserve tokens; use `MINT_CREATOR_RESERVE=0` when using the repository deployment script. New NFTs are created when a customer requests a mint, up to the supply/wallet caps. Their SVG and metadata are written to Net Storage during that transaction. Animation and viewing need no recurring blockchain transactions.
+## Mint after a verified launch
 
-## Mint a robot after launch
+There is **no verified current deployment address published here yet**. Until one exists, report that the collection has not launched.
 
-1. Use the edition's verified deployment address and chain supplied by the owner after launch. Until one is published here, do not invent an address or reuse historical deployments.
-2. Read `name()`, `symbol()`, `COLLECTION_ID()`, `COLLECTION_VERSION()`, `price()`, `maxSupply()`, `totalSupply()` and `maxMintsPerWallet()`. Confirm Robots v1 and the requested chain. Check mint capacity with simulation; burned NFTs do not restore the total-minted cap or wallet allowance.
-3. For a standard mint, call `mint(uint256 amount)` from the user's authenticated Bankr EVM wallet, with `value = amount * price()`. One robot currently costs 1,000,000,000,000,000 wei (0.001 ETH), plus gas. The NFT goes to the calling wallet. No FRENS transfer/approval or vault deposit is required for this route. Estimate current fees; do not promise a fixed gas price.
-4. A user's explicit request to mint the stated quantity at the disclosed price authorizes that purchase, subject to Bankr's normal transaction confirmation. Do not interpret a request to preview, connect a wallet, or read this skill as a mint request.
-5. Confirm the receipt, Transfer token IDs, `ownerOf()` and stored `tokenURI()`. On timeout, inspect the original transaction before retrying so the user is not charged for duplicate mints. Report the actual transaction and token IDs, not local preview output.
-6. For importing supported NFTs to a device, use `https://www.tinyfrens.lol/import/skill.md`. Minting does not itself pair a phone or prove that this edition has been enabled in the companion collection registry.
+1. Confirm the edition identity and read price, supply, wallet allowance and requested quantity from the verified deployment. Burned NFTs do not restore total-minted caps or wallet allowance.
+2. Call `mint(uint256 amount)` from the customer's Bankr wallet. NFT recipient is the caller. No FRENS transfer/approval or vault deposit is required.
+3. **Bankr agent native amounts use whole ETH units**: one robot attaches `0.001` ETH, plus gas. **Wallet REST `/wallet/submit` uses wei**: the same attachment is `1000000000000000`. Never pass a wei amount as the agent's whole-unit value. Explicitly state the ETH amount when asking Bankr to submit.
+4. Disclose quantity, price and current fees before purchase. Confirm receipt, Transfer IDs, `ownerOf()` and stored `tokenURI()`. Inspect a pending hash before retrying.
+5. To pair/import onto a device, use https://www.tinyfrens.lol/import/skill.md. Minting does not pair a device or enable a collection in the companion registry.
 
-SVG is the on-chain file format. The geometry is drawn on an integer pixel grid with crisp edges. CSS animation in SVG works in the browser gallery; marketplace thumbnail and animation support must be checked against an actual mint before claiming compatibility.
+Browser SVG animation works in the gallery. Wallet thumbnails/marketplace animation have not been confirmed for this revision. Future collections need their own identities and deployments.
 
-Collection naming and edition rules are in `contracts/config/COLLECTIONS.md`. Confirm `name()`, `symbol()`, `COLLECTION_ID()`, `COLLECTION_VERSION()`, `contractURI()`, and stored token metadata match the selected edition after deployment. Earlier testnet deployments retain their original identity; this source revision does not rename them. A future collection needs its own explicit identity and deployment, not a repurposed robot contract.
+## Maintainer preparation (outside Bankr)
 
-## Prepare
-
-1. Confirm the user's target chain and launch parameters. Do not infer them from the inspiration tweet.
-2. Run `forge test --match-contract 'TinyFrens(Art|NFT)Test'`, `node --test scripts/test-nft-art.mjs` and `forge build`.
-3. Review the robot-only preview at `web/gallery.html` and sample media from `node scripts/generate-permutations.mjs`.
-4. Check full-size images, thumbnail silhouettes, all four motion timings, reduced-motion behavior, rare palette contrast, and accessory clipping.
-5. Obtain explicit approval of final art and transaction costs before any deployment, premint, or paid action.
-
-## Testnet rehearsal
-
-Use `contracts/testnet/script/DeployTinyFrensNFT.s.sol` and the instructions in `contracts/testnet/TESTNET-POWERSHELL.md`. That script can mint the creator reserve during deployment; set `MINT_CREATOR_RESERVE=0` to skip it. Record the actual contract address and transaction hashes. The server needs `TINYFRENS_NFT_ADDRESS` and `BASE_RPC_URL` for gallery on-chain mode.
-
-Inspect `tokenURI(1)`, `tokenURI(888)`, `tokenURI(889)`, and `tokenURI(1777)`, robot pixel art, metadata attributes, and the animation in a browser. Test mint, transfer, rename, evolve, Net Storage sync, and a full wallet-limit boundary. Do not claim marketplace animation based on a local SVG preview.
-
-## Mainnet launch
-
-Only after the rehearsal and owner approval, deploy and verify the compiled repository contract on the agreed chain. The collection posts mint and transfer events through Net Protocol. A fresh deployment is required for this robot-only assignment; previously deployed contracts cannot be changed by editing these source files. Record deployment address, explorer verification, mint transaction receipts, resolved metadata, and marketplace rendering.
+Build with `node scripts/package-robots-launch.mjs` after local Foundry installation (`FORGE_BIN` may specify its path). Validate with `node scripts/package-robots-launch.mjs --check`, targeted Foundry tests, and the local-only `RehearseBankrPackage` Base fork script. No private key or broadcast is needed for these checks. Keep the hosted bytecode and source hashes synchronized: the maintainer `--check` rejects stale source, and the site build verifies published package hashes.

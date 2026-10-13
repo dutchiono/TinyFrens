@@ -1,0 +1,2 @@
+# Preserve published bytecode/verification file hashes across Windows and CI.
+web/robots-launch/* text eol=lf

@@ -31,7 +31,7 @@ contract DeployTinyFrensNFT is Script {
         vm.startBroadcast(key);
         TinyFrensSprite sprite = new TinyFrensSprite();
         TinyFrensArt art = new TinyFrensArt(address(sprite));
-        nft = new TinyFrensNFT(address(art));
+        nft = new TinyFrensNFT(address(art), deployer);
         address frensToken = vm.envOr("FRENS_TOKEN", address(0));
         if (frensToken != address(0)) {
             nft.setFrensToken(frensToken);

@@ -54,14 +54,15 @@ contract TinyFrensNFT is NetIntegratedERC721A {
     error NetStorageUnavailable();
     error NetStorageMetadataMissing();
 
-    constructor(address artRenderer_)
+    constructor(address artRenderer_, address creator_)
         NetIntegratedERC721A(
             COLLECTION_NAME,
             COLLECTION_SYMBOL,
             0.001 ether, // price (0.001 ETH)
             2664,        // maxSupply
             20,          // maxMintsPerWallet
-            20           // creatorReserve
+            20,          // creatorReserve
+            creator_
         )
     {
         require(artRenderer_.code.length > 0, "Missing art renderer");

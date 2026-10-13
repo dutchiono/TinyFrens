@@ -23,5 +23,6 @@ remappings.txt
 settings.gradle.kts
 scripts/*
 !scripts/build-site.mjs
+!scripts/package-robots-launch.mjs
 !skills/tinyfrens-connect/
 !skills/tinyfrens-connect/SKILL.md

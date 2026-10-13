@@ -20,7 +20,7 @@ contract MeasureRobotArt is Script {
         vm.startPrank(creator);
         uint256 beforeDeploy = gasleft();
         TinyFrensArt art = new TinyFrensArt(address(new TinyFrensSprite()));
-        TinyFrensNFT nft = new TinyFrensNFT(address(art));
+        TinyFrensNFT nft = new TinyFrensNFT(address(art), creator);
         console2.log("Chain ID", block.chainid);
         console2.log("Block number", block.number);
         console2.log("Combined deployment execution gas", beforeDeploy - gasleft());
