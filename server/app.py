@@ -2148,6 +2148,8 @@ def create_app(database=None, origins=None):
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync
     device_sync.install(app, db, token_pet, limit)
+    import imported_gallery
+    imported_gallery.install(app, db)
     import account_profile
     account_profile.install(app, db, token_pet, limit)
     import collection_suggestions
