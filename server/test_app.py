@@ -475,7 +475,10 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         await self.client.start_server(); self.sockets = []
         self.token = '999:TESTTOKEN'
         keys = ('TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'TELEGRAM_MINIAPP_URL',
-                'TELEGRAM_MINIAPP_DEEP_LINK', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_PUBLIC_KEY')
+                'TELEGRAM_MINIAPP_DEEP_LINK', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET',
+                'DISCORD_PUBLIC_KEY', 'GITHUB_TOKEN', 'GITHUB_REPO', 'GITHUB_ISSUE_LABELS',
+                'TELEGRAM_ISSUE_HISTORY', 'GITHUB_WEBHOOK_SECRET', 'GEMINI_API_KEY',
+                'GOOGLE_API_KEY', 'GEMINI_MODEL')
         self.saved = {k: os.environ.get(k) for k in keys}
         os.environ.pop('TELEGRAM_MINIAPP_URL', None)
         os.environ.pop('TELEGRAM_MINIAPP_DEEP_LINK', None)
@@ -617,6 +620,253 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         os.environ.pop('TELEGRAM_BOT_TOKEN', None)
         r = await self.client.post('/api/telegram/webhook', json={'message': {'text': '/start', 'chat': {'id': 1}}})
         self.assertEqual(r.status, 503)
+
+    def _fake_bot_api(self, sent):
+        """Stand-in for telegram_integration.bot_api that records sent messages."""
+        async def fake(method, payload, token):
+            sent.append({'method': method, 'chat_id': payload.get('chat_id'), 'text': payload.get('text', '')})
+            return {'ok': True}, 200
+        return fake
+
+    def _clear_issue_env(self):
+        for key in ('GITHUB_TOKEN', 'GITHUB_REPO', 'GITHUB_ISSUE_LABELS', 'TELEGRAM_ISSUE_HISTORY',
+                    'GITHUB_WEBHOOK_SECRET', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_MODEL'):
+            os.environ.pop(key, None)
+
+    async def _chatter(self, chat_id, texts):
+        """Post plain messages so the relay buffers them as conversation history."""
+        for index, text in enumerate(texts):
+            await self.client.post('/api/telegram/webhook', json={
+                'update_id': 1000 + index, 'message': {'text': text, 'date': 1700000000 + index,
+                                                       'from': {'id': 5, 'first_name': 'Ada', 'is_bot': False},
+                                                       'chat': {'id': chat_id, 'type': 'group'}}})
+
+    def _issue_update(self, chat_id, text='open an issue'):
+        return {'message': {'text': text, 'from': {'id': 5, 'first_name': 'Ada'},
+                            'chat': {'id': chat_id, 'type': 'group', 'title': 'TinyFrens crew'}}}
+
+    def _configured(self):
+        self._clear_issue_env()
+        os.environ['GEMINI_API_KEY'] = 'ai-key'; os.environ['GITHUB_TOKEN'] = 'gh'
+        os.environ['GITHUB_REPO'] = 'dutchiono/TinyFrens'
+
+    async def test_issue_needs_ai_and_github_config(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._clear_issue_env()
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+            await self._chatter(-10, ['the vault is empty'])
+            r = await self.client.post('/api/telegram/webhook', json=self._issue_update(-10))
+            self.assertEqual(r.status, 200)
+            self.assertTrue(any('GEMINI_API_KEY' in m['text'] for m in sent), sent)
+
+            os.environ['GEMINI_API_KEY'] = 'ai-key'
+            sent.clear()
+            await self.client.post('/api/telegram/webhook', json=self._issue_update(-11))
+            self.assertTrue(any('GITHUB_TOKEN' in m['text'] for m in sent), sent)
+
+    async def test_issue_without_history_explains_itself(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+            await self.client.post('/api/telegram/webhook', json=self._issue_update(-12))
+        self.assertTrue(any('haven' in m['text'] for m in sent), sent)
+
+    async def test_issue_drafts_and_creates_a_real_issue(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+        os.environ['GITHUB_ISSUE_LABELS'] = 'telegram,bot'
+        chat_id = -13
+        sent = []
+        created = {}
+        draft = {'title': 'Vault shows empty after transfer', 'labels': ['bug'],
+                 'body': '## What happened\n- Ada saw an empty vault\n\n## Suggested next steps\n- Repro it'}
+
+        async def fake_create_issue(owner, repo, token, title, body, labels=None, timeout=20):
+            created.update(owner=owner, repo=repo, token=token, title=title, body=body, labels=labels)
+            return {'number': 77, 'html_url': 'https://github.com/dutchiono/TinyFrens/issues/77',
+                    'title': title, 'labels': []}, 201
+
+        async def fake_list_labels(owner, repo, token, timeout=20):
+            created['listed'] = True
+            return {'bug', 'telegram', 'bot'}
+
+        async def fake_draft_issue(lines, api_key, chat_title='', model=None, timeout=20):
+            created['lines'] = lines; created['api_key'] = api_key; created['chat_title'] = chat_title
+            return draft
+
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.gh.draft_issue', new=fake_draft_issue), \
+             mock.patch('app.gh.list_labels', new=fake_list_labels), \
+             mock.patch('app.gh.create_issue', new=fake_create_issue):
+            await self._chatter(chat_id, ['my vault looks empty', 'it emptied right after the transfer'])
+            r = await self.client.post('/api/telegram/webhook', json=self._issue_update(chat_id))
+
+        self.assertEqual(r.status, 200)
+        self.assertTrue(created.get('listed'))
+        self.assertEqual(created['owner'], 'dutchiono')
+        self.assertEqual(created['title'], 'Vault shows empty after transfer')
+        self.assertEqual(created['labels'], ['telegram', 'bot', 'bug'])
+        self.assertIn('my vault looks empty', created['lines'])
+        self.assertNotIn('open an issue', created['lines'])
+        self.assertTrue(any('#77' in m['text'] and 'issues/77' in m['text'] for m in sent), sent)
+
+    async def test_issue_reports_github_failure_and_model_refusal(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+
+        async def failing_create_issue(owner, repo, token, title, body, labels=None, timeout=20):
+            return {'message': 'Validation Failed'}, 422
+
+        async def fake_list_labels(owner, repo, token, timeout=20):
+            return {'bug'}
+
+        async def ok_draft(lines, api_key, chat_title='', model=None, timeout=20):
+            return {'title': 'Anything', 'labels': [], 'body': 'body'}
+
+        async def refusing_draft(lines, api_key, chat_title='', model=None, timeout=20):
+            raise ValueError('No issue to file from this conversation')
+
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.gh.draft_issue', new=ok_draft), \
+             mock.patch('app.gh.list_labels', new=fake_list_labels), \
+             mock.patch('app.gh.create_issue', new=failing_create_issue):
+            await self._chatter(-14, ['something broke'])
+            await self.client.post('/api/telegram/webhook', json=self._issue_update(-14, '/issue'))
+        self.assertTrue(any('Validation Failed' in m['text'] for m in sent), sent)
+
+        sent.clear()
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.gh.draft_issue', new=refusing_draft), \
+             mock.patch('app.gh.list_labels', new=fake_list_labels), \
+             mock.patch('app.gh.create_issue', new=failing_create_issue):
+            await self._chatter(-15, ['just saying hi to everyone'])
+            await self.client.post('/api/telegram/webhook', json=self._issue_update(-15, '/issue'))
+        self.assertTrue(any('No issue to file' in m['text'] for m in sent), sent)
+        self.assertFalse(any("couldn't open the issue" in m['text'] for m in sent))
+
+    async def test_issue_history_is_capped_and_per_chat(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+        os.environ['TELEGRAM_ISSUE_HISTORY'] = '3'
+        client = TestClient(TestServer(create_app(self.tmp.name + '/capped.db', [ORIGIN])))
+        await client.start_server()
+        captured = {}
+
+        async def fake_draft_issue(lines, api_key, chat_title='', model=None, timeout=20):
+            captured['lines'] = lines
+            return {'title': 'T', 'labels': [], 'body': 'b'}
+
+        async def fake_create_issue(owner, repo, token, title, body, labels=None, timeout=20):
+            return {'number': 1, 'html_url': 'https://github.com/o/r/issues/1',
+                    'title': title, 'labels': []}, 201
+
+        async def fake_list_labels(owner, repo, token, timeout=20):
+            return set()
+
+        try:
+            with mock.patch('app.bot_api', new=self._fake_bot_api([])), \
+                 mock.patch('app.gh.draft_issue', new=fake_draft_issue), \
+                 mock.patch('app.gh.list_labels', new=fake_list_labels), \
+                 mock.patch('app.gh.create_issue', new=fake_create_issue):
+                for index in range(6):
+                    await client.post('/api/telegram/webhook', json={
+                        'update_id': 2000 + index, 'message': {'text': 'message ' + str(index),
+                                                               'from': {'id': 5, 'first_name': 'Ada'}, 'chat': {'id': -20}}})
+                await client.post('/api/telegram/webhook', json={
+                    'message': {'text': 'open an issue', 'from': {'id': 5, 'first_name': 'Ada'}, 'chat': {'id': -20}}})
+                await client.post('/api/telegram/webhook', json={
+                    'message': {'text': 'open an issue', 'from': {'id': 5, 'first_name': 'Ada'}, 'chat': {'id': -21}}})
+            lines = captured['lines'].splitlines()
+            self.assertEqual(len(lines), 3)
+            self.assertEqual(lines[0], 'Ada: message 3')
+        finally:
+            await client.close()
+
+    async def test_issue_rate_limit_rejects_spam(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+            for index in range(7):
+                await self._chatter(-30, ['note ' + str(index)])
+                await self.client.post('/api/telegram/webhook', json=self._issue_update(-30, '/issue'))
+        self.assertTrue(any('Please wait' in m['text'] for m in sent), sent)
+
+    async def test_github_webhook_unconfigured_is_ignored(self):
+        os.environ.pop('GITHUB_WEBHOOK_SECRET', None)
+        r = await self.client.post('/api/github/webhook', data=b'{"event":"issues"}')
+        self.assertEqual(r.status, 200)
+
+    async def test_github_webhook_rejects_bad_signature(self):
+        os.environ['GITHUB_WEBHOOK_SECRET'] = 'whsec_test'
+        r = await self.client.post('/api/github/webhook', data=b'{"event":"issues"}',
+                                   headers={'X-Hub-Signature-256': 'sha256=deadbeef'})
+        self.assertEqual(r.status, 401)
+
+    async def test_github_webhook_relays_comment_back_to_chat(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        secret = 'whsec_test'
+        os.environ['GITHUB_WEBHOOK_SECRET'] = secret
+        os.environ['GITHUB_TOKEN'] = 'gh'
+        os.environ['GITHUB_REPO'] = 'dutchiono/TinyFrens'
+        os.environ['GEMINI_API_KEY'] = 'ai-key'
+        payload = {'action': 'created',
+                   'repository': {'full_name': 'dutchiono/TinyFrens'},
+                   'sender': {'login': 'ada'},
+                   'issue': {'number': 77, 'title': 'Vault bug',
+                             'html_url': 'https://github.com/dutchiono/TinyFrens/issues/77'},
+                   'comment': {'body': 'this is fixed now'}}
+        body = _json.dumps(payload).encode()
+        signature = 'sha256=' + _hmac.new(secret.encode(), body, _hashlib.sha256).hexdigest()
+        chat_id = -40
+        sent = []
+
+        async def fake_create_issue(owner, repo, token, title, issue_body, labels=None, timeout=20):
+            return {'number': 77, 'html_url': payload['issue']['html_url'],
+                    'title': title, 'labels': []}, 201
+
+        async def fake_list_labels(owner, repo, token, timeout=20):
+            return set()
+
+        async def fake_draft_issue(lines, api_key, chat_title='', model=None, timeout=20):
+            return {'title': 'Vault bug', 'labels': [], 'body': 'body'}
+
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.gh.draft_issue', new=fake_draft_issue), \
+             mock.patch('app.gh.list_labels', new=fake_list_labels), \
+             mock.patch('app.gh.create_issue', new=fake_create_issue):
+            await self._chatter(chat_id, ['the vault is empty'])
+            r = await self.client.post('/api/telegram/webhook', json=self._issue_update(chat_id))
+            self.assertEqual(r.status, 200)
+            self.assertTrue(any('Opened issue #77' in m['text'] for m in sent), sent)
+
+            sent.clear()
+            r = await self.client.post('/api/github/webhook', data=body,
+                                       headers={'X-Hub-Signature-256': signature, 'X-GitHub-Event':'issue_comment'})
+        self.assertEqual(r.status, 200)
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0]['chat_id'], chat_id)
+        self.assertIn('ada commented on issue #77', sent[0]['text'])
+        self.assertIn('this is fixed now', sent[0]['text'])
+
+    async def test_github_webhook_ignores_unmapped_issue(self):
+        os.environ['GITHUB_WEBHOOK_SECRET'] = 'whsec_test'
+        payload = {'event': 'issues', 'action': 'closed',
+                   'repository': {'full_name': 'dutchiono/TinyFrens'},
+                   'sender': {'login': 'ada'},
+                   'issue': {'number': 999, 'title': 'Not ours',
+                             'html_url': 'https://github.com/dutchiono/TinyFrens/issues/999'}}
+        body = _json.dumps(payload).encode()
+        signature = 'sha256=' + _hmac.new(b'whsec_test', body, _hashlib.sha256).hexdigest()
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+            r = await self.client.post('/api/github/webhook', data=body,
+                                       headers={'X-Hub-Signature-256': signature})
+        self.assertEqual(r.status, 200)
+        self.assertEqual(sent, [])
 
     async def test_telegram_link_deep_link_opens_account_settings(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token
