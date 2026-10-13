@@ -329,7 +329,7 @@ class PetOverlayService:Service(){
   v.setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER&&menu==null){showMenu();say("Hey, you!")};false}
   try{wm.addView(v,p);lastEffectToken=state.optLong("actionUntil");style();if(state.optBoolean("fade",true)&&!reducedMotion()){val opacity=v.alpha;v.alpha=0f;v.animate().alpha(opacity).setDuration(220).start()};chooseWalk();handler.post(animator)}catch(_:Exception){pet=null;params=null;stopSelf()}
  }
- private fun openCare(){removeMenu();removeChat();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
+ private fun openCare(){removeMenu();removeChat();removeCaption();try{startActivity(Intent(this,MainActivity::class.java).putExtra("screen","care").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))}catch(_:Exception){}}
  private fun toggleMenu(){
   if(state.optBoolean("haptics",true))pet?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
   playPetSound("menu")
@@ -395,10 +395,14 @@ class PetOverlayService:Service(){
    }
    setOnHoverListener{_,event->if(event.actionMasked==MotionEvent.ACTION_HOVER_ENTER){say("Hide pet");refreshMenuTimer()};false}
   }
-  val p=overlay(dp(48),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
+  val panel=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}
+  val care=Button(this).apply{text="Care";contentDescription="Open NFT care";setOnClickListener{removeCloseButton();openCare()}}
+  panel.addView(care,LinearLayout.LayoutParams(dp(64),dp(48)))
+  panel.addView(button,LinearLayout.LayoutParams(dp(48),dp(48)))
+  val p=overlay(dp(112),dp(48));val(bx,by)=bounds();val pw=params?.width?:dp(80);val ph=params?.height?:dp(80)
   p.x=((target?.x?:x)+pw-dp(12)).toInt().coerceIn(0,((bx+pw).toInt()-p.width).coerceAtLeast(0))
   p.y=((target?.y?:y)-dp(24)).toInt().coerceIn(0,((by+ph).toInt()-p.height).coerceAtLeast(0))
-  try{wm.addView(button,p);closeButton=button}catch(_:Exception){}
+  try{wm.addView(panel,p);closeButton=panel}catch(_:Exception){}
  }
  private fun removeCloseButton(){closeButton?.let{try{wm.removeView(it)}catch(_:Exception){}};closeButton=null}
  private fun say(text:String,duration:Long=1800,tall:Boolean=false){
