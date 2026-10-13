@@ -456,6 +456,9 @@ class IntegrationUnitTests(unittest.TestCase):
     def test_classify_and_room_ids(self):
         self.assertEqual(tg.classify({'message': {'text': '/start', 'chat': {'id': 5}}})[0], 'start')
         self.assertEqual(tg.classify({'my_chat_member': {'new_chat_member': {'status': 'member'}, 'chat': {'id': 9}}})[0], 'added')
+        self.assertEqual(tg.classify({'message': {'text': '@TinyFrensBot open issue', 'chat': {'id': 9}}})[0], 'issue')
+        self.assertFalse(tg.is_issue_command('we should open issue later'))
+        self.assertEqual(tg.classify({'message': {'text': 'hi @TinyFrensBot', 'chat': {'id': 9}}})[0], 'mention')
         self.assertEqual(tg.link_code({'message': {'text': '/link ABCD-EFGH-JKLM', 'chat': {'type': 'private'}}}), 'ABCDEFGHJKLM')
         self.assertIsNone(tg.link_code({'message': {'text': '/link ABCD-EFGH-JKLM', 'chat': {'type': 'group'}}}))
         self.assertIn('web_app', tg.reply_markup('https://tinyfrens.lol')['inline_keyboard'][0][0])
@@ -628,6 +631,18 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
             return {'ok': True}, 200
         return fake
 
+    async def test_telegram_mention_and_private_message_receive_help(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)):
+            for text, kind in [('hi @TinyFrensBot', 'group'), ('hello', 'private')]:
+                response = await self.client.post('/api/telegram/webhook', json={
+                    'message': {'text': text, 'chat': {'id': -42, 'type': kind},
+                                'from': {'id': 5, 'first_name': 'Ada'}}})
+                self.assertEqual(response.status, 200)
+        self.assertEqual(len(sent), 2)
+        self.assertTrue(all("I'm here!" in message['text'] for message in sent))
+
     def _clear_issue_env(self):
         for key in ('GITHUB_TOKEN', 'GITHUB_REPO', 'GITHUB_ISSUE_LABELS', 'TELEGRAM_ISSUE_HISTORY',
                     'GITHUB_WEBHOOK_SECRET', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_MODEL'):
@@ -711,6 +726,27 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('my vault looks empty', created['lines'])
         self.assertNotIn('open an issue', created['lines'])
         self.assertTrue(any('#77' in m['text'] and 'issues/77' in m['text'] for m in sent), sent)
+
+    async def test_targeted_issue_uses_replied_message_without_prior_history(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        self._configured()
+        update = self._issue_update(-43, '@TinyFrensBot open issue')
+        update['message']['reply_to_message'] = {
+            'text': 'The gallery is empty after connecting my wallet',
+            'from': {'id': 6, 'first_name': 'Bob'}, 'date': 1700000000}
+        draft = mock.AsyncMock(return_value={'title': 'Empty gallery', 'body': 'Repro', 'labels': []})
+        created = mock.AsyncMock(return_value=({'number': 78, 'title': 'Empty gallery',
+            'html_url': 'https://github.com/dutchiono/TinyFrens/issues/78'}, 201))
+        sent = []
+        with mock.patch('app.bot_api', new=self._fake_bot_api(sent)), \
+             mock.patch('app.gh.draft_issue', new=draft), \
+             mock.patch('app.gh.list_labels', new=mock.AsyncMock(return_value=set())), \
+             mock.patch('app.gh.create_issue', new=created):
+            response = await self.client.post('/api/telegram/webhook', json=update)
+        self.assertEqual(response.status, 200)
+        self.assertIn('The gallery is empty', draft.await_args.args[0])
+        self.assertNotIn('@TinyFrensBot open issue', draft.await_args.args[0])
+        self.assertTrue(any('Opened issue #78' in message['text'] for message in sent))
 
     async def test_issue_reports_github_failure_and_model_refusal(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token

@@ -1333,7 +1333,7 @@ def create_app(database=None, origins=None):
             # Buffer ordinary chatter so the transcript is complete when someone asks
             # for an issue. The command itself (and /start, /show, /link) is never part
             # of the issue.
-            if kind=='message' and chat_id is not None:
+            if kind in {'message','mention'} and chat_id is not None:
                 entry=chat_message(update) if chat_message is not None else None
                 if entry is not None: tg_history[str(chat_id)].append(entry)
             sync_code=link_code(update) if link_code else None
@@ -1371,7 +1371,17 @@ def create_app(database=None, origins=None):
                 await bot_api('sendMessage',{'chat_id':chat_id,'text':'TinyFrens is ready in '+title+'. Open it to bring an NFT into the room, then use /show to post your selected companion.',
                     'reply_markup':reply_markup(deep_link,'🐾 Open TinyFrens',False)},token)
             elif kind=='issue' and chat_id is not None:
+                # Privacy-mode bots may not have seen the conversation being replied to.
+                context=chat_message({'message':message.get('reply_to_message')}) if chat_message else None
+                history=tg_history[str(chat_id)]
+                if context is not None and (not history or history[-1] != context): history.append(context)
                 await file_issue_from_chat(chat_id,chat,token)
+            elif kind=='mention' and chat_id is not None:
+                limit(('tg-mention',str(chat_id)),30,3600)
+                private=(chat or {}).get('type')=='private'
+                await bot_api('sendMessage',{'chat_id':chat_id,
+                    'text':"I'm here! Open TinyFrens below, use /show for your selected NFT, or reply to a message with @TinyFrensBot open issue to request a GitHub issue.",
+                    'reply_markup':reply_markup(miniapp+'#pet' if private else deep_link,'🐾 Open TinyFrens',private)},token)
             return web.json_response({'ok':True})
         except web.HTTPException:
             raise

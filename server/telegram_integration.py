@@ -146,7 +146,7 @@ def classify(update):
 
     Returns ``(kind, chat_id, chat)`` where kind is one of:
     ``start`` (a /start message), ``issue`` (an "open an issue" request),
-    ``added`` (bot joined a group), ``message``, ``removed`` (bot kicked from a
+    ``mention`` (direct mention/help/private text), ``added`` (bot joined a group), ``message``, ``removed`` (bot kicked from a
     group) or ``unknown``.
     """
     if isinstance(update.get('message'), dict):
@@ -157,6 +157,10 @@ def classify(update):
             return 'start', chat.get('id'), chat
         if is_issue_command(text):
             return 'issue', chat.get('id'), chat
+        if (re.search(r'(?<!\w)@tinyfrensbot\b', text, re.I)
+                or re.fullmatch(r'/help(?:@tinyfrensbot)?\s*', text, re.I)
+                or (chat.get('type') == 'private' and text.strip())):
+            return 'mention', chat.get('id'), chat
         return 'message', chat.get('id'), chat
     if isinstance(update.get('my_chat_member'), dict):
         mcm = update['my_chat_member']
@@ -171,7 +175,7 @@ def classify(update):
 def is_issue_command(text):
     """True when a message asks the bot to file a GitHub issue.
 
-    Matches ``/issue``, ``/issue <extra hint>`` and natural phrasings such as
+    Matches ``/issue``, ``/issue <extra hint>``, ``@TinyFrensBot open issue`` and natural phrasings such as
     "open an issue", "file a bug report" or "make a github issue". Deliberately
     conservative: a bare "issue" on its own is ignored so ordinary chatter about
     "an issue with the app" does not trigger a ticket.
@@ -182,6 +186,11 @@ def is_issue_command(text):
     if not cleaned or len(cleaned) > 200:
         return False
     if re.fullmatch(r'/issue(@\S+)?(\s.*)?', cleaned):
+        return True
+    # A direct request to this bot may omit the article: "@TinyFrensBot open issue".
+    if re.search(r'(?<!\w)@tinyfrensbot\b', cleaned) and re.search(
+            r'\b(open|file|create|make|log|raise|report|start)\s+'
+            r'(issue|bug\s+report|feature\s+request|ticket)\b', cleaned):
         return True
     # A verb, then either an article ("an issue") or a qualifier ("new issue"),
     # then the noun. A bare "open issue" or "there is an issue with X" is chatter.
