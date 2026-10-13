@@ -1,9 +1,8 @@
 name: Friends relay checks
 on:
-  push:
-    paths: ['server/**', '.github/workflows/server.yml', 'web/friends.js', 'web/customize.js']
-  pull_request:
-    paths: ['server/**', '.github/workflows/server.yml', 'web/friends.js', 'web/customize.js']
+  # Automatic server tests and JS syntax checks already run in quality-gate.yml.
+  # Keep this standalone diagnostic available without duplicating every PR run.
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

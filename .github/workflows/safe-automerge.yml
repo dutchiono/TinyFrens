@@ -1,19 +1,22 @@
-name: Enable safe PR auto-merge
+name: Enable owner PR auto-merge
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled, unlabeled]
 permissions:
   contents: write
   pull-requests: write
+concurrency:
+  group: owner-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
   enable-auto-merge:
     if: >-
-      github.event.pull_request.draft == false &&
       github.event.pull_request.user.login == 'dutchiono' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Check paths and request native GitHub auto-merge
+      - name: Request native GitHub auto-merge for the current owner PR
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -22,11 +25,17 @@ jobs:
         run: |
           set -euo pipefail
           # The PR's contents are never checked out or executed in this privileged workflow.
-          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename')
-          # Contract, backend, CI, authentication, deployment and payment changes require review.
-          if grep -Eq '^(contracts/|server/|\.github/|scripts/|snap/|android/|ios/|desktop/|skills/|lib/|foundry\.|vercel\.json|web/(wallet|wallet-link|turtle-api|nft-discovery|sw)\.js)' <<< "$files"; then
-            echo "Sensitive paths changed: manual review required."
+          # Re-read current state: a draft/hold change may have followed the triggering event.
+          pr=$(gh api "repos/$REPO/pulls/$PR")
+          if ! jq -e --arg repo "$REPO" '.state == "open" and .user.login == "dutchiono" and .head.repo.full_name == $repo and .base.ref == "main"' <<< "$pr" >/dev/null; then
             exit 0
           fi
-          echo "Enabling native GitHub auto-merge for non-sensitive changes."
-          gh pr merge "$PR" --repo "$REPO" --squash --auto
+          if jq -e '.draft or any(.labels[]; .name == "hold-merge")' <<< "$pr" >/dev/null; then
+            if jq -e '.auto_merge != null' <<< "$pr" >/dev/null; then
+              gh pr merge "$PR" --repo "$REPO" --disable-auto
+            fi
+            exit 0
+          fi
+          sha=$(jq -r '.head.sha' <<< "$pr")
+          # Owner-authorized for every path. GitHub still enforces all required checks.
+          gh pr merge "$PR" --repo "$REPO" --squash --auto --match-head-commit "$sha"

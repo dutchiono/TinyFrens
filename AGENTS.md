@@ -10,6 +10,6 @@ Work from a feature branch and open a pull request. Do not push directly to main
 - Preserve native Android, iOS, desktop and browser behavior when changing shared web code.
 
 ## Merge policy
-A trusted workflow may request GitHub native auto-merge for non-draft PRs authored by dutchiono and touching only lower-risk paths. All merges must obey required branch protection/status checks. Contract, server, wallet/auth, deployment, native, CI and skill edits require manual review. Never bypass branch protections or use admin merge.
+A trusted workflow requests GitHub native squash auto-merge for every non-draft PR authored by dutchiono from this repository into main, regardless of changed paths. The owner explicitly authorizes this policy for work submitted through their account. All merges must obey required branch protection/status checks, including the strict requirement to be current with main. Never bypass branch protections or use admin merge. The `hold-merge` label pauses auto-merge; drafts also stay unmerged. Agents should open a PR and let real CI and native auto-merge complete it, rather than performing a second ceremonial review or polling indefinitely.
 
 Agents may propose fixes to issues but must not self-approve, deploy contracts, expose credentials or release funds.
