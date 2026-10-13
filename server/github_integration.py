@@ -134,7 +134,7 @@ async def draft_issue(lines, api_key, chat_title='', model=None, timeout=20):
         raise ValueError('Pet chat is not connected yet')
     if not lines:
         raise ValueError('No recent conversation to summarise')
-    model = model or 'gemini-2.0-flash'
+    model = model or 'gemini-3.5-flash-lite'
     payload = {'systemInstruction': {'parts': [{'text': DRAFT_SYSTEM}]},
                'contents': [{'role': 'user', 'parts': [{'text': draft_prompt(lines, chat_title)}]}],
                'generationConfig': {'temperature': 0.2, 'maxOutputTokens': 900}}
