@@ -198,6 +198,20 @@ def treasury_settings():
         'enabled': os.environ.get('FRENS_TREASURY_INDEXER', '').strip().lower() in ('1', 'true', 'yes'),
     }
 
+def _env_int(name, default):
+    try:
+        return int(os.environ[name])
+    except (KeyError, TypeError, ValueError):
+        return default
+
+def robot_care_settings():
+    """Tunable prices for the robots care loop (FRENS per paid top-up, §6)."""
+    prices = {
+        action: _env_int('ROBOT_CARE_PRICE_' + action.upper(), robot_care.DEFAULT_PRICES_FRENS.get(action, 0))
+        for action in robot_care.CARE_ACTIONS
+    }
+    return {'dailyAllowance': _env_int('ROBOT_CARE_DAILY_ALLOWANCE', robot_care.DEFAULT_DAILY_ALLOWANCE), 'prices': prices}
+
 def profile(raw):
     if not isinstance(raw, dict): raise ValueError('Invalid pet')
     if raw.get('shape')=='mascot': raw={**raw,'shape':'robot'}
@@ -1837,6 +1851,11 @@ def create_app(database=None, origins=None):
         economy_settings=economy_settings,
         treasury_settings=treasury_settings,
         economy=economy,
+    )
+    admin_surface.install(
+        app, db,
+        token=os.environ.get('ADMIN_TOKEN'),
+        economy_settings=economy_settings,
     )
     turtle_connect.install(app, db, token_pet, limit, turtle_ownership)
     import device_sync

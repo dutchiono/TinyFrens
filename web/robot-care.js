@@ -4,7 +4,7 @@
  * money (docs/tamagotchi-robots.md §6.1). This module is the web client for that
  * server contract: it finds which Robots v1 the player is caring for, shows the
  * FRENS balance and today's free allowance, reports care actions, and collects the
- * game earn-back. It never simulates care and never blocks offline play.
+ * game earn-back. It gates robot care on server approval; other collections keep their local loop.
  *
  * Endpoints (robots-only, device-token auth, fresh on-chain ownerOf server-side):
  *   POST /api/robots/care        {tokenId}          -> {allowance, prices, actions, balance, creditsPerFrens}
