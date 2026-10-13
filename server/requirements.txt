@@ -9,3 +9,4 @@ pywebpush==2.5.0
 setuptools<81
 
 Pillow==11.3.0
+pycryptodome==3.23.0
