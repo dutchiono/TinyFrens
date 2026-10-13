@@ -1,6 +1,8 @@
 /* Games use the same wallet proofs and collection animation rigs as the overlays. */
 (() => {
   const adapters = new Set(['hood-turtles-v1', 'tinyfrens-robots-v1', 'nubs-v1', 'bots-computers-v1']);
+  let inventory = null;
+  const clear = () => { inventory = null; };
   const key = nft => window.TinyFrensCompanionKey(nft);
   const animated = nft => nft?.active === true && Date.now() < nft.validUntil * 1000 &&
     window.TinyFrensNFTDiscovery.isSupported({chainId:nft.chainId, contract:nft.originalAddress}) &&
@@ -17,10 +19,14 @@
     return window.TinyFrensTurtleAPI(window.TINYFRENS_SERVER, path, {token:identity().token, ...body});
   }
   async function list() {
+    const token = identity().token;
+    if (inventory?.token === token && Date.now() < inventory.until) return inventory.data;
     const data = await post('/api/wallet-link/nfts');
     const unique = new Map();
     for (const nft of data.nfts || []) if (window.TinyFrensNFTDiscovery.isSupported({chainId:nft.chainId, contract:nft.originalAddress})) unique.set(key(nft), nft);
-    return {items:[...unique.values()], errors:data.errors || [], partial:data.partial};
+    const result = {items:[...unique.values()], errors:data.errors || [], partial:data.partial};
+    if (!data.partial) inventory = {token, until:Date.now() + 300000, data:result};
+    return result;
   }
   async function prepare(nft) {
     const data = await post('/api/featured/companion', {tokenId:nft.tokenId, originalAddress:nft.originalAddress, chainId:nft.chainId});
@@ -40,5 +46,7 @@
       element.style.transform = `scaleX(${direction < 0 ? -1 : 1})`;
     }};
   }
-  window.TinyFrensGamePlayers = {list, prepare, sprite, animated, key};
+  window.addEventListener('tinyfrens-account-synced', clear);
+  window.addEventListener('tinyfrens-wallet-link-changed', clear);
+  window.TinyFrensGamePlayers = {list, clear, prepare, sprite, animated, key};
 })();

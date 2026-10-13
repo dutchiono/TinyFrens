@@ -61,7 +61,7 @@ More → Games opens the mini-game picker inside the app. Choose a player from y
 
 - **Snack Catch:** drag, tap or use ←/→ (A/D) to slide your fren. Catch 🍓 (+1), 🍪 (+2) and ⭐ (+5). Catching a 🧦 costs one of three hearts; missed snacks cost nothing. Snacks fall faster over time.
 
-Best scores save on this device. A completed round lasting at least 15 active seconds with a positive score invokes the existing Play care action once, through the same engine/native bridge as the Care screen. Existing hunger, energy, sickness and activity rules apply. This affects the app’s existing care state; it does not create NFT attributes or token rewards. Each finished round fires `tinyfrens-game-finished` (game, score, best, player collection identity, duration). Leaving the screen cancels without a reward. Hiding the app pauses the clock and sprite; returning resumes. Ownership is checked before each round and expired proof stops the round.
+Best scores save on this device. A completed round lasting at least 15 active seconds with a positive score invokes the existing Play care action once, through the same engine/native bridge as the Care screen. Existing hunger, energy, sickness and activity rules apply. This affects the app’s existing care state; it does not create NFT attributes or token rewards. Each finished round fires `tinyfrens-game-finished` (game, score, best, player collection identity, duration). Leaving the screen cancels without a reward. Hiding the app pauses the clock and sprite; returning resumes. The player inventory is cached for five minutes between rounds; Refresh NFTs or wallet changes clear it. Ownership is checked before each round and expired proof stops the round.
 
 ## Appearance
 

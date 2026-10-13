@@ -22,7 +22,7 @@
         el('span', {className:'game-card-text'}, [el('strong', {textContent:game.title}), el('small', {textContent:game.blurb}), el('small', {textContent:'Best: ' + (bests()[game.id] || 0)})])]);
       button.onclick = () => play(game, status); list.append(button); return button;
     });
-    const refresh = el('button', {type:'button', className:'secondary', textContent:'Refresh NFTs'}); refresh.onclick = showPicker;
+    const refresh = el('button', {type:'button', className:'secondary', textContent:'Refresh NFTs'}); refresh.onclick = () => { players().clear(); showPicker(); };
     const connect = el('button', {type:'button', className:'secondary', textContent:'Manage wallets'}); connect.onclick = () => window.showScreen('wallet');
     hub.replaceChildren(el('div', {className:'game-player-picker'}, [preview, label, select]), status, list, el('div', {className:'actions'}, [connect, refresh]));
     try {

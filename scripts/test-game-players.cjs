@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm');
 const root = require('node:path').join(__dirname, '../web');
-const context = {window:{TINYFRENS_SERVER:'https://relay.test',TinyFrensFriends:{identity:()=>({token:'device'})}}, localStorage:{getItem:()=>null}, Date, Set, Map, Error, matchMedia:()=>({matches:false}), document:{createElement:()=>({style:{},getAttribute(){return this.src;}})}};
+const context = {window:{addEventListener:()=>{},TINYFRENS_SERVER:'https://relay.test',TinyFrensFriends:{identity:()=>({token:'device'})}}, localStorage:{getItem:()=>null}, Date, Set, Map, Error, matchMedia:()=>({matches:false}), document:{createElement:()=>({style:{},getAttribute(){return this.src;}})}};
 context.window.window = context.window; vm.createContext(context);
 for (const name of ['companion-identity.js','nft-discovery.js','game-players.js']) vm.runInContext(fs.readFileSync(root+'/'+name,'utf8'),context);
 const api = context.window.TinyFrensGamePlayers;
@@ -18,7 +18,7 @@ const nft = {tokenId:1,originalAddress:'0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8
  context.matchMedia=()=>({matches:true}); const reduced=api.sprite(nft); reduced.update(150,true,1); assert.equal(reduced.element.src,image);
  context.window.TinyFrensTurtleAPI=async()=>({...nft,tokenId:2}); await assert.rejects(api.prepare(nft),/verified ownership/);
  context.window.TinyFrensTurtleAPI=async()=>nft; assert.equal((await api.prepare(nft)).tokenId,1);
- context.window.TinyFrensTurtleAPI=async()=>({nfts:[nft,nft,{...nft,originalAddress:'invalid'}]}); assert.equal((await api.list()).items.length,1);
+ let scans=0; context.window.TinyFrensTurtleAPI=async()=>{scans++;return {nfts:[nft,nft,{...nft,originalAddress:'invalid'}]};}; assert.equal((await api.list()).items.length,1); await api.list(); assert.equal(scans,1); api.clear(); await api.list(); assert.equal(scans,2);
  nft.validUntil=0; assert.throws(()=>sprite.update(200,true,1),/expired/);
  console.log('NFT game player tests passed: ownership, supported collections, identity, expiry, animation, reduced motion and deduplication.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
