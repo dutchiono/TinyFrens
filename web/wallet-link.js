@@ -1,6 +1,8 @@
 (() => {
   const target = document.getElementById('externalWalletPanel');
   if (!target) return;
+  // Navigation later normalizes the hash to #pet; retain the incoming pairing code.
+  const remoteDeviceCode = new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
   target.innerHTML = `
     <details id="walletManager" class="wallet-manager" open><summary>Connect your wallet</summary>
     <section class="overlay wallet-link-panel" style="margin-top:0;">
@@ -65,7 +67,7 @@
     document.getElementById('linkOtherDevice').hidden = !addresses.length;
     const wallets = document.getElementById('deviceWallet'); wallets.replaceChildren();
     for (const address of addresses) { const option = document.createElement('option'); option.value = address; option.textContent = address; wallets.append(option); }
-    const approvingDevice = new URLSearchParams(location.hash.slice(1)).has('connect-device');
+    const approvingDevice = Boolean(remoteDeviceCode);
     manager.open = !addresses.length || approvingDevice;
     document.getElementById('linkOtherDevice').open = approvingDevice;
     manager.querySelector('summary').textContent = addresses.length ? `Manage wallets (${addresses.length}) · Add another` : 'Connect your wallet';
@@ -171,7 +173,7 @@
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const address = accounts?.[0];
       if (!address) throw new Error('No wallet selected.');
-      const remoteCode = new URLSearchParams(location.hash.slice(1)).get('connect-device');
+      const remoteCode = remoteDeviceCode;
       const challenge = remoteCode
         ? await window.TinyFrensTurtleAPI(base(), '/api/turtle-connect/challenge', {code:remoteCode, address})
         : await post('/api/wallet-link/challenge', { address });
@@ -241,7 +243,7 @@
   };
   renew.onclick = startPairing;
   const otherCode = document.getElementById('otherDeviceCode');
-  otherCode.value = new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
+  otherCode.value = remoteDeviceCode;
   document.getElementById('approveOtherDevice').onclick = async event => {
     const button = event.currentTarget; button.disabled = true;
     const status = document.getElementById('otherDeviceStatus');
