@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const SERVER = 'https://tinyfrens.miono.live';
 const PATHS = new Set(['/api/register', '/api/wallet-link/status', '/api/wallet-link/challenge',
   '/api/wallet-link/confirm', '/api/wallet-link/disconnect', '/api/wallet-link/nfts', '/api/featured/hood-turtle',
-  '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept']);
+  '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept', '/api/turtle-connect/from-device']);
 
 class TurtleStore {
   constructor(file, fetcher = fetch, clock = Date.now) {
