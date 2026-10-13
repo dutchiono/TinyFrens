@@ -135,6 +135,70 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         signature = '0x' + Account.sign_message(encode_defunct(text=challenge['message']), self.account.key).signature.hex().removeprefix('0x')
         return pairing, {'code': pairing['code'], 'challengeId': challenge['challengeId'], 'signature': signature}
 
+    async def test_link_from_existing_device_requires_link_and_target_acceptance(self):
+        pairing, proof = await self.begin()
+        await self.post('confirm', proof, agent=True)
+        await self.post('accept', {'code': pairing['code']})
+        target = await (await self.post('start', {}, phone=self.other)).json()
+        request = {'code': target['code'], 'address': self.account.address}
+        self.assertEqual((await self.post('from-device', request, phone=self.other)).status, 400)
+        self.assertEqual((await self.post('from-device', request)).status, 200)
+        self.assertEqual((await self.post('from-device', request)).status, 400)
+        status = await (await self.client.post('/api/wallet-link/status', headers={'Origin': ORIGIN},
+            json={'token': self.other['token']})).json()
+        self.assertFalse(status['linked'])
+        result = await (await self.post('accept', {'code': target['code']}, phone=self.other)).json()
+        self.assertEqual(result['address'], self.account.address)
+        # Approving another device does not rotate/revoke the original device token.
+        self.assertEqual((await self.post('start', {})).status, 200)
+
+    async def test_rpc_discovery_uses_bounded_logs_and_rejects_missing_ranges(self):
+        from turtle_connect import rpc_candidates, TRANSFER_TOPIC, COLLECTION
+        fail = False
+        seen = []
+        async def rpc(request):
+            body = await request.json()
+            if body['method'] == 'eth_call':
+                return web.json_response({'result': '0x' + format(1, '064x')})
+            if body['method'] == 'eth_blockNumber':
+                return web.json_response({'result': hex(10_000_005)})
+            args = body['params'][0]; seen.append(args)
+            if fail:
+                return web.json_response({'error': {'code': -32000}})
+            return web.json_response({'result': [{'address': COLLECTION, 'topics': [TRANSFER_TOPIC,
+                '0x' + '0' * 64, '0x' + self.owner[2:].lower().zfill(64), '0x' + format(7, '064x')]}]})
+        app = web.Application(); app.router.add_post('/', rpc)
+        server = TestServer(app); await server.start_server()
+        try:
+            with mock.patch.dict(os.environ, {'ROBINHOOD_RPC_URL': str(server.make_url('/'))}):
+                candidates, partial = await rpc_candidates(self.owner)
+                self.assertEqual(candidates, {7}); self.assertFalse(partial)
+                self.assertEqual(len(seen), 2)
+                self.assertEqual(seen[1]['fromBlock'], hex(10_000_000))
+                fail = True
+                with self.assertRaisesRegex(RuntimeError, 'unavailable'):
+                    await rpc_candidates(self.owner)
+        finally:
+            await server.close()
+
+    async def test_indexer_failure_falls_back_to_rpc_and_verifies_owner(self):
+        from turtle_connect import discover_wallets, TurtleOwnership
+        import sqlite3
+        async def failing(request):
+            return web.json_response({'error': 'broken indexer'}, status=500)
+        app = web.Application(); app.router.add_get('/addresses/{address}/nft', failing)
+        server = TestServer(app); await server.start_server()
+        db = sqlite3.connect(':memory:')
+        try:
+            with mock.patch.dict(os.environ, {'ROBINHOOD_BLOCKSCOUT_API_URL': str(server.make_url('')).rstrip('/')}), \
+                 mock.patch('turtle_connect.rpc_candidates', new=mock.AsyncMock(return_value=({7}, False))):
+                result = await discover_wallets([self.owner], TurtleOwnership(db))
+                self.assertEqual(result['nfts'][0]['tokenId'], 7)
+                self.assertEqual(result['nfts'][0]['wallet'], self.owner)
+                self.assertFalse(result['partial'])
+        finally:
+            db.close(); await server.close()
+
     async def test_pairing_requires_signature_ownership_and_phone_acceptance(self):
         pairing, proof = await self.begin()
         response = await self.post('accept', {'code': pairing['code']})

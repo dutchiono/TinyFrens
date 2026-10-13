@@ -12,6 +12,15 @@
 
       </div>
       <p id="walletLinkStatus" role="status"></p>
+      <p id="deviceConnectCode" class="small"></p>
+      <a id="connectInBrowser" hidden target="_blank" rel="noopener noreferrer">Connect using your browser</a>
+      <details id="linkOtherDevice" hidden><summary>Link another device without Bankr</summary>
+        <p class="small">Enter the code shown on your other phone or computer, then accept the wallet link on that device.</p>
+        <label for="deviceWallet">Wallet to link</label><select id="deviceWallet"></select>
+        <label for="otherDeviceCode">Other device’s connect code</label><input id="otherDeviceCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14">
+        <button id="approveOtherDevice" type="button">Link this wallet to that device</button>
+        <p id="otherDeviceStatus" role="status"></p>
+      </details>
       <div class="bankr-connect">
         <h4>Connect with Bankr</h4>
         <p class="small">Send this to @bankrbot on X or in Bankr chat, then accept the wallet link here.</p>
@@ -53,7 +62,12 @@
 
   function showLink(addresses = []) {
     linkedAddresses = addresses;
-    manager.open = !addresses.length;
+    document.getElementById('linkOtherDevice').hidden = !addresses.length;
+    const wallets = document.getElementById('deviceWallet'); wallets.replaceChildren();
+    for (const address of addresses) { const option = document.createElement('option'); option.value = address; option.textContent = address; wallets.append(option); }
+    const approvingDevice = new URLSearchParams(location.hash.slice(1)).has('connect-device');
+    manager.open = !addresses.length || approvingDevice;
+    document.getElementById('linkOtherDevice').open = approvingDevice;
     manager.querySelector('summary').textContent = addresses.length ? `Manage wallets (${addresses.length}) · Add another` : 'Connect your wallet';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
@@ -86,9 +100,9 @@
     scanButton.disabled = true;
     scanStatus.textContent = 'Finding NFTs from available collections…';
     try {
-      const data = await window.TinyFrensNFTDiscovery.discover(linkedAddresses, (done,total) => {
-        scanStatus.textContent = 'Checking linked wallets…';
-      });
+      const result = await post('/api/wallet-link/nfts');
+      const data = {...result, errors:[], nfts:result.nfts.map(nft => ({...nft,
+        contract:nft.originalAddress, chain:'Robinhood Chain', standard:'ERC-721', hoodTurtle:true}))};
       matches.replaceChildren();
       const supported = data.nfts.filter(window.TinyFrensNFTDiscovery.isSupported);
       for (const nft of supported) {
@@ -150,15 +164,26 @@
   linkButton.addEventListener('click', async () => {
     linkButton.disabled = true;
     try {
-      if (!window.ethereum?.request) throw new Error('Use a browser with your wallet extension for manual connection, or copy the Bankr message below.');
+      if (!window.ethereum?.request) {
+        document.getElementById('connectInBrowser').hidden = false;
+        throw new Error('Open “Connect using your browser” to sign with a wallet extension, or approve this device from an already connected TinyFrens device.');
+      }
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const address = accounts?.[0];
       if (!address) throw new Error('No wallet selected.');
-      const challenge = await post('/api/wallet-link/challenge', { address });
+      const remoteCode = new URLSearchParams(location.hash.slice(1)).get('connect-device');
+      const challenge = remoteCode
+        ? await window.TinyFrensTurtleAPI(base(), '/api/turtle-connect/challenge', {code:remoteCode, address})
+        : await post('/api/wallet-link/challenge', { address });
       linkStatus.textContent = 'Review the read-only message in your wallet and sign it.';
       const signature = await window.ethereum.request({
         method: 'personal_sign', params: [challenge.message, address],
       });
+      if (remoteCode) {
+        await window.TinyFrensTurtleAPI(base(), '/api/turtle-connect/confirm', {code:remoteCode, challengeId:challenge.challengeId, signature});
+        linkStatus.textContent = 'Wallet verified. Return to your other device and accept the wallet link.';
+        return;
+      }
       const result = await post('/api/wallet-link/confirm', { signature });
       showLink(result.addresses || [result.address]);
       linkStatus.textContent = 'Wallet linked. You will not need to sign again for read-only NFT checks.';
@@ -190,7 +215,7 @@
       const data = await post('/api/turtle-connect/status', {code:current.code});
       if (pairing !== current) return;
       accept.hidden = !data.verified;
-      pairingStatus.textContent = data.verified ? `Bankr verified ${data.wallet}. Accept only if this is your wallet.` : 'Waiting for Bankr…';
+      pairingStatus.textContent = data.verified ? `Ready to link ${data.wallet}. Accept only if this is your wallet.` : 'Waiting for a wallet signature, Bankr, or approval from your connected device…';
     } catch (error) { if (pairing === current) { accept.hidden = true; pairingStatus.textContent = error.message; } }
     finally { polling = false; if (pairing && !document.hidden) timer = setTimeout(pollPairing, 4000); }
   }
@@ -200,6 +225,10 @@
     try {
       pairing = await post('/api/turtle-connect/start');
       const code = pairing.code.match(/.{1,4}/g).join('-');
+      document.getElementById('deviceConnectCode').textContent = `This device’s connect code: ${code}. You can approve it from another connected TinyFrens device.`;
+      const browserLink = document.getElementById('connectInBrowser');
+      browserLink.href = 'https://www.tinyfrens.lol/web/#connect-device=' + encodeURIComponent(pairing.code);
+      browserLink.hidden = Boolean(window.ethereum?.request);
       prompt.value = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${code}. Keep my NFTs in my wallet.`;
       copy.disabled = false; await pollPairing();
     } catch (error) { pairingStatus.textContent = error.message; }
@@ -211,6 +240,19 @@
     catch { prompt.focus(); prompt.select(); pairingStatus.textContent = 'Select and copy the message above.'; }
   };
   renew.onclick = startPairing;
+  const otherCode = document.getElementById('otherDeviceCode');
+  otherCode.value = new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
+  document.getElementById('approveOtherDevice').onclick = async event => {
+    const button = event.currentTarget; button.disabled = true;
+    const status = document.getElementById('otherDeviceStatus');
+    try {
+      const code = otherCode.value.replace(/[-\s]/g, '').toUpperCase();
+      if (!/^[A-HJ-NP-Z2-9]{12}$/.test(code)) throw new Error('Enter the 12-character code from your other device.');
+      await post('/api/turtle-connect/from-device', {code, address:document.getElementById('deviceWallet').value});
+      status.textContent = 'Approved. Accept the wallet link on your other device.';
+    } catch (error) { status.textContent = error.message; }
+    finally { button.disabled = false; }
+  };
   manager.addEventListener('toggle', () => { if (manager.open && !pairing && !renew.disabled) { try { identity(); startPairing(); } catch {} } });
   accept.onclick = async () => {
     if (!pairing) return;
@@ -226,17 +268,17 @@
     finally { accept.disabled = false; }
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollPairing(); });
-  let attempts = 0;
+  let loading = false;
   showLink([]);
   async function initialLoad() {
+    if (loading) return;
+    loading = true;
     try { await loadLink(); if (manager.open && !pairing && !renew.disabled) await startPairing(); }
     catch (error) {
-      if (++attempts < 8 && !window.TinyFrensFriends?.identity?.()?.token) {
-        setTimeout(initialLoad, 1000);
-      } else {
-        linkStatus.textContent = error.message;
-      }
-    }
+      linkStatus.textContent = error.message;
+    } finally { loading = false; }
   }
+  window.addEventListener('tinyfrens-identity-ready', initialLoad);
+  window.addEventListener('online', initialLoad);
   initialLoad();
 })();
