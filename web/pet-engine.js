@@ -21,7 +21,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 3;
+  var VERSION = 4;
   var MINUTE = 60000, HOUR = 3600000, DAY = 86400000;
 
   var SHAPES = ['cat', 'blob', 'robot', 'bunny', 'duck', 'pig', 'frog', 'turtle'];
@@ -59,21 +59,29 @@
     lost: { base: 0.0005, perExposureHour: 0.01, max: 0.2, recoverPerHour: 0.5, adventureWeight: 1.5,
       away: [1 * HOUR, 4 * HOUR], returnEnergy: 10 },
     nagEvery: 60 * MINUTE,    // pester again while a need is unresolved
-    maxCatchUpDays: 30
+    maxCatchUpDays: 30,
+    // Tamagotchi-faithful additions (see docs/tamagotchi-robots.md). Additive: the defaults
+    // below leave existing shapes/pets with unchanged behaviour.
+    weight: { start: 30, feed: 4, play: 3, adventurePerHour: 1, over: 70, under: 10, max: 100 },
+    discipline: { start: 50, scoldRight: 12, scoldWrong: 8, misbehaveEvery: [4 * HOUR, 9 * HOUR], low: 25 },
+    mistakes: { window: 45 * MINUTE, care: ['hungry', 'sleepy', 'bored', 'sad', 'dirty'], downAt: 12 },
+    downed: { reviveFloor: 50 }
   };
 
   var NEEDS = {
     lost:    { icon: '❔', label: 'Lost',   fix: 'Wait',     line: ' wandered off… they will find their way home.' },
+    downed:  { icon: '🪫', label: 'Downed', fix: 'Revive',   line: ' has run down. Revive them!' },
     sick:    { icon: '🤒', label: 'Sick',   fix: 'Vitamin',  line: ' feels sick. A vitamin would help.' },
     hungry:  { icon: '🍓', label: 'Hungry', fix: 'Feed',     line: ' is hungry!' },
     sleepy:  { icon: '💤', label: 'Sleepy', fix: 'Rest',     line: ' is sleepy. Time to rest.' },
     dirty:   { icon: '💩', label: 'Dirty',  fix: 'Clean',    line: ' made a mess. Please clean up!' },
     bored:   { icon: '🎾', label: 'Bored',  fix: 'Play',     line: ' is bored. Play with me!' },
-    sad:     { icon: '💧', label: 'Sad',    fix: 'Play',     line: ' feels sad.' }
+    sad:     { icon: '💧', label: 'Sad',    fix: 'Play',     line: ' feels sad.' },
+    misbehave: { icon: '😤', label: 'Misbehaving', fix: 'Scold', line: ' is acting up. Scold them!' }
   };
-  var NEED_ORDER = ['lost', 'sick', 'hungry', 'sleepy', 'dirty', 'bored', 'sad'];
+  var NEED_ORDER = ['lost', 'downed', 'sick', 'hungry', 'sleepy', 'dirty', 'bored', 'sad', 'misbehave'];
 
-  var ANIMATION = { feed: 'eat', play: 'dance', rest: 'sleep', wave: 'wave', dance: 'dance', pet: 'happy', clean: 'happy', vitamin: 'eat', adventure: 'wave', toy: 'dance' };
+  var ANIMATION = { feed: 'eat', play: 'dance', rest: 'sleep', wave: 'wave', dance: 'dance', pet: 'happy', clean: 'happy', vitamin: 'eat', adventure: 'wave', toy: 'dance', scold: 'wave', revive: 'happy' };
 
   // ---- Helpers --------------------------------------------------------------
   function num(value, low, high, fallback) {
@@ -112,7 +120,7 @@
 
   // Fields owned by the engine. Anything else that is a primitive (e.g. wallet tokenId,
   // sound preference) is passed through untouched so platforms can add settings.
-  var DERIVED = { needs: 1, need: 1, mood: 1, moodTier: 1, stage: 1, stageName: 1, feedback: 1, blocked: 1, animation: 1, events: 1, food: 1, joy: 1, day: 1, visible: 1, autoUpdate: 1, frameless: 1 };
+  var DERIVED = { needs: 1, need: 1, mood: 1, moodTier: 1, stage: 1, stageName: 1, feedback: 1, blocked: 1, animation: 1, events: 1, food: 1, joy: 1, day: 1, visible: 1, autoUpdate: 1, frameless: 1, hearts: 1 };
 
   function normalize(raw, now) {
     now = now || Date.now();
@@ -154,6 +162,13 @@
     s.nextPoopAt = num(raw.nextPoopAt, 0, Infinity, 0) || now + RULES.poopEvery[0];
     s.sickExposure = num(raw.sickExposure, 0, 1000, 0);
     s.lostExposure = num(raw.lostExposure, 0, 1000, 0);
+    s.weight = num(raw.weight, 0, RULES.weight.max, RULES.weight.start);
+    s.discipline = num(raw.discipline, 0, 100, RULES.discipline.start);
+    s.mistakes = Math.floor(num(raw.mistakes, 0, 9999, 0));
+    s.misbehaving = raw.misbehaving === true;
+    s.downed = raw.downed === true;
+    s.neglectSince = num(raw.neglectSince, 0, Infinity, 0);
+    s.nextMisbehaveAt = num(raw.nextMisbehaveAt, 0, Infinity, 0) || now + RULES.discipline.misbehaveEvery[0];
     s.action = typeof raw.action === 'string' ? raw.action : 'idle';
     s.actionUntil = num(raw.actionUntil, 0, Infinity, 0);
     s.nagged = parseMap(raw.nagged);
@@ -168,17 +183,25 @@
   function activeNeeds(s) {
     var t = RULES.threshold, on = {
       lost: s.activity === 'lost',
+      downed: s.downed === true,
       sick: s.sick,
       hungry: lvl(s.hunger) <= t,
       sleepy: lvl(s.energy) <= t && s.activity !== 'resting',
       dirty: s.poops > 0,
       bored: s.bored,
-      sad: lvl(s.happiness) <= t
+      sad: lvl(s.happiness) <= t,
+      misbehave: s.misbehaving === true
     };
     if (on.lost) return ['lost'];
+    if (on.downed) return ['downed'];
     return NEED_ORDER.filter(function (n) { return on[n]; });
   }
   function moodTier(s) { var j = lvl(s.happiness); return j <= RULES.threshold ? 'sad' : j >= RULES.happy ? 'happy' : 'okay'; }
+  // Four hearts per stat: 0 -> 0, 1..25 -> 1, up to 100 -> 4.
+  function hearts(v) { return Math.max(0, Math.min(4, Math.ceil(lvl(v) / 25))); }
+  function weightTier(s) {
+    return s.weight > RULES.weight.over ? 'heavy' : s.weight < RULES.weight.under ? 'light' : 'healthy';
+  }
 
   // ---- Time -----------------------------------------------------------------
   function step(s, start, dtMin, rand) {
@@ -192,9 +215,11 @@
       }
       return clampStats(s);
     }
+    // A downed fren is stalled until revived: time passes, but nothing decays further.
+    if (s.downed) return clampStats(s);
     var foodLoss = d.food, joyLoss = d.joy, energyLoss = d.energy;
     if (s.activity === 'resting') { foodLoss *= r.restFoodFactor; energyLoss = -r.restPerHour; }
-    if (s.activity === 'adventuring') { foodLoss += r.adventurePerHour.food; energyLoss += r.adventurePerHour.energy; joyLoss += r.adventurePerHour.joy; }
+    if (s.activity === 'adventuring') { foodLoss += r.adventurePerHour.food; energyLoss += r.adventurePerHour.energy; joyLoss += r.adventurePerHour.joy; s.weight -= r.weight.adventurePerHour * h; }
     if (s.sick) joyLoss += r.sickJoyPerHour;
     joyLoss += s.poops * r.dirtyJoyPerHour;
     s.hunger -= foodLoss * h; s.happiness -= joyLoss * h; s.energy -= energyLoss * h;
@@ -210,11 +235,25 @@
     if (at >= s.nextPoopAt && s.activity !== 'adventuring' && lvl(s.hunger) >= r.threshold) {
       s.poops = Math.min(r.maxPoops, s.poops + 1); s.nextPoopAt = at + between(rand, r.poopEvery);
     }
+    if (!s.misbehaving && at >= s.nextMisbehaveAt && s.activity === 'idle' && lvl(s.energy) >= r.threshold) {
+      s.misbehaving = true; s.nextMisbehaveAt = at + between(rand, r.discipline.misbehaveEvery);
+    }
+
+    // Care mistakes: a care need left unmet past the window counts once per window.
+    var care = activeNeeds(s), unmet = 0, j;
+    for (j = 0; j < care.length; j++) if (r.mistakes.care.indexOf(care[j]) >= 0) unmet++;
+    if (unmet) {
+      if (!s.neglectSince) s.neglectSince = at;
+      else if (at - s.neglectSince >= r.mistakes.window) { s.mistakes++; s.neglectSince = at; }
+    } else s.neglectSince = 0;
 
     // Sickness: always possible; time spent neglected raises the odds.
     var needs = activeNeeds(s), neglect = 0, i;
     for (i = 0; i < needs.length; i++) if (needs[i] === 'hungry' || needs[i] === 'sleepy' || needs[i] === 'bored' || needs[i] === 'sad' || needs[i] === 'dirty') neglect++;
     s.sickExposure = neglect ? s.sickExposure + neglect * h : Math.max(0, s.sickExposure - r.sick.recoverPerHour * h);
+    // Out-of-band weight and low discipline make illness likelier (neutral at the defaults).
+    if (s.weight > r.weight.over || s.weight < r.weight.under) s.sickExposure += h;
+    if (s.discipline < r.discipline.low) s.sickExposure += h;
     if (!s.sick && rand() < Math.min(r.sick.max, r.sick.base + r.sick.perExposureHour * s.sickExposure) * h) {
       s.sick = true; s.sickExposure = 0;
     }
@@ -235,6 +274,11 @@
     s.lostExposure = exposure ? s.lostExposure + exposure * h : Math.max(0, s.lostExposure - r.lost.recoverPerHour * h);
     if (s.activity !== 'resting' && rand() < Math.min(r.lost.max, r.lost.base + r.lost.perExposureHour * s.lostExposure) * h) {
       s.activity = 'lost'; s.lostUntil = at + between(rand, r.lost.away); s.bored = false;
+    }
+    // Too many unmet needs run a fren down. No permadeath: revive brings them back (P4 adds the cost).
+    if (!s.downed && s.mistakes >= r.mistakes.downAt) {
+      s.downed = true; s.misbehaving = false; s.bored = false;
+      s.hunger = 0; s.happiness = 0; s.energy = 0;
     }
     return s;
   }
@@ -283,6 +327,8 @@
   function blockedReason(s, name) {
     var r = RULES, who = s.name || 'Your fren';
     if (s.activity === 'lost' && name !== 'wave') return who + ' is lost. They will come home soon.';
+    if (s.downed && name !== 'revive' && name !== 'wave' && name !== 'dance' && name !== 'toy') return who + ' has run down. Revive them!';
+    if (name === 'revive' && !s.downed) return who + ' does not need reviving.';
     if (name === 'feed') {
       if (s.activity === 'resting') return 'Shh… ' + who + ' is sleeping.';
       if (lvl(s.hunger) >= 100) return 'Already full.';
@@ -311,19 +357,19 @@
 
   /** Apply a care action. Returns { state, blocked, feedback, animation }. */
   function act(raw, name, now, rand) {
-    now = now || Date.now();
+    now = now || Date.now(); rand = rand || Math.random;
     var s = advance(raw, now, rand), r = RULES;
     var blocked = blockedReason(s, name);
     if (blocked) return { state: s, blocked: true, feedback: blocked, animation: '' };
     var before = copy(s), feedback = '';
     function add(k, n) { s[k] = round(Math.max(0, Math.min(100, s[k] + n))); }
     function gain(k) { return lvl(s[k]) - lvl(before[k]); }
-    if (name === 'feed') { add('hunger', r.feed); feedback = 'Food +' + gain('hunger'); }
+    if (name === 'feed') { add('hunger', r.feed); add('weight', r.weight.feed); feedback = 'Food +' + gain('hunger'); }
 else if (name === 'play') {
       add('happiness', r.play.joy);
       if (s.bored) { s.bored = false; if (s.happiness < r.happy) s.happiness = r.happy; }
       else if (lvl(s.happiness) <= r.threshold) s.happiness = r.threshold + 1; // a good play session always cheers a sad fren out of the sad band
-      add('energy', -r.play.energy); add('hunger', -r.play.food);
+      add('energy', -r.play.energy); add('hunger', -r.play.food); add('weight', -r.weight.play);
       feedback = 'Joy +' + gain('happiness') + ' · Energy −' + r.play.energy + ' · Food −' + r.play.food;
     }
     else if (name === 'rest') {
@@ -337,6 +383,17 @@ else if (name === 'play') {
     else if (name === 'clean') { s.poops = 0; add('happiness', r.clean); feedback = 'Squeaky clean!'; }
     else if (name === 'vitamin') { s.sick = false; s.sickExposure = 0; s.sickHealUntil = 0; feedback = 'Feeling better!'; }
     else if (name === 'pet') { add('happiness', r.pet); feedback = 'Joy +' + gain('happiness'); }
+    else if (name === 'scold') {
+      if (s.misbehaving) { s.misbehaving = false; add('discipline', r.discipline.scoldRight); feedback = 'Scolded. Discipline +' + gain('discipline'); }
+      else { s.discipline = round(Math.max(0, s.discipline - r.discipline.scoldWrong)); feedback = (s.name || 'Your fren') + ' did nothing wrong. Discipline −' + r.discipline.scoldWrong; }
+      s.nextMisbehaveAt = now + between(rand, r.discipline.misbehaveEvery);
+    }
+    else if (name === 'revive') {
+      s.downed = false; s.mistakes = 0; s.neglectSince = 0;
+      s.hunger = r.downed.reviveFloor; s.happiness = r.downed.reviveFloor; s.energy = r.downed.reviveFloor;
+      s.sick = false; s.sickHealUntil = 0; s.poops = 0; s.bored = false; s.misbehaving = false;
+      feedback = (s.name || 'Your fren') + ' is up again!';
+    }
     var animation = ANIMATION[name] || 'idle';
     if (name === 'rest' && s.activity !== 'resting') animation = 'idle';
     s.action = animation;
@@ -391,6 +448,9 @@ else if (name === 'play') {
     var v = save(s), needs = activeNeeds(s), who = s.name || 'Your fren', age = Math.max(0, now - s.born);
     v.hunger = lvl(s.hunger); v.happiness = lvl(s.happiness); v.energy = lvl(s.energy);
     v.food = v.hunger; v.joy = v.happiness;
+    v.weight = lvl(s.weight); v.discipline = lvl(s.discipline); v.mistakes = s.mistakes;
+    v.weightTier = weightTier(s);
+    v.hearts = { hunger: hearts(s.hunger), happiness: hearts(s.happiness) };
     v.needs = needs.join(',');
     v.need = needs[0] || '';
     v.moodTier = moodTier(s);
@@ -431,6 +491,6 @@ else if (name === 'play') {
     VERSION: VERSION, RULES: RULES, NEEDS: NEEDS, NEED_ORDER: NEED_ORDER, SHAPES: SHAPES, NAMES: NAMES, STAGES: STAGES, ANIMATION: ANIMATION,
     cleanName: cleanName, randomName: randomName, normalShape: normalShape,
     normalize: normalize, advance: advance, act: act, rename: rename, customize: customize, setMode: setMode,
-    activeNeeds: activeNeeds, moodTier: moodTier, takeNotifications: takeNotifications, save: save, view: view, bridge: bridge
+    activeNeeds: activeNeeds, moodTier: moodTier, hearts: hearts, weightTier: weightTier, takeNotifications: takeNotifications, save: save, view: view, bridge: bridge
   };
 });

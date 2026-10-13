@@ -56,7 +56,8 @@ function render(s){
   $('stageText').textContent=s.stageName||['Hatchling','Sprout','Elder'][stage]||'Hatchling';
   for(const k of ['hunger','happiness','energy']){const value=Math.round(Number(s[k])||0);$(k).value=value;$(k+'Text').textContent=value;}
   const needActions=[];if(Number(s.poops)>0)needActions.push('clean');if(s.sick)needActions.push('vitamin');
-  for(const a of ['clean','vitamin'])$(a).hidden=!needActions.includes(a);
+  if(s.misbehaving)needActions.push('scold');if(s.downed)needActions.push('revive');
+  for(const a of ['clean','vitamin','scold','revive'])$(a).hidden=!needActions.includes(a);
   $('needsActions').hidden=needActions.length===0;
   const who=s.name||'Your fren';
   $('petName').textContent=who;
@@ -70,7 +71,7 @@ function render(s){
   $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
 }
-for(const a of ['feed','play','rest','clean','vitamin'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation=s.animation||{feed:'eat',play:'dance',rest:'sleep',clean:'happy',vitamin:'eat'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});
+for(const a of ['feed','play','rest','clean','vitamin','scold','revive'])$(a).addEventListener('click',()=>{const s=action(a);render(s);if(!s.blocked){const animation=s.animation||{feed:'eat',play:'dance',rest:'sleep',clean:'happy',vitamin:'eat',scold:'wave',revive:'happy'}[a];window.animatePet?.(animation);window.tinyFrensEffects?.respond(animation);}});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
   let s;if(desktop)s=JSON.parse(desktop.setMode(b.dataset.mode));
   else if(native)s=JSON.parse(PetAndroid.setMode(b.dataset.mode));
