@@ -78,9 +78,23 @@ const api = context.window.TinyFrensRobotCare;
   assert.equal(calls[2].path, '/api/robots/game');
   assert.equal(body(2), JSON.stringify({token: 'device', tokenId: 12, game: 'snack-catch'}));
 
+  // A rejected or unconfirmed paid action must never reach local care mutation.
+  store.set('tinyfrens-companions', JSON.stringify([ROBOT]));
+  context.window.confirm = () => true;
+  context.window.TinyFrensTurtleAPI = async (base,path) => path.endsWith('/action')
+    ? {allowed:false,requiresPayment:true,priceFrens:1000}
+    : {allowance:{remaining:0},prices:{feed:1000}};
+  assert.equal(await api.before('feed'), false, 'insufficient balance blocks local action');
+  context.window.confirm = () => false;
+  assert.equal(await api.before('feed'), false, 'cancelled charge blocks local action');
+  context.window.TinyFrensTurtleAPI = async (base,path) => path.endsWith('/action')
+    ? {allowed:true,free:true} : {allowance:{remaining:1},prices:{feed:1000}};
+  assert.equal(await api.before('feed'), true, 'server-authorized free care proceeds');
+
   // ---- offline / unauthenticated never blocks ----
   context.window.TinyFrensTurtleAPI = async () => { throw new Error('relay down'); };
   assert.equal((await api.act('feed', ROBOT)).offline, true);
+  assert.equal(await api.before('feed'), false, 'robot actions pause offline');
   assert.equal(await api.game('snack-catch', ROBOT), null);
   context.window.TinyFrensFriends = {identity: () => null};
   store.delete('tinyfrens-device:https://relay.test');

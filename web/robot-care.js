@@ -4,7 +4,7 @@
  * money (docs/tamagotchi-robots.md §6.1). This module is the web client for that
  * server contract: it finds which Robots v1 the player is caring for, shows the
  * FRENS balance and today's free allowance, reports care actions, and collects the
- * game earn-back. It never simulates care and never blocks offline play.
+ * game earn-back. It gates robot care on server approval; other collections keep their local loop.
  *
  * Endpoints (robots-only, device-token auth, fresh on-chain ownerOf server-side):
  *   POST /api/robots/care        {tokenId}          -> {allowance, prices, actions, balance, creditsPerFrens}
@@ -35,7 +35,7 @@
   function robots() {
     let saved = [];
     try { saved = JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]'); } catch { saved = []; }
-    return (Array.isArray(saved) ? saved : []).filter(isRobot);
+    return (Array.isArray(saved) ? saved : []).filter(n => isRobot(n) && n.active !== false);
   }
 
   // The robot the care screen is driving: the remembered choice, else the only one.
@@ -150,7 +150,7 @@
   }
 
   async function refresh(nft) {
-    mount();
+    mount(); updatePicker();
     const pet = nft || active();
     if (!pet) { if (strip) strip.textContent = ''; return; }
     try {
@@ -175,6 +175,57 @@
     if (state) window.dispatchEvent(new CustomEvent('tinyfrens-robot-care', {detail: {action, result}}));
   }
 
+  // Robot care requires a confirmed server allowance before local mutation.
+  // Offline robots pause actions; other collections retain their existing loop.
+  async function before(action) {
+    const pet = active();
+    if (!pet) return true;
+    try {
+      const data = await status(pet);
+      if (!data) { show('Connect your account before caring for this robot.'); return false; }
+      const price = Number(data.prices?.[action] || 0);
+      if (data.allowance?.remaining === 0 && price > 0 &&
+          !window.confirm(`Use ${price.toLocaleString('en-US')} FRENS for ${action}?`)) return false;
+      const result = await act(action, pet);
+      if (result.offline) { show('Connect to the internet before using robot care. Refresh your balance before retrying.'); return false; }
+      if (result.allowed !== true) { show(describe(result)); await showDeposit(data); return false; }
+      show(describe(result)); return true;
+    } catch { show('Robot care is temporarily unavailable. Please retry when connected.'); return false; }
+  }
+  let picker, depositPanel;
+  function mountPicker() {
+    const care = document.getElementById('screen-care');
+    if (!care || picker) return;
+    const label = document.createElement('label'); label.textContent = 'Care for';
+    picker = document.createElement('select'); picker.id = 'careRobotPicker'; label.htmlFor = picker.id;
+    picker.onchange = () => { const pet = robots().find(n => key(n) === picker.value); if (pet) { setActive(pet); refresh(pet); } };
+    const row = document.createElement('div'); row.className = 'care-robot-picker'; row.append(label,picker); care.prepend(row);
+  }
+  function updatePicker() {
+    mountPicker(); if (!picker) return;
+    const all = robots(); picker.replaceChildren();
+    for (const pet of all) { const option = document.createElement('option'); option.value = key(pet); option.textContent = pet.name || 'Robot #' + pet.tokenId; picker.append(option); }
+    picker.value = active() ? key(active()) : ''; picker.parentElement.hidden = all.length < 2;
+  }
+  async function showDeposit(data) {
+    const care = document.getElementById('screen-care'); if (!care) return;
+    if (!depositPanel) { depositPanel = document.createElement('section'); depositPanel.className = 'care-deposit'; care.append(depositPanel); }
+    depositPanel.replaceChildren();
+    const title = document.createElement('h3'); title.textContent = 'Add FRENS';
+    const text = document.createElement('p');
+    if (!data.deposit?.enabled || !/^0x[a-fA-F0-9]{40}$/.test(data.deposit.address || '')) text.textContent = 'FRENS deposits are not open yet. Your free care allowance renews daily.';
+    else {
+      text.textContent = 'Send FRENS on Base from a wallet linked to this account. ETH and other tokens will not add to your FRENS balance.';
+      const address = document.createElement('p'); address.textContent = data.deposit.address; address.className = 'deposit-address';
+      address.tabIndex = 0; address.setAttribute('role','button'); address.setAttribute('aria-label','Copy FRENS deposit address');
+      const copy = async () => { try { await navigator.clipboard.writeText(data.deposit.address); show('Deposit address copied.'); } catch { show('Select and copy the deposit address.'); } };
+      address.onclick = copy; address.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } };
+      const token = document.createElement('a'); token.textContent = 'FRENS token on Base ↗'; token.href = 'https://basescan.org/token/' + data.deposit.token; token.target = '_blank'; token.rel = 'noopener noreferrer';
+      depositPanel.append(address,token);
+    }
+    depositPanel.prepend(title,text);
+  }
+
   // ---- wiring -------------------------------------------------------------
 
   window.addEventListener('tinyfrens-wallet-link-changed', () => refresh());
@@ -192,7 +243,7 @@
 
   window.TinyFrensRobotCare = {
     ROBOTS, key, isRobot, robots, active, setActive,
-    status, act, game, balance, after, refresh, describe,
+    status, act, game, balance, before, after, refresh, describe,
     fmtFrens, frensLabel, formatNumber,
   };
 })();
