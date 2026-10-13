@@ -4,26 +4,22 @@
   // Navigation later normalizes the hash to #pet; retain the incoming pairing code.
   const remoteDeviceCode = new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
   target.innerHTML = `
-    <details id="walletManager" class="wallet-manager" open><summary>Connect your wallet</summary>
+    <details id="walletManager" class="wallet-manager" open><summary>Add wallets</summary>
     <section class="overlay wallet-link-panel" style="margin-top:0;">
-      <h3>Connect your wallet</h3>
-      <p class="small">Use your wallet directly, or copy the message below and send it to Bankr. Your NFTs stay in your wallet.</p>
+      <h3>Bring in your NFTs</h3>
+      <p class="small">Bankr can connect the wallet you already use. Nothing moves and there is no gas.</p>
       <div id="linkedWallet" class="wallet-link-address"></div>
-      <div class="actions">
-        <button type="button" id="linkWallet">Connect wallet manually</button>
-
-      </div>
-      <p id="walletLinkStatus" role="status"></p>
-      <p id="deviceConnectCode" class="small"></p>
-      <a id="connectInBrowser" hidden target="_blank" rel="noopener noreferrer">Connect using your browser</a>
       <div class="bankr-connect">
-        <h4>Connect with Bankr</h4>
-        <p class="small">Send this to @bankrbot on X or in Bankr chat, then accept the wallet link here.</p>
-        <label for="bankrWalletPrompt">Your Bankr message</label>
+        <h4>1. Send this to Bankr</h4>
+        <p class="small">Paste it to @bankrbot on X or in Bankr chat, then return here to approve.</p>
+        <label for="bankrWalletPrompt">Ready-to-send message</label>
         <textarea id="bankrWalletPrompt" readonly rows="5" placeholder="Preparing your device code…"></textarea>
-        <div class="actions"><button type="button" id="copyBankrWalletPrompt" disabled>Copy Bankr message</button><button type="button" id="renewWalletPairing" class="secondary">New code</button><button type="button" id="acceptWalletPairing" hidden>Accept wallet link</button></div>
+        <div class="actions"><button type="button" id="copyBankrWalletPrompt" disabled>Copy for Bankr</button><button type="button" id="acceptWalletPairing" hidden>Approve wallet</button></div>
         <p id="walletPairingStatus" role="status"></p>
+        <button type="button" id="renewWalletPairing" class="text-button">Make a new code</button>
       </div>
+      <details class="manual-wallet"><summary>Connect a wallet manually</summary><p class="small">Sign one read-only message with a browser wallet.</p><button type="button" id="linkWallet">Connect wallet</button><a id="connectInBrowser" hidden target="_blank" rel="noopener noreferrer">Open in a wallet browser</a></details>
+      <p id="walletLinkStatus" role="status"></p><p id="deviceConnectCode" class="small"></p>
     </section></details>
     <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
       <h3>Your supported NFTs</h3>
@@ -60,7 +56,7 @@
     linkedAddresses = addresses;
     const approvingDevice = Boolean(remoteDeviceCode);
     manager.open = !addresses.length || approvingDevice;
-    manager.querySelector('summary').textContent = addresses.length ? `Manage wallets (${addresses.length}) · Add another` : 'Connect your wallet';
+    manager.querySelector('summary').textContent = addresses.length ? `Wallets (${addresses.length}) · Add another` : 'Add wallets';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
     if (!addresses.length) linkedWallet.textContent = 'No wallets linked yet.';

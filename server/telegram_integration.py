@@ -7,9 +7,8 @@ iframe, which injects ``window.Telegram.WebApp``. The interesting parts live her
   launch data (Bot API). Passing this check means we can trust the ``user``.
 * ``user_profile`` turns a Telegram user into a TinyFren pet profile so a returning
   user keeps the same fren.
-* ``bot_api`` / ``classify`` / ``reply_markup`` are tiny Bot API conveniences used
-  by the webhook route to send an inline ``web_app`` keyboard button that opens the
-  Mini App inside a chat/group (this is what makes a chat a shared "party room").
+* ``bot_api`` / ``classify`` / ``reply_markup`` cover JSON and media messages.
+  Private chats use a ``web_app`` button; groups use a normal Mini App deep link.
 
 Docs: https://core.telegram.org/bots/webapps  ·  https://core.telegram.org/bots/api
 """
@@ -20,7 +19,7 @@ import re
 import time
 from urllib.parse import unquote
 
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, FormData
 
 TG_API = 'https://api.telegram.org'
 
@@ -108,18 +107,38 @@ def user_profile(user):
     }
 
 
-async def bot_api(method, payload, token):
+async def bot_api(method, payload, token, files=None):
     """Call a Telegram Bot API method. Returns (data, http_status)."""
     url = TG_API + '/bot' + token + '/' + method
     timeout = ClientTimeout(total=15)
+    body = payload
+    if files:
+        body = FormData()
+        for key, value in payload.items():
+            body.add_field(key, json.dumps(value) if isinstance(value, (dict, list)) else str(value))
+        for key, value in files.items():
+            body.add_field(key, value, filename=key + '.gif', content_type='image/gif')
     async with ClientSession(timeout=timeout) as session:
-        async with session.post(url, json=payload) as response:
+        async with session.post(url, data=body if files else None, json=None if files else body) as response:
             return await response.json(content_type=None), response.status
 
 
-def reply_markup(url, text='🐾 Open your fren'):
-    """Inline keyboard with a single ``web_app`` button that opens the Mini App."""
-    return {'inline_keyboard': [[{'text': text, 'web_app': {'url': url}}]]}
+def reply_markup(url, text='🐾 Open TinyFrens', private=True):
+    """Open the Mini App in DMs; use a normal deep link where web_app is invalid."""
+    button = {'text': text, 'web_app': {'url': url}} if private else {'text': text, 'url': url}
+    return {'inline_keyboard': [[button]]}
+
+
+def link_code(update):
+    """Read a 12-character account-sync code from a private /link command."""
+    message = update.get('message') if isinstance(update, dict) else None
+    if not isinstance(message, dict) or (message.get('chat') or {}).get('type') != 'private':
+        return None
+    match = re.fullmatch(r'/link(?:@\w+)?\s+([A-HJ-NP-Z2-9 -]{12,16})\s*', str(message.get('text') or ''), re.I)
+    if not match:
+        return None
+    code = re.sub(r'[-\s]', '', match.group(1)).upper()
+    return code if len(code) == 12 else None
 
 
 def classify(update):

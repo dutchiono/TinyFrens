@@ -14,6 +14,35 @@ COLLECTIONS = {
 }
 
 
+def ensure_account(db, pid):
+    """Return the shared account for a device, creating its solo account once."""
+    row = db.execute('SELECT account FROM device_sync_members WHERE device=?', (pid,)).fetchone()
+    if row:
+        return row[0]
+    aid = secrets.token_urlsafe(24)
+    with db:
+        db.execute('INSERT INTO device_sync_members VALUES(?,?)', (pid, aid))
+        db.execute('INSERT INTO device_sync_accounts VALUES(?,0,?)', (aid, '[]'))
+    return aid
+
+
+def request_sync(db, pid, raw_code, label='Telegram Mini App'):
+    """Create the same approval request as /device-sync/request for a trusted adapter."""
+    code = str(raw_code).replace('-', '').replace(' ', '').upper()
+    row = db.execute('SELECT device,expires,requester FROM device_sync_codes WHERE code=?', (code,)).fetchone()
+    if not row or row[1] <= time.time():
+        raise ValueError('Code expired or not found. Create a new code.')
+    if ensure_account(db, pid) == ensure_account(db, row[0]):
+        raise ValueError('Telegram is already linked to this TinyFrens account')
+    if row[2]:
+        raise ValueError('This code already has a request. Create a new code.')
+    rid = secrets.token_urlsafe(24)
+    with db:
+        db.execute('UPDATE device_sync_codes SET requester=?,request_id=?,label=? WHERE code=?',
+                   (pid, rid, str(label)[:40], code))
+    return {'waiting': True, 'requestId': rid}
+
+
 def selection(value):
     if not isinstance(value, list) or len(value) > 5:
         raise ValueError('Choose up to five companions')
@@ -42,18 +71,8 @@ def install(app, db, token_pet, limit):
             requester TEXT, request_id TEXT, label TEXT);
     ''')
 
-    def account(pid):
-        row = db.execute('SELECT account FROM device_sync_members WHERE device=?', (pid,)).fetchone()
-        if row:
-            return row[0]
-        aid = secrets.token_urlsafe(24)
-        with db:
-            db.execute('INSERT INTO device_sync_members VALUES(?,?)', (pid, aid))
-            db.execute('INSERT INTO device_sync_accounts VALUES(?,0,?)', (aid, '[]'))
-        return aid
-
     def snapshot(pid):
-        aid = account(pid)
+        aid = ensure_account(db, pid)
         revision, items = db.execute('SELECT revision,selection FROM device_sync_accounts WHERE account=?', (aid,)).fetchone()
         return {'account': aid, 'revision': revision, 'selection': json.loads(items), 'devices': len(wallet_devices(db, pid)), 'addresses': linked_wallets(db, pid)}
 
@@ -65,7 +84,7 @@ def install(app, db, token_pet, limit):
         return code, row
 
     async def state(pid, body):
-        aid = account(pid)
+        aid = ensure_account(db, pid)
         if 'selection' in body:
             items = selection(body['selection'])
             with db:
@@ -76,7 +95,7 @@ def install(app, db, token_pet, limit):
         return snapshot(pid)
 
     async def start(pid, body):
-        account(pid)
+        ensure_account(db, pid)
         code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(12))
         expires = time.time() + 600
         with db:
@@ -86,15 +105,7 @@ def install(app, db, token_pet, limit):
 
     async def request(pid, body):
         code, row = code_row(body.get('code'))
-        if account(pid) == account(row[0]):
-            raise ValueError('These devices are already synced')
-        if row[2]:
-            raise ValueError('This code already has a request. Create a new code.')
-        rid = secrets.token_urlsafe(24)
-        label = str(body.get('label', 'TinyFrens device'))[:40]
-        with db:
-            db.execute('UPDATE device_sync_codes SET requester=?,request_id=?,label=? WHERE code=?', (pid, rid, label, code))
-        return {'waiting': True, 'requestId': rid}
+        return request_sync(db, pid, code, body.get('label', 'TinyFrens device'))
 
     async def status(pid, body):
         code, row = code_row(body.get('code'))
@@ -106,12 +117,14 @@ def install(app, db, token_pet, limit):
         code, row = code_row(body.get('code'))
         if row[0] != pid or not row[2] or row[3] != body.get('requestId'):
             raise ValueError('This device has no matching request to approve')
-        source, target = account(pid), account(row[2])
+        source, target = ensure_account(db, pid), ensure_account(db, row[2])
         members = list(dict.fromkeys(wallet_devices(db, pid) + wallet_devices(db, row[2])))
         addresses = list(dict.fromkeys(a for device in members for a in linked_wallets(db, device)))
         if len(members) > 20 or len({a.lower() for a in addresses}) > 10:
             raise ValueError('Sync supports up to 20 devices and 10 wallets')
         with db:
+            from account_profile import merge_accounts
+            merge_accounts(db, source, target)
             db.execute('UPDATE device_sync_members SET account=? WHERE account=?', (source, target))
             db.execute('DELETE FROM device_sync_accounts WHERE account=?', (target,))
             for device in members:
@@ -129,7 +142,7 @@ def install(app, db, token_pet, limit):
         with db:
             db.execute('DELETE FROM device_sync_members WHERE device=?', (pid,))
             db.execute('DELETE FROM device_sync_codes WHERE device=? OR requester=?', (pid, pid))
-        aid = account(pid)
+        aid = ensure_account(db, pid)
         with db:
             db.execute('UPDATE device_sync_accounts SET selection=?,revision=1 WHERE account=?', (json.dumps(old['selection']), aid))
         return snapshot(pid)

@@ -53,7 +53,11 @@ The relay can also authenticate Telegram Mini App users and Discord Activities a
 Telegram group / Discord channel into a shared TinyFrens "party room" using the existing
 friends relay. Set the env vars in `.env.example` to enable them. Telegram uses
 `POST /api/telegram/auth` (validates signed `initData`) and `POST /api/telegram/webhook`
-(bot welcome + inline `web_app` button). Discord uses `POST /api/discord/token` and
+(bot welcome, private `/link CODE` account sync, and ownership-verified `/show [1-5]`
+NFT animation messages with Telegram `file_id` caching). Set `TELEGRAM_WEBHOOK_SECRET` both
+on the relay and when registering the webhook. `POST /api/account/profile` stores the
+shared display name, optional X handle, and Telegram identities verified by Telegram.
+Discord uses `POST /api/discord/token` and
 `POST /api/discord/interactions` (Ed25519 PING). Discord verification needs `pip install
 PyNaCl`. All platform wiring is behind env flags and the app works without them.
 
