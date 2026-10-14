@@ -19,6 +19,7 @@ describe('HTTP Read-Only Routes Parity (Phase 4)', () => {
       ECONOMY_MODE: 'testnet',
       FRENS_TOKEN: '0x1A96226727a1D0a46334b3A4b3878B32B7659ba3',
       CHAIN_ID: '84532',
+      ROBINHOOD_RPC_URL: 'http://127.0.0.1:9',
     });
     const db = createDbConnection(':memory:');
     runMigrations(db);

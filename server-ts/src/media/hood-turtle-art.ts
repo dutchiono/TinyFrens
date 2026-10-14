@@ -151,3 +151,12 @@ export function hoodTurtleCompanion(image: unknown): CompanionRig | null {
     return null;
   }
 }
+
+export function withCompanion<T extends { image?: unknown; active?: boolean }>(
+  payload: T
+): T & { companion: CompanionRig | null } {
+  return {
+    ...payload,
+    companion: payload.active ? hoodTurtleCompanion(payload.image) : null,
+  };
+}

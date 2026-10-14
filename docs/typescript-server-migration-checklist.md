@@ -170,11 +170,11 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Wallet linking, discovery, and transactions
 
-- [ ] `POST /api/wallet-link/status`
-- [ ] `POST /api/wallet-link/challenge`
-- [ ] `POST /api/wallet-link/confirm`
-- [ ] `POST /api/wallet-link/disconnect`
-- [ ] `POST /api/wallet-link/nfts`
+- [x] `POST /api/wallet-link/status`
+- [x] `POST /api/wallet-link/challenge`
+- [x] `POST /api/wallet-link/confirm`
+- [x] `POST /api/wallet-link/disconnect`
+- [x] `POST /api/wallet-link/nfts`
 - [ ] `POST /api/bankr/wallet`
 - [ ] `POST /api/bankr/nfts`
 - [ ] `POST /api/bankr/transform`
@@ -192,12 +192,12 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Turtle connection
 
-- [ ] `POST /api/turtle-connect/start`
-- [ ] `POST /api/turtle-connect/challenge`
-- [ ] `POST /api/turtle-connect/confirm`
-- [ ] `POST /api/turtle-connect/status`
-- [ ] `POST /api/turtle-connect/accept`
-- [ ] `POST /api/turtle-connect/from-device`
+- [x] `POST /api/turtle-connect/start`
+- [x] `POST /api/turtle-connect/challenge`
+- [x] `POST /api/turtle-connect/confirm`
+- [x] `POST /api/turtle-connect/status`
+- [x] `POST /api/turtle-connect/accept`
+- [x] `POST /api/turtle-connect/from-device`
 
 ### Economy and collections
 
@@ -221,8 +221,8 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `GET /api/gallery/collections`
 - [x] `GET /api/gallery/imported`
 - [x] `GET /api/hood-turtles/preview`
-- [ ] `POST /api/featured/hood-turtle`
-- [ ] `POST /api/featured/companion`
+- [x] `POST /api/featured/hood-turtle`
+- [x] `POST /api/featured/companion`
 
 ### Telegram, GitHub, and Discord
 
@@ -400,7 +400,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 
 - [ ] `test_app.py`: core HTTP, middleware, wallet, NFT, Snap, Farcaster, Telegram, GitHub, Discord, push, party, WebSocket, and configuration behavior.
 - [ ] `test_admin.py`: admin settings, users, sessions, audit, authorization, and HTML.
-- [ ] `test_bankr_identity.py`: verified handle/address matching.
+- [x] `test_bankr_identity.py`: verified handle/address matching.
 - [ ] `test_bots_computer_art.py`: SVG sanitization and animation.
 - [ ] `test_collection_suggestions.py`: suggestions, validation, votes, credit spending, and over-voting prevention.
 - [ ] `test_deposit_allocator.py`: ETH/ERC-20 forwarding and nonce serialization.
@@ -419,8 +419,8 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [ ] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
 - [ ] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
 - [ ] `test_telegram_moderation.py`: command grammar, filters, blocklist, strikes, and admin roles.
-- [ ] `test_turtle_connect.py`: wallet-wide pairing, signatures, Bankr, multi-wallet discovery, RPC fallback, expiry, restart, ownership, unlinking, and origins.
-- [ ] `test_wallet_migration.py`: legacy wallet-link migration and restart persistence.
+- [x] `test_turtle_connect.py`: wallet-wide pairing, signatures, Bankr, multi-wallet discovery, RPC fallback, expiry, restart, ownership, unlinking, and origins.
+- [x] `test_wallet_migration.py`: legacy wallet-link migration and restart persistence.
 
 ## Client compatibility ledger
 

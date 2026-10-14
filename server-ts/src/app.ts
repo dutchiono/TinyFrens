@@ -16,6 +16,8 @@ import { registerTelegramRoutes } from './routes/telegram.js';
 import { registerRegistrationRoutes } from './routes/register.js';
 import { registerAccountRoutes } from './routes/account.js';
 import { registerDeviceSyncRoutes } from './routes/device-sync.js';
+import { registerTurtleConnectRoutes } from './routes/turtle-connect.js';
+import { registerWalletLinkRoutes } from './routes/wallet-link.js';
 import fastifyRawBody from 'fastify-raw-body';
 
 export interface AppOptions {
@@ -64,6 +66,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerRegistrationRoutes(app, context);
   registerAccountRoutes(app, context);
   registerDeviceSyncRoutes(app, context);
+
+  // Wallet link & Turtle connection (Phase 6 Slice 6B)
+  registerTurtleConnectRoutes(app, context);
+  registerWalletLinkRoutes(app, context);
 
   // Graceful shutdown hook
   app.addHook('onClose', async () => {
