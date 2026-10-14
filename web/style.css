@@ -661,3 +661,5 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
   .app-age{text-align:center}
   #screen-party .party-stage{height:360px}
 }
+
+.connection-qr:empty{display:none}.connection-qr{max-width:220px;margin:12px auto;background:#fff;padding:8px;border-radius:12px}.connection-qr svg{display:block;width:100%;height:auto}.connection-scanner{max-width:min(480px,90vw);border:1px solid #63517c;border-radius:14px;background:#211c39;color:#f3eeff}.connection-scanner video{width:100%;max-height:55vh}#walletProvider{display:block;width:100%;padding:10px;margin:8px 0;background:#17142a;color:#f3eeff;border:1px solid #63517c;border-radius:8px}

@@ -97,8 +97,18 @@ class DeviceSyncTests(unittest.IsolatedAsyncioTestCase):
         _, code = await self.post('start')
         with patch('device_sync.time.time', return_value=code['expires']+1):
             self.assertEqual((await self.post('request', 'second', code=code['code']))[0], 400)
-        await self.post('start')
+        await self.post('start', renew=True)
         self.assertEqual((await self.post('request', 'second', code=code['code']))[0], 400)
         self.assertEqual((await self.post('state', 'unknown'))[0], 400)
         for items in ([{**self.item,'chainId':1}], [self.item]*2, [{**self.item,'motion':{'size':10000}}], [self.item]*6):
             self.assertEqual((await self.post('state', revision=0, selection=items))[0], 400)
+
+    async def test_restarting_reuses_code_and_preserves_pending_request_until_explicit_renewal(self):
+        _, code = await self.post('start')
+        _, pending = await self.post('request', 'second', code=code['code'])
+        self.assertEqual((await self.post('start'))[1], code)
+        status, request = await self.post('status', code=code['code'])
+        self.assertEqual(status, 200); self.assertEqual(request['requestId'], pending['requestId'])
+        _, renewed = await self.post('start', renew=True)
+        self.assertNotEqual(renewed['code'], code['code'])
+        self.assertEqual((await self.post('status', code=code['code']))[0], 400)

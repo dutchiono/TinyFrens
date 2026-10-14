@@ -3,7 +3,7 @@
   if (!target) return;
   // Navigation later normalizes the hash to #pet; retain the incoming pairing code.
   const installedApp = Boolean(window.PetAndroid || window.TinyFrensDesktop || window.PetIOS);
-  const remoteDeviceCode = new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
+  const remoteDeviceCode = new URLSearchParams(location.search).get('connect-device') || new URLSearchParams(location.hash.slice(1)).get('connect-device') || '';
   target.innerHTML = `
     <details id="walletManager" class="wallet-manager" open><summary>Add wallets</summary>
     <section class="overlay wallet-link-panel" style="margin-top:0;">
@@ -32,6 +32,22 @@
   const linkButton = document.getElementById('linkWallet');
   const scanButton = document.getElementById('scanWallet');
   const linkStatus = document.getElementById('walletLinkStatus');
+  const providerLabel = document.createElement('label'); providerLabel.textContent = 'Wallet provider';
+  const providerSelect = document.createElement('select'); providerSelect.id = 'walletProvider';
+  providerLabel.htmlFor = providerSelect.id; providerLabel.append(providerSelect);
+  linkButton.before(providerLabel);
+  function drawProviders() {
+    const selected = providerSelect.value;
+    providerSelect.replaceChildren();
+    const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Choose your wallet';
+    providerSelect.append(placeholder);
+    for (const [id, item] of window.TinyFrensWalletProviders.discover()) {
+      const option = document.createElement('option'); option.value = id; option.textContent = item.name; providerSelect.append(option);
+    }
+    providerSelect.value = selected;
+  }
+  window.addEventListener('tinyfrens-providers-changed', () => { queueMicrotask(drawProviders); });
+  drawProviders();
   const scanStatus = document.getElementById('walletScanStatus');
   const matches = document.getElementById('walletMatches');
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
@@ -213,13 +229,16 @@
   linkButton.addEventListener('click', async () => {
     linkButton.disabled = true;
     try {
-      if (!window.ethereum?.request) {
+      const providers = window.TinyFrensWalletProviders.discover();
+      if (!providers.size) {
         document.getElementById('connectInBrowser').hidden = !installedApp;
         throw new Error(installedApp
           ? 'Use “Sign in browser” to sign with your wallet, then return to this app and approve the connection.'
           : 'No browser wallet detected. Open this same page in a browser with your wallet extension, or connect with Bankr.');
       }
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = providers.get(providerSelect.value)?.provider;
+      if (!provider) throw new Error('Choose the wallet provider you want to connect.');
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
       const address = accounts?.[0];
       if (!address) throw new Error('No wallet selected.');
       const remoteCode = remoteDeviceCode;
@@ -227,7 +246,7 @@
         ? await window.TinyFrensTurtleAPI(base(), '/api/turtle-connect/challenge', {code:remoteCode, address})
         : await post('/api/wallet-link/challenge', { address });
       linkStatus.textContent = 'Review the read-only message in your wallet and sign it.';
-      const signature = await window.ethereum.request({
+      const signature = await provider.request({
         method: 'personal_sign', params: [challenge.message, address],
       });
       if (remoteCode) {
@@ -253,6 +272,14 @@
   const renew = document.getElementById('renewWalletPairing');
   const accept = document.getElementById('acceptWalletPairing');
   const pairingStatus = document.getElementById('walletPairingStatus');
+  const walletQR = document.createElement('div'); walletQR.className = 'connection-qr';
+  pairingStatus.before(walletQR);
+  const expiry = document.createElement('p'); expiry.className = 'small'; pairingStatus.before(expiry);
+  setInterval(() => {
+    const remaining = pairing ? Math.max(0, Math.ceil(pairing.expires - Date.now() / 1000)) : 0;
+    expiry.textContent = remaining ? `Wallet code expires in ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2,'0')}` : '';
+    if (!remaining) walletQR.replaceChildren();
+  }, 1000);
   let pairing, timer, polling = false;
   async function pollPairing() {
     clearTimeout(timer);
@@ -271,17 +298,18 @@
     } catch (error) { if (pairing === current) { accept.hidden = true; pairingStatus.textContent = error.message; } }
     finally { polling = false; if (pairing && !document.hidden) timer = setTimeout(pollPairing, 4000); }
   }
-  async function startPairing() {
+  async function startPairing(renewCode = false) {
     renew.disabled = true; copy.disabled = true; accept.hidden = true;
     pairing = null; clearTimeout(timer); prompt.textContent = '';
     try {
-      pairing = await post('/api/turtle-connect/start');
+      pairing = await post('/api/turtle-connect/start', {renew:renewCode});
       prompt.hidden = false;
       renew.textContent = 'Generate new code';
       const code = pairing.code.match(/.{1,4}/g).join('-');
       document.getElementById('deviceConnectCode').textContent = `Bankr connection code: ${code}.`;
       const browserLink = document.getElementById('connectInBrowser');
       browserLink.href = 'https://www.tinyfrens.lol/web/#connect-device=' + encodeURIComponent(pairing.code);
+      window.TinyFrensQR?.render(walletQR, browserLink.href);
       browserLink.hidden = !installedApp || Boolean(window.ethereum?.request);
       prompt.textContent = `Hey @bankrbot use the skill at https://tinyfrens.lol/import/skill.md to link my wallet to TinyFrens and find my supported NFTs. My connect code is ${code}. Keep my NFTs in my wallet.`;
       copy.disabled = false; await pollPairing();
@@ -294,7 +322,7 @@
     catch { const range = document.createRange(); range.selectNodeContents(prompt); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); pairingStatus.textContent = 'Select and copy the message above.'; }
   };
   prompt.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); copy.onclick(); } };
-  renew.onclick = startPairing;
+  renew.onclick = () => startPairing(true);
   accept.onclick = async () => {
     if (!pairing) return;
     accept.disabled = true;
