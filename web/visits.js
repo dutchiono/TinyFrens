@@ -1,6 +1,6 @@
 'use strict';
 (()=>{
- const box=document.createElement('section');box.className='visit-box';box.innerHTML='<h2>Friends can visit</h2><p>Share an invite. Your friend accepts before the visit starts.</p><button id="shareVisit">Send a visit invite</button><input id="visitLink" readonly aria-label="Visit invite link" hidden><p id="visitStatus" role="status"></p><p class="small">Invites share your pet’s name and look for 30 minutes. Visits expire after 30 minutes.</p>';
+ const box=document.createElement('section');box.className='visit-box';box.innerHTML='<h2>Friends can visit</h2><p>Share an invite. Your friend accepts before the visit starts.</p><button id="shareVisit">Send a visit invite</button><input id="visitLink" readonly aria-label="Visit invite link" hidden><p id="visitStatus" role="status"></p><p class="small">Invites share your fren’s name and look for 30 minutes. Visits expire after 30 minutes.</p>';
  const social=document.createElement('details');social.className='party-social';social.innerHTML='<summary>Friends and visits</summary>';social.append(box);$('screen-party').append(social);
  function decode(value){
   if(!value||value.length>1600)throw new Error('Invalid invite');

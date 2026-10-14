@@ -11,7 +11,7 @@
  let action=()=>{},lastCheck=0,inFlight=false,registration=null,started=false;
  const show=(title,detail,run,label='Update')=>{$('updateTitle').textContent=title;$('updateDetail').textContent=detail;nowButton.textContent=label;action=run;nowButton.disabled=false;banner.hidden=false;if(!banner.open)banner.showModal();};
  nowButton.onclick=()=>action();$('updateLater').onclick=dismiss;
- const quietError=()=>{status.textContent='Couldn’t check right now. Your pet still works. Try again when you’re online.';};
+ const quietError=()=>{status.textContent='Couldn’t check right now. Your fren still works. Try again when you’re online.';};
  function androidResult(result){
   inFlight=false;$('checkUpdate').disabled=false;$('downloadUpdate').hidden=!result.available;
   $('installPetUpdate').hidden=!result.available;
@@ -26,13 +26,13 @@
  if(window.TinyFrensDesktop){
   const auto=!!JSON.parse(window.TinyFrensDesktop.getState()||'{}').autoUpdate;
   $('updateExplanation').textContent=auto
-   ? 'New versions download in the background. They install the next time you close the app, or tap Restart & install now. Your pet stays saved.'
+   ? 'New versions download in the background. They install the next time you close the app, or tap Restart & install now. Your fren stays saved.'
    : 'Checks for new desktop downloads. Replace the app with the new version; your fren stays in its saved folder. Installation is manual.';
   window.TinyFrensDesktop.onUpdate?.(event=>{
    if(event.type==='checking')status.textContent='Checking…';
    else if(event.type==='available')status.textContent='Downloading the new version…';
    else if(event.type==='progress')status.textContent='Downloading update… '+event.percent+'%';
-   else if(event.type==='downloaded'){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your pet stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');}
+   else if(event.type==='downloaded'){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your fren stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');}
    else if(event.type==='error')quietError();
   });
  }else if(native){
@@ -69,10 +69,10 @@
     const result=await window.TinyFrensDesktop.checkUpdate();
     inFlight=false;$('checkUpdate').disabled=false;
     if(result.error){quietError();return;}
-    if(result.downloaded){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your pet stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');return;}
+    if(result.downloaded){status.textContent='A new version is ready.';show('An update is ready','Restart to install it. Your fren stays saved.',()=>window.TinyFrensDesktop.installUpdate(),'Restart & install');return;}
     if(result.auto){status.textContent=result.available?'Downloading the new version…':'You’re up to date.';if(!result.available)dismiss();return;}
     status.textContent=result.available?'A new desktop version is ready.':result.unpublished?'Your desktop build is ready; the first download is still publishing.':'You’re up to date.';
-    if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your pet stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else dismiss();
+    if(result.available)show('A desktop update is ready','Download the new app and replace this version. Your fren stays saved.',()=>window.TinyFrensDesktop.openUpdate(),'Get update');else dismiss();
    }else if(native){
     if(!PetAndroid.saveUpdateRepo($('updateRepo').value.trim()))throw new Error('Invalid source');
     PetAndroid.checkUpdate();

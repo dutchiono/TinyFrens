@@ -83,9 +83,9 @@ function refreshFloatingButton(){
  const visible=desktop?desktop.isPetVisible():PetAndroid.isPetVisible();$('start').textContent=visible?'Hide NFTs':'Show NFTs';$('start').setAttribute('aria-pressed',String(visible));
 }
 $('start').onclick=()=>{
- if(desktop){const visible=desktop.togglePet();$('message').textContent=visible?'Your fren is floating.':'Pet hidden.';refreshFloatingButton();return;}
+ if(desktop){const visible=desktop.togglePet();$('message').textContent=visible?'Your fren is floating.':'Fren hidden.';refreshFloatingButton();return;}
  if(!native){$('stage').scrollIntoView({behavior:'smooth',block:'center'});$('message').textContent='Your imported NFTs appear here in TinyFrens.';return;}
- if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Pet hidden.';$('start').textContent='Show NFTs';}
+ if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Fren hidden.';$('start').textContent='Show NFTs';}
  else{const started=PetAndroid.startPet();$('message').textContent=started?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show NFTs again.';if(started)$('start').textContent='Hide NFTs';}
  $('start').disabled=true;setTimeout(()=>{$('start').disabled=false;refreshFloatingButton();},500);
 };
