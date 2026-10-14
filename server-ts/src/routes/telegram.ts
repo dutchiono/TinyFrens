@@ -5,7 +5,9 @@ import {
   classify,
   adminServerTriage,
   canAccessAdminTools,
+  chatMessage,
   fetchGithubProgress,
+  generateTelegramReply,
   getOrCreatePet,
   linkCode,
   performCareAction,
@@ -14,7 +16,19 @@ import {
   renderGithubProgress,
   replyMarkup,
   TG_API,
+  TelegramChatEntry,
 } from '../integrations/telegram.js';
+import {
+  createIssue,
+  draftIssue,
+  filterLabels,
+  issueBody,
+  labelsFromEnv,
+  listLabels,
+  parseRepo,
+  responseSummary,
+  transcript,
+} from '../integrations/github.js';
 import { readAccountProfile, telegramPet } from '../domain/account.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
@@ -36,6 +50,78 @@ async function callTelegramApi(
 }
 
 export function registerTelegramRoutes(app: FastifyInstance, context: AppContext): void {
+  const chatHistory = new Map<string, TelegramChatEntry[]>();
+  const historyLimit = Math.max(1, Math.min(200, context.config.TELEGRAM_ISSUE_HISTORY));
+  const miniapp = context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0];
+  const deepLink = context.config.TELEGRAM_MINIAPP_DEEP_LINK || 'https://t.me/TinyFrensBot?startapp=party';
+
+  const remember = (chatId: unknown, entry: TelegramChatEntry) => {
+    const key = String(chatId);
+    const history = chatHistory.get(key) || [];
+    history.push(entry);
+    if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
+    chatHistory.set(key, history);
+  };
+
+  const fileIssueFromChat = async (
+    chatId: unknown,
+    chat: Record<string, unknown> | null,
+    token: string
+  ) => {
+    const say = async (text: string) => {
+      try {
+        await context.telegramApi.call('sendMessage', { chat_id: chatId, text }, token);
+      } catch {
+        // Telegram delivery is best effort after the webhook has been accepted.
+      }
+    };
+    try {
+      context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
+      const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
+      if (!apiKey) {
+        await say("I have no AI key set, so I can't summarise the chat yet. (Set GEMINI_API_KEY.)");
+        return;
+      }
+      const githubToken = context.config.GITHUB_TOKEN;
+      if (!githubToken || !context.config.GITHUB_REPO) {
+        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
+        return;
+      }
+      const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
+      const messages = chatHistory.get(String(chatId)) || [];
+      const lines = transcript(messages, historyLimit);
+      if (!lines) {
+        await say("I haven't seen enough of this conversation yet to write an issue. Say a bit about what's happening, then ask me again.");
+        return;
+      }
+      await say(`📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`);
+      const draft = await draftIssue(lines, apiKey, String(chat?.title || ''), context.config.GEMINI_MODEL);
+      const available = await listLabels(owner, repo, githubToken);
+      const labels = filterLabels([...labelsFromEnv(context.config.GITHUB_ISSUE_LABELS), ...draft.labels], available);
+      const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
+      const created = await createIssue(owner, repo, githubToken, draft.title, issueBody(draft, footer), labels);
+      const result = responseSummary(created.data, created.status, owner, repo);
+      if (!result.ok) {
+        await say(`I couldn't open the issue: ${result.error}`);
+        return;
+      }
+      context.repos.telegram.linkChatToIssue(result.repo, result.number, String(chatId));
+      await say(`✅ Opened issue #${result.number}: ${result.title}\n${result.url}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const safeError = message === 'Please wait before trying again' ||
+        message.startsWith('GITHUB_REPO ') ||
+        message.startsWith('The model ') ||
+        message === 'No issue to file from this conversation' ||
+        message === 'No recent conversation to summarise';
+      if (safeError) {
+        await say(`I couldn't file that issue: ${message}`);
+      } else {
+        await say('Something went wrong while filing that issue. Please try again.');
+      }
+    }
+  };
+
   app.post('/api/telegram/auth', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const token = context.config.TELEGRAM_BOT_TOKEN;
@@ -341,6 +427,72 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         )) {
           return reply.status(200).send({ ok: true });
         }
+
+        if ((kind === 'message' || kind === 'mention') && chatId !== null && chatId !== undefined) {
+          const entry = chatMessage(update);
+          if (entry) remember(chatId, entry);
+        }
+
+        if (kind === 'start' && chatId !== null && chatId !== undefined) {
+          const startPayload = text.split(/\s+/, 2)[1]?.trim().toLowerCase() || '';
+          const intro = startPayload === 'link'
+            ? 'Copy a sync code from TinyFrens Settings, then send /link CODE here. Approve the request on the device that made the code.'
+            : 'Bring your NFTs into TinyFrens. Open the Mini App below. If you already use TinyFrens elsewhere, link this Telegram account from Settings.';
+          await context.telegramApi.call('sendMessage', { chat_id: chatId, text: intro }, token);
+          await context.telegramApi.call('sendMessage', {
+            chat_id: chatId,
+            text: 'Ready when you are.',
+            reply_markup: replyMarkup(`${miniapp}${startPayload === 'link' ? '#settings' : '#pet'}`),
+          }, token);
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (kind === 'issue' && chatId !== null && chatId !== undefined) {
+          const replied = telegramMessage.reply_to_message;
+          const entry = chatMessage({ message: replied });
+          if (entry) {
+            const history = chatHistory.get(String(chatId));
+            if (!history || history.at(-1)?.name !== entry.name || history.at(-1)?.text !== entry.text) {
+              remember(chatId, entry);
+            }
+          }
+          await fileIssueFromChat(chatId, chat, token);
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (kind === 'mention' && chatId !== null && chatId !== undefined) {
+          context.rateLimiter.limit(`tg-mention:${String(chatId)}`, 30, 3600, context.now());
+          if (/^\/help(?:@\w+)?\s*$/i.test(text)) {
+            const isPrivate = chat?.type === 'private';
+            await sendCommand({
+              chat_id: chatId,
+              text: 'Talk to me normally, use /game to play with your pet, /progress for GitHub updates, /status for server health, or /show for your selected NFT. Group admins can also use /filter, /blocklist, and /ban.',
+              reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
+            });
+          } else {
+            let answer: string;
+            try {
+              answer = await generateTelegramReply(
+                chatHistory.get(String(chatId)) || [],
+                context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
+                context.config.GEMINI_MODEL
+              );
+            } catch {
+              answer = 'My AI brain is having trouble right now. Please try again in a moment.';
+            }
+            await sendCommand({ chat_id: chatId, text: answer });
+          }
+          return reply.status(200).send({ ok: true });
+        }
+      }
+
+      if (kind === 'added' && chatId !== null && chatId !== undefined) {
+        const title = String(chat?.title || 'this chat');
+        await context.telegramApi.call('sendMessage', {
+          chat_id: chatId,
+          text: `TinyFrens is ready in ${title}. Open it to bring an NFT into the room, then use /show to post your selected companion.`,
+          reply_markup: replyMarkup(deepLink, '🐾 Open TinyFrens', false),
+        }, token);
       }
 
       return reply.status(200).send({ ok: true });
