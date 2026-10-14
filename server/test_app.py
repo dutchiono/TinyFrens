@@ -582,6 +582,11 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(profile['xHandle'], '')
         self.assertIsNone(profile['xHandleSource'])
         with database:
+            database.execute('UPDATE wallet_social_profiles SET x_handle=?,source=?', ('bankr_tess', 'bankr-verified'))
+        profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN}, json=body)).json()
+        self.assertEqual(profile['xHandle'], 'bankr_tess')
+        self.assertEqual(profile['xHandleSource'], 'bankr')
+        with database:
             database.execute('UPDATE account_identities SET verified=1,handle=? WHERE platform=?', ('verified_tess', 'x'))
         database.close()
         profile = await (await self.client.post('/api/account/profile', headers={'Origin': ORIGIN},

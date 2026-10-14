@@ -68,6 +68,14 @@ def read(db, pid):
     x_identity = next((item for item in identities if item['platform'] == 'x' and item['verified']), None)
     x_handle = x_identity['handle'] if x_identity else ''
     source = 'verified-identity' if x_identity else None
+    if not x_identity:
+        from turtle_connect import linked_wallets
+        for wallet in linked_wallets(db, pid):
+            social = db.execute('SELECT x_handle FROM wallet_social_profiles WHERE address=? COLLATE NOCASE AND source=?',
+                                (wallet, 'bankr-verified')).fetchone()
+            if social:
+                x_handle, source = social[0], 'bankr'
+                break
     return {'displayName': row[0] if row else '', 'xHandle': x_handle,
             'xHandleSource': source, 'identities': identities}
 

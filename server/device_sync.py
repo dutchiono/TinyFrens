@@ -96,6 +96,9 @@ def install(app, db, token_pet, limit):
 
     async def start(pid, body):
         ensure_account(db, pid)
+        existing = db.execute('SELECT code,expires FROM device_sync_codes WHERE device=? AND expires>?', (pid, time.time())).fetchone()
+        if existing and not body.get('renew'):
+            return {'code': existing[0], 'expires': existing[1]}
         code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(12))
         expires = time.time() + 600
         with db:

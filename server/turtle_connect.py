@@ -268,6 +268,9 @@ def install(app, db, token_pet, limit, ownership):
 
     async def start(body):
         pid = token_pet(body.get('token'))
+        existing = db.execute('SELECT code,expires FROM turtle_pairings WHERE pet_id=? AND expires>?', (pid, time.time())).fetchone()
+        if existing and not body.get('renew'):
+            return {'code': existing[0], 'expires': existing[1]}
         limit(('turtle-pair-start', pid), 10, 3600)
         db.execute('DELETE FROM turtle_pairings WHERE expires<=? OR pet_id=?', (time.time(), pid))
         while True:
@@ -293,7 +296,13 @@ def install(app, db, token_pet, limit, ownership):
         handle = str(body.get('xHandle') or '').strip().lstrip('@')
         if handle and not re.fullmatch(r'[A-Za-z0-9_]{1,15}', handle):
             raise ValueError('Invalid X handle')
-        social = f'X handle: @{handle} (wallet assertion)\n' if handle else ''
+        if handle:
+            from bankr_identity import verify_handle
+            await verify_handle(handle, address)
+            code, row = pairing(body)
+            if row[6] or row[2]:
+                raise ValueError('Pairing already has a wallet request. Start again on your phone.')
+        social = f'X handle: @{handle} (Bankr verified)\n' if handle else ''
         message = (f'TinyFrens read-only phone pairing\nDomain: tinyfrens.lol\n'
                    f'Wallet: {address}\nCollection: {COLLECTION}\nChain ID: {CHAIN_ID}\n'
                    f'{social}Token: {scope}\nPairing: {code}\nNonce: {challenge_id}\nExpires: {int(row[1])}\n\n'
@@ -358,10 +367,10 @@ def install(app, db, token_pet, limit, ownership):
         # No await between consuming the pairing and assigning the signed address.
         with db:
             add_wallet(db, pid, row[3])
-            social = re.search(r'^X handle: @([A-Za-z0-9_]{1,15}) \(wallet assertion\)$', row[5] or '', re.M)
+            social = re.search(r'^X handle: @([A-Za-z0-9_]{1,15}) \((Bankr verified|wallet assertion)\)$', row[5] or '', re.M)
             if social:
                 db.execute('INSERT OR REPLACE INTO wallet_social_profiles VALUES(?,?,?,?)',
-                           (row[3], social.group(1), 'wallet-signed', int(time.time())))
+                           (row[3], social.group(1), 'bankr-verified' if social.group(2) == 'Bankr verified' else 'wallet-signed', int(time.time())))
             db.execute('DELETE FROM turtle_pairings WHERE code=?', (code,))
             db.execute('DELETE FROM wallet_link_challenges WHERE pet_id=?', (pid,))
         return {'linked': True, 'address': row[3], 'addresses': linked_wallets(db, pid), 'tokenId': row[4]}

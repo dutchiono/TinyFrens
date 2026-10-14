@@ -195,7 +195,9 @@ Players send FRENS straight to a fixed Dev wallet; the relay's `TreasuryTransfer
 
 ## Admin
 
-Non-public operator surface (see `docs/robots-care.md` §8). Every `/api/admin/*` route needs `Authorization: Bearer $ADMIN_TOKEN`; **without `ADMIN_TOKEN` the whole surface answers 503**, so it is never exposed by accident. The token is a shared secret compared in constant time - generate a long random value and keep it out of git. `GET /admin` redirects to the page at `/web/admin.html`, which lets an operator retune the care allowance, game reward and prices live (stored in `app_settings`, read per request), see the read-only deposit treasury/rate, and read the credit ledger and care usage. It never touches keys, seeds or deployments - in particular the deposit treasury address is env-only, never editable here.
+Non-public operator surface (see `docs/robots-care.md` §8). Hosted exclusively on the relay server at `https://tinyfrens.miono.live/admin` (and never published to the public `tinyfrens.lol` static site).
+
+Operators authenticate with a username and password via `POST /api/admin/login` (default initial operator seeded is `dutch` with password `nottodayjunior`, configurable via `ADMIN_USERNAME` and `ADMIN_PASSWORD`), which issues a secure session token. Legacy / automated clients can also supply `Authorization: Bearer $ADMIN_TOKEN`. Without an admin user or `ADMIN_TOKEN`, the surface answers 503 so nothing is exposed by accident. `GET /admin` serves `server/admin.html`, which lets an operator retune the care allowance, game reward and prices live (stored in `app_settings`, read per request), see the read-only deposit treasury/rate, view the credit ledger and care usage, and create additional operator accounts. It never touches keys, seeds or deployments - in particular the deposit treasury address is env-only, never editable here.
 
 The admin API is origin-independent (its own bearer token) and sends `Cache-Control: no-store`. On Compose, to give it its own host, point `ADMIN_DOMAIN` at the relay and uncomment the block in `server/Caddyfile`; otherwise it is reachable on `PET_DOMAIN` at `/admin`.
 
