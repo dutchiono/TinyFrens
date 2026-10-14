@@ -250,6 +250,22 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         return reply.status(200).send({ ok: true });
       }
 
+      const message = (update as Record<string, unknown>).message;
+      if (message && typeof message === 'object') {
+        if (await context.telegramModeration.handleManagement(
+          message as Record<string, unknown>,
+          chat
+        )) {
+          return reply.status(200).send({ ok: true });
+        }
+        if (await context.telegramModeration.handleContent(
+          message as Record<string, unknown>,
+          chat
+        )) {
+          return reply.status(200).send({ ok: true });
+        }
+      }
+
       return reply.status(200).send({ ok: true });
     } catch (e) {
       return reply.status(400).send({ error: (e as Error).message });
