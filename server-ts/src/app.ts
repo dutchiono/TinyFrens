@@ -71,6 +71,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     prefix: '/web/',
     index: false,
     decorateReply: false,
+    cacheControl: false,
+    setHeaders(reply, filePath) {
+      if (path.extname(filePath).toLowerCase() === '.js') reply.header('Content-Type', 'text/javascript');
+    },
   });
   app.options('/*', async (_request, reply) => reply.status(200).send());
 

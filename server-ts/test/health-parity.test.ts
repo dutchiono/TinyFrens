@@ -81,8 +81,8 @@ describe('HTTP /health Route & Middleware Parity', () => {
     });
 
     assert.equal(response.statusCode, 403);
-    const body = JSON.parse(response.body);
-    assert.equal(body.error, 'Origin not allowed');
+    assert.equal(response.headers['content-type'], 'text/plain; charset=utf-8');
+    assert.equal(response.body, 'Origin not allowed');
 
     await app.close();
   });

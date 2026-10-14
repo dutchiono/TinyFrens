@@ -68,6 +68,7 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+          npm run differential
           npm run smoke
 
       - name: Build TypeScript server production image

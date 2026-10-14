@@ -6,7 +6,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
     let message = error.message;
 
     if (message === 'Origin not allowed') {
-      statusCode = 403;
+      return reply.status(403).type('text/plain; charset=utf-8').send(message);
     } else if (
       message.includes('JSON') ||
       message.includes('validation') ||

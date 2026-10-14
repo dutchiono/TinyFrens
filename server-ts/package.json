@@ -7,6 +7,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "differential": "node test/differential-smoke.mjs",
     "smoke": "node test/startup-smoke.mjs",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",

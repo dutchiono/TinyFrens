@@ -24,7 +24,8 @@ describe('Static web and generic preflight parity', () => {
   test('serves browser assets with MIME types and public CORS', async () => {
     const response = await app.inject({ method: 'GET', url: '/web/app.js' });
     assert.equal(response.statusCode, 200);
-    assert.match(response.headers['content-type'] || '', /javascript/);
+    assert.equal(response.headers['content-type'], 'text/javascript');
+    assert.equal(response.headers['cache-control'], undefined);
     assert.equal(response.headers['access-control-allow-origin'], '*');
     assert.match(response.body, /TinyFrens|pet|document/i);
   });
