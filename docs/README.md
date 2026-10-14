@@ -35,7 +35,7 @@ Welcome to the technical docs for TinyFrens. Start here.
 | Work on Telegram bot / Discord integration | [Telegram &amp; Discord plan](../TELEGRAM-DISCORD.md) |
 | Look up every public URL / Mini App target | [Links &amp; Mini App URLs](links.md) |
 | Build the Farcaster Mini App / Snap | [Snap README](../snap/README.md) |
-| Deploy site (Vercel/GitHub Pages) | [Vercel](../VERCEL.md) · [GitHub setup](../GITHUB_SETUP.md) |
+| Deploy website | [Server publishing](../server/WEB_HOSTING.md) · [GitHub setup](../GITHUB_SETUP.md) |
 | See what's planned next | [Roadmap](../ROADMAP.md) |
 
 ## Quick map of the repo
@@ -53,6 +53,6 @@ docs/       You are here
 
 ## Where TinyFrens lives
 
-[Website](https://tinyfrens.lol) · [Docs](https://docs.tinyfrens.lol) · [Telegram bot](https://t.me/TinyFrensBot) ·
+[Website](https://tinyfrens.lol) · [Docs](https://tinyfrens.lol/docs/) · [Telegram bot](https://t.me/TinyFrensBot) ·
 [Farcaster](https://farcaster.xyz/tinyfrens) ·
 [X / Twitter](https://x.com/TinyFrens_) · [Email](mailto:Tinyfrens@agentmail.to) · [GitHub](https://github.com/dutchiono/TinyFrens)

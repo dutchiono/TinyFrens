@@ -23,17 +23,48 @@ existing relay on 127.0.0.1:8790. The admin surface remains relay-only.
    `sites-enabled`. Run `sudo nginx -t` before `sudo systemctl reload nginx`.
 5. Enable the Certbot renewal timer and ensure renewals reload nginx.
 
-## Updating the website
+## Automatic updates
 
-Run `bash scripts/deploy-web.sh` from the desired merged checkout on a machine
-with the `miono` SSH alias. This builds the normal site artifact, uploads it,
-and atomically switches `current`. This is a manual deployment; no GitHub SSH
-credential has been provisioned. Vercel/GitHub Pages builds do not update it.
+`.github/workflows/publish-server.yml` publishes every new `main` revision,
+and can be run manually on `main` from GitHub Actions. It uses repository
+secrets `TF_WEB_SSH_KEY` and `TF_WEB_KNOWN_HOSTS`. Pull requests never publish.
 
-To roll back, point `current` at the previous verified release with a new
-symlink and atomic rename. Retain previous releases until the update is verified.
+The `tinyfrens-deploy` system account is separate from the API user and has
+no sudo privileges. Its SSH key is restricted to the root-owned
+`/usr/local/libexec/tinyfrens-publish-web` receiver (`server/publish_web.py`).
+That receiver validates the archive, locks concurrent publishes, records the
+commit in `/release.json`, and atomically switches `current`. It verifies
+HTTPS responses on both names and restores the previous release on failure.
+The current release is idempotent; failed releases can be retried.
 
-Verify HTML on both names, the web app, gallery, skills, Farcaster manifest,
-Snap JSON via `/snap` and `Accept: application/vnd.farcaster.snap+json` on `/`,
-and HTTPS/HTTP redirects. Paid deposits and RPC settings are unrelated to this
-static-site deployment and must not be changed during it.
+Documentation is built offline with bundled marked 15.0.12 under `/docs/`;
+links now use that path instead of an unconfigured documentation subdomain.
+The same artifact contains the landing page, browser app, icons, manifests,
+robots launch package, skills, and docs. No external CDN is required to build.
+
+## Manual recovery and rollback
+
+For an authorized recovery publish, set `TF_WEB_SSH_KEY_FILE` and
+`TF_WEB_KNOWN_HOSTS_FILE` to local deployment credentials, then run
+`bash scripts/deploy-web.sh`. Normal updates need no local key.
+
+To roll back as an operator, point `current` at the previous verified release
+with a new symlink and atomic rename. Keep previous releases until the update
+is verified. The receiver is root-owned and is installed separately from site
+artifacts; changes to that receiver require explicit operator deployment.
+
+Vercel automatic Git deployments are disabled by the minimal `vercel.json`,
+and the obsolete GitHub Pages workflow and Pages site have been removed.
+
+## Verification
+
+Run `python scripts/verify-web-hosting.py --address 198.71.54.203` to bypass DNS
+caches while still validating the actual TLS certificate for each name. The
+checks cover HTML, docs, app/gallery, skills, manifests, Snap negotiation and
+POST, redirects, and blocked private paths. The server's regular-DNS version
+of the same checks should pass too. `certbot renew --cert-name tinyfrens.lol
+--dry-run --no-random-sleep-on-renew` validates renewal. The domain-scoped
+reload hook is `server/renew-web-certificate.sh`.
+
+This workflow publishes the **website**, not backend Python modules, native
+app releases, contracts, or funds. Those retain their existing release paths.

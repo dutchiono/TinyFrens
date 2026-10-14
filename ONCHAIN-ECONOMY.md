@@ -152,7 +152,7 @@ Wallet tab UX: "Add credits" → pick package → show QR + copy + countdown →
 - Short TTL + cron to `expire` stale sessions and free slots.
 - Monitor treasury; alert on unusual outflows.
 - Separate **hot deposit keys** from **payout admin** (multisig).
-- Do not store private keys in repo or Vercel; same bar as `BANKR_*` in `server/README.md`.
+- Do not store private keys in repository or public frontend configuration; same bar as `BANKR_*` in `server/README.md`.
 
 ## Suggested branch split with collaborator
 

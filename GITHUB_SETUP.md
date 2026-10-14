@@ -46,3 +46,23 @@ App ID remains com.example.floatingpet to preserve compatibility with the starte
 Device checklist: install signed release; feed pet; publish another build; open app and check update; install it without uninstalling; verify pet stats and position remain; test offline check, no-release repo, invalid repo, and permissions. Reopen/show the overlay after installation.
 
 GitHub Actions is the compile validation environment. This source has not been locally compiled or tested on a physical phone in ChatGPT's workspace.
+
+## Automatic website publishing
+
+Every push to `main` runs **Publish website to server**. It builds the static
+site and docs, uploads them over SSH, switches the server release atomically,
+and verifies public routes. Pull requests do not receive deployment credentials
+or publish to production. A superseded main revision is skipped.
+
+Repository secrets `TF_WEB_SSH_KEY` and `TF_WEB_KNOWN_HOSTS` are configured for
+the dedicated `tinyfrens-deploy` account. Its forced command accepts only
+`publish <commit SHA>` and has no sudo, API configuration, database, interactive
+shell, or forwarding access. Keep its private key in GitHub secrets only.
+
+The server rejects unsafe archives and missing public files, checks the new
+release over HTTPS, and rolls back on failure. The previous static releases
+remain available for operator rollback. Details: [Web hosting](server/WEB_HOSTING.md).
+
+GitHub Pages publishing is retired. The minimal `vercel.json` disables Vercel
+Git deployments for every branch; it is retained solely to prevent the old
+integration from silently re-enabling default builds.

@@ -139,8 +139,8 @@ Output:
 - [ ] **Git Merge**:
   - Pull branch `feat/socials-footer-links-and-chat-dialog` (Commit `4d86860`).
   - Merge into `main` without merge conflicts.
-- [ ] **Frontend Deployment (Vercel)**:
-  - Ensure Vercel auto-deploy or manual trigger picks up `web/index.html`, `web/wallet.js`, `web/app.js`, `web/friends.js`, and `web/style.css`.
+- [ ] **Frontend Deployment (server)**:
+  - Ensure the server publishing workflow picks up `web/index.html`, `web/wallet.js`, `web/app.js`, `web/friends.js`, and `web/style.css`.
   - Verify `https://tinyfrens.lol/web/#wallet` loads the **Fren Pocket Vault** card without any mention of `0x32ba...`.
 - [ ] **Production Server (`miono`)**:
   - Ensure `.env` on `miono` contains `FREN_VAULT_SEED` (already has fallback).

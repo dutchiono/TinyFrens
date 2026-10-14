@@ -24,7 +24,7 @@ No Apple developer membership, external account provider, or paid hosted service
 
 ## Pet chat and Bankr
 
-The relay can also answer TinyFren chat requests from the web app and direct Telegram mentions. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, Vercel public env, or committed files. Optional `GEMINI_MODEL` defaults to the low-latency `gemini-3.5-flash-lite`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
+The relay can also answer TinyFren chat requests from the web app and direct Telegram mentions. Set `GEMINI_API_KEY` or `GOOGLE_API_KEY` on the server; keys must never be placed in `web/`, public frontend environment variables, or committed files. Optional `GEMINI_MODEL` defaults to the low-latency `gemini-3.5-flash-lite`. The chat endpoint is `/api/chat`, rate limited, and returns short companion-style replies only.
 
 Set `TELEGRAM_MODERATION=true` to protect every group where TinyFrensBot is an admin. New human members are muted until they solve a four-choice addition challenge; admins bypass it, newly added bots are removed, and humans are removed after three wrong answers or `TELEGRAM_MODERATION_TIMEOUT` seconds (default 180). Existing members are never retroactively restricted. The bot needs Telegram's **Ban users** permission, which covers restrictions and removals.
 
@@ -32,7 +32,7 @@ The web app's Wallet tab uses a read-only, non-custodial link. On first use, the
 
 `POST /api/wallet-link/status`, `/challenge`, `/confirm`, `/disconnect`, and `/nfts` require the fren's device token. The NFT endpoint queries Robinhood Blockscout for candidate holdings and rechecks Hood Turtles ownership on-chain. It is limited to five indexer pages and reports `partial` if more remain. `ROBINHOOD_RPC_URL` and `ROBINHOOD_BLOCKSCOUT_API_URL` optionally override the public endpoints. Hood Turtles is the only supported external collection for now.
 
-The older Bankr/pocket-vault API routes remain for existing users and recovery, but the web app no longer creates or displays a fren-owned wallet. New vault creation and legacy minting are disabled by default; only a deliberate `ENABLE_LEGACY_VAULT_CREATION=true` re-enables them for migration/testing. Do not send NFTs to an old vault address as part of the new link flow. Do not put Bankr keys in `web/`, Android/iOS source, Vercel public env, or committed files.
+The older Bankr/pocket-vault API routes remain for existing users and recovery, but the web app no longer creates or displays a fren-owned wallet. New vault creation and legacy minting are disabled by default; only a deliberate `ENABLE_LEGACY_VAULT_CREATION=true` re-enables them for migration/testing. Do not send NFTs to an old vault address as part of the new link flow. Do not put Bankr keys in `web/`, Android/iOS source, public frontend environment variables, or committed files.
 
 ## Hood Turtles featured access
 

@@ -2,6 +2,7 @@ import { cp, mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { buildDocs } from './build-docs.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'dist');
@@ -25,4 +26,6 @@ await cp(path.join(root, 'skills/tinyfrens-nft-skill.md'), path.join(output, 'ro
 await mkdir(path.join(output, 'NFTS/robotsv1'), { recursive: true });
 await cp(path.join(root, 'skills/tinyfrens-nft-skill.md'), path.join(output, 'NFTS/robotsv1/skill.md'));
 await cp(path.join(root, 'web/robots-launch'), path.join(output, 'robots/launch'), { recursive: true });
+await cp(path.join(root, 'docs'), path.join(output, 'docs'), { recursive: true });
+await buildDocs(root, output);
 console.log('Built welcome page, web pet, icons, and Farcaster manifests in dist/');

@@ -6,7 +6,7 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 
 [Welcome & install guide](https://tinyfrens.lol/) · [Play in your browser](https://tinyfrens.lol/web/) · [Android releases](https://github.com/dutchiono/TinyFrens/releases) · [Build status](https://github.com/dutchiono/TinyFrens/actions)
 
-> The welcome site is available after GitHub Pages is enabled. In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**, then run **Actions → Welcome site → Run workflow**.
+> The website is hosted on our server. Main-branch updates publish through Actions → Publish website to server.
 
 ## Find TinyFrens
 
@@ -19,9 +19,9 @@ Feed, play, rest, and watch your pocket companion grow. Android lets your pet fl
 - **Players:** [Play in Telegram](docs/telegram.md) · [Game rules](GAMEPLAY.md)
 - **Developers:** [Developer guide](docs/DEVELOPER.md) · [Server](server/README.md) · [Telegram & Discord](TELEGRAM-DISCORD.md)
 
-## Vercel hosting
+## Website hosting
 
-See [VERCEL.md](VERCEL.md) for import settings, domain setup, and the friends server requirements.
+See [Server web hosting](server/WEB_HOSTING.md) for automatic publishing, domain routing, and rollback.
 
 ## Bring a fren home
 

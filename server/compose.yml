@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       DB_PATH: /data/tinyfrens.db
-      ALLOWED_ORIGINS: https://tinyfrens.lol,https://www.tinyfrens.lol,https://tinyfrens.vercel.app
+      ALLOWED_ORIGINS: https://tinyfrens.lol,https://www.tinyfrens.lol
       ALLOW_NATIVE_ORIGIN: "true"
       TRUST_PROXY: "true"
       HOST: 0.0.0.0
