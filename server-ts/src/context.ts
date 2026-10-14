@@ -14,6 +14,8 @@ import { RobotCare, RobotCareSettings } from './domain/robot-care.js';
 
 import { Economy, AddressPool } from './domain/economy.js';
 import { DepositRouterAllocator } from './integrations/deposit-allocator.js';
+import { Admin } from './domain/admin.js';
+import { MarketQuote } from './domain/market-quote.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -47,6 +49,8 @@ export interface AppContext {
   depositAllocator?: any;
   robotCare: RobotCare;
   robotCareSettings?: () => RobotCareSettings | null | undefined;
+  admin: Admin;
+  marketQuote: MarketQuote;
 }
 
 export function createAppContext(
@@ -71,6 +75,8 @@ export function createAppContext(
     extraCompanionsVerifier: null as any,
     economy: null as any,
     robotCare: null as any,
+    admin: null as any,
+    marketQuote: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
@@ -79,7 +85,16 @@ export function createAppContext(
   ctx.robotsVerifier = overrides?.robotsVerifier ?? new Robots(db, config.ROBOTS_RPC_URL, () => ctx.now());
   ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(db);
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
-  const careSettings = overrides?.robotCareSettings ?? (() => getRobotCareSettings(ctx.config));
+  const admin = overrides?.admin ?? new Admin(db, {
+    token: config.ADMIN_TOKEN,
+    now: () => ctx.now(),
+    initialUser: config.ADMIN_USERNAME,
+    initialPassword: config.ADMIN_PASSWORD,
+    config,
+  });
+  ctx.admin = admin;
+  ctx.marketQuote = overrides?.marketQuote ?? new MarketQuote(() => ctx.now());
+  const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(
     db,
