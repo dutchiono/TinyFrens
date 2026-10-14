@@ -3,6 +3,9 @@ import { AppContext } from '../context.js';
 import { validateTelegramInitData } from '../crypto/signatures.js';
 import {
   classify,
+  adminServerTriage,
+  canAccessAdminTools,
+  fetchGithubProgress,
   getOrCreatePet,
   linkCode,
   performCareAction,
@@ -14,6 +17,7 @@ import {
 } from '../integrations/telegram.js';
 import { readAccountProfile, telegramPet } from '../domain/account.js';
 import { requestSync } from '../domain/device-sync.js';
+import { isChatAdmin } from '../domain/telegram-moderation.js';
 
 async function callTelegramApi(
   method: string,
@@ -195,8 +199,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           }
         } else if (data === 'gh:refresh') {
           const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
-          const repoPart = repoStr.includes('/') ? repoStr.split('/')[1] : 'TinyFrens';
-          const [ghText, ghKb] = renderGithubProgress({}, repoPart);
+          const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
+          const progress = await fetchGithubProgress(ownerPart, repoPart, context.config.GITHUB_TOKEN);
+          const [ghText, ghKb] = renderGithubProgress(progress, repoPart);
           if (cqId) {
             await callTelegramApi(
               'answerCallbackQuery',
@@ -252,14 +257,86 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
 
       const message = (update as Record<string, unknown>).message;
       if (message && typeof message === 'object') {
+        const telegramMessage = message as Record<string, unknown>;
         if (await context.telegramModeration.handleManagement(
-          message as Record<string, unknown>,
+          telegramMessage,
           chat
         )) {
           return reply.status(200).send({ ok: true });
         }
+        const text = String(telegramMessage.text || '');
+        const sender = telegramMessage.from && typeof telegramMessage.from === 'object'
+          ? telegramMessage.from as Record<string, unknown>
+          : {};
+        const messageId = telegramMessage.message_id;
+        const sendCommand = async (payload: Record<string, unknown>) => {
+          if (messageId) payload.reply_to_message_id = messageId;
+          await context.telegramApi.call('sendMessage', payload, token);
+        };
+
+        if (/^\/(?:game|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const pet = getOrCreatePet(
+            context.db,
+            String(chatId),
+            String(sender.id || '0'),
+            String(sender.first_name || 'Fren')
+          );
+          const [cardText, cardKeyboard] = renderGameCard(pet);
+          await sendCommand({
+            chat_id: chatId,
+            text: cardText,
+            parse_mode: 'HTML',
+            reply_markup: cardKeyboard,
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/(?:progress|github|work)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
+          const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
+          const progress = await fetchGithubProgress(ownerPart, repoPart, context.config.GITHUB_TOKEN);
+          const [progressText, progressKeyboard] = renderGithubProgress(progress, repoPart);
+          await sendCommand({
+            chat_id: chatId,
+            text: progressText,
+            parse_mode: 'HTML',
+            reply_markup: progressKeyboard,
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/status(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const [statusText, statusKeyboard] = publicServerStatus(0, Math.floor(context.now() - context.startTime));
+          await sendCommand({
+            chat_id: chatId,
+            text: statusText,
+            parse_mode: 'HTML',
+            reply_markup: statusKeyboard,
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/(?:admin|server|triage)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const groupAdmin = chat
+            ? await isChatAdmin(context.telegramApi, chat, sender, token, telegramMessage)
+            : false;
+          if (!canAccessAdminTools(sender, chat, groupAdmin)) {
+            await sendCommand({
+              chat_id: chatId,
+              text: '🔒 Access Denied: Server triage and administrative diagnostics are restricted to @dutchiono.',
+            });
+            return reply.status(200).send({ ok: true });
+          }
+          await sendCommand({
+            chat_id: chatId,
+            text: adminServerTriage(context.db, 0, Math.floor(context.now() - context.startTime)),
+            parse_mode: 'HTML',
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
         if (await context.telegramModeration.handleContent(
-          message as Record<string, unknown>,
+          telegramMessage,
           chat
         )) {
           return reply.status(200).send({ ok: true });
