@@ -146,14 +146,14 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Snap and Farcaster
 
-- [ ] `GET /`
+- [x] `GET /`
 - [ ] `POST /`
-- [ ] `GET /api/snap`
+- [x] `GET /api/snap`
 - [ ] `POST /api/snap`
 - [ ] `POST /api/snap/interact`
-- [ ] `GET /snap`
+- [x] `GET /snap`
 - [ ] `POST /snap`
-- [ ] `GET /.well-known/farcaster.json`
+- [x] `GET /.well-known/farcaster.json`
 - [ ] `POST /api/farcaster/notify`
 - [ ] `POST /api/farcaster/webhook`
 - [ ] `POST /api/farcaster/cast`
@@ -179,9 +179,9 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [ ] `POST /api/bankr/nfts`
 - [ ] `POST /api/bankr/transform`
 - [ ] `POST /api/bankr/monitor`
-- [ ] `GET /api/bankr/status`
-- [ ] `GET /api/nft/price`
-- [ ] `GET /api/nft/uri`
+- [x] `GET /api/bankr/status`
+- [x] `GET /api/nft/price`
+- [x] `GET /api/nft/uri`
 - [ ] `POST /api/wallet/mint`
 - [ ] `POST /api/wallet/rename-nft`
 - [ ] `POST /api/wallet/evolve-nft`
@@ -201,26 +201,26 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Economy and collections
 
-- [ ] `GET /api/economy/status`
+- [x] `GET /api/economy/status`
 - [ ] `POST /api/deposits/open`
 - [ ] `POST /api/deposits/status`
 - [ ] `POST /api/deposits/confirm`
 - [ ] `POST /api/credits/balance`
-- [ ] `GET /api/collections/suggestions`
+- [x] `GET /api/collections/suggestions`
 - [ ] `POST /api/collections/suggestions`
 - [ ] `POST /api/collections/vote`
-- [ ] `GET /api/vote/status`
+- [x] `GET /api/vote/status`
 - [ ] `POST /api/vote/status`
 
 ### Robots, imported collections, and galleries
 
-- [ ] `GET /api/robots/gallery`
+- [x] `GET /api/robots/gallery`
 - [ ] `POST /api/robots/care`
 - [ ] `POST /api/robots/care/action`
 - [ ] `POST /api/robots/game`
-- [ ] `GET /api/gallery/collections`
-- [ ] `GET /api/gallery/imported`
-- [ ] `GET /api/hood-turtles/preview`
+- [x] `GET /api/gallery/collections`
+- [x] `GET /api/gallery/imported`
+- [x] `GET /api/hood-turtles/preview`
 - [ ] `POST /api/featured/hood-turtle`
 - [ ] `POST /api/featured/companion`
 
@@ -237,7 +237,7 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Push notifications
 
-- [ ] `GET /api/push/public-key`
+- [x] `GET /api/push/public-key`
 - [ ] `POST /api/push/subscribe`
 - [ ] `POST /api/push/unsubscribe`
 - [ ] Preserve best-effort offline push, subscription removal, payload shape, and rate limits.
@@ -441,7 +441,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 1: pure utilities and parsers with no I/O (profile normalization, pairing codes, economy token math, robot care bounds & UTC keys, Telegram command grammar, companion selection, and DEX Screener quote math).
 - [x] Phase 2: media generation and deterministic contract/crypto helpers using known vectors.
 - [x] Phase 3: repositories and schema compatibility against copied fixture databases.
-- [ ] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
+- [x] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
 - [ ] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
 - [ ] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
 - [ ] Phase 7: workers and restart recovery.
