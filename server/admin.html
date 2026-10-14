@@ -24,10 +24,14 @@ th{color:#a99eb9;font-size:11px;text-transform:uppercase;letter-spacing:.06em;fo
 .muted{color:#9a8fab;font-size:13px}
 .err{color:#ff9db1}
 .ok{color:#8ee6b0}
-.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-bottom:1px solid var(--line)}
-.stat{padding:16px 18px;min-width:0;border-right:1px solid var(--line)}
-.stat:last-child{border-right:0}
-.stat b{display:block;font-size:20px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;margin-bottom:5px}
+.status-strip{display:flex;gap:7px 22px;flex-wrap:wrap;padding:11px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.status-item{white-space:nowrap}.status-item span{color:#eee7f8;font-variant-numeric:tabular-nums;margin-left:5px}
+.market-hub{display:flex;align-items:baseline;gap:16px 24px;flex-wrap:wrap;padding:15px 18px}
+.market-price{font-size:19px;font-weight:750;font-variant-numeric:tabular-nums}.market-price small{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px}
+.hub-readout{display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.hub-readout span{white-space:nowrap}.hub-readout em{color:#e5daef;font-style:normal;font-variant-numeric:tabular-nums;margin-left:4px}
+.market-detail{border-top:1px solid var(--line)}
+.market-detail summary{cursor:pointer;padding:10px 18px;color:#bcaecb;font-size:12px}
 .detail-list{margin:0}
 .detail-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(170px,.75fr);gap:24px;align-items:start;padding:14px 18px;border-bottom:1px solid #30293e}
 .detail-row:last-child{border-bottom:0}
@@ -38,16 +42,18 @@ th{color:#a99eb9;font-size:11px;text-transform:uppercase;letter-spacing:.06em;fo
 .split>div+div{border-left:1px solid var(--line)}
 .panel-heading{padding:16px 18px 10px}
 .panel-heading p{margin:5px 0 0;font-size:13px}
-.policy-list{border-top:1px solid var(--line)}
-.policy-row{display:grid;grid-template-columns:minmax(150px,.65fr) minmax(220px,1.7fr) 130px;gap:20px;align-items:center;padding:15px 18px;border-bottom:1px solid #30293e}
-.policy-row:last-child{border-bottom:0}
-.policy-title strong{display:block;text-transform:capitalize}
-.policy-title span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-.slider-wrap{display:grid;grid-template-columns:1fr 78px;gap:14px;align-items:center}
 input[type=range]{width:100%;padding:0;border:0;background:transparent;accent-color:var(--accent)}
 .policy-value{width:100%;text-align:right;font-variant-numeric:tabular-nums}
-.policy-estimate{text-align:right;color:var(--muted);font-size:12px}
-.policy-estimate strong{display:block;color:#d9cae9;font-size:13px;margin-bottom:3px}
+.economy-model{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.economy-model>div{padding:16px 18px}.economy-model>div+div{border-left:1px solid var(--line)}
+.economy-model p{font-size:12px;margin:5px 0 0}
+.control-grid{display:grid;grid-template-columns:minmax(160px,.8fr) minmax(260px,1.6fr) minmax(160px,.7fr);gap:18px;align-items:end;padding:16px 18px;border-top:1px solid var(--line)}
+.control-grid label{margin:0}.range-control{display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:center}
+.preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.preset-row button{font-size:11px;padding:5px 8px}
+select{background:#121020;color:#f3eeff;border:1px solid #4b3f60;border-radius:8px;padding:9px 10px;font:inherit}
+.curve-table input{width:110px;text-align:right}.curve-table td:nth-child(n+3),.curve-table th:nth-child(n+3){text-align:right}.curve-table .purpose{color:var(--muted)}
+.formula{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#cdb9df}
+.progression-line{padding:11px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;background:#171422;border-top:1px solid var(--line)}
 .hidden{display:none}
 .user-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:9px;margin:18px 0}
@@ -65,7 +71,7 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 .section-note{margin:4px 0 14px;font-size:13px}
 details.panel summary{cursor:pointer;padding:16px 18px;font-weight:700}
 details.panel[open] summary{border-bottom:1px solid var(--line)}
-@media(max-width:800px){body{padding:20px 14px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(2n){border-right:0}.split{grid-template-columns:1fr}.split>div+div{border-left:0;border-top:1px solid var(--line)}.policy-row{grid-template-columns:1fr;gap:10px}.policy-estimate{text-align:left}.detail-row{grid-template-columns:1fr;gap:6px}.detail-row dd{text-align:left}.toolbar{align-items:flex-start;flex-direction:column}.user-bar{gap:12px}nav{position:static}input{max-width:100%}}
+@media(max-width:800px){body{padding:20px 14px}.market-hub{align-items:flex-start;flex-direction:column}.split,.economy-model{grid-template-columns:1fr}.split>div+div,.economy-model>div+div{border-left:0;border-top:1px solid var(--line)}.control-grid{grid-template-columns:1fr}.detail-row{grid-template-columns:1fr;gap:6px}.detail-row dd{text-align:left}.toolbar{align-items:flex-start;flex-direction:column}.user-bar{gap:12px}nav{position:static}input{max-width:100%}.curve-table .purpose{display:none}}
 </style></head><body>
 <div class="eyebrow">TinyFrens · operator console</div>
 <h1>Your frens, at a glance.</h1>
@@ -109,46 +115,42 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     <div class="section-heading"><h2>Economy overview</h2><button class="ghost" id="refresh">Refresh overview</button></div>
     <p id="loadmsg" class="muted" role="status"></p>
     <div class="panel">
-      <div class="stats" id="stats"></div>
-      <div class="split">
-        <div>
-          <div class="panel-heading"><div class="eyebrow">Production Base · indicative quote</div><h2 style="margin-top:6px">FRENS market</h2></div>
-          <dl class="detail-list" id="marketStats"></dl>
-        </div>
-        <div>
-          <div class="panel-heading"><div class="eyebrow">USD conversion</div><h2 style="margin-top:6px">Conversion reference</h2></div>
-          <dl class="detail-list" id="conversions"></dl>
-        </div>
+      <div class="status-strip" id="stats"></div>
+      <div class="market-hub">
+        <div class="market-price" id="hubPrice">Loading…<small>FRENS / USD</small></div>
+        <div class="hub-readout" id="marketHub"></div>
       </div>
-      <div class="toolbar">
-        <div><p class="muted" id="marketSource" role="status" style="margin:0">Loading market quote…</p><p class="contract" id="marketContract" style="margin:5px 0 0"></p></div>
-        <div><p class="muted" id="oracleStatus" style="margin:0"></p><p class="muted" style="margin:5px 0 0">Five-minute shared cache · no RPC polling · care prices remain denominated in FRENS.</p></div>
-      </div>
+      <details class="market-detail"><summary>Quote source, conversion math, and contract</summary><div class="split"><dl class="detail-list" id="marketStats"></dl><dl class="detail-list" id="conversions"></dl></div><div class="toolbar"><div><p class="muted" id="marketSource" role="status" style="margin:0">Loading market quote…</p><p class="contract" id="marketContract" style="margin:5px 0 0"></p></div><div><p class="muted" id="oracleStatus" style="margin:0"></p><p class="muted" style="margin:5px 0 0">Five-minute shared cache · no RPC polling.</p></div></div></details>
     </div>
     <p class="section-note">Registered devices are browser/app credentials, including older installations. Sync accounts group linked devices. Neither is a count of imported frens or active users.</p>
     <p class="section-note" id="economy"></p>
   </section>
   <section id="care-settings">
   <h2>Care policy</h2>
-  <p class="section-note">Tune exact values with the number field, or use the slider for quick adjustments. Credits convert at <span id="cpf">?</span> per FRENS.</p>
+  <p class="section-note">One predictable curve controls paid care. Market data informs changes but never changes gameplay automatically.</p>
   <div class="panel">
-    <div class="panel-heading"><h3>Allowance and rewards</h3><p>Global limits applied to every linked device.</p></div>
-    <div class="policy-list">
-      <div class="policy-row"><div class="policy-title"><strong>Free daily allowance</strong><span>Care actions available before a FRENS charge</span></div><div class="slider-wrap"><input id="allowanceRange" aria-label="Free daily allowance slider" type="range" min="0" max="100" step="1"><input class="policy-value" aria-label="Free daily allowance exact value" id="allowance" type="number" min="0" max="100000" step="1"></div><div class="policy-estimate"><strong id="allowanceSummary">—</strong>actions / UTC day</div></div>
-      <div class="policy-row"><div class="policy-title"><strong>Game reward</strong><span>Credits granted after a completed game round</span></div><div class="slider-wrap"><input id="gameRewardRange" aria-label="Game reward slider" type="range" min="0" max="100000" step="100"><input class="policy-value" aria-label="Game reward exact value" id="gameReward" type="number" min="0" step="100"></div><div class="policy-estimate"><strong id="gameRewardSummary">—</strong><span id="gameRewardFrens">— FRENS</span></div></div>
+    <div class="economy-model">
+      <div><h3>Free-care rhythm</h3><p><span class="formula">4 core actions × daily care cycles</span>. Twelve free actions supports three full feed/play/rest/clean cycles; 24 supports six.</p></div>
+      <div><h3>Paid-care curve</h3><p><span class="formula">base FRENS × action multiplier</span>. Routine actions stay near base; rare recovery actions carry higher multipliers.</p></div>
     </div>
-    <div class="panel-heading"><h3>Paid care actions</h3><p>FRENS charged for one use after the daily allowance is exhausted.</p></div>
-    <div class="policy-list" id="prices"></div>
+    <div class="control-grid">
+      <div><label>Free actions / UTC day<input class="policy-value" aria-label="Free daily actions exact value" id="allowance" type="number" min="0" max="100000" step="1"></label><div class="preset-row"><button class="ghost allowance-preset" type="button" data-value="8">Strict · 8</button><button class="ghost allowance-preset" type="button" data-value="12">Balanced · 12</button><button class="ghost allowance-preset" type="button" data-value="24">Generous · 24</button></div></div>
+      <div><label>Base paid action price<div class="range-control"><input id="basePriceRange" aria-label="Base FRENS price slider" type="range" min="0" max="1000" step="1"><input class="policy-value" aria-label="Base FRENS price exact value" id="basePrice" type="number" min="0" step="1"></div></label><div class="preset-row"><span class="muted" id="basePriceUsd">—</span><button class="ghost" id="applyCurve" type="button">Reapply curve</button></div></div>
+      <div><label>Slider maximum<select id="priceMagnitude" aria-label="Base price slider maximum"><option value="3">10³ · 1,000</option><option value="4">10⁴ · 10,000</option><option value="5">10⁵ · 100,000</option><option value="6">10⁶ · 1 million</option><option value="7">10⁷ · 10 million</option><option value="8">10⁸ · 100 million</option></select></label><label style="margin-top:9px">Target base USD<div class="range-control"><input id="targetBaseUsd" type="number" min="0" step="0.0001" placeholder="0.001"><button class="ghost" id="setFromUsd" type="button">Use quote</button></div></label></div>
+    </div>
+    <div class="panel-heading"><h3>Action curve</h3><p>Exact prices remain editable. Reapply the curve after changing the base price to restore the designed ratios.</p></div>
+    <div class="table-wrap" style="margin:0;border-left:0;border-right:0;border-radius:0;max-height:none"><table class="curve-table"><thead><tr><th>Action</th><th class="purpose">Purpose</th><th>Multiplier</th><th>FRENS</th><th>USD now</th></tr></thead><tbody id="prices"></tbody></table></div>
+    <div class="progression-line" id="progressionStatus">Game token rewards are off. XP progression needs a real gameplay system and is not faked in this panel.</div>
     <div class="toolbar">
-      <button id="save">Save tunables</button>
+      <button id="save">Save care policy</button>
       <span id="savemsg" class="muted"></span>
     </div>
   </div>
 
   </section><section id="activity">
-  <h2>Credit ledger</h2>
-  <p class="section-note">Device credit entries. Delta and balance are in internal credits; the conversion rate is shown above.</p>
-  <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ credits</th><th>Balance (credits)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
+  <h2>FRENS ledger</h2>
+  <p class="section-note">Device balance entries, converted to FRENS.</p>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ FRENS</th><th>Balance (FRENS)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
 
   <h2>Care usage today</h2>
   <p class="section-note">Daily allowance usage, per device, for the current UTC day.</p>
@@ -187,7 +189,16 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   var USER_KEY = 'tinyfrens.admin.user';
   var state = null;
   var marketData = null;
-  var ACTION_HELP = {feed:'Restore food',play:'Raise happiness',rest:'Restore energy',adventure:'Run an adventure',clean:'Restore hygiene',vitamin:'Health support',scold:'Correct behavior',revive:'Recover an inactive fren'};
+  var ACTION_CURVE = {
+    feed:{purpose:'Restore food', multiplier:1},
+    play:{purpose:'Raise happiness', multiplier:1.5},
+    rest:{purpose:'Restore energy', multiplier:.5},
+    adventure:{purpose:'Run an adventure', multiplier:1.5},
+    clean:{purpose:'Restore hygiene', multiplier:.5},
+    vitamin:{purpose:'Health support', multiplier:5},
+    scold:{purpose:'Correct behavior', multiplier:.25},
+    revive:{purpose:'Recover an inactive fren', multiplier:100}
+  };
 
   function token(){ return sessionStorage.getItem(KEY) || ''; }
 
@@ -238,6 +249,15 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   function loadMarket(){
     return api('/api/admin/market').then(function(m){
       marketData = m;
+      $('hubPrice').textContent = '';
+      $('hubPrice').appendChild(document.createTextNode(amount(m.priceUsd, true)));
+      var priceUnit = document.createElement('small'); priceUnit.textContent = 'USD / FRENS'; $('hubPrice').appendChild(priceUnit);
+      var hub = $('marketHub'); hub.textContent = '';
+      [['Market cap', amount(m.marketCapUsd, true)], ['Liquidity', amount(m.liquidityUsd, true)],
+       ['$0.01', amount(m.frensPerCent, false) + ' FRENS'], ['$1', amount(m.frensPerDollar, false) + ' FRENS']].forEach(function(pair){
+        var item = document.createElement('span'); item.textContent = pair[0];
+        var value = document.createElement('em'); value.textContent = pair[1]; item.appendChild(value); hub.appendChild(item);
+      });
       detailRows('marketStats', [['FRENS price', amount(m.priceUsd, true),'1 FRENS in USD'],
         ['FRENS / ETH', m.frensEth != null ? Number(m.frensEth).toLocaleString(undefined,{maximumSignificantDigits:8}) : 'Unavailable','Pool-derived ratio'],
         ['ETH / USD', amount(m.ethUsd, true),'Reference pool'],
@@ -255,6 +275,8 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       updatePolicyEstimates();
     }).catch(function(err){
       marketData = null;
+      $('hubPrice').textContent = 'Unavailable';
+      $('marketHub').textContent = '';
       detailRows('marketStats', [['Market quote', 'Unavailable']]);
       detailRows('conversions', [['USD conversions', 'Unavailable']]);
       $('marketSource').textContent = err.message; $('marketSource').className = 'err';
@@ -294,18 +316,18 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     });
   }
 
-  function bindRange(range, number, changed){
-    range.value = Math.min(Number(range.max), Math.max(Number(range.min), Number(number.value) || 0));
-    range.oninput = function(){ number.value = range.value; changed(); };
-    number.oninput = function(){ range.value = Math.min(Number(range.max), Math.max(Number(range.min), Number(number.value) || 0)); changed(); };
+  function magnitudeFor(value){
+    var exponent = 3;
+    while(exponent < 8 && Math.pow(10, exponent) < Number(value || 0)) exponent += 1;
+    return exponent;
   }
 
-  function sliderMax(value){
-    value = Math.max(0, Number(value) || 0);
-    if(value <= 1000) return 5000;
-    if(value <= 10000) return 25000;
-    if(value <= 100000) return 200000;
-    return Math.ceil(value * 1.5 / 100000) * 100000;
+  function setMagnitude(exponent){
+    var max = Math.pow(10, Number(exponent));
+    var range = $('basePriceRange');
+    range.max = String(max);
+    range.step = String(Math.max(1, Math.pow(10, Number(exponent) - 3)));
+    range.value = String(Math.min(max, Math.max(0, Number($('basePrice').value) || 0)));
   }
 
   function priceEstimate(frens){
@@ -314,67 +336,82 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   }
 
   function updatePolicyEstimates(){
-    $('allowanceSummary').textContent = (Number($('allowance').value) || 0).toLocaleString();
-    var credits = Number($('gameReward').value) || 0;
-    var cpf = Number((state && state.economy || {}).creditsPerFrens) || 0;
-    $('gameRewardSummary').textContent = credits.toLocaleString() + ' credits';
-    $('gameRewardFrens').textContent = cpf ? amount(credits / cpf, false) + ' FRENS' : 'FRENS conversion unavailable';
+    $('basePriceUsd').textContent = priceEstimate($('basePrice').value) + ' at current quote';
     Array.prototype.forEach.call($('prices').querySelectorAll('[data-price-estimate]'), function(node){
       var input = $('price-' + node.dataset.priceEstimate);
       node.textContent = priceEstimate(input ? input.value : 0);
     });
   }
 
+  function applyCurve(){
+    var base = Math.max(0, Number($('basePrice').value) || 0);
+    Array.prototype.forEach.call($('prices').querySelectorAll('input[data-action]'), function(input){
+      var curve = ACTION_CURVE[input.dataset.action] || {multiplier:1};
+      input.value = String(Math.round(base * curve.multiplier));
+    });
+    updatePolicyEstimates();
+  }
+
+  function auditDetail(detail){
+    if(!detail || typeof detail !== 'object') return detail ? String(detail) : '';
+    var copy = Object.assign({}, detail);
+    if(copy.gameRewardCredits != null){
+      var cpf = Number((state && state.economy || {}).creditsPerFrens) || 0;
+      copy.legacyGameRewardFrens = cpf > 0 ? Number(copy.gameRewardCredits) / cpf : 'conversion unavailable';
+      delete copy.gameRewardCredits;
+    }
+    return JSON.stringify(copy);
+  }
+
   function render(){
-    var s = state.settings || {}, overrides = state.overrides || {}, prices = s.prices || {};
+    var s = state.settings || {}, prices = s.prices || {};
     $('allowance').value = s.dailyAllowance;
-    $('gameReward').value = s.gameRewardCredits != null ? s.gameRewardCredits : 0;
-    bindRange($('allowanceRange'), $('allowance'), updatePolicyEstimates);
-    $('gameRewardRange').max = String(Math.max(100000, sliderMax($('gameReward').value)));
-    bindRange($('gameRewardRange'), $('gameReward'), updatePolicyEstimates);
     var box = $('prices');
     box.textContent = '';
     (state.actions || []).forEach(function(action){
       var value = prices[action] != null ? prices[action] : 0;
-      var row = document.createElement('div'); row.className = 'policy-row';
-      var title = document.createElement('div'); title.className = 'policy-title';
-      var strong = document.createElement('strong'); strong.textContent = action;
-      var help = document.createElement('span'); help.textContent = ACTION_HELP[action] || 'Care action';
-      title.appendChild(strong); title.appendChild(help);
-      var controls = document.createElement('div'); controls.className = 'slider-wrap';
-      var range = document.createElement('input'); range.type = 'range'; range.setAttribute('aria-label', action + ' FRENS price slider'); range.min = '0'; range.max = String(sliderMax(value)); range.step = value >= 10000 ? '500' : value >= 1000 ? '100' : '10';
+      var curve = ACTION_CURVE[action] || {purpose:'Care action', multiplier:1};
+      var row = document.createElement('tr');
+      var title = document.createElement('td'); title.textContent = action; title.style.textTransform = 'capitalize';
+      var purpose = document.createElement('td'); purpose.className = 'purpose'; purpose.textContent = curve.purpose;
+      var multiplier = document.createElement('td'); multiplier.textContent = '×' + curve.multiplier;
+      var price = document.createElement('td');
       var input = document.createElement('input'); input.className = 'policy-value'; input.id = 'price-' + action; input.type = 'number'; input.min = '0'; input.step = '1'; input.dataset.action = action; input.value = value;
-      controls.appendChild(range); controls.appendChild(input);
-      var estimate = document.createElement('div'); estimate.className = 'policy-estimate';
-      var exact = document.createElement('strong'); exact.textContent = Number(value).toLocaleString() + ' FRENS';
-      var usd = document.createElement('span'); usd.dataset.priceEstimate = action;
-      estimate.appendChild(exact); estimate.appendChild(usd);
-      bindRange(range, input, function(){ exact.textContent = (Number(input.value) || 0).toLocaleString() + ' FRENS'; updatePolicyEstimates(); });
-      row.appendChild(title); row.appendChild(controls); row.appendChild(estimate); box.appendChild(row);
+      input.addEventListener('input', updatePolicyEstimates); price.appendChild(input);
+      var usdCell = document.createElement('td'); usdCell.dataset.priceEstimate = action;
+      row.appendChild(title); row.appendChild(purpose); row.appendChild(multiplier); row.appendChild(price); row.appendChild(usdCell); box.appendChild(row);
     });
+    var base = prices.feed != null ? Number(prices.feed) : 0;
+    $('basePrice').value = String(base);
+    var exponent = magnitudeFor(base);
+    $('priceMagnitude').value = String(exponent);
+    setMagnitude(exponent);
+    var legacyReward = Number(s.gameRewardCredits) || 0;
+    var cpfForReward = Number((state.economy || {}).creditsPerFrens) || 0;
+    $('progressionStatus').textContent = legacyReward > 0 && cpfForReward > 0
+      ? 'Legacy game token reward: ' + amount(legacyReward / cpfForReward, false) + ' FRENS per win. It is preserved but not edited here. XP needs a real progression system.'
+      : 'Game token rewards are off. XP needs a real progression system and is not faked in this panel.';
     updatePolicyEstimates();
 
     var counts = state.counts || {}, e = state.economy || {};
     var stats = $('stats'); stats.textContent = '';
-    [['Registered devices', counts.registeredDevices], ['Sync accounts', counts.syncAccounts], ['Credit accounts', counts.creditAccounts], ['FRENS balance', counts.credits != null && e.creditsPerFrens > 0 ? Number(counts.credits / e.creditsPerFrens).toLocaleString(undefined,{maximumFractionDigits:2}) : null],
+    [['Registered devices', counts.registeredDevices], ['Sync accounts', counts.syncAccounts], ['Balance accounts', counts.creditAccounts], ['FRENS balance', counts.credits != null && e.creditsPerFrens > 0 ? Number(counts.credits / e.creditsPerFrens).toLocaleString(undefined,{maximumFractionDigits:2}) : null],
      ['Deposits', counts.deposits], ['Care actions today', counts.careToday]].forEach(function(pair){
-      var d = document.createElement('div'); d.className = 'stat';
-      var b = document.createElement('b'); b.textContent = pair[1] != null ? pair[1] : '—';
-      var span = document.createElement('span'); span.className = 'muted'; span.textContent = pair[0];
-      d.appendChild(b); d.appendChild(span); stats.appendChild(d);
+      var d = document.createElement('div'); d.className = 'status-item'; d.textContent = pair[0];
+      var value = document.createElement('span'); value.textContent = pair[1] != null ? pair[1] : '—';
+      d.appendChild(value); stats.appendChild(d);
     });
-    $('cpf').textContent = e.creditsPerFrens != null ? e.creditsPerFrens : '?';
     $('economy').textContent = (e.enabled
       ? ('Economy: ' + (e.mode || '?') + ' · chain ' + (e.chainId || '?') + ' · ' + (e.symbol || 'FRENS') +
          ' · deposits ' + (e.depositsEnabled ? 'on' : 'off'))
       : 'Economy is not enabled on this relay.')
       + ' · treasury ' + (e.treasury || 'not set')
-      + (e.maxCreditsPerTransfer ? (' · cap ' + e.maxCreditsPerTransfer + ' credits/transfer') : '');
+      + (e.maxCreditsPerTransfer && e.creditsPerFrens ? (' · cap ' + amount(e.maxCreditsPerTransfer / e.creditsPerFrens, false) + ' FRENS/transfer') : '');
 
     var audit = $('audit'); audit.textContent = '';
     (state.audit || []).forEach(function(row){
       var tr = document.createElement('tr');
-      [row.action, row.detail ? JSON.stringify(row.detail) : '', when(row.created)].forEach(function(v){
+      [row.action, auditDetail(row.detail), when(row.created)].forEach(function(v){
         var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
       });
       audit.appendChild(tr);
@@ -390,9 +427,10 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   function loadLedger(){
     return api('/api/admin/ledger?limit=50').then(function(data){
       var body = $('ledger'); body.textContent = '';
+      var cpf = Number((state && state.economy || {}).creditsPerFrens) || 0;
       (data.entries || []).forEach(function(row){
         var tr = document.createElement('tr');
-        [row.id, row.petId, row.delta, row.balance, row.reason, when(row.created)].forEach(function(v){
+        [row.id, row.petId, cpf > 0 ? amount(row.delta / cpf, false) : '—', cpf > 0 ? amount(row.balance / cpf, false) : '—', row.reason, when(row.created)].forEach(function(v){
           var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
         });
         body.appendChild(tr);
@@ -486,8 +524,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     Array.prototype.forEach.call($('prices').querySelectorAll('input[data-action]'), function(input){
       prices[input.dataset.action] = parseInt(input.value, 10);
     });
-    var body = {dailyAllowance: parseInt($('allowance').value, 10),
-                gameRewardCredits: parseInt($('gameReward').value, 10), prices: prices};
+    var body = {dailyAllowance: parseInt($('allowance').value, 10), prices: prices};
     var msg = $('savemsg'); msg.textContent = 'Saving…'; msg.className = 'muted';
     return api('/api/admin/settings', {
       method: 'POST',
@@ -529,7 +566,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
         var audit = $('audit'); audit.textContent = '';
         (state.audit || []).forEach(function(row){
           var tr = document.createElement('tr');
-          [row.action, row.detail ? JSON.stringify(row.detail) : '', when(row.created)].forEach(function(v){
+          [row.action, auditDetail(row.detail), when(row.created)].forEach(function(v){
             var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
           });
           audit.appendChild(tr);
@@ -547,6 +584,32 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   $('tokenBtn').addEventListener('click', loginWithToken);
   $('logoutBtn').addEventListener('click', logout);
   $('save').addEventListener('click', saveTunables);
+  Array.prototype.forEach.call(document.querySelectorAll('.allowance-preset'), function(button){
+    button.addEventListener('click', function(){ $('allowance').value = button.dataset.value; });
+  });
+  $('priceMagnitude').addEventListener('change', function(){ setMagnitude(this.value); });
+  $('basePriceRange').addEventListener('input', function(){ $('basePrice').value = this.value; applyCurve(); });
+  $('basePrice').addEventListener('input', function(){
+    $('basePriceRange').value = String(Math.min(Number($('basePriceRange').max), Math.max(0, Number(this.value) || 0)));
+    applyCurve();
+  });
+  $('applyCurve').addEventListener('click', applyCurve);
+  $('setFromUsd').addEventListener('click', function(){
+    var target = Number($('targetBaseUsd').value);
+    var quote = marketData && Number(marketData.priceUsd);
+    if(!(target >= 0) || !(quote > 0)){
+      $('savemsg').textContent = quote > 0 ? 'Enter a valid USD target.' : 'A market quote is required.';
+      $('savemsg').className = 'err';
+      return;
+    }
+    var base = Math.round(target / quote);
+    var exponent = magnitudeFor(base);
+    $('priceMagnitude').value = String(exponent); setMagnitude(exponent);
+    $('basePrice').value = String(base); $('basePriceRange').value = String(Math.min(Number($('basePriceRange').max), base));
+    applyCurve();
+    $('savemsg').textContent = 'Curve set from the current indicative quote. Save to apply it.';
+    $('savemsg').className = 'muted';
+  });
   $('refresh').addEventListener('click', function(){
     $('refresh').disabled = true;
     $('loadmsg').textContent = 'Refreshing…';
