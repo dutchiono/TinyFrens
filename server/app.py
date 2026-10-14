@@ -1332,6 +1332,92 @@ def create_app(database=None, origins=None):
         file_id=((response.get('result') or {}).get('animation') or {}).get('file_id')
         if file_id and not cached:
             with db: db.execute('INSERT OR REPLACE INTO tg_media_cache VALUES(?,?,?,?,?)',(*key,file_id,int(now())))
+
+    moderation_tasks=set()
+    def telegram_permissions(allowed):
+        return {key:allowed for key in ('can_send_messages','can_send_audios','can_send_documents',
+            'can_send_photos','can_send_videos','can_send_video_notes','can_send_voice_notes',
+            'can_send_polls','can_send_other_messages','can_add_web_page_previews','can_invite_users')}
+    async def moderation_call(method,payload,token):
+        data,status=await bot_api(method,payload,token)
+        if status>=400 or not isinstance(data,dict) or not data.get('ok'):
+            raise ValueError(data.get('description','Telegram rejected the request') if isinstance(data,dict) else 'Telegram rejected the request')
+        return data.get('result')
+    async def remove_unverified(challenge,token,notify=True):
+        current=tg_mod.get_challenge(db,challenge['token'])
+        if not current:return
+        try:
+            await moderation_call('banChatMember',{'chat_id':current['chat_id'],'user_id':current['user_id'],'revoke_messages':True},token)
+            await moderation_call('unbanChatMember',{'chat_id':current['chat_id'],'user_id':current['user_id'],'only_if_banned':True},token)
+            if current['message_id']:
+                try:await moderation_call('deleteMessage',{'chat_id':current['chat_id'],'message_id':current['message_id']},token)
+                except ValueError:pass
+            if notify:await moderation_call('sendMessage',{'chat_id':current['chat_id'],'text':'An unverified newcomer was removed. They can rejoin and try again.'},token)
+        finally:tg_mod.delete_challenge(db,current['token'])
+    def schedule_moderation_timeout(challenge,token):
+        async def expire():
+            await asyncio.sleep(max(0,int(challenge['expires'])-int(now())))
+            try:await remove_unverified(challenge,token)
+            except Exception:pass
+        task=asyncio.create_task(expire());moderation_tasks.add(task);task.add_done_callback(moderation_tasks.discard)
+    async def telegram_moderation(update,token):
+        if os.environ.get('TELEGRAM_MODERATION','').lower()!='true':return False
+        callback=update.get('callback_query') if isinstance(update,dict) else None
+        match=re.fullmatch(r'tfverify:([A-Za-z0-9_-]{8,24}):([0-9]+)',str((callback or {}).get('data') or ''))
+        if isinstance(callback,dict) and match:
+            challenge=tg_mod.get_challenge(db,match.group(1));callback_id=callback.get('id')
+            if not challenge or int(challenge['expires'])<=int(now()):
+                await moderation_call('answerCallbackQuery',{'callback_query_id':callback_id,'text':'This challenge expired. Rejoin to try again.','show_alert':True},token);return True
+            if str((callback.get('from') or {}).get('id',''))!=str(challenge['user_id']):
+                await moderation_call('answerCallbackQuery',{'callback_query_id':callback_id,'text':'This challenge belongs to the newcomer.','show_alert':True},token);return True
+            if int(match.group(2))==int(challenge['answer']):
+                await moderation_call('restrictChatMember',{'chat_id':challenge['chat_id'],'user_id':challenge['user_id'],'permissions':telegram_permissions(True),'use_independent_chat_permissions':True},token)
+                tg_mod.delete_challenge(db,challenge['token'])
+                await moderation_call('answerCallbackQuery',{'callback_query_id':callback_id,'text':'Verified — welcome!'},token)
+                if challenge['message_id']:
+                    try:await moderation_call('deleteMessage',{'chat_id':challenge['chat_id'],'message_id':challenge['message_id']},token)
+                    except ValueError:pass
+                name=re.sub(r'[\x00-\x1f\x7f]','',str((callback.get('from') or {}).get('first_name') or 'Fren'))[:40]
+                await moderation_call('sendMessage',{'chat_id':challenge['chat_id'],'text':'✅ '+name+' verified. Welcome to TinyFrens!'},token);return True
+            attempts=tg_mod.record_challenge_failure(db,challenge['token'])
+            await moderation_call('answerCallbackQuery',{'callback_query_id':callback_id,'text':'Not quite.'+(' Try again.' if attempts<3 else ' Rejoin to try again.'),'show_alert':True},token)
+            if attempts>=3:await remove_unverified(challenge,token)
+            return True
+        message=update.get('message') if isinstance(update,dict) else None
+        members=message.get('new_chat_members') if isinstance(message,dict) else None
+        chat=message.get('chat') if isinstance(message,dict) else None
+        if not isinstance(members,list) or not isinstance(chat,dict) or chat.get('type') not in ('group','supergroup'):return False
+        timeout=max(60,min(600,_env_int('TELEGRAM_MODERATION_TIMEOUT',180)))
+        for member in members:
+            if not isinstance(member,dict) or member.get('id') is None:continue
+            user_id=member['id'];username=str(member.get('username') or '')
+            bot_username=str(os.environ.get('TELEGRAM_BOT_USERNAME','')).lower().lstrip('@')
+            if username.lower()=='tinyfrensbot' or (bot_username and username.lower()==bot_username):continue
+            if member.get('is_bot'):
+                try:
+                    await moderation_call('banChatMember',{'chat_id':chat['id'],'user_id':user_id,'revoke_messages':True},token)
+                    await moderation_call('sendMessage',{'chat_id':chat['id'],'text':'🛡️ Removed a newly added bot.'},token)
+                except ValueError:pass
+                continue
+            restricted=False;challenge=None
+            try:
+                status=await moderation_call('getChatMember',{'chat_id':chat['id'],'user_id':user_id},token)
+                if isinstance(status,dict) and status.get('status') in ('creator','administrator'):continue
+                await moderation_call('restrictChatMember',{'chat_id':chat['id'],'user_id':user_id,'permissions':telegram_permissions(False),'use_independent_chat_permissions':True},token);restricted=True
+                challenge=tg_mod.create_challenge(db,chat['id'],user_id,timeout,int(now()))
+                keyboard={'inline_keyboard':[[{'text':str(value),'callback_data':'tfverify:'+challenge['token']+':'+str(value)} for value in challenge['options'][:2]],[{'text':str(value),'callback_data':'tfverify:'+challenge['token']+':'+str(value)} for value in challenge['options'][2:]]]}
+                name=re.sub(r'[\x00-\x1f\x7f]','',str(member.get('first_name') or 'New fren'))[:40]
+                result=await moderation_call('sendMessage',{'chat_id':chat['id'],'text':'🛡️ '+name+', prove you are human: what is '+str(challenge['left'])+' + '+str(challenge['right'])+'? You have '+str(timeout//60)+' minutes and 3 attempts.','reply_markup':keyboard},token)
+                tg_mod.set_challenge_message(db,challenge['token'],result.get('message_id') if isinstance(result,dict) else None);schedule_moderation_timeout(challenge,token)
+            except ValueError as exc:
+                if challenge:tg_mod.delete_challenge(db,challenge['token'])
+                if restricted:
+                    try:await moderation_call('restrictChatMember',{'chat_id':chat['id'],'user_id':user_id,'permissions':telegram_permissions(True),'use_independent_chat_permissions':True},token)
+                    except ValueError:pass
+                try:await bot_api('sendMessage',{'chat_id':chat['id'],'text':'⚠️ I could not protect this join. Give TinyFrensBot permission to restrict and remove members. ('+str(exc)+')'},token)
+                except Exception:pass
+        return True
+
     async def telegram_auth(request):
         # Exchange a validated Telegram initData for the same friends-relay
         # identity ({id,token,code}) so friends.js/party.js work unchanged inside
@@ -1365,6 +1451,7 @@ def create_app(database=None, origins=None):
                 raise web.HTTPForbidden(text='Telegram webhook secret did not match')
             update=await request.json()
             if not isinstance(update,dict): return web.json_response({'ok':True})
+            if await telegram_moderation(update,token):return web.json_response({'ok':True})
             kind,chat_id,chat=classify(update)
             miniapp=os.environ.get('TELEGRAM_MINIAPP_URL','https://tinyfrens.lol/web/').split('#',1)[0]
             deep_link=os.environ.get('TELEGRAM_MINIAPP_DEEP_LINK','https://t.me/TinyFrensBot?startapp=home')
@@ -1926,6 +2013,9 @@ def create_app(database=None, origins=None):
                 for (other,) in db.execute('SELECT b FROM friends WHERE a=?',(pid,)).fetchall(): await state(other)
         return ws
     async def lifetime(app):
+        moderation_token=os.environ.get('TELEGRAM_BOT_TOKEN')
+        if os.environ.get('TELEGRAM_MODERATION','').lower()=='true' and moderation_token:
+            for challenge in tg_mod.pending_challenges(db):schedule_moderation_timeout(challenge,moderation_token)
         async def cleanup():
             while True:
                 await asyncio.sleep(5)
@@ -1947,6 +2037,8 @@ def create_app(database=None, origins=None):
         task.cancel()
         try: await task
         except asyncio.CancelledError: pass
+        for moderation_task in list(moderation_tasks):moderation_task.cancel()
+        if moderation_tasks:await asyncio.gather(*moderation_tasks,return_exceptions=True)
         for ws in list(sockets.values()): await ws.close(code=1001,message=b'Server stopping')
         db.close()
     app=web.Application(middlewares=[origin_guard],client_max_size=4096)

@@ -7,6 +7,7 @@ Provides:
 - Chat administrator verification via Telegram Bot API (`getChatMember`)
 """
 import re
+import secrets
 import time
 
 SCHEMA = '''
@@ -31,6 +32,16 @@ CREATE TABLE IF NOT EXISTS tg_strikes(
     strikes INTEGER NOT NULL DEFAULT 0,
     last_violation TEXT NOT NULL DEFAULT '',
     updated_at INTEGER NOT NULL,
+    PRIMARY KEY(chat_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS tg_challenges(
+    chat_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    answer INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    expires INTEGER NOT NULL,
+    message_id INTEGER,
     PRIMARY KEY(chat_id, user_id)
 );
 '''
@@ -237,6 +248,64 @@ def reset_strikes(db, chat_id, user_id):
         cur = db.execute('DELETE FROM tg_strikes WHERE chat_id=? AND user_id=?',
                          (str(chat_id), str(user_id)))
         return cur.rowcount > 0
+
+
+# --- New-member verification ---
+
+def create_challenge(db, chat_id, user_id, timeout=180, now=None):
+    """Persist a randomized four-choice addition challenge for a newcomer."""
+    current = int(time.time() if now is None else now)
+    left, right = secrets.randbelow(8) + 2, secrets.randbelow(8) + 2
+    answer = left + right
+    choices = {answer}
+    while len(choices) < 4:
+        choices.add(max(1, answer + secrets.randbelow(9) - 4))
+    options = list(choices)
+    secrets.SystemRandom().shuffle(options)
+    token = secrets.token_urlsafe(9)
+    expires = current + max(60, min(600, int(timeout)))
+    with db:
+        db.execute(
+            'INSERT OR REPLACE INTO tg_challenges(chat_id,user_id,token,answer,attempts,expires,message_id) VALUES(?,?,?,?,0,?,NULL)',
+            (str(chat_id), str(user_id), token, answer, expires))
+    return {'chat_id': str(chat_id), 'user_id': str(user_id), 'token': token,
+            'left': left, 'right': right, 'answer': answer, 'options': options, 'expires': expires}
+
+
+def set_challenge_message(db, token, message_id):
+    with db:
+        db.execute('UPDATE tg_challenges SET message_id=? WHERE token=?', (message_id, token))
+
+
+def get_challenge(db, token):
+    row = db.execute(
+        'SELECT chat_id,user_id,answer,attempts,expires,message_id FROM tg_challenges WHERE token=?',
+        (str(token),)).fetchone()
+    if not row:
+        return None
+    challenge = dict(zip(('chat_id', 'user_id', 'answer', 'attempts', 'expires', 'message_id'), row))
+    challenge['token'] = str(token)
+    return challenge
+
+
+def record_challenge_failure(db, token):
+    with db:
+        row = db.execute('SELECT attempts FROM tg_challenges WHERE token=?', (str(token),)).fetchone()
+        if not row:
+            return 0
+        attempts = int(row[0]) + 1
+        db.execute('UPDATE tg_challenges SET attempts=? WHERE token=?', (attempts, str(token)))
+        return attempts
+
+
+def delete_challenge(db, token):
+    with db:
+        return db.execute('DELETE FROM tg_challenges WHERE token=?', (str(token),)).rowcount > 0
+
+
+def pending_challenges(db):
+    rows = db.execute('SELECT chat_id,user_id,token,expires FROM tg_challenges').fetchall()
+    return [{'chat_id': row[0], 'user_id': row[1], 'token': row[2], 'expires': row[3]} for row in rows]
 
 
 # --- Admin Verification ---

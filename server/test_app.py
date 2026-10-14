@@ -1,4 +1,4 @@
-import asyncio, base64, json, os, sqlite3, tempfile, unittest
+import asyncio, base64, json, os, re, sqlite3, tempfile, unittest
 from pathlib import Path
 from unittest import mock
 from aiohttp import web
@@ -481,7 +481,7 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                 'TELEGRAM_MINIAPP_DEEP_LINK', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET',
                 'DISCORD_PUBLIC_KEY', 'GITHUB_TOKEN', 'GITHUB_REPO', 'GITHUB_ISSUE_LABELS',
                 'TELEGRAM_ISSUE_HISTORY', 'GITHUB_WEBHOOK_SECRET', 'GEMINI_API_KEY',
-                'GOOGLE_API_KEY', 'GEMINI_MODEL')
+                'GOOGLE_API_KEY', 'GEMINI_MODEL', 'TELEGRAM_MODERATION', 'TELEGRAM_MODERATION_TIMEOUT')
         self.saved = {k: os.environ.get(k) for k in keys}
         os.environ.pop('TELEGRAM_MINIAPP_URL', None)
         os.environ.pop('TELEGRAM_MINIAPP_DEEP_LINK', None)
@@ -1175,6 +1175,59 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                                 'from': {'id': 50, 'first_name': 'User'}}})
                 self.assertEqual(res.status, 200)
                 self.assertIn('This command can only be used in group chats.', calls[-1]['payload']['text'])
+
+    async def test_telegram_new_member_challenge_verifies_and_restores_access(self):
+        os.environ['TELEGRAM_BOT_TOKEN']=self.token;os.environ['TELEGRAM_MODERATION']='true'
+        calls=[]
+        async def fake(method,payload,token):
+            calls.append({'method':method,'payload':payload})
+            result={'status':'member'} if method=='getChatMember' else ({'message_id':77} if method=='sendMessage' else True)
+            return {'ok':True,'result':result},200
+        joined={'message':{'chat':{'id':-400,'type':'supergroup'},'new_chat_members':[{'id':42,'first_name':'Ada','is_bot':False}]}}
+        with mock.patch('app.bot_api',new=fake):
+            self.assertEqual((await self.client.post('/api/telegram/webhook',json=joined)).status,200)
+            prompt=next(c['payload'] for c in calls if c['method']=='sendMessage' and 'prove you are human' in c['payload'].get('text',''))
+            match=re.search(r'what is (\d+) \+ (\d+)',prompt['text']);answer=str(int(match.group(1))+int(match.group(2)))
+            buttons=sum(prompt['reply_markup']['inline_keyboard'],[])
+            data=next(button['callback_data'] for button in buttons if button['text']==answer)
+            response=await self.client.post('/api/telegram/webhook',json={'callback_query':{'id':'cb','data':data,'from':{'id':42,'first_name':'Ada'}}})
+        self.assertEqual(response.status,200)
+        restrictions=[c['payload'] for c in calls if c['method']=='restrictChatMember']
+        self.assertFalse(restrictions[0]['permissions']['can_send_messages']);self.assertTrue(restrictions[1]['permissions']['can_send_messages'])
+        self.assertTrue(any(c['method']=='deleteMessage' and c['payload']['message_id']==77 for c in calls))
+
+    async def test_telegram_new_member_gate_removes_bots_and_three_strike_failures(self):
+        os.environ['TELEGRAM_BOT_TOKEN']=self.token;os.environ['TELEGRAM_MODERATION']='true'
+        calls=[]
+        async def fake(method,payload,token):
+            calls.append({'method':method,'payload':payload})
+            result={'status':'member'} if method=='getChatMember' else ({'message_id':88} if method=='sendMessage' else True)
+            return {'ok':True,'result':result},200
+        joined={'message':{'chat':{'id':-401,'type':'supergroup'},'new_chat_members':[{'id':43,'first_name':'Eve'},{'id':44,'first_name':'Spam','is_bot':True,'username':'spam_bot'}]}}
+        with mock.patch('app.bot_api',new=fake):
+            await self.client.post('/api/telegram/webhook',json=joined)
+            prompt=next(c['payload'] for c in calls if c['method']=='sendMessage' and 'prove you are human' in c['payload'].get('text',''))
+            match=re.search(r'what is (\d+) \+ (\d+)',prompt['text']);answer=str(int(match.group(1))+int(match.group(2)))
+            buttons=sum(prompt['reply_markup']['inline_keyboard'],[]);wrong=next(b['callback_data'] for b in buttons if b['text']!=answer)
+            for attempt in range(3):await self.client.post('/api/telegram/webhook',json={'callback_query':{'id':'bad'+str(attempt),'data':wrong,'from':{'id':43}}})
+        bans=[c['payload']['user_id'] for c in calls if c['method']=='banChatMember']
+        self.assertIn(44,bans);self.assertIn('43',bans)
+        self.assertTrue(any(c['method']=='unbanChatMember' and c['payload']['user_id']=='43' for c in calls))
+
+    async def test_telegram_new_member_gate_bypasses_admin_and_fails_open(self):
+        os.environ['TELEGRAM_BOT_TOKEN']=self.token;os.environ['TELEGRAM_MODERATION']='true'
+        calls=[]
+        async def fake(method,payload,token):
+            calls.append({'method':method,'payload':payload})
+            if method=='getChatMember':return {'ok':True,'result':{'status':'administrator' if payload['user_id']==50 else 'member'}},200
+            if method=='sendMessage' and payload.get('text','').startswith('🛡️ Lin'):return {'ok':False,'description':'cannot post'},400
+            return {'ok':True,'result':True},200
+        joined={'message':{'chat':{'id':-402,'type':'supergroup'},'new_chat_members':[{'id':50,'first_name':'Mod'},{'id':51,'first_name':'Lin'}]}}
+        with mock.patch('app.bot_api',new=fake):response=await self.client.post('/api/telegram/webhook',json=joined)
+        self.assertEqual(response.status,200)
+        restrictions=[c['payload'] for c in calls if c['method']=='restrictChatMember']
+        self.assertFalse(any(p['user_id']==50 for p in restrictions));self.assertEqual(len([p for p in restrictions if p['user_id']==51]),2)
+        self.assertTrue([p for p in restrictions if p['user_id']==51][-1]['permissions']['can_send_messages'])
 
     async def test_telegram_game_mode_and_dynamic_callbacks(self):
         os.environ['TELEGRAM_BOT_TOKEN'] = self.token
