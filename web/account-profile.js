@@ -25,9 +25,9 @@
   }
   function draw(data) {
     name.value = data.displayName || '';
-    xHandle.textContent = data.xHandle && data.xHandleSource === 'verified-identity'
-      ? `X: @${data.xHandle} · verified`
-      : 'X is not verified. X account verification is not available yet; handles cannot be entered manually.';
+    xHandle.textContent = data.xHandle && ['verified-identity', 'bankr'].includes(data.xHandleSource)
+      ? `X: @${data.xHandle} · verified${data.xHandleSource === 'bankr' ? ' via Bankr' : ''}`
+      : 'Connect with Bankr to verify your linked X account. Handles cannot be entered manually.';
     window.dispatchEvent(new CustomEvent('tinyfrens-profile-updated', {detail:data}));
     identities.replaceChildren();
     for (const item of data.identities || []) {

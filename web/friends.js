@@ -116,9 +116,10 @@
    if(!identity){const result=await register();if(!/^[a-f0-9]{32}$/.test(result.id||'')||!/^[-_A-Za-z0-9]{40,100}$/.test(result.token||'')||!/^[-A-Z2-9]{8}$/.test(result.code||''))throw new Error('Friends server response was invalid.');if(gen!==generation)return;identity=result;localStorage.setItem('tinyfrens-device:'+endpoint,JSON.stringify(identity));window.dispatchEvent(new Event('tinyfrens-identity-ready'));}
    if(gen!==generation)return;
    const socket=new WebSocket(endpoint.replace(/^https:/,'wss:')+'/ws');ws=socket;lastProfile='';
-   socket.onopen=()=>{delay=1000;socket.send(JSON.stringify({type:'auth',token:identity.token}));};
-   socket.onmessage=e=>{if(socket!==ws)return;try{message(JSON.parse(e.data));}catch{status('Server response wasn’t understood.');}};
-   socket.onclose=e=>{if(socket!==ws)return;ws=null;endVisit();endBattle();$('addFriendButton').disabled=true;for(const b of $('friendList').querySelectorAll('button'))b.disabled=true;status(e.code===4003?'Device connection expired. Reconnect in Settings.':'Disconnected. Reconnecting when possible.');if(enabled&&e.code!==4003&&e.code!==4001)schedule();};
+   const deadline=setTimeout(()=>{if(socket!==ws)return;ws=null;socket.close();status('Connection timed out. Retrying…');if(enabled)schedule();},20000);
+   socket.onopen=()=>{if(socket!==ws)return;socket.send(JSON.stringify({type:'auth',token:identity.token}));};
+   socket.onmessage=e=>{if(socket!==ws)return;try{const data=JSON.parse(e.data);if(data.type==='state'){clearTimeout(deadline);delay=1000;}message(data);}catch{status('Server response wasn’t understood.');}};
+   socket.onclose=e=>{clearTimeout(deadline);if(socket!==ws)return;ws=null;endVisit();endBattle();$('addFriendButton').disabled=true;for(const b of $('friendList').querySelectorAll('button'))b.disabled=true;status(e.code===4003?'Device connection expired. Reconnect in Settings.':'Disconnected. Reconnecting when possible.');if(enabled&&e.code!==4003&&e.code!==4001)schedule();};
    socket.onerror=()=>status('Can’t reach the server yet. Your pet is still here.');
   }catch(e){if(gen!==generation)return;status(e.message||'Couldn’t connect.');if(enabled)schedule();}
  }

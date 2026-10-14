@@ -40,7 +40,11 @@ class MainActivity : Activity() {
                 }
             }
             addJavascriptInterface(Bridge(), "PetAndroid")
-            loadUrl("file:///android_asset/index.html" + if (intent.getStringExtra("screen") == "care") "#care" else "")
+            val incoming = intent.data
+            val sync = if (incoming?.scheme == "tinyfrens" && incoming.host == "connect") incoming.getQueryParameter("sync-device") else null
+            val suffix = if (sync != null && Regex("^[A-HJ-NP-Z2-9]{12}$").matches(sync)) "?sync-device=$sync#account"
+                else if (intent.getStringExtra("screen") == "care") "#care" else ""
+            loadUrl("file:///android_asset/index.html" + suffix)
         }
         setContentView(web)
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4)

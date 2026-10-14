@@ -55,6 +55,8 @@ jobs:
           node scripts/test-game-players.cjs
           node scripts/test-robot-care.cjs
           node scripts/test-account-header.cjs
+          node scripts/test-connections.cjs
+          node scripts/test-device-sync-client.cjs
 
       - name: Test pet engine care rules
         run: node scripts/test-pet-engine.cjs

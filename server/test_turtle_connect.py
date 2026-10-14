@@ -89,11 +89,13 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['address'], self.account.address)
         self.assertIsNone(data['tokenId'])
 
-    async def test_x_handle_is_signed_and_saved_only_after_device_accepts(self):
+    @mock.patch('bankr_identity.verify_handle', new_callable=mock.AsyncMock)
+    async def test_x_handle_is_signed_and_saved_only_after_device_accepts(self, verify):
         pairing = await (await self.post('start', {})).json()
         challenge = await (await self.post('challenge', {'code': pairing['code'], 'address': self.account.address,
             'xHandle': '@robot_owner'}, agent=True)).json()
-        self.assertIn('X handle: @robot_owner (wallet assertion)', challenge['message'])
+        verify.assert_awaited_once_with('robot_owner', self.account.address)
+        self.assertIn('X handle: @robot_owner (Bankr verified)', challenge['message'])
         signature = '0x' + self.account.sign_message(encode_defunct(text=challenge['message'])).signature.hex().removeprefix('0x')
         response = await self.post('confirm', {'code':pairing['code'], 'challengeId':challenge['challengeId'], 'signature':signature}, agent=True)
         self.assertEqual(response.status, 200)
@@ -101,8 +103,24 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(db.execute('SELECT COUNT(*) FROM wallet_social_profiles').fetchone()[0], 0)
         response = await self.post('accept', {'code':pairing['code']})
         self.assertEqual(response.status, 200)
-        self.assertEqual(db.execute('SELECT x_handle,source FROM wallet_social_profiles').fetchone(), ('robot_owner','wallet-signed'))
+        self.assertEqual(db.execute('SELECT x_handle,source FROM wallet_social_profiles').fetchone(), ('robot_owner','bankr-verified'))
         db.close()
+
+    async def test_bankr_mismatch_and_outage_never_create_verified_handle(self):
+        pairing = await (await self.post('start', {})).json()
+        for error, expected in [(ValueError('Bankr wallet mismatch'), 400), (RuntimeError('Bankr unavailable'), 503)]:
+            with mock.patch('bankr_identity.verify_handle', new=mock.AsyncMock(side_effect=error)):
+                response = await self.post('challenge', {'code':pairing['code'], 'address':self.account.address, 'xHandle':'someone'}, agent=True)
+                self.assertEqual(response.status, expected)
+        response = await self.post('challenge', {'code':pairing['code'], 'address':self.account.address}, agent=True)
+        self.assertEqual(response.status, 200)
+
+    async def test_wallet_code_survives_restart_and_explicit_renewal_invalidates_it(self):
+        original = await (await self.post('start', {})).json()
+        self.assertEqual(await (await self.post('start', {})).json(), original)
+        renewed = await (await self.post('start', {'renew':True})).json()
+        self.assertNotEqual(original['code'], renewed['code'])
+        self.assertEqual((await self.post('status', {'code':original['code']})).status, 400)
 
     async def test_multiple_wallets_discovery_and_targeted_disconnect(self):
         other_wallet = Account.create()
@@ -283,7 +301,7 @@ class TurtleConnectTests(unittest.IsolatedAsyncioTestCase):
         pairing, proof = await self.begin()
         with mock.patch('turtle_connect.time.time', return_value=pairing['expires'] + 1):
             response = await self.post('confirm', proof, agent=True); self.assertEqual(response.status, 400)
-        response = await self.post('start', {}); self.assertEqual(response.status, 200)
+        response = await self.post('start', {'renew':True}); self.assertEqual(response.status, 200)
         response = await self.post('confirm', proof, agent=True); self.assertEqual(response.status, 400)
         _, proof = await self.begin()
         self.owner = Account.create().address

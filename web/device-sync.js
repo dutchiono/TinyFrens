@@ -3,9 +3,9 @@
   if (!host) return;
   const panel = document.createElement('section'); panel.className = 'device-sync-panel';
   panel.innerHTML = `<h2>Link another device</h2><p>Share your wallets, shown NFTs, sizes and movement settings. Copy a code from the device you want to use, then enter it on the other device.</p>
-    <div class="sync-code-row"><button id="syncCode" class="sync-code-display" type="button" title="Copy this code">Connecting…</button><button id="createSyncCode" type="button" class="secondary" hidden>Get a new code</button></div>
+    <div class="sync-code-row"><button id="syncCode" class="sync-code-display" type="button" title="Copy this code">Connecting…</button><button id="createSyncCode" type="button" class="secondary">Get code / retry</button></div><div id="syncQR" class="connection-qr"></div><p id="syncExpiry" class="small"></p>
     <label for="enterSyncCode">Enter a code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
-    <p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
+    <button id="scanSyncQR" type="button" class="secondary">Scan QR code</button><p class="small">You can also scan with your phone’s Camera app. Choose “Open this connection in the Android app” on the page it opens to link your installed app.</p><p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
     <dialog id="syncApproval" class="update-modal"><h2>Sync this device?</h2><p id="syncApprovalText"></p><p>Approve only if you just entered this code on your other device. This device’s NFT choices and settings will be used on both.</p><div class="actions"><button id="approveSync" type="button">Approve sync</button><button id="denySync" type="button" class="secondary">Cancel</button></div></dialog>`;
   document.getElementById('accountControls').append(panel);
   const $ = id => document.getElementById(id), key = window.TinyFrensCompanionKey;
@@ -30,8 +30,36 @@
     });
   }
   let revision = null, baseline = null, accountWallets = null, currentAccount = null, busy = false, applying = false, code = null, pending = null, denied = null;
-  try { code = JSON.parse(sessionStorage.getItem('tinyfrens-sync-code') || 'null'); } catch {}
-  const saveCode = () => { try { if (code) sessionStorage.setItem('tinyfrens-sync-code', JSON.stringify(code)); else sessionStorage.removeItem('tinyfrens-sync-code'); } catch {} };
+  const codeStorage = () => 'tinyfrens-sync-code:' + base() + ':' + (identity()?.id || '');
+  try { code = JSON.parse(sessionStorage.getItem(codeStorage()) || 'null'); } catch {}
+  const saveCode = () => { try { if (code) sessionStorage.setItem(codeStorage(), JSON.stringify(code)); else sessionStorage.removeItem(codeStorage()); } catch {} };
+  function drawCode() {
+    if (code && Date.now() >= code.expires * 1000) { code = null; saveCode(); }
+    const remaining = code ? Math.max(0, Math.ceil(code.expires - Date.now() / 1000)) : 0;
+    $('syncCode').textContent = code ? code.code.match(/.{1,4}/g).join('-') : 'Get a connection code';
+    $('syncExpiry').textContent = code ? `Expires in ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2,'0')}` : '';
+    const url = code ? 'https://www.tinyfrens.lol/web/?sync-device=' + code.code + '#account' : '';
+    if ($('syncQR').dataset.url !== url) { $('syncQR').dataset.url = url; window.TinyFrensQR.render($('syncQR'), url); }
+  }
+  setInterval(drawCode, 1000); drawCode();
+  const incoming = new URLSearchParams(location.search).get('sync-device');
+  if (/^[A-HJ-NP-Z2-9]{12}$/.test(incoming || '')) {
+    $('enterSyncCode').value = incoming.match(/.{1,4}/g).join('-');
+    window.showScreen?.('account');
+    if (!window.PetAndroid) {
+      const open = document.createElement('a'); open.textContent = 'Open this connection in the Android app';
+      open.href = 'tinyfrens://connect?sync-device=' + incoming;
+      $('enterSyncCode').closest('.sync-code-row').after(open);
+    }
+  }
+  $('scanSyncQR').onclick = async () => {
+    try {
+      const result = await window.TinyFrensQR.scan();
+      if (!result) return;
+      if (result.kind === 'sync-device') { $('enterSyncCode').value = result.code.match(/.{1,4}/g).join('-'); $('syncStatus').textContent = 'Code scanned. Tap Sync, then approve on the other device.'; }
+      else location.href = result.url;
+    } catch (error) { $('syncStatus').textContent = error.message; }
+  };
   if (code) $('syncCode').textContent = code.code.match(/.{1,4}/g).join('-');
   const signature = items => JSON.stringify(items);
   async function apply(data) {
@@ -95,7 +123,10 @@
             pending = request; $('syncApprovalText').textContent = `${request.label} is requesting to sync using ${code.code.match(/.{1,4}/g).join('-')}.`;
             if (!$('syncApproval').open) $('syncApproval').showModal();
           }
-        } catch (error) { code = null; saveCode(); $('syncCode').textContent = ''; }
+        } catch (error) {
+          if (error.message.includes('Code expired or not found')) { code = null; saveCode(); drawCode(); }
+          $('syncStatus').textContent = error.message + ' Retry when connected.';
+        }
       }
     } catch (error) { $('syncStatus').textContent = error.message; }
     finally { busy = false; }
@@ -104,17 +135,20 @@
     if (!code) return;
     try { await navigator.clipboard.writeText(code.code.match(/.{1,4}/g).join('-')); $('syncStatus').textContent='Copied. Enter this code on your other device.'; } catch { $('syncStatus').textContent='Enter the displayed code on your other device.'; }
   };
-  $('createSyncCode').onclick = async () => {
+  async function createCode(renew = false) {
+    if ($('createSyncCode').disabled) return;
+    $('createSyncCode').disabled = true;
     try {
-      await tick(); if (busy || revision === null) throw Error('Wait for your device to finish connecting.');
-      code = await post('start'); saveCode(); pending = null; denied = null;
+      code = await post('start', {renew}); saveCode(); pending = null; denied = null;
       const formatted = code.code.match(/.{1,4}/g).join('-'); $('syncCode').textContent = formatted;
       $('syncStatus').textContent = 'Tap the code to copy. Enter it on your other device, then approve here.';
-      $('createSyncCode').hidden=true;
-    } catch (error) { $('syncStatus').textContent = error.message; }
-  };
+      $('createSyncCode').textContent = 'Get a new code'; drawCode();
+    } catch (error) { $('syncStatus').textContent = error.message; $('createSyncCode').textContent = 'Retry connection'; }
+    finally { $('createSyncCode').disabled = false; }
+  }
+  $('createSyncCode').onclick = () => createCode(true);
   let preparingCode=false;
-  const prepareCode=async()=>{if(code||preparingCode)return;preparingCode=true;try{await $('createSyncCode').onclick();}finally{preparingCode=false;}};
+  const prepareCode=async()=>{if(code||preparingCode)return;preparingCode=true;try{await createCode();}finally{preparingCode=false;}};
   window.addEventListener('tinyfrens-identity-ready',()=>setTimeout(prepareCode,500));
   if(identity()?.token)setTimeout(prepareCode,500);
   $('joinSync').onclick = async () => {
@@ -131,17 +165,19 @@
   $('approveSync').onclick = async () => {
     $('approveSync').disabled = true;
     try {
-      await tick(); await post('accept', {code:code.code, requestId:pending.requestId});
+      if (!code || !pending?.requestId) throw Error('This request expired. Get a new code and try again.');
+      await post('accept', {code:code.code, requestId:pending.requestId});
       code = null; saveCode(); pending = null; $('syncApproval').close(); $('syncCode').textContent = ''; await tick();
     } catch (error) { $('syncApprovalText').textContent = error.message; }
     finally { $('approveSync').disabled = false; }
   };
-  const deny = async () => { denied = pending?.requestId; pending = null; $('syncApproval').close(); code = null; saveCode(); $('syncCode').textContent = ''; try { await post('start'); } catch {} };
+  const deny = async () => { denied = pending?.requestId; pending = null; $('syncApproval').close(); code = null; saveCode(); drawCode(); await createCode(true); };
   $('denySync').onclick = deny;
   $('syncApproval').addEventListener('cancel', event => { event.preventDefault(); deny(); });
   $('leaveSync').onclick = async () => { try { await post('leave'); pending = null; await tick(); } catch (error) { $('syncStatus').textContent = error.message; } };
   window.addEventListener('tinyfrens-identity-ready', tick);
   window.addEventListener('online', tick);
+  window.addEventListener('online', prepareCode);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
   setInterval(tick, 3000); tick();
 })();
