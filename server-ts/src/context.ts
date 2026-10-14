@@ -19,6 +19,7 @@ import { MarketQuote } from './domain/market-quote.js';
 import { TelegramModeration } from './domain/telegram-moderation.js';
 import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
 import type { RealtimeHub } from './domain/realtime.js';
+import { GitHubAuth, GitHubTokenProvider } from './integrations/github-app.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -56,6 +57,7 @@ export interface AppContext {
   marketQuote: MarketQuote;
   telegramApi: TelegramBotApi;
   telegramModeration: TelegramModeration;
+  githubAuth: GitHubTokenProvider;
   realtimeHub?: RealtimeHub;
 }
 
@@ -85,6 +87,7 @@ export function createAppContext(
     marketQuote: null as any,
     telegramApi: null as any,
     telegramModeration: null as any,
+    githubAuth: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
@@ -114,6 +117,7 @@ export function createAppContext(
       now: () => ctx.now(),
     }
   );
+  ctx.githubAuth = overrides?.githubAuth ?? new GitHubAuth(config, { now: () => ctx.now() });
   const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(

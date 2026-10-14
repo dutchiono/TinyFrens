@@ -303,7 +303,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `discord_integration.py` → Discord integration; preserve Ed25519 verification, OAuth exchange, and channel room IDs.
 - [x] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
 - [ ] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification.
-- [ ] `github_app.py` → GitHub App auth integration; preserve RS256 JWT claims, key loading, installation discovery, least-privilege token requests, cache locking, and refresh margin.
+- [x] `github_app.py` → GitHub App auth integration; preserve RS256 JWT claims, key loading, installation discovery, least-privilege token requests, cache locking, and refresh margin. (Ported with Node crypto signing, key-stat cache invalidation, serialized refresh, and static-token compatibility.)
 - [x] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors. (Phase 8 Slice 8D ports chat transcripts, Gemini drafting, REST issue creation, label filtering, persisted chat mapping, and safe user-facing failures.)
 - [ ] `hood_turtle_art.py` → media adapter; preserve SVG sanitization and walking animation.
 - [ ] `imported_gallery.py` → gallery routes; preserve selection-only exposure, pagination, deduplication, collection/chain constraints, and private-field exclusion.
@@ -390,7 +390,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [x] Telegram challenge timers restored from SQLite after restart. (Phase 8 Slice 8A: persisted challenges reschedule on startup and cancel during graceful shutdown.)
 - [x] Five-second visit/battle/rate-limit cleanup loop. (Phase 9: one hub timer expires sessions and prunes stale rate-limit buckets.)
 - [x] Fire-and-forget push delivery does not hold request completion or leak database handles. (Phase 9: offline notifications use the real `web-push` sender and isolate best-effort failures from socket handling.)
-- [ ] GitHub App token cache and concurrent refresh locking.
+- [x] GitHub App token cache and concurrent refresh locking.
 - [ ] Provider discovery locks and TTL caches.
 - [x] Process signals produce a bounded graceful shutdown under systemd and containers. (Phase 7 Slice 7B: idempotent 10-second deadline, workers stop before Fastify and SQLite close, startup failures close resources.)
 
@@ -407,7 +407,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [x] `test_device_sync.py`: approval, restart, selection revisions, wallet ordering, expiry, and unsync.
 - [x] `test_economy.py`: arithmetic, sessions, deposits, ledger, idempotency, caps, routes, and disabled mode.
 - [ ] `test_extra_companions.py`: discovery, caches, transfers, provider failures, and Nub reconstruction.
-- [ ] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.
+- [x] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.
 - [ ] `test_hood_turtle_art.py`: sanitization and animation.
 - [ ] `test_imported_gallery.py`: privacy, selection, collection/chain boundaries, deduplication, and pagination.
 - [ ] `test_indexer.py`: log decoding, filters, checkpoints, idempotency, caps, and ETH/ERC-20 indexing.
