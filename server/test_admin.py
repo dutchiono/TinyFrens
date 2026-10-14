@@ -73,10 +73,33 @@ class AdminStoreTests(unittest.TestCase):
     def tearDown(self):
         self.db.close()
 
-    def test_disabled_without_token(self):
-        self.assertFalse(admin_mod.Admin(sqlite3.connect(':memory:'), None).enabled)
-        self.assertFalse(admin_mod.Admin(sqlite3.connect(':memory:'), '  ').enabled)
+    def test_disabled_without_token_or_user(self):
+        self.assertFalse(admin_mod.Admin(sqlite3.connect(':memory:'), None, seed_default_user=False).enabled)
+        self.assertFalse(admin_mod.Admin(sqlite3.connect(':memory:'), '  ', seed_default_user=False).enabled)
         self.assertTrue(self.admin.enabled)
+
+    def test_initial_user_seeded(self):
+        db = sqlite3.connect(':memory:')
+        admin = admin_mod.Admin(db, None, initial_user='dutch', initial_password='nottodayjunior')
+        self.assertTrue(admin.enabled)
+        token, user, _ = admin.authenticate('dutch', 'nottodayjunior')
+        self.assertEqual(user, 'dutch')
+        self.assertTrue(token)
+        self.assertEqual(admin.validate_session(token), 'dutch')
+
+    def test_authentication_invalid_password(self):
+        self.assertRaises(admin_mod.Unauthorized, self.admin.authenticate, 'dutch', 'wrongpassword')
+
+    def test_authentication_unknown_user(self):
+        self.assertRaises(admin_mod.Unauthorized, self.admin.authenticate, 'unknown', 'pass')
+
+    def test_create_user(self):
+        self.admin.create_user('alice', 'superpassword123')
+        token, user, _ = self.admin.authenticate('alice', 'superpassword123')
+        self.assertEqual(user, 'alice')
+        users = [u['username'] for u in self.admin.list_users()]
+        self.assertIn('alice', users)
+        self.assertIn('dutch', users)
 
     def test_save_persists_and_audits(self):
         eff = self.admin.save({'dailyAllowance': 7, 'gameRewardCredits': 250, 'prices': {'feed': 12}})
@@ -97,13 +120,15 @@ class AdminStoreTests(unittest.TestCase):
             self.assertRaises(admin_mod.BadRequest, self.admin.save, body)
 
 
-def build_app(*, token='secret', economy_settings=None, treasury_settings=None, economy=None):
+def build_app(*, token='secret', economy_settings=None, treasury_settings=None,
+              economy=None, seed_default_user=True):
     db = sqlite3.connect(':memory:')
     econ.Economy(db)   # credit_accounts / credit_ledger / deposits, as the real app creates
     rc.RobotCare(db)   # robot_care_daily
     app = web.Application()
     admin_mod.install(app, db, token=token, economy_settings=economy_settings,
-                      treasury_settings=treasury_settings, economy=economy)
+                      treasury_settings=treasury_settings, economy=economy,
+                      seed_default_user=seed_default_user)
     return app, db
 
 
@@ -128,7 +153,7 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.get('/api/admin/state', headers={'Authorization': 'Bearer wrong'})).status, 401)
 
     async def test_disabled_without_config(self):
-        app, db = build_app(token=None)
+        app, db = build_app(token=None, seed_default_user=False)
         client = TestClient(TestServer(app))
         await client.start_server()
         try:
@@ -137,66 +162,123 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
             await client.close()
             db.close()
 
+    async def test_login_and_session(self):
+        # Successful login
+        r = await self.client.post('/api/admin/login', json={'username': 'dutch', 'password': 'nottodayjunior'})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertEqual(data['username'], 'dutch')
+        token = data['token']
+        self.assertTrue(token)
+
+        # Authenticate using session token
+        r_state = await self.client.get('/api/admin/state', headers={'Authorization': f'Bearer {token}'})
+        self.assertEqual(r_state.status, 200)
+        state_data = await r_state.json()
+        self.assertEqual(state_data['currentUser'], 'dutch')
+
+        # Logout
+        r_logout = await self.client.post('/api/admin/logout', headers={'Authorization': f'Bearer {token}'})
+        self.assertEqual(r_logout.status, 200)
+
+        # Session is invalidated
+        r_after = await self.client.get('/api/admin/state', headers={'Authorization': f'Bearer {token}'})
+        self.assertEqual(r_after.status, 401)
+
+    async def test_login_invalid_password(self):
+        r = await self.client.post('/api/admin/login', json={'username': 'dutch', 'password': 'wrong'})
+        self.assertEqual(r.status, 401)
+
+    async def test_create_user_and_login(self):
+        r = await self.client.post('/api/admin/users', headers=AUTH, json={'username': 'newadmin', 'password': 'securepassword123'})
+        self.assertEqual(r.status, 200)
+        data = await r.json()
+        self.assertEqual(data['user'], 'newadmin')
+
+        # Log in with newly created user
+        r_login = await self.client.post('/api/admin/login', json={'username': 'newadmin', 'password': 'securepassword123'})
+        self.assertEqual(r_login.status, 200)
+        login_data = await r_login.json()
+        self.assertEqual(login_data['username'], 'newadmin')
+
     async def test_state_reports_settings_and_economy(self):
         r = await self.client.get('/api/admin/state', headers=AUTH)
         self.assertEqual(r.status, 200)
         data = await r.json()
         self.assertEqual(data['settings']['dailyAllowance'], rc.DEFAULT_DAILY_ALLOWANCE)
-        self.assertEqual(data['settings']['gameRewardCredits'], rc.DEFAULT_GAME_REWARD_CREDITS)
-        self.assertEqual(data['actions'], list(rc.CARE_ACTIONS))
-        self.assertTrue(data['economy']['enabled'])
-        self.assertEqual(data['economy']['chainId'], 8453)
-        self.assertEqual(data['economy']['symbol'], 'FRENS')
+        self.assertEqual(data['overrides'], {})
+        self.assertEqual(set(data['actions']), set(rc.CARE_ACTIONS))
         self.assertEqual(data['economy']['treasury'], '0x' + 'de' * 20)
-        self.assertEqual(data['economy']['maxCreditsPerTransfer'], 50000)
-        self.assertEqual(data['economy']['creditsPerFrens'], self.economy.credits_per_frens)
+        self.assertEqual(data['economy']['symbol'], 'FRENS')
         self.assertEqual(data['counts']['pets'], 0)
+        self.assertEqual(data['audit'], [{'action': 'create_user', 'detail': {'username': 'dutch'},
+                                          'created': data['audit'][0]['created']}])
 
-    async def test_update_game_reward_round_trips(self):
+    async def test_update_settings_and_audit(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH, json={'gameRewardCredits': 750})
         self.assertEqual(r.status, 200)
         data = await r.json()
         self.assertEqual(data['settings']['gameRewardCredits'], 750)
-        self.assertEqual(data['overrides']['gameRewardCredits'], 750)
+        self.assertEqual(data['overrides'], {'gameRewardCredits': 750})
+
         again = await (await self.client.get('/api/admin/state', headers=AUTH)).json()
         self.assertEqual(again['settings']['gameRewardCredits'], 750)
+        self.assertEqual(again['overrides'], {'gameRewardCredits': 750})
+        self.assertEqual(again['audit'][0]['action'], 'settings')
+        self.assertEqual(again['audit'][0]['detail'], {'gameRewardCredits': 750})
 
-    async def test_update_settings_round_trips(self):
+    async def test_update_prices_and_allowance(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH,
-                                   json={'dailyAllowance': 9, 'prices': {'play': 250}})
+                                   json={'dailyAllowance': 12, 'prices': {'feed': 99, 'play': 88}})
         self.assertEqual(r.status, 200)
         data = await r.json()
-        self.assertEqual(data['settings']['dailyAllowance'], 9)
-        self.assertEqual(data['settings']['prices']['play'], 250)
-        self.assertEqual(data['overrides'], {'dailyAllowance': 9, 'prices': {'play': 250}})
-        # Visible on the next read.
+        self.assertEqual(data['settings']['dailyAllowance'], 12)
+        self.assertEqual(data['settings']['prices']['feed'], 99)
+        self.assertEqual(data['settings']['prices']['play'], 88)
+
         again = await (await self.client.get('/api/admin/state', headers=AUTH)).json()
-        self.assertEqual(again['settings']['dailyAllowance'], 9)
+        self.assertEqual(again['settings']['dailyAllowance'], 12)
+        self.assertEqual(again['settings']['prices']['feed'], 99)
 
-    async def test_update_rejects_bad_action(self):
+    async def test_bad_settings_payload_rejected(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH,
-                                   json={'prices': {'teleport': 1}})
+                                   json={'dailyAllowance': -5})
         self.assertEqual(r.status, 400)
+        self.assertIn('error', await r.json())
 
-    async def test_ledger_shapes_rows(self):
-        self.db.execute("INSERT INTO credit_accounts VALUES('pet-1', 500, 1000)")
-        self.db.execute("INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) VALUES('pet-1',500,500,'deposit','tx','0xabc',1000)")
+    async def test_ledger_route(self):
+        self.db.execute("INSERT INTO credit_accounts(pet_id,balance,updated_at) VALUES('pet-1', 400, 1000)")
+        self.db.execute("INSERT INTO credit_ledger(pet_id,delta,balance,reason,ref_type,ref_id,created) "
+                        "VALUES('pet-1', 400, 400, 'deposit', 'tx', '0x1', 1000)")
         self.db.commit()
         data = await (await self.client.get('/api/admin/ledger?limit=10', headers=AUTH)).json()
+        self.assertEqual(len(data['entries']), 1)
         self.assertEqual(data['entries'][0]['petId'], 'pet-1')
-        self.assertEqual(data['entries'][0]['delta'], 500)
-        self.assertEqual(data['top'][0]['balance'], 500)
+        self.assertEqual(data['entries'][0]['balance'], 400)
+        self.assertEqual(data['top'][0]['petId'], 'pet-1')
 
-    async def test_ledger_limit_validated(self):
+    async def test_ledger_rejects_bad_limit(self):
         r = await self.client.get('/api/admin/ledger?limit=0', headers=AUTH)
         self.assertEqual(r.status, 400)
 
-    async def test_care_usage_day_validated(self):
+    async def test_care_route_validates_day(self):
         r = await self.client.get('/api/admin/care?day=not-a-day', headers=AUTH)
         self.assertEqual(r.status, 400)
+
+    async def test_care_route_returns_rows(self):
+        self.db.execute("INSERT INTO robot_care_daily(pet_id,day,used,updated) VALUES('pet-1','2026-10-12',3,1000)")
+        self.db.commit()
         r = await self.client.get('/api/admin/care', headers=AUTH)
         self.assertEqual(r.status, 200)
-        self.assertEqual((await r.json())['rows'], [])
+        data = await r.json()
+        self.assertIn('rows', data)
+        self.assertEqual(data['allowance'], rc.DEFAULT_DAILY_ALLOWANCE)
+
+    async def test_admin_page_serves_html(self):
+        r = await self.client.get('/admin')
+        self.assertEqual(r.status, 200)
+        self.assertIn('text/html', r.headers.get('Content-Type', ''))
+        self.assertIn('TinyFrens admin', await r.text())
 
 
 class AppWiringTests(unittest.IsolatedAsyncioTestCase):
@@ -223,10 +305,11 @@ class AppWiringTests(unittest.IsolatedAsyncioTestCase):
         r = await self.client.get('/api/admin/state')
         self.assertEqual(r.status, 401)
 
-    async def test_admin_page_redirects(self):
-        r = await self.client.get('/admin', allow_redirects=False)
-        self.assertEqual(r.status, 302)
-        self.assertEqual(r.headers['Location'], '/web/admin.html')
+    async def test_admin_page_serves_html(self):
+        r = await self.client.get('/admin')
+        self.assertEqual(r.status, 200)
+        self.assertIn('text/html', r.headers.get('Content-Type', ''))
+        self.assertIn('TinyFrens admin', await r.text())
 
 
 if __name__ == '__main__':

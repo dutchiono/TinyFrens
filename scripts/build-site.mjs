@@ -11,6 +11,9 @@ await mkdir(output, { recursive: true });
 for (const entry of ['index.html', 'site', 'web', 'play']) {
   await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
+await rm(path.join(output, 'web/admin.html'), { force: true });
+await rm(path.join(output, 'admin.html'), { force: true });
+await rm(path.join(output, 'admin'), { recursive: true, force: true });
 await cp(path.join(root, 'web', '.well-known'), path.join(output, '.well-known'), { recursive: true });
 await cp(path.join(root, 'web', 'snap-v2.json'), path.join(output, 'snap-v2.json'));
 await cp(path.join(root, 'web', 'icons'), path.join(output, 'icons'), { recursive: true });

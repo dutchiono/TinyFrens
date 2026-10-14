@@ -1,21 +1,23 @@
-"""Token-protected admin surface for the TinyFrens relay.
+"""Token- and user-authenticated admin surface for the TinyFrens relay.
 
-Non-public by design (docs/robots-care.md §8):
+Non-public operator surface hosted at miono.live (docs/robots-care.md §8):
 
-  * every route needs `Authorization: Bearer <ADMIN_TOKEN>`;
-  * with no `ADMIN_TOKEN` configured the whole surface stays disabled (503), so
-    nothing is exposed by accident;
+  * authenticates via session tokens issued by username/password login
+    (default operator: dutch / nottodayjunior) or legacy Authorization: Bearer <ADMIN_TOKEN>;
+  * without an admin user or ADMIN_TOKEN configured the whole surface stays disabled (503);
   * tunables live in `app_settings` and are read live by the care layer, so the
     admin can retune gameplay without a restart.
 
 Reads: robot-care tunables + usage, and the credit ledger (read-only). This
 module never touches keys, seeds or deployments.
 """
+import hashlib
 import hmac
 import json
 import logging
 import os
 import re
+import secrets
 import time
 
 from aiohttp import web
@@ -34,6 +36,17 @@ CREATE TABLE IF NOT EXISTS admin_audit(
     action TEXT NOT NULL,
     detail TEXT,
     created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS admin_users(
+    username TEXT PRIMARY KEY,
+    salt TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS admin_sessions(
+    token TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    expires INTEGER NOT NULL);
 """
 
 PRICE_KEYS = tuple('price_' + action for action in robot_care.CARE_ACTIONS)
@@ -43,17 +56,37 @@ MAX_ALLOWANCE = 100_000
 MAX_GAME_REWARD = 10 ** 12
 MAX_PRICE = 10 ** 15
 
+try:
+    ADMIN_USER_KEY = web.RequestKey('admin_user', str)
+    ADMIN_TOKEN_KEY = web.RequestKey('admin_token', str)
+except AttributeError:  # pragma: no cover - older aiohttp
+    ADMIN_USER_KEY = 'admin_user'
+    ADMIN_TOKEN_KEY = 'admin_token'
+
 
 class Disabled(Exception):
-    """No ADMIN_TOKEN configured."""
+    """No admin user or ADMIN_TOKEN configured."""
 
 
 class Unauthorized(Exception):
-    """Missing or wrong bearer token."""
+    """Missing or invalid credentials / bearer token."""
 
 
 class BadRequest(Exception):
     """Caller sent something invalid."""
+
+
+def hash_password(password: str, salt: bytes) -> str:
+    return hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000).hex()
+
+
+def verify_password(password: str, salt_hex: str, hash_hex: str) -> bool:
+    try:
+        salt = bytes.fromhex(salt_hex)
+        computed = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000).hex()
+        return hmac.compare_digest(computed, hash_hex)
+    except Exception:
+        return False
 
 
 def _env_int(name, default):
@@ -127,18 +160,101 @@ def care_settings(db):
 
 
 class Admin:
-    """Settings store + audit log for the operator surface."""
+    """Settings store, operator credentials and audit log."""
 
-    def __init__(self, db, token, now=time.time):
+    def __init__(self, db, token=None, now=time.time, initial_user='dutch',
+                 initial_password='nottodayjunior', seed_default_user=True):
         self.db = db
-        self.token = (token or '').strip()
+        self.token = (token or '').strip() if token else None
         self.now = now
         self.db.executescript(SCHEMA)
         self.db.commit()
+        if seed_default_user:
+            self._ensure_initial_user(initial_user or 'dutch', initial_password or 'nottodayjunior')
+
+    def _ensure_initial_user(self, username, password):
+        row = self.db.execute('SELECT COUNT(*) FROM admin_users').fetchone()
+        if not row or row[0] == 0:
+            self.create_user(username, password)
 
     @property
     def enabled(self):
-        return bool(self.token)
+        if bool(self.token):
+            return True
+        row = self.db.execute('SELECT COUNT(*) FROM admin_users').fetchone()
+        return bool(row and row[0] > 0)
+
+    def create_user(self, username, password):
+        user_clean = str(username or '').strip().lower()
+        if not user_clean or len(user_clean) < 3:
+            raise BadRequest('Username must be at least 3 characters')
+        if not password or len(str(password)) < 6:
+            raise BadRequest('Password must be at least 6 characters')
+        salt = secrets.token_bytes(16)
+        pw_hash = hash_password(str(password), salt)
+        now = int(self.now())
+        self.db.execute(
+            'INSERT OR REPLACE INTO admin_users(username, salt, password_hash, created, updated) VALUES(?,?,?,?,?)',
+            (user_clean, salt.hex(), pw_hash, now, now)
+        )
+        self.db.commit()
+        self.audit('create_user', {'username': user_clean})
+        return user_clean
+
+    def list_users(self):
+        rows = self.db.execute('SELECT username, created FROM admin_users ORDER BY username ASC').fetchall()
+        return [{'username': r[0], 'created': r[1]} for r in rows]
+
+    def authenticate(self, username, password):
+        user_clean = str(username or '').strip().lower()
+        row = self.db.execute(
+            'SELECT username, salt, password_hash FROM admin_users WHERE username=?',
+            (user_clean,)
+        ).fetchone()
+        if not row or not verify_password(str(password or ''), row[1], row[2]):
+            raise Unauthorized('Invalid username or password')
+        session_token = secrets.token_urlsafe(32)
+        now = int(self.now())
+        expires = now + (7 * 86400)
+        self.db.execute(
+            'INSERT INTO admin_sessions(token, username, created, expires) VALUES(?,?,?,?)',
+            (session_token, row[0], now, expires)
+        )
+        self.db.commit()
+        self.audit('login', {'username': row[0]})
+        return session_token, row[0], expires
+
+    def validate_session(self, token_str):
+        if not token_str:
+            return None
+        now = int(self.now())
+        row = self.db.execute('SELECT username, expires FROM admin_sessions WHERE token=?', (token_str,)).fetchone()
+        if not row:
+            return None
+        if row[1] < now:
+            self.db.execute('DELETE FROM admin_sessions WHERE token=?', (token_str,))
+            self.db.commit()
+            return None
+        return row[0]
+
+    def logout_session(self, token_str):
+        row = self.db.execute('SELECT username FROM admin_sessions WHERE token=?', (token_str,)).fetchone()
+        if row:
+            self.db.execute('DELETE FROM admin_sessions WHERE token=?', (token_str,))
+            self.db.commit()
+            self.audit('logout', {'username': row[0]})
+            return True
+        return False
+
+    def is_valid_token(self, token_str):
+        if not token_str:
+            return False, ''
+        user = self.validate_session(token_str)
+        if user:
+            return True, user
+        if self.token and hmac.compare_digest(token_str, self.token):
+            return True, 'system'
+        return False, ''
 
     def audit(self, action, detail=None):
         self.db.execute('INSERT INTO admin_audit(action,detail,created) VALUES(?,?,?)',
@@ -193,22 +309,39 @@ class Admin:
         return effective_settings(self.db)
 
 
-def install(app, db, *, token, economy_settings=None, treasury_settings=None, economy=None):
+ADMIN_HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'admin.html')
+
+
+def install(app, db, *, token=None, initial_user=None, initial_password=None,
+            seed_default_user=True, economy_settings=None, treasury_settings=None,
+            economy=None):
     """Register the admin routes.
 
     `economy_settings()` / `treasury_settings()` are read for a status view and must
     never move money; `economy` is read for the credits-per-FRENS rate.
     """
-    admin = Admin(db, token)
+    user_init = initial_user or os.environ.get('ADMIN_USERNAME', 'dutch')
+    pass_init = initial_password or os.environ.get('ADMIN_PASSWORD', 'nottodayjunior')
+    admin = Admin(
+        db,
+        token=token,
+        initial_user=user_init,
+        initial_password=pass_init,
+        seed_default_user=seed_default_user,
+    )
 
     def guard(request):
         if not admin.enabled:
             raise Disabled()
         header = request.headers.get('Authorization', '')
         if not header.startswith('Bearer '):
-            raise Unauthorized()
-        if not hmac.compare_digest(header[7:].strip(), admin.token):
-            raise Unauthorized()
+            raise Unauthorized('Missing bearer authorization')
+        token_str = header[7:].strip()
+        valid, username = admin.is_valid_token(token_str)
+        if not valid:
+            raise Unauthorized('Invalid or expired token')
+        request[ADMIN_USER_KEY] = username
+        request[ADMIN_TOKEN_KEY] = token_str
 
     def counts():
         def one(sql, args=()):
@@ -256,8 +389,8 @@ def install(app, db, *, token, economy_settings=None, treasury_settings=None, ec
                 guard(request)
             except Disabled:
                 return web.json_response({'error': 'Admin is disabled'}, status=503)
-            except Unauthorized:
-                return web.json_response({'error': 'Unauthorized'}, status=401)
+            except Unauthorized as exc:
+                return web.json_response({'error': str(exc) or 'Unauthorized'}, status=401)
             try:
                 return await handler(request)
             except BadRequest as exc:
@@ -269,9 +402,48 @@ def install(app, db, *, token, economy_settings=None, treasury_settings=None, ec
                 return web.json_response({'error': 'Admin unavailable'}, status=503)
         return wrapped
 
+    async def login(request):
+        if not admin.enabled:
+            return web.json_response({'error': 'Admin is disabled'}, status=503)
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({'error': 'Expected JSON body'}, status=400)
+        username = body.get('username')
+        password = body.get('password')
+        if not username or not password:
+            return web.json_response({'error': 'Username and password required'}, status=400)
+        try:
+            token_val, user, expires = admin.authenticate(username, password)
+            return web.json_response({'token': token_val, 'username': user, 'expires': expires})
+        except Unauthorized as exc:
+            return web.json_response({'error': str(exc)}, status=401)
+        except Exception:
+            log.exception('admin login failed')
+            return web.json_response({'error': 'Authentication failed'}, status=500)
+
+    @guarded
+    async def logout(request):
+        token_str = request.get(ADMIN_TOKEN_KEY)
+        admin.logout_session(token_str)
+        return web.json_response({'ok': True})
+
+    @guarded
+    async def create_user_handler(request):
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({'error': 'Expected JSON body'}, status=400)
+        username = body.get('username')
+        password = body.get('password')
+        created = admin.create_user(username, password)
+        return web.json_response({'ok': True, 'user': created, 'users': admin.list_users()})
+
     @guarded
     async def state(request):
         return web.json_response({
+            'currentUser': request.get(ADMIN_USER_KEY, 'admin'),
+            'users': admin.list_users(),
             'settings': effective_settings(db),
             'overrides': _shape_overrides(overrides_only(db)),
             'actions': list(robot_care.CARE_ACTIONS),
@@ -325,12 +497,26 @@ def install(app, db, *, token, economy_settings=None, treasury_settings=None, ec
         })
 
     async def page(request):
-        # Served by the relay too, so an operator can reach it from any host.
-        return web.HTTPFound('/web/admin.html')
+        if os.path.isfile(ADMIN_HTML_PATH):
+            with open(ADMIN_HTML_PATH, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return web.Response(
+                text=content,
+                content_type='text/html',
+                charset='utf-8',
+                headers={'Cache-Control': 'no-store, private'}
+            )
+        return web.Response(text='Admin page not found', status=404)
 
+    app.router.add_post('/api/admin/login', login)
+    app.router.add_post('/api/admin/logout', logout)
+    app.router.add_post('/api/admin/users', create_user_handler)
     app.router.add_get('/api/admin/state', state)
     app.router.add_post('/api/admin/settings', update_settings)
     app.router.add_get('/api/admin/ledger', ledger)
     app.router.add_get('/api/admin/care', care_usage)
     app.router.add_get('/admin', page)
+    app.router.add_get('/admin/', page)
+    app.router.add_get('/admin.html', page)
+    app.router.add_get('/web/admin.html', page)
     return admin
