@@ -15,6 +15,7 @@ Docs: https://core.telegram.org/bots/webapps  ·  https://core.telegram.org/bots
 import hashlib
 import hmac
 import json
+import os
 import re
 import time
 from urllib.parse import unquote
@@ -145,10 +146,15 @@ def classify(update):
     """Categorise an incoming Bot API update.
 
     Returns ``(kind, chat_id, chat)`` where kind is one of:
-    ``start`` (a /start message), ``issue`` (an "open an issue" request),
+    ``callback_query``, ``start`` (a /start message), ``issue`` (an "open an issue" request),
     ``mention`` (direct mention/help/private text), ``added`` (bot joined a group), ``message``, ``removed`` (bot kicked from a
     group) or ``unknown``.
     """
+    if isinstance(update.get('callback_query'), dict):
+        cq = update['callback_query']
+        msg = cq.get('message') or {}
+        chat = msg.get('chat') or {}
+        return 'callback_query', chat.get('id'), chat
     if isinstance(update.get('message'), dict):
         msg = update['message']
         text = msg.get('text') or ''
@@ -157,11 +163,17 @@ def classify(update):
             return 'start', chat.get('id'), chat
         if is_issue_command(text):
             return 'issue', chat.get('id'), chat
+        bot_user = os.environ.get('TELEGRAM_BOT_USERNAME', 'tinyfrensbot').lower().lstrip('@')
         reply_from = ((msg.get('reply_to_message') or {}).get('from') or {})
         replying_to_bot = (reply_from.get('is_bot') is True
-                           and str(reply_from.get('username') or '').lower() == 'tinyfrensbot')
-        if (re.search(r'(?<!\w)@tinyfrensbot\b', text, re.I)
+                           and (str(reply_from.get('username') or '').lower() in (bot_user, 'tinyfrensbot')
+                                or not reply_from.get('username')))
+        bot_mention_re = rf'(?<!\w)@{re.escape(bot_user)}\b'
+        is_mentioned = bool(re.search(bot_mention_re, text, re.I)
+                            or (bot_user != 'tinyfrensbot' and re.search(r'(?<!\w)@tinyfrensbot\b', text, re.I)))
+        if (is_mentioned
                 or replying_to_bot
+                or re.fullmatch(rf'/help(?:@{re.escape(bot_user)})?\s*', text, re.I)
                 or re.fullmatch(r'/help(?:@tinyfrensbot)?\s*', text, re.I)
                 or (chat.get('type') == 'private' and text.strip())):
             return 'mention', chat.get('id'), chat

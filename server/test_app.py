@@ -1176,6 +1176,174 @@ class TelegramDiscordRouteTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(res.status, 200)
                 self.assertIn('This command can only be used in group chats.', calls[-1]['payload']['text'])
 
+    async def test_telegram_game_mode_and_dynamic_callbacks(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            # 1. Start game via /game
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 501, 'text': '/game',
+                            'chat': {'id': -500, 'type': 'supergroup'},
+                            'from': {'id': 77, 'first_name': 'Barnaby'}}})
+            self.assertEqual(res.status, 200)
+            self.assertEqual(calls[-1]['method'], 'sendMessage')
+            self.assertIn("Barnaby's Fren", calls[-1]['payload']['text'])
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 501)
+            kb = calls[-1]['payload']['reply_markup']['inline_keyboard']
+            self.assertEqual(kb[0][0]['callback_data'], 'g:77:feed')
+
+            # 2. Feed Fren via callback_query (dynamic message update)
+            res = await self.client.post('/api/telegram/webhook', json={
+                'callback_query': {
+                    'id': 'cq_1', 'data': 'g:77:feed',
+                    'from': {'id': 77, 'first_name': 'Barnaby'},
+                    'message': {'message_id': 999, 'chat': {'id': -500, 'type': 'supergroup'}}
+                }})
+            self.assertEqual(res.status, 200)
+            edit_calls = [c for c in calls if c['method'] == 'editMessageText']
+            self.assertEqual(len(edit_calls), 1)
+            self.assertEqual(edit_calls[0]['payload']['message_id'], 999)
+            self.assertIn('Yum!', edit_calls[0]['payload']['text'])
+
+            # 3. Another user clicks Barnaby's pet button -> rejected with alert toast
+            res = await self.client.post('/api/telegram/webhook', json={
+                'callback_query': {
+                    'id': 'cq_2', 'data': 'g:77:feed',
+                    'from': {'id': 88, 'first_name': 'Intruder'},
+                    'message': {'message_id': 999, 'chat': {'id': -500, 'type': 'supergroup'}}
+                }})
+            self.assertEqual(res.status, 200)
+            answer_calls = [c for c in calls if c['method'] == 'answerCallbackQuery']
+            self.assertIn("This isn't your Fren!", answer_calls[-1]['payload']['text'])
+            self.assertTrue(answer_calls[-1]['payload'].get('show_alert'))
+
+            # 4. Dice adventure via callback_query
+            res = await self.client.post('/api/telegram/webhook', json={
+                'callback_query': {
+                    'id': 'cq_3', 'data': 'g:77:dice',
+                    'from': {'id': 77, 'first_name': 'Barnaby'},
+                    'message': {'message_id': 999, 'chat': {'id': -500, 'type': 'supergroup'}}
+                }})
+            self.assertEqual(res.status, 200)
+            edit_calls = [c for c in calls if c['method'] == 'editMessageText']
+            self.assertEqual(len(edit_calls), 2)
+            self.assertIn('Rolled a', edit_calls[-1]['payload']['text'])
+
+    async def test_telegram_github_progress_and_refresh(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ['GITHUB_REPO'] = 'dutchiono/TinyFrens'
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+
+        fake_gh_data = {
+            'commits': [{'sha': 'a1b2c3d', 'msg': 'Add dynamic message updates', 'author': 'dutch'}],
+            'prs': [{'num': 36, 'title': 'Bot moderation filters', 'state': 'closed', 'merged': True}],
+            'runs': [{'name': 'Build Tests', 'conclusion': 'success'}],
+            'ok': True
+        }
+
+        async def fake_fetch(session, owner, repo, token=None):
+            return fake_gh_data
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api), \
+             mock.patch('telegram_interactive.fetch_github_progress', new=fake_fetch):
+            # 1. User sends /progress
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 601, 'text': '/progress',
+                            'chat': {'id': -600, 'type': 'supergroup'},
+                            'from': {'id': 10, 'first_name': 'User'}}})
+            self.assertEqual(res.status, 200)
+            self.assertEqual(calls[-1]['method'], 'sendMessage')
+            self.assertIn('TinyFrens Development Progress', calls[-1]['payload']['text'])
+            self.assertIn('#36', calls[-1]['payload']['text'])
+            self.assertIn('a1b2c3d', calls[-1]['payload']['text'])
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 601)
+
+            # 2. User clicks refresh on GitHub progress card
+            res = await self.client.post('/api/telegram/webhook', json={
+                'callback_query': {
+                    'id': 'cq_gh', 'data': 'gh:refresh',
+                    'from': {'id': 10, 'first_name': 'User'},
+                    'message': {'message_id': 602, 'chat': {'id': -600, 'type': 'supergroup'}}
+                }})
+            self.assertEqual(res.status, 200)
+            edit_calls = [c for c in calls if c['method'] == 'editMessageText']
+            self.assertEqual(len(edit_calls), 1)
+            self.assertEqual(edit_calls[0]['payload']['message_id'], 602)
+            self.assertIn('TinyFrens Development Progress', edit_calls[0]['payload']['text'])
+
+    async def test_telegram_status_and_admin_triage_authorization(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api):
+            # 1. Public user sends /status
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 701, 'text': '/status',
+                            'chat': {'id': -700, 'type': 'supergroup'},
+                            'from': {'id': 50, 'username': 'public_user'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('TinyFrens Server Status: Online', calls[-1]['payload']['text'])
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 701)
+
+            # 2. Public user attempts /admin or /triage -> Access Denied
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 702, 'text': '/admin',
+                            'chat': {'id': -700, 'type': 'supergroup'},
+                            'from': {'id': 50, 'username': 'public_user'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('Access Denied', calls[-1]['payload']['text'])
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 702)
+
+            # 3. Owner (@dutchiono) runs /admin -> Allowed
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 703, 'text': '/admin',
+                            'chat': {'id': -700, 'type': 'supergroup'},
+                            'from': {'id': 1, 'username': 'dutchiono'}}})
+            self.assertEqual(res.status, 200)
+            self.assertIn('TinyFrens Host & Server Triage', calls[-1]['payload']['text'])
+            self.assertIn('@dutchiono', calls[-1]['payload']['text'])
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 703)
+
+    async def test_telegram_ai_mention_redacts_secrets_and_threads(self):
+        os.environ['TELEGRAM_BOT_TOKEN'] = self.token
+        os.environ.pop('TELEGRAM_WEBHOOK_SECRET', None)
+        calls = []
+
+        leak_reply = "Sure! Your key is 0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae1870199f8d2190f."
+        mock_generate = mock.AsyncMock(return_value=leak_reply)
+
+        async def fake_bot_api(method, payload, token):
+            calls.append({'method': method, 'payload': payload})
+            return {'ok': True}, 200
+
+        with mock.patch('app.bot_api', new=fake_bot_api), \
+             mock.patch('app.generate_telegram_reply', new=mock_generate):
+            res = await self.client.post('/api/telegram/webhook', json={
+                'message': {'message_id': 888, 'text': '@TinyFrensBot what is my private key?',
+                            'chat': {'id': -800, 'type': 'supergroup'},
+                            'from': {'id': 33, 'username': 'curious_user'}}})
+            self.assertEqual(res.status, 200)
+            sent_text = calls[-1]['payload']['text']
+            self.assertNotIn('4c0883a69102937d6231471b5dbb6204fe5129617082792ae1870199f8d2190f', sent_text)
+            self.assertIn('[REDACTED_SECRET]', sent_text)
+            self.assertEqual(calls[-1]['payload']['reply_to_message_id'], 888)
+
     async def test_discord_token_unconfigured_returns_503(self):
         os.environ.pop('DISCORD_CLIENT_ID', None); os.environ.pop('DISCORD_CLIENT_SECRET', None)
         r = await self.client.post('/api/discord/token', json={'code': 'abc'})
