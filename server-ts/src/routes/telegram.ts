@@ -32,6 +32,7 @@ import {
 import { readAccountProfile, telegramPet } from '../domain/account.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
+import { sendTelegramCompanion } from '../domain/telegram-companion.js';
 
 async function callTelegramApi(
   method: string,
@@ -359,6 +360,23 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           if (messageId) payload.reply_to_message_id = messageId;
           await context.telegramApi.call('sendMessage', payload, token);
         };
+
+        const show = text.match(/^\/show(?:@\w+)?(?:\s+([1-5]))?\s*$/i);
+        if (show && chatId !== null && chatId !== undefined) {
+          if (!secret) return reply.status(503).send({ error: 'Telegram webhook secret is required' });
+          const pet = telegramPet(context, sender);
+          const isPrivate = chat?.type === 'private';
+          try {
+            await sendTelegramCompanion(context, chatId, pet.id, Number(show[1] || 1), token, isPrivate);
+          } catch (error) {
+            await sendCommand({
+              chat_id: chatId,
+              text: error instanceof Error ? error.message : 'TinyFrens could not verify that NFT right now',
+              reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
+            });
+          }
+          return reply.status(200).send({ ok: true });
+        }
 
         if (/^\/(?:game|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           const pet = getOrCreatePet(

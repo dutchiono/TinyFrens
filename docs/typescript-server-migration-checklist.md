@@ -232,7 +232,7 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `POST /api/discord/token`
 - [x] `POST /api/discord/interactions`
 - [x] Preserve raw request bodies for GitHub HMAC and Discord Ed25519 verification.
-- [ ] Preserve Telegram multipart upload behavior and cached Telegram `file_id` reuse.
+- [x] Preserve Telegram multipart upload behavior and cached Telegram `file_id` reuse. (Phase 8 Slice 8E uploads generated GIFs once and persists Telegram's returned `file_id` for subsequent `/show` requests.)
 - [x] Preserve Telegram callback-query routing so moderation and game callbacks do not consume each other. (Verification callbacks are handled first and only matching `tfverify` payloads are consumed.)
 
 ### Push notifications
@@ -312,9 +312,9 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `robot_care.py` → robot-care domain/routes/repository; preserve ownership checks, UTC allowance reset, live settings, charging order, prices, and rewards.
 - [ ] `robot_companion.py` → Robots RPC/metadata/ownership service; preserve token bounds, batch discovery, cache rules, and SVG sanitization.
 - [ ] `robot_gallery.py` → robot gallery route/repository/service; preserve event indexing, pagination, cache markers, provider-failure behavior, and HTTP cache headers.
-- [ ] `telegram_integration.py` → Telegram core integration; preserve init-data HMAC, auth age, deterministic identities, Bot API multipart requests, classifications, deep links, and issue commands.
+- [x] `telegram_integration.py` → Telegram core integration; preserve init-data HMAC, auth age, deterministic identities, Bot API multipart requests, classifications, deep links, and issue commands. (Completed across Phase 5 and Phase 8 Slices 8D–8E.)
 - [x] `telegram_interactive.py` → Telegram game/admin/status service; preserve secret redaction, owner/admin rules, game state, rendering, GitHub progress, and triage output.
-- [ ] `telegram_media.py` → Telegram GIF renderer; preserve supported SVG elements, path rendering, transforms, dimensions, frame timing, and PNG behavior.
+- [x] `telegram_media.py` → Telegram GIF renderer; preserve supported SVG elements, path rendering, transforms, dimensions, frame timing, and PNG behavior. (Phase 8 Slice 8E adds bounded SVG/PNG rasterization and deterministic animated GIF output.)
 - [x] `telegram_moderation.py` → Telegram moderation service/repository; preserve parser grammar, whole-word filters, strike rules, admin lookup, randomized challenges, persisted expiry, and fail-open restoration.
 - [ ] `turtle_connect.py` → turtle-connect routes/service/repository; preserve EIP-191 messages, signature recovery, token bounds, wallet-wide links, Bankr verification, bounded discovery, pairing expiry, agent paths, and fail-closed ownership.
 
@@ -361,7 +361,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Treasury: `FRENS_TOKEN`, `FRENS_TREASURY`, `FRENS_TREASURY_INDEXER`, `FRENS_TREASURY_MAX_CREDITS`, `FRENS_TREASURY_CHAIN_ID`, `FRENS_TREASURY_TOKEN`.
 - [x] Robot care: `ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_GAME_REWARD_CREDITS`, `ROBOT_CARE_PRICE_FEED`, `ROBOT_CARE_PRICE_PLAY`, `ROBOT_CARE_PRICE_REST`, `ROBOT_CARE_PRICE_ADVENTURE`, `ROBOT_CARE_PRICE_CLEAN`, `ROBOT_CARE_PRICE_VITAMIN`, `ROBOT_CARE_PRICE_SCOLD`, `ROBOT_CARE_PRICE_REVIVE`.
 - [ ] Farcaster/Neynar: `NEYNAR_API_KEY`, `NEYNAR_CLIENT_ID`, `FARCASTER_SIGNER_UUID`, `SNAPCHAIN_API_URL`, `NEYNAR_WEBHOOK_URL`.
-- [ ] Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_MINIAPP_URL`, `TELEGRAM_MINIAPP_DEEP_LINK`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ISSUE_HISTORY`, `TELEGRAM_MODERATION`, `TELEGRAM_MODERATION_TIMEOUT`.
+- [x] Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_MINIAPP_URL`, `TELEGRAM_MINIAPP_DEEP_LINK`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ISSUE_HISTORY`, `TELEGRAM_MODERATION`, `TELEGRAM_MODERATION_TIMEOUT`.
 - [ ] GitHub: `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_ISSUE_LABELS`, `GITHUB_WEBHOOK_SECRET`.
 - [ ] Discord: `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`, `DISCORD_PUBLIC_KEY`.
 - [ ] Push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
@@ -377,11 +377,11 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Robinhood RPC and Blockscout pagination, bounded ranges, ownership rechecks, and partial-result flags.
 - [ ] Robots RPC calls and event decoding.
 - [ ] Neynar/Farcaster webhook and notification payloads.
-- [ ] Telegram init-data verification, Bot API calls, multipart media, callback answers, restrictions, bans, and webhook secret.
+- [x] Telegram init-data verification, Bot API calls, multipart media, callback answers, restrictions, bans, and webhook secret.
 - [ ] GitHub REST calls, App JWT/token lifecycle, webhook HMAC, issue creation, labels, and progress reads.
 - [ ] Discord OAuth and Ed25519 raw-body verification.
 - [ ] Web Push VAPID generation and expired-subscription cleanup.
-- [ ] Pillow/SVG/GIF outputs: exact hashes when deterministic; otherwise dimensions, frame count/timing, transparency, sanitized content, and visual fixtures.
+- [x] Pillow/SVG/GIF outputs: exact hashes when deterministic; otherwise dimensions, frame count/timing, transparency, sanitized content, and visual fixtures. (The TypeScript renderer validates canonical robot/turtle fixtures plus PNG, dimensions, frames, timing, transparency index, and unsafe SVG rejection; FFmpeg independently decodes the generated 128×128 animation.)
 
 ## Background jobs and lifecycle
 
@@ -417,7 +417,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [x] `test_robot_companion.py`: art parsing, ownership renewal, transfer revocation, discovery, and incomplete inventories.
 - [ ] `test_robot_gallery.py`: concurrency, restarts, refreshes, mint/burn/reorgs, cache fallback, pagination, and headers.
 - [x] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
-- [ ] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
+- [x] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
 - [x] `test_telegram_moderation.py`: command grammar, filters, blocklist, strikes, and admin roles.
 - [x] `test_turtle_connect.py`: wallet-wide pairing, signatures, Bankr, multi-wallet discovery, RPC fallback, expiry, restart, ownership, unlinking, and origins.
 - [x] `test_wallet_migration.py`: legacy wallet-link migration and restart persistence.
@@ -445,7 +445,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
 - [x] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
 - [ ] Phase 7: workers and restart recovery.
-- [ ] Phase 8: Telegram orchestration and moderation.
+- [x] Phase 8: Telegram orchestration and moderation. (Slices 8A–8E cover persisted challenge recovery, moderation enforcement, interactive commands, conversational/issue flows, `/show`, GIF rendering, multipart upload, and media caching.)
 - [ ] Phase 9: stateful WebSocket protocol and process-local presence.
 - [ ] Phase 10: shadow comparison in staging with outbound side effects disabled.
 - [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
