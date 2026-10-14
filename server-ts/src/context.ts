@@ -9,9 +9,28 @@ import {
   DefaultRobotsVerifier,
   DefaultExtraCompanionsVerifier,
 } from './domain/companion-verifier.js';
+import { Robots } from './domain/robots-verifier.js';
+import { RobotCare, RobotCareSettings } from './domain/robot-care.js';
 
 import { Economy, AddressPool } from './domain/economy.js';
 import { DepositRouterAllocator } from './integrations/deposit-allocator.js';
+
+export function getRobotCareSettings(config: Config): RobotCareSettings {
+  return {
+    dailyAllowance: config.ROBOT_CARE_DAILY_ALLOWANCE,
+    gameRewardCredits: config.ROBOT_CARE_GAME_REWARD_CREDITS,
+    prices: {
+      feed: config.ROBOT_CARE_PRICE_FEED,
+      play: config.ROBOT_CARE_PRICE_PLAY,
+      rest: config.ROBOT_CARE_PRICE_REST,
+      adventure: config.ROBOT_CARE_PRICE_ADVENTURE,
+      clean: config.ROBOT_CARE_PRICE_CLEAN,
+      vitamin: config.ROBOT_CARE_PRICE_VITAMIN,
+      scold: config.ROBOT_CARE_PRICE_SCOLD,
+      revive: config.ROBOT_CARE_PRICE_REVIVE,
+    },
+  };
+}
 
 export interface AppContext {
   config: Config;
@@ -26,6 +45,8 @@ export interface AppContext {
   extraCompanionsVerifier: ExtraCompanionsVerifier;
   economy: Economy;
   depositAllocator?: any;
+  robotCare: RobotCare;
+  robotCareSettings?: () => RobotCareSettings | null | undefined;
 }
 
 export function createAppContext(
@@ -49,14 +70,25 @@ export function createAppContext(
     robotsVerifier: null as any,
     extraCompanionsVerifier: null as any,
     economy: null as any,
+    robotCare: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
 
   ctx.turtleOwnership = overrides?.turtleOwnership ?? new TurtleOwnership(db, config.ROBINHOOD_RPC_URL, () => ctx.now());
-  ctx.robotsVerifier = overrides?.robotsVerifier ?? new DefaultRobotsVerifier(db);
+  ctx.robotsVerifier = overrides?.robotsVerifier ?? new Robots(db, config.ROBOTS_RPC_URL, () => ctx.now());
   ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(db);
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
+  const careSettings = overrides?.robotCareSettings ?? (() => getRobotCareSettings(ctx.config));
+  ctx.robotCareSettings = careSettings;
+  ctx.robotCare = overrides?.robotCare ?? new RobotCare(
+    db,
+    () => ctx.now(),
+    config.ROBOT_CARE_DAILY_ALLOWANCE,
+    undefined,
+    careSettings,
+    ctx.economy
+  );
 
   if (overrides?.depositAllocator !== undefined) {
     ctx.depositAllocator = overrides.depositAllocator;

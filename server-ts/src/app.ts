@@ -18,6 +18,7 @@ import { registerAccountRoutes } from './routes/account.js';
 import { registerDeviceSyncRoutes } from './routes/device-sync.js';
 import { registerTurtleConnectRoutes } from './routes/turtle-connect.js';
 import { registerWalletLinkRoutes } from './routes/wallet-link.js';
+import { registerRobotCareRoutes } from './routes/robot-care.js';
 import fastifyRawBody from 'fastify-raw-body';
 
 export interface AppOptions {
@@ -70,6 +71,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   // Wallet link & Turtle connection (Phase 6 Slice 6B)
   registerTurtleConnectRoutes(app, context);
   registerWalletLinkRoutes(app, context);
+
+  // Robot care & companions (Phase 6 Slice 6D)
+  registerRobotCareRoutes(app, context);
 
   // Graceful shutdown hook
   app.addHook('onClose', async () => {
