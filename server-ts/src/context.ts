@@ -94,7 +94,12 @@ export function createAppContext(
 
   ctx.turtleOwnership = overrides?.turtleOwnership ?? new TurtleOwnership(db, config.ROBINHOOD_RPC_URL, () => ctx.now());
   ctx.robotsVerifier = overrides?.robotsVerifier ?? new Robots(db, config.ROBOTS_RPC_URL, () => ctx.now());
-  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(db);
+  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(
+    db,
+    config.ROBINHOOD_RPC_URL,
+    config.ROBOTS_RPC_URL,
+    () => ctx.now()
+  );
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
   const admin = overrides?.admin ?? new Admin(db, {
     token: config.ADMIN_TOKEN,

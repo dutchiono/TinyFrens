@@ -302,13 +302,13 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [x] `device_sync.py` → device-sync route/service/repository; preserve code reuse/renewal, expiry, approval, merge, limits, ordering, revision conflicts, and cleanup.
 - [ ] `discord_integration.py` → Discord integration; preserve Ed25519 verification, OAuth exchange, and channel room IDs.
 - [x] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
-- [ ] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification.
+- [x] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification. (Production adapters now scan bounded Robinhood transfer logs or Base owner batches, verify chain IDs, cache complete inventories, and fail closed.)
 - [x] `github_app.py` → GitHub App auth integration; preserve RS256 JWT claims, key loading, installation discovery, least-privilege token requests, cache locking, and refresh margin. (Ported with Node crypto signing, key-stat cache invalidation, serialized refresh, and static-token compatibility.)
 - [x] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors. (Phase 8 Slice 8D ports chat transcripts, Gemini drafting, REST issue creation, label filtering, persisted chat mapping, and safe user-facing failures.)
 - [ ] `hood_turtle_art.py` → media adapter; preserve SVG sanitization and walking animation.
 - [ ] `imported_gallery.py` → gallery routes; preserve selection-only exposure, pagination, deduplication, collection/chain constraints, and private-field exclusion.
 - [ ] `indexer.py` → independently runnable workers; preserve block ranges, independent checkpoints, reorg behavior, topic decoding, idempotency, cancellation, and CLI mode.
-- [ ] `nub_art.py` → media adapter; preserve image validation, dimensions, transparency, and hopping animation.
+- [x] `nub_art.py` → media adapter; preserve image validation, dimensions, transparency, and hopping animation. (Pure-JavaScript PNG decoding/resizing generates the canonical four-frame transparent hop rig.)
 - [ ] `robot_care.py` → robot-care domain/routes/repository; preserve ownership checks, UTC allowance reset, live settings, charging order, prices, and rewards.
 - [ ] `robot_companion.py` → Robots RPC/metadata/ownership service; preserve token bounds, batch discovery, cache rules, and SVG sanitization.
 - [ ] `robot_gallery.py` → robot gallery route/repository/service; preserve event indexing, pagination, cache markers, provider-failure behavior, and HTTP cache headers.
@@ -391,7 +391,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [x] Five-second visit/battle/rate-limit cleanup loop. (Phase 9: one hub timer expires sessions and prunes stale rate-limit buckets.)
 - [x] Fire-and-forget push delivery does not hold request completion or leak database handles. (Phase 9: offline notifications use the real `web-push` sender and isolate best-effort failures from socket handling.)
 - [x] GitHub App token cache and concurrent refresh locking.
-- [ ] Provider discovery locks and TTL caches.
+- [x] Provider discovery locks and TTL caches. (Robot, turtle, and extra-collection discovery use bounded provider reads with serialized inventory refresh and explicit TTLs.)
 - [x] Process signals produce a bounded graceful shutdown under systemd and containers. (Phase 7 Slice 7B: idempotent 10-second deadline, workers stop before Fastify and SQLite close, startup failures close resources.)
 
 ## Test-file migration ledger
@@ -406,13 +406,13 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [x] `test_deposit_allocator.py`: ETH/ERC-20 forwarding and nonce serialization.
 - [x] `test_device_sync.py`: approval, restart, selection revisions, wallet ordering, expiry, and unsync.
 - [x] `test_economy.py`: arithmetic, sessions, deposits, ledger, idempotency, caps, routes, and disabled mode.
-- [ ] `test_extra_companions.py`: discovery, caches, transfers, provider failures, and Nub reconstruction.
+- [x] `test_extra_companions.py`: discovery, caches, transfers, provider failures, and Nub reconstruction.
 - [x] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.
 - [ ] `test_hood_turtle_art.py`: sanitization and animation.
 - [ ] `test_imported_gallery.py`: privacy, selection, collection/chain boundaries, deduplication, and pagination.
 - [ ] `test_indexer.py`: log decoding, filters, checkpoints, idempotency, caps, and ETH/ERC-20 indexing.
 - [ ] `test_nft_uri.py`: minted/unminted metadata and assets.
-- [ ] `test_nub_art.py`: image validation and animation.
+- [x] `test_nub_art.py`: image validation and animation.
 - [x] `test_robot_care.py`: catalog, allowances, UTC reset, ownership, charging, prices, routes, and rewards.
 - [x] `test_robot_companion.py`: art parsing, ownership renewal, transfer revocation, discovery, and incomplete inventories.
 - [ ] `test_robot_gallery.py`: concurrency, restarts, refreshes, mint/burn/reorgs, cache fallback, pagination, and headers.
