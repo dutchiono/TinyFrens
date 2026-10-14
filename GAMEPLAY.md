@@ -33,7 +33,7 @@ Needs arise from stats and time. Clean or Vitamin appears as an extra button onl
 
 Joy tiers: happy at 75 or more, okay in between, sad at 25 or less.
 
-Weight, discipline and care mistakes are Tamagotchi-style extras. Weight rises with food and falls with play and adventuring; being very heavy or very light (and low discipline) makes illness a little likelier. Care mistakes count toward being downed. There is no permanent death: a downed fren revives — a Robots v1 revive is paid in FRENS (see *Robots v1 and FRENS*).
+Weight, discipline and care mistakes are classic virtual pet care mechanics. Weight rises with food and falls with play and adventuring; being very heavy or very light (and low discipline) makes illness a little likelier. Care mistakes count toward being downed. There is no permanent death: a downed fren revives — a Robots v1 revive is paid in FRENS (see *Robots v1 and FRENS*).
 
 ## Visits
 
