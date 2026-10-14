@@ -1,6 +1,8 @@
 import { DatabaseConnection } from '../db/connection.js';
 import { toChecksumAddress } from '../crypto/signatures.js';
 import { validateRobotTokenId } from './robot-care-rules.js';
+export { Robots, type RobotsVerifier } from './robots-verifier.js';
+import type { RobotsVerifier } from './robots-verifier.js';
 
 export const ROBOTS_CONTRACT = '0xd745d8005a1ad8f783b97bf55e0d0e6a920ea8ff';
 export const ROBOTS_CHAIN_ID = 8453;
@@ -9,12 +11,6 @@ export const EXTRA_COLLECTIONS: Record<string, [number, number, string]> = {
   '0x34d9e560ee16662d19e44315a822bd51eea0133c': [4663, 3000, 'The Nubs'],
   '0x8d446c126d4873bfa3eb195b7f0094acc1187a75': [8453, 10000, 'Bots Computers'],
 };
-
-export interface RobotsVerifier {
-  discover(address: string): Promise<{ nfts: any[]; partial: boolean }>;
-  read(address: string, tokenId: number): Promise<any>;
-  ownerOf(address: string, tokenId: number): Promise<boolean>;
-}
 
 export interface ExtraCompanionsVerifier {
   discover(addresses: string[], collection: string): Promise<{ nfts: any[]; partial: boolean }>;

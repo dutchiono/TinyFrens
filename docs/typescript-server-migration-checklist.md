@@ -215,9 +215,9 @@ Each route needs contract fixtures for success, validation failure, authenticati
 ### Robots, imported collections, and galleries
 
 - [x] `GET /api/robots/gallery`
-- [ ] `POST /api/robots/care`
-- [ ] `POST /api/robots/care/action`
-- [ ] `POST /api/robots/game`
+- [x] `POST /api/robots/care`
+- [x] `POST /api/robots/care/action`
+- [x] `POST /api/robots/game`
 - [x] `GET /api/gallery/collections`
 - [x] `GET /api/gallery/imported`
 - [x] `GET /api/hood-turtles/preview`
@@ -340,7 +340,7 @@ For every table: capture exact `sqlite_master` SQL, indexes, primary keys, colla
 - [ ] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
 - [ ] NFTs and collections: `fren_nfts`, `frens_burn_log`, `collection_suggestions`, `collection_votes`.
 - [ ] Economy: `credit_accounts`, `credit_ledger`, `deposit_sessions`, `deposits`, `treasury_transfers`, `indexer_state`.
-- [ ] Robots: `robot_care_daily`, `robot_discovery`, `robot_owner_inventory`, `robot_ownership`, `robot_gallery_art`, `robot_gallery_events`, `robot_gallery_owners`, `robot_gallery_state`.
+- [x] Robots: `robot_care_daily`, `robot_discovery`, `robot_owner_inventory`, `robot_ownership`, `robot_gallery_art`, `robot_gallery_events`, `robot_gallery_owners`, `robot_gallery_state`.
 - [ ] External collections: `extra_companion_inventory`, `extra_companion_ownership`, `turtle_ownership`, `turtle_pairings`.
 - [ ] Telegram: `tg_users`, `tg_media_cache`, `tg_filters`, `tg_blocklist`, `tg_strikes`, `tg_challenges`, `tg_fren_game`.
 - [ ] Discord/GitHub: `dc_users`, `github_issue_chats`.
@@ -359,7 +359,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Chain/NFT: `BASE_RPC_URL`, `CHAIN_ID`, `TINYFRENS_NFT_ADDRESS`, `TINYFRENS_NFT_MINT_PRICE_WEI`, `ALLOW_TESTNET_FREE_MINT`, `FREN_VAULT_SEED`, `FRENS_PER_VAULT_MINT`, `SAVE_CHANGES_FEE_FRENS`, `ROBOTS_RPC_URL`, `ROBINHOOD_RPC_URL`, `ROBINHOOD_BLOCKSCOUT_API_URL`.
 - [ ] Economy/deposits: `ECONOMY_MODE`, `ECONOMY_DEPOSITS`, `ECONOMY_INDEXER_SECRET`, `DEPOSIT_ROUTER_PROXY`, `DEPOSIT_SESSION_ADDRESSES`, `GAME_CONTROLLER_PRIVATE_KEY`, `INDEXER_ENABLED`, `INDEXER_LOOKBACK`, `INDEXER_POLL_SECONDS`.
 - [ ] Treasury: `FRENS_TOKEN`, `FRENS_TREASURY`, `FRENS_TREASURY_INDEXER`, `FRENS_TREASURY_MAX_CREDITS`, `FRENS_TREASURY_CHAIN_ID`, `FRENS_TREASURY_TOKEN`.
-- [ ] Robot care: `ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_GAME_REWARD_CREDITS`, `ROBOT_CARE_PRICE_FEED`, `ROBOT_CARE_PRICE_PLAY`, `ROBOT_CARE_PRICE_REST`, `ROBOT_CARE_PRICE_ADVENTURE`, `ROBOT_CARE_PRICE_CLEAN`, `ROBOT_CARE_PRICE_VITAMIN`, `ROBOT_CARE_PRICE_SCOLD`, `ROBOT_CARE_PRICE_REVIVE`.
+- [x] Robot care: `ROBOT_CARE_DAILY_ALLOWANCE`, `ROBOT_CARE_GAME_REWARD_CREDITS`, `ROBOT_CARE_PRICE_FEED`, `ROBOT_CARE_PRICE_PLAY`, `ROBOT_CARE_PRICE_REST`, `ROBOT_CARE_PRICE_ADVENTURE`, `ROBOT_CARE_PRICE_CLEAN`, `ROBOT_CARE_PRICE_VITAMIN`, `ROBOT_CARE_PRICE_SCOLD`, `ROBOT_CARE_PRICE_REVIVE`.
 - [ ] Farcaster/Neynar: `NEYNAR_API_KEY`, `NEYNAR_CLIENT_ID`, `FARCASTER_SIGNER_UUID`, `SNAPCHAIN_API_URL`, `NEYNAR_WEBHOOK_URL`.
 - [ ] Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_MINIAPP_URL`, `TELEGRAM_MINIAPP_DEEP_LINK`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ISSUE_HISTORY`, `TELEGRAM_MODERATION`, `TELEGRAM_MODERATION_TIMEOUT`.
 - [ ] GitHub: `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_ISSUE_LABELS`, `GITHUB_WEBHOOK_SECRET`.
@@ -413,8 +413,8 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [ ] `test_indexer.py`: log decoding, filters, checkpoints, idempotency, caps, and ETH/ERC-20 indexing.
 - [ ] `test_nft_uri.py`: minted/unminted metadata and assets.
 - [ ] `test_nub_art.py`: image validation and animation.
-- [ ] `test_robot_care.py`: catalog, allowances, UTC reset, ownership, charging, prices, routes, and rewards.
-- [ ] `test_robot_companion.py`: art parsing, ownership renewal, transfer revocation, discovery, and incomplete inventories.
+- [x] `test_robot_care.py`: catalog, allowances, UTC reset, ownership, charging, prices, routes, and rewards.
+- [x] `test_robot_companion.py`: art parsing, ownership renewal, transfer revocation, discovery, and incomplete inventories.
 - [ ] `test_robot_gallery.py`: concurrency, restarts, refreshes, mint/burn/reorgs, cache fallback, pagination, and headers.
 - [ ] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
 - [ ] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
