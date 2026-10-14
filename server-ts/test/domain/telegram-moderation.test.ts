@@ -194,4 +194,115 @@ describe('Telegram moderation parity', () => {
     await moderation.stop();
     db.close();
   });
+
+  test('requires group admin for filter and blocklist management', async () => {
+    const { db, repo, api } = setup();
+    const moderation = new TelegramModeration(repo, api, {
+      enabled: false,
+      timeout: 180,
+      token: 'bot-token',
+      now: () => 1000,
+    });
+    const chat = { id: -100, type: 'supergroup' };
+    const denied = await moderation.handleManagement(
+      { text: '/filter website https://tinyfrens.lol', from: { id: 7 } },
+      chat
+    );
+    assert.equal(denied, true);
+    assert.equal(repo.listFilters('-100').length, 0);
+    assert.equal(api.calls.at(-1)?.payload.text, 'Only chat administrators can configure filters.');
+
+    api.members.set(1, 'administrator');
+    await moderation.handleManagement(
+      { text: '/filter website https://tinyfrens.lol', from: { id: 1 } },
+      chat
+    );
+    await moderation.handleManagement(
+      { text: '/blocklist add airdrop', from: { id: 1 } },
+      chat
+    );
+    assert.equal(repo.getFilter('-100', 'website'), 'https://tinyfrens.lol');
+    assert.deepEqual(repo.listBlocklist('-100'), ['airdrop']);
+    await moderation.stop();
+    db.close();
+  });
+
+  test('admin ban command protects bots and admins then bans ordinary users', async () => {
+    const { db, repo, api } = setup();
+    api.members.set(1, 'administrator');
+    api.members.set(9, 'member');
+    const moderation = new TelegramModeration(repo, api, {
+      enabled: false,
+      timeout: 180,
+      token: 'bot-token',
+    });
+    const chat = { id: -100, type: 'group' };
+    await moderation.handleManagement({
+      text: '/ban spam',
+      from: { id: 1 },
+      reply_to_message: { from: { id: 9, username: 'spammer' } },
+    }, chat);
+    assert.ok(api.calls.some(call => call.method === 'banChatMember' && call.payload.user_id === 9));
+    assert.equal(api.calls.at(-1)?.payload.text, '🚫 Banned @spammer. Reason: spam');
+
+    await moderation.handleManagement({
+      text: '/ban',
+      from: { id: 1 },
+      reply_to_message: { from: { id: 10, is_bot: true } },
+    }, chat);
+    assert.equal(api.calls.at(-1)?.payload.text, 'Cannot ban a bot with this command.');
+    await moderation.stop();
+    db.close();
+  });
+
+  test('blocklist applies warning then ban while exempting administrators', async () => {
+    const { db, repo, api } = setup();
+    addBlocklist(repo, '-100', 'airdrop');
+    api.members.set(5, 'member');
+    api.members.set(1, 'administrator');
+    const moderation = new TelegramModeration(repo, api, {
+      enabled: false,
+      timeout: 180,
+      token: 'bot-token',
+      now: () => 1000,
+    });
+    const chat = { id: -100, type: 'supergroup' };
+    const message = {
+      text: 'join our airdrop',
+      message_id: 50,
+      from: { id: 5, username: 'repeat_spammer' },
+    };
+    assert.equal(await moderation.handleContent(message, chat), true);
+    assert.equal(repo.getStrikes('-100', '5').strikes, 1);
+    assert.equal(await moderation.handleContent(message, chat), true);
+    assert.equal(repo.getStrikes('-100', '5').strikes, 2);
+    assert.ok(api.calls.some(call => call.method === 'banChatMember' && call.payload.user_id === 5));
+
+    assert.equal(await moderation.handleContent({
+      text: 'admin airdrop notice',
+      from: { id: 1 },
+    }, chat), false);
+    assert.equal(repo.getStrikes('-100', '1').strikes, 0);
+    await moderation.stop();
+    db.close();
+  });
+
+  test('filter replies to ordinary messages but leaves bot commands reserved', async () => {
+    const { db, repo, api } = setup();
+    addFilter(repo, '-100', 'website', 'https://tinyfrens.lol');
+    addFilter(repo, '-100', 'game', 'filter should not consume game');
+    const moderation = new TelegramModeration(repo, api, {
+      enabled: false,
+      timeout: 180,
+      token: 'bot-token',
+    });
+    const chat = { id: -100, type: 'group' };
+    assert.equal(await moderation.handleContent({
+      text: 'website please', message_id: 12, from: { id: 5 },
+    }, chat), true);
+    assert.equal(api.calls.at(-1)?.payload.reply_to_message_id, 12);
+    assert.equal(await moderation.handleContent({ text: '/game', from: { id: 5 } }, chat), false);
+    await moderation.stop();
+    db.close();
+  });
 });

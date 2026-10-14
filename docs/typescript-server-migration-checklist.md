@@ -233,7 +233,7 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `POST /api/discord/interactions`
 - [x] Preserve raw request bodies for GitHub HMAC and Discord Ed25519 verification.
 - [ ] Preserve Telegram multipart upload behavior and cached Telegram `file_id` reuse.
-- [ ] Preserve Telegram callback-query routing so moderation and game callbacks do not consume each other.
+- [x] Preserve Telegram callback-query routing so moderation and game callbacks do not consume each other. (Verification callbacks are handled first and only matching `tfverify` payloads are consumed.)
 
 ### Push notifications
 
@@ -315,7 +315,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `telegram_integration.py` → Telegram core integration; preserve init-data HMAC, auth age, deterministic identities, Bot API multipart requests, classifications, deep links, and issue commands.
 - [ ] `telegram_interactive.py` → Telegram game/admin/status service; preserve secret redaction, owner/admin rules, game state, rendering, GitHub progress, and triage output.
 - [ ] `telegram_media.py` → Telegram GIF renderer; preserve supported SVG elements, path rendering, transforms, dimensions, frame timing, and PNG behavior.
-- [ ] `telegram_moderation.py` → Telegram moderation service/repository; preserve parser grammar, whole-word filters, strike rules, admin lookup, randomized challenges, persisted expiry, and fail-open restoration.
+- [x] `telegram_moderation.py` → Telegram moderation service/repository; preserve parser grammar, whole-word filters, strike rules, admin lookup, randomized challenges, persisted expiry, and fail-open restoration.
 - [ ] `turtle_connect.py` → turtle-connect routes/service/repository; preserve EIP-191 messages, signature recovery, token bounds, wallet-wide links, Bankr verification, bounded discovery, pairing expiry, agent paths, and fail-closed ownership.
 
 ### Static and operational server files
@@ -418,7 +418,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [ ] `test_robot_gallery.py`: concurrency, restarts, refreshes, mint/burn/reorgs, cache fallback, pagination, and headers.
 - [ ] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
 - [ ] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
-- [ ] `test_telegram_moderation.py`: command grammar, filters, blocklist, strikes, and admin roles.
+- [x] `test_telegram_moderation.py`: command grammar, filters, blocklist, strikes, and admin roles.
 - [x] `test_turtle_connect.py`: wallet-wide pairing, signatures, Bankr, multi-wallet discovery, RPC fallback, expiry, restart, ownership, unlinking, and origins.
 - [x] `test_wallet_migration.py`: legacy wallet-link migration and restart persistence.
 

@@ -1,7 +1,14 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { TelegramRepository, TgChallengeRow } from '../db/repositories/telegram.js';
 import { TelegramBotApi } from '../integrations/telegram-api.js';
-import { matchesBlocklistPattern, matchesTrigger } from './telegram-grammar.js';
+import {
+  matchesBlocklistPattern,
+  matchesTrigger,
+  parseBanCommand,
+  parseBlocklistCommand,
+  parseFilterCommand,
+} from './telegram-grammar.js';
+import { isIssueCommand } from '../integrations/telegram.js';
 
 type TelegramObject = Record<string, unknown>;
 
@@ -181,12 +188,188 @@ export class TelegramModeration {
     return this.handleNewMembers(message as TelegramObject);
   }
 
+  async handleManagement(message: TelegramObject, chat: TelegramObject | null): Promise<boolean> {
+    if (!this.options.token) return false;
+    const text = String(message.text || '');
+    const sender = message.from && typeof message.from === 'object' ? message.from as TelegramObject : {};
+    const chatId = chat?.id;
+    const isGroup = chat?.type === 'group' || chat?.type === 'supergroup';
+
+    const ban = parseBanCommand(text);
+    if (ban.isBan && chatId !== null && chatId !== undefined) {
+      if (!isGroup) {
+        await this.sendMessage(chatId, 'This command can only be used in group chats.');
+        return true;
+      }
+      if (!await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        await this.sendMessage(chatId, 'Only chat administrators can use this command.');
+        return true;
+      }
+      const replyMessage = message.reply_to_message;
+      if (!replyMessage || typeof replyMessage !== 'object') {
+        await this.sendMessage(chatId, "Reply to a user's message with /ban or /aiban to ban them.");
+        return true;
+      }
+      const target = ((replyMessage as TelegramObject).from || {}) as TelegramObject;
+      const targetId = target.id;
+      if (!targetId) {
+        await this.sendMessage(chatId, 'Could not identify the user to ban.');
+        return true;
+      }
+      if (target.is_bot === true) {
+        await this.sendMessage(chatId, 'Cannot ban a bot with this command.');
+        return true;
+      }
+      if (await isChatAdmin(this.api, chat, target, this.options.token)) {
+        await this.sendMessage(chatId, 'Cannot ban a chat administrator.');
+        return true;
+      }
+      const response = await this.api.call('banChatMember', { chat_id: chatId, user_id: targetId }, this.options.token);
+      const targetName = target.username ? `@${target.username}` : String(target.first_name || `User ${targetId}`);
+      if (response.status === 200 && response.data?.ok === true) {
+        await this.sendMessage(chatId, `🚫 Banned ${targetName}.${ban.reason ? ` Reason: ${ban.reason}` : ''}`);
+      } else {
+        await this.sendMessage(chatId, `Could not ban ${targetName}: ${String(response.data?.description || 'Permission denied')}`);
+      }
+      return true;
+    }
+
+    const blocklist = parseBlocklistCommand(text);
+    if (blocklist && chatId !== null && chatId !== undefined) {
+      if (!isGroup) {
+        await this.sendMessage(chatId, 'This command can only be used in group chats.');
+        return true;
+      }
+      if (!await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        await this.sendMessage(chatId, 'Only chat administrators can configure the blocklist.');
+        return true;
+      }
+      if (blocklist.type === 'add') {
+        try {
+          const pattern = addBlocklist(
+            this.repo, chatId, blocklist.pattern, String(sender.id || ''), Math.floor(this.now())
+          );
+          await this.sendMessage(chatId, `Added '${pattern}' to the blocklist.`);
+        } catch (error) {
+          await this.sendMessage(chatId, (error as Error).message);
+        }
+      } else if (blocklist.type === 'remove') {
+        const removed = this.repo.deleteBlocklistPattern(String(chatId), blocklist.pattern);
+        await this.sendMessage(
+          chatId,
+          removed ? `Removed '${blocklist.pattern}' from the blocklist.` : `'${blocklist.pattern}' was not in the blocklist.`
+        );
+      } else {
+        const patterns = this.repo.listBlocklist(String(chatId));
+        await this.sendMessage(
+          chatId,
+          patterns.length ? `🚫 Blocklisted patterns:\n${patterns.map(pattern => `• ${pattern}`).join('\n')}` : 'The blocklist is currently empty.'
+        );
+      }
+      return true;
+    }
+
+    const filter = parseFilterCommand(text);
+    if (filter && chatId !== null && chatId !== undefined) {
+      if (!isGroup) {
+        await this.sendMessage(chatId, 'This command can only be used in group chats.');
+        return true;
+      }
+      if (!await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        await this.sendMessage(chatId, 'Only chat administrators can configure filters.');
+        return true;
+      }
+      if (filter.type === 'set') {
+        try {
+          const trigger = addFilter(
+            this.repo, chatId, filter.trigger, filter.response, String(sender.id || ''), Math.floor(this.now())
+          );
+          await this.sendMessage(chatId, `Saved filter for '${trigger}'. Saying '${trigger}' or '/${trigger}' will reply with that message.`);
+        } catch (error) {
+          await this.sendMessage(chatId, (error as Error).message);
+        }
+      } else if (filter.type === 'remove') {
+        const removed = this.repo.deleteFilter(String(chatId), filter.trigger);
+        await this.sendMessage(
+          chatId,
+          removed ? `Removed filter for '${filter.trigger}'.` : `Filter '${filter.trigger}' was not found.`
+        );
+      } else {
+        const filters = this.repo.listFilters(String(chatId));
+        await this.sendMessage(
+          chatId,
+          filters.length
+            ? `Active filters:\n${filters.map(item => `• /${item.trigger} → ${item.response}`).join('\n')}`
+            : 'No filters have been set yet. Use /filter <trigger> <response> to add one.'
+        );
+      }
+      return true;
+    }
+    return false;
+  }
+
+  async handleContent(message: TelegramObject, chat: TelegramObject | null): Promise<boolean> {
+    if (!this.options.token) return false;
+    const text = String(message.text || '');
+    if (!text.trim() || chat?.id === null || chat?.id === undefined) return false;
+    const chatId = chat.id;
+    const sender = message.from && typeof message.from === 'object' ? message.from as TelegramObject : {};
+    const isGroup = chat.type === 'group' || chat.type === 'supergroup';
+
+    if (isGroup && sender.is_bot !== true) {
+      const violation = matchBlocklist(this.repo, chatId, text);
+      if (violation && !await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        if (message.message_id) {
+          await this.api.call('deleteMessage', {
+            chat_id: chatId,
+            message_id: message.message_id,
+          }, this.options.token).catch(() => undefined);
+        }
+        const userId = sender.id;
+        const strikes = this.repo.getStrikes(String(chatId), String(userId)).strikes;
+        const targetName = sender.username ? `@${sender.username}` : String(sender.first_name || 'User');
+        recordStrike(this.repo, chatId, userId, violation, Math.floor(this.now()));
+        if (strikes === 0) {
+          await this.sendMessage(
+            chatId,
+            `⚠️ ${targetName}, your message was removed for containing blocklisted content. Warning (1/2) — doing it again will result in a ban.`
+          );
+        } else {
+          await this.api.call('banChatMember', { chat_id: chatId, user_id: userId }, this.options.token).catch(() => undefined);
+          await this.sendMessage(chatId, `🚫 ${targetName} has been banned for repeated blocklist violations.`);
+        }
+        return true;
+      }
+    }
+
+    if (!this.reservedMessage(text)) {
+      const response = matchFilter(this.repo, chatId, text);
+      if (response) {
+        const payload: Record<string, unknown> = { chat_id: chatId, text: response };
+        if (message.message_id) payload.reply_to_message_id = message.message_id;
+        await this.strictCall('sendMessage', payload);
+        return true;
+      }
+    }
+    return false;
+  }
+
   private async strictCall(method: string, payload: Record<string, unknown>): Promise<unknown> {
     const { data, status } = await this.api.call(method, payload, this.options.token!);
     if (status >= 400 || !data || data.ok !== true) {
       throw new Error(String(data?.description || 'Telegram rejected the request'));
     }
     return data.result;
+  }
+
+  private async sendMessage(chatId: unknown, text: string): Promise<void> {
+    await this.strictCall('sendMessage', { chat_id: chatId, text });
+  }
+
+  private reservedMessage(text: string): boolean {
+    return text.startsWith('/start') || text.startsWith('/show') || text.startsWith('/link') ||
+      isIssueCommand(text) || /^\/help(?:@\w+)?\s*$/i.test(text) ||
+      /^\/(?:game|pet|play|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
   }
 
   private schedule(challenge: TgChallengeRow): void {
