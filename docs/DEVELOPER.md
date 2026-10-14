@@ -101,7 +101,7 @@ When `web/` loads inside a host, a small adapter detects it and wires identity +
 ## Building & deploying
 
 - **Site + web app:** `node scripts/build-site.mjs` copies `site/`, `web/`, `play/`, icons
-  and manifests into `dist/` for Vercel. See [`VERCEL.md`](../VERCEL.md).
+  and manifests into `dist/` for nginx. See [server web hosting](../server/WEB_HOSTING.md).
 - **Android:** Gradle (Kotlin). CI in `.github/workflows/android.yml`.
 - **Desktop:** `cd desktop && npm run dist` (electron-builder). CI in `desktop.yml`.
 - **iOS:** Xcode project; CI in `ios.yml`.

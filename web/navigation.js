@@ -13,7 +13,7 @@
   const link = (key, href, label) => `<a href="${href}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
   host.innerHTML = `<div class="tf-header-frens" aria-hidden="true"></div><div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">●</span></a></div>
     <nav class="tf-nav-links" aria-label="Main navigation">${link('home', home, 'Home')}${item('pet', 'My NFTs')}${link('gallery', web('gallery.html'), 'Gallery')}${link('vote', web('vote.html'), 'Vote')}
-    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('games', 'Games')}${item('care', 'Care')}${item('party', 'Plaza')}${item('help', 'Help')}${item('account', 'Account')}<a href="https://docs.tinyfrens.lol" target="_blank" rel="noopener">Docs ↗</a><a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
+    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('games', 'Games')}${item('care', 'Care')}${item('party', 'Plaza')}${item('help', 'Help')}${item('account', 'Account')}<a href="https://tinyfrens.lol/docs/" target="_blank" rel="noopener">Docs ↗</a><a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
   if (nativeApp && inApp) for (const anchor of host.querySelectorAll(`a[href="${home}"]`)) anchor.addEventListener('click', event => {
     event.preventDefault(); window.showScreen?.('pet');
   });

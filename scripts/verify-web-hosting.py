@@ -30,6 +30,10 @@ def request(host, path, method='GET', headers=None, body=None, port=443):
 for host in ('tinyfrens.lol', 'www.tinyfrens.lol'):
     for path, expected_type in [('/', 'text/html'), ('/web/', 'text/html'),
                                 ('/web/gallery.html', 'text/html'),
+                                ('/web/robot-live.mjs', 'application/javascript'),
+                                ('/web/manifest.webmanifest', 'application/manifest+json'),
+                                ('/web/sw.js', 'application/javascript'),
+                                ('/docs/', 'text/html'), ('/server/WEB_HOSTING.html', 'text/html'),
                                 ('/.well-known/farcaster.json', 'application/json'),
                                 ('/snap-v2.json', 'application/vnd.farcaster.snap+json'),
                                 ('/import/skill.md', 'text/plain')]:

@@ -24,7 +24,7 @@ For TestFlight, join/use the Apple Developer Program, create the matching App St
 
 ## No Mac or signing available right now?
 
-Use the hosted pet at https://dutchiono.github.io/TinyFrens/web/ after GitHub Pages is enabled. In Safari open Share → Add to Home Screen. This is the browser/PWA version; it plays inside its own window and supports offline use after the first load.
+Use the hosted pet at https://tinyfrens.lol/web/. In Safari open Share → Add to Home Screen. This is the browser/PWA version; it plays inside its own window and supports offline use after the first load.
 
 ## Legacy Picture in Picture
 

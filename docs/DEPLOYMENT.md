@@ -11,9 +11,9 @@
 
 ## Web/app hosting
 
-- **Landing/site**: Static files in `site/` + root `index.html`. Can deploy to Vercel/GitHub Pages (see [VERCEL.md](../VERCEL.md), [GITHUB_SETUP.md](../GITHUB_SETUP.md)).
+- **Landing/site**: Static files built into `dist/` and published to nginx on miono by GitHub Actions (see [server publishing](../server/WEB_HOSTING.md)).
 - **Web app**: `web/` is PWA; served from same origin or subpaths.
-- **Docs**: `docs/` is static markdown. Intended to be served at `docs.tinyfrens.lol` (GitHub Pages/Cloudflare Pages).
+- **Docs**: `docs/` is rendered to static HTML at https://tinyfrens.lol/docs/ and published with the website.
 
 ## Server deployment
 
