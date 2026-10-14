@@ -438,7 +438,7 @@ Search again at the implementation baseline; these files currently consume serve
 ## Safe implementation order
 
 - [x] Phase 0: freeze inventories, parity harness, typed config, database compatibility probe, and deployment skeleton.
-- [ ] Phase 1: pure utilities and parsers with no I/O.
+- [x] Phase 1: pure utilities and parsers with no I/O (profile normalization, pairing codes, economy token math, robot care bounds & UTC keys, Telegram command grammar, companion selection, and DEX Screener quote math).
 - [ ] Phase 2: media generation and deterministic contract/crypto helpers using known vectors.
 - [ ] Phase 3: repositories and schema compatibility against copied fixture databases.
 - [ ] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
