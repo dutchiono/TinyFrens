@@ -244,17 +244,17 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Admin
 
-- [ ] `POST /api/admin/login`
-- [ ] `POST /api/admin/logout`
-- [ ] `POST /api/admin/users`
-- [ ] `GET /api/admin/state`
-- [ ] `POST /api/admin/settings`
-- [ ] `GET /api/admin/ledger`
-- [ ] `GET /api/admin/care`
-- [ ] `GET /admin`
-- [ ] `GET /admin/`
-- [ ] `GET /admin.html`
-- [ ] `GET /web/admin.html`
+- [x] `POST /api/admin/login`
+- [x] `POST /api/admin/logout`
+- [x] `POST /api/admin/users`
+- [x] `GET /api/admin/state`
+- [x] `POST /api/admin/settings`
+- [x] `GET /api/admin/ledger`
+- [x] `GET /api/admin/care`
+- [x] `GET /admin`
+- [x] `GET /admin/`
+- [x] `GET /admin.html`
+- [x] `GET /web/admin.html`
 
 ## WebSocket protocol inventory
 
@@ -294,7 +294,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 ### Existing Python modules
 
 - [x] `account_profile.py` → account-profile repository/service/routes; preserve account merging and Telegram identity rules.
-- [ ] `admin.py` → admin repository/service/routes; preserve password hashing, constant-time checks, session expiry, settings overlay, audit records, and HTML serving.
+- [x] `admin.py` → admin repository/service/routes; preserve password hashing, constant-time checks, session expiry, settings overlay, audit records, and HTML serving.
 - [ ] `bankr_identity.py` → Bankr identity integration; preserve wallet-match-only acceptance and outage behavior.
 - [ ] `bots_computer_art.py` → media adapter; compare sanitized SVG and animation semantics.
 - [x] `collection_suggestions.py` → collection route/service/repository; preserve address normalization, vote accounting, and credit spending.
@@ -334,7 +334,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 For every table: capture exact `sqlite_master` SQL, indexes, primary keys, collations, defaults, nullability, migration behavior, row serialization, and ownership module. Test both a new database and a copy of production schema.
 
 - [x] Accounts: `account_identities`, `account_profiles`.
-- [ ] Admin: `admin_audit`, `admin_sessions`, `admin_users`, `app_settings`.
+- [x] Admin: `admin_audit`, `admin_sessions`, `admin_users`, `app_settings`.
 - [ ] Core social: `pets`, `friends`, `requests`, `push_subs`.
 - [x] Device sync: `device_sync_accounts`, `device_sync_codes`, `device_sync_members`.
 - [x] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
@@ -365,7 +365,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] GitHub: `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_ISSUE_LABELS`, `GITHUB_WEBHOOK_SECRET`.
 - [ ] Discord: `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`, `DISCORD_PUBLIC_KEY`.
 - [ ] Push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
-- [ ] Admin: `ADMIN_TOKEN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
+- [x] Admin: `ADMIN_TOKEN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
 - [ ] Reconcile documented but apparently indirect/unused keys: `TREASURY_PROXY`, `JACKPOT_VAULT_PROXY`, `GAME_CONTROLLER`.
 - [ ] CI fails if application code reads an undeclared key or the example declares an unclassified key.
 
@@ -399,7 +399,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 Create a TypeScript counterpart before checking off each Python test file. Preserve each named behavior, including negative cases; do not merely copy test titles.
 
 - [ ] `test_app.py`: core HTTP, middleware, wallet, NFT, Snap, Farcaster, Telegram, GitHub, Discord, push, party, WebSocket, and configuration behavior.
-- [ ] `test_admin.py`: admin settings, users, sessions, audit, authorization, and HTML.
+- [x] `test_admin.py`: admin settings, users, sessions, audit, authorization, and HTML.
 - [x] `test_bankr_identity.py`: verified handle/address matching.
 - [ ] `test_bots_computer_art.py`: SVG sanitization and animation.
 - [x] `test_collection_suggestions.py`: suggestions, validation, votes, credit spending, and over-voting prevention.

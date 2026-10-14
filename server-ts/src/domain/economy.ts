@@ -109,6 +109,47 @@ export class Economy {
     this.db = db;
     this.now = now;
     this.creditsPerFrens = Math.max(1, Math.floor(creditsPerFrens));
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS deposit_sessions(
+        id TEXT PRIMARY KEY,
+        pet_id TEXT NOT NULL,
+        address TEXT NOT NULL,
+        token TEXT,
+        expected_amount TEXT NOT NULL,
+        credits INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        chain_id INTEGER,
+        tx_hash TEXT,
+        created INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS deposit_sessions_pet ON deposit_sessions(pet_id, status);
+      CREATE INDEX IF NOT EXISTS deposit_sessions_address ON deposit_sessions(address);
+      CREATE TABLE IF NOT EXISTS deposits(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        pet_id TEXT NOT NULL,
+        chain_id INTEGER NOT NULL,
+        tx_hash TEXT NOT NULL,
+        log_index INTEGER NOT NULL,
+        amount TEXT NOT NULL,
+        credits INTEGER NOT NULL,
+        created INTEGER NOT NULL,
+        UNIQUE(chain_id, tx_hash, log_index));
+      CREATE TABLE IF NOT EXISTS credit_accounts(
+        pet_id TEXT PRIMARY KEY,
+        balance INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS credit_ledger(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pet_id TEXT NOT NULL,
+        delta INTEGER NOT NULL,
+        balance INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        ref_type TEXT,
+        ref_id TEXT,
+        created INTEGER NOT NULL);
+    `);
   }
 
   // Packages
