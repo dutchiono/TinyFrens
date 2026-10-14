@@ -1,0 +1,6 @@
+.gallery-switcher{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 16px;margin:0;border-bottom:1px solid #47365f}
+.gallery-switcher a{padding:9px 12px;border:1px solid #47365f;border-radius:9px;text-decoration:none;font-size:13px;color:#b9aecb}
+.gallery-switcher a[aria-current=page]{background:#362850;color:#f3eeff;border-color:#a474f1}
+.gallery-switcher a:focus-visible{outline:2px solid #c9a5ff;outline-offset:2px}
+#galleryMenuStatus:empty{display:none}
+.tf-gallery-page [hidden]{display:none!important}

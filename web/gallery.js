@@ -1,9 +1,10 @@
 import { CONTRACT } from './robot-live.mjs';
 import { OWNER_HANDLES, INITIAL_OWNERS } from './robot-owner-profiles.mjs';
 const $ = id => document.getElementById(id);
-const CACHE = `tinyfrens-gallery:8453:${CONTRACT}:v1`;
-const endpoint = (window.TINYFRENS_SERVER || 'https://tinyfrens.miono.live') + '/api/robots/gallery';
-let busy = false, snapshot = null, lastVisitCheck = 0;
+const base = (window.TINYFRENS_SERVER || 'https://tinyfrens.miono.live').replace(/\/$/, '');
+let collection = {id:'robots', name:'Robots v1', contract:CONTRACT, chainId:8453, release:true};
+const cacheKey = () => `tinyfrens-gallery:${collection.chainId}:${collection.contract}:v1`;
+let busy = false, snapshot = null, lastVisitCheck = 0, generation = 0;
 function card({tokenId: id, metadata, owner, xHandle}) {
   owner = owner || INITIAL_OWNERS[id];
   xHandle = xHandle || OWNER_HANDLES[owner?.toLowerCase()];
@@ -51,28 +52,33 @@ function card({tokenId: id, metadata, owner, xHandle}) {
 }
 
 function render(cached = false) {
-  $('gallery').replaceChildren(...snapshot.items.map(card));
-  $('status').textContent = (snapshot.supply ? `${snapshot.supply.toLocaleString()} robots minted · Showing ${snapshot.items.length}` : 'No robots minted yet. The gallery will fill as people mint.') +
+  $('gallery').replaceChildren(...snapshot.items.map(collection.release ? card : importedCard));
+  $('status').textContent = (collection.release
+    ? snapshot.supply ? `${snapshot.supply.toLocaleString()} robots minted · Showing ${snapshot.items.length}` : 'No robots minted yet. The gallery will fill as people mint.'
+    : snapshot.items.length ? `Showing ${snapshot.items.length} imported NFTs` : 'No NFTs from this collection have been imported into TinyFrens yet.') +
     (cached || snapshot.stale ? ' · Saved gallery; waiting for a live refresh.' : '');
   $('more').hidden = snapshot.nextAfter === null;
 }
 async function load(more = false, quiet = false, force = false) {
   if (busy) return;
   busy = true; lastVisitCheck = Date.now(); $('more').disabled = true;
+  const current = generation;
   try {
     const after = more ? snapshot?.nextAfter : 0;
     if (after === null) return;
-    const response = await fetch(`${endpoint}?after=${after}${force ? "&refresh=1" : ""}`, {cache: force ? "no-store" : "default", signal: AbortSignal.timeout(45000)});
+    const endpoint = collection.release ? `${base}/api/robots/gallery` : `${base}/api/gallery/imported`;
+    const response = await fetch(`${endpoint}?after=${after}&collection=${collection.id}${force ? "&refresh=1" : ""}`, {cache: force || !collection.release ? "no-store" : "default", signal: AbortSignal.timeout(45000)});
     const data = await response.json();
+    if (current !== generation) return;
     if (!response.ok) throw new Error(data.error || 'Gallery unavailable');
-    if (data.contract !== CONTRACT || data.chainId !== 8453 || !Array.isArray(data.items)) throw new Error('Unexpected gallery response');
+    if (data.contract !== collection.contract || data.chainId !== collection.chainId || !Array.isArray(data.items)) throw new Error('Unexpected gallery response');
     // Preserve known owners when an older API revision omits the field.
     for (const item of data.items) {
       const previous = snapshot?.items.find(saved => saved.tokenId === item.tokenId);
       if (!Object.hasOwn(item, 'owner') && previous?.owner) item.owner = previous.owner;
     }
     // An unchanged inventory needs no DOM reset, preserving the animated SVG playback.
-    if (quiet && !data.stale && snapshot && data.supply === snapshot.supply &&
+    if (collection.release && quiet && !data.stale && snapshot && data.supply === snapshot.supply &&
         JSON.stringify(data.items.map(item => item.tokenId)) === JSON.stringify(snapshot.items.slice(0,24).map(item => item.tokenId))) {
       snapshot.checkedAt = data.checkedAt; snapshot.stale = false;
       $('status').textContent = snapshot.supply ? `${snapshot.supply.toLocaleString()} robots minted · Showing ${snapshot.items.length}` : 'No robots minted yet. The gallery will fill as people mint.';
@@ -80,11 +86,66 @@ async function load(more = false, quiet = false, force = false) {
       snapshot = {...data, items: more ? [...snapshot.items, ...data.items] : data.items};
       render();
     }
-    try { localStorage.setItem(CACHE, JSON.stringify(snapshot)); } catch { /* Storage quota must not block the gallery. */ }
+    if (collection.release) try { localStorage.setItem(cacheKey(), JSON.stringify(snapshot)); } catch { /* Storage quota must not block the gallery. */ }
   } catch (error) {
+    if (current !== generation) return;
     if (snapshot) render(true);
     $('status').textContent = (snapshot ? 'Showing saved artwork. ' : '') + `Could not refresh the gallery: ${error.message}`;
-  } finally { busy = false; $('more').disabled = false; }
+  } finally { if (current === generation) { busy = false; $('more').disabled = false; } }
+}
+function importedCard(item) {
+  const figure = document.createElement('figure'); figure.className = 'card';
+  const image = document.createElement('img'); image.alt = item.metadata.name || `${collection.name} #${item.tokenId}`; image.loading = 'lazy';
+  if (/^data:image\/(svg\+xml|png|jpeg|webp|gif);base64,/.test(item.metadata.image || '')) image.src = item.metadata.image;
+  const caption = document.createElement('figcaption');
+  const title = document.createElement('strong'); title.className = 'robot-name'; title.textContent = image.alt;
+  const owner = document.createElement('p'); owner.className = 'contract'; owner.textContent = `Wallet: ${item.owner}`;
+  const checked = document.createElement('p'); checked.textContent = item.checkedAt ? `Ownership last checked ${new Date(item.checkedAt * 1000).toLocaleDateString()}` : 'Imported into TinyFrens';
+  caption.append(title, owner, checked); figure.append(image, caption); return figure;
+}
+
+const releaseSummary = document.querySelector('.collection-summary').innerHTML;
+function switchCollection(next) {
+  collection = next; generation++; busy = false; snapshot = null;
+  document.title = `${collection.name} · TinyFrens gallery`;
+  $('gallery').replaceChildren(); $('more').hidden = true;
+  for (const tab of document.querySelectorAll('.gallery-switcher a')) {
+    if (tab.hash === '#' + collection.id) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
+  }
+  document.querySelector('.mint').hidden = !collection.release;
+  const summary = document.querySelector('.collection-summary');
+  if (collection.release) summary.innerHTML = releaseSummary;
+  else {
+    summary.replaceChildren();
+    const title = document.createElement('h1'); title.textContent = collection.name;
+    const description = document.createElement('p'); description.className = 'collection-description';
+    description.textContent = 'NFTs imported into TinyFrens · ' + (collection.chainId === 8453 ? 'Base' : 'Robinhood Chain');
+    summary.append(title, description);
+  }
+  document.querySelector('.gallery-heading h2').textContent = collection.release ? 'Minted robots' : 'Imported companions';
+  $('galleryNote').textContent = collection.release ? 'Artwork and traits are read from each minted NFT’s on-chain metadata. Collection checks are shared and cached for 10 minutes.' : 'Only selected imports with verified ownership records appear here. Ownership dates reflect the last successful check.';
+  $('status').textContent = 'Loading gallery…';
+  load();
+}
+async function mountSwitcher() {
+  try {
+    const response = await fetch(base + '/api/gallery/collections');
+    if (!response.ok) throw Error('Collection list unavailable');
+    const data = await response.json();
+    const collections = data.collections;
+    if (!Array.isArray(collections) || !collections.length) throw Error('Invalid collection list');
+    const menu = document.createElement('nav'); menu.className = 'gallery-switcher'; menu.setAttribute('aria-label', 'Collection galleries');
+    const sorted = [...collections].sort((a,b) => Number(b.release) - Number(a.release));
+    for (const item of sorted) {
+      const tab = document.createElement('a'); tab.href = '#' + item.id; tab.textContent = item.name + (item.release ? ' · TinyFrens' : '');
+      if (item.id === collection.id) tab.setAttribute('aria-current', 'page');
+      menu.append(tab);
+    }
+    document.querySelector('main').prepend(menu);
+    const select = () => switchCollection(sorted.find(item => '#' + item.id === location.hash) || sorted[0]);
+    window.addEventListener('hashchange', select);
+    if (location.hash) select();
+  } catch { $('galleryMenuStatus').textContent = 'Other collection galleries are unavailable. Please refresh to retry.'; }
 }
 $('more').addEventListener('click', () => load(true));
 async function copyMintMessage() {
@@ -102,10 +163,11 @@ $('mint-message').addEventListener('keydown', event => {
 });
 
 try {
-  const saved = JSON.parse(localStorage.getItem(CACHE));
+  const saved = JSON.parse(localStorage.getItem(cacheKey()));
   if (saved?.contract === CONTRACT && saved.chainId === 8453 && Array.isArray(saved.items)) { snapshot = saved; render(true); }
 } catch { /* Ignore unavailable storage or an old invalid snapshot. */ }
 load();
+mountSwitcher();
 function checkIfDue() { if (!document.hidden && Date.now() - lastVisitCheck >= 600000) load(false, true); }
 setInterval(checkIfDue, 600000);
 document.addEventListener('visibilitychange', checkIfDue);

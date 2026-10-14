@@ -1,4 +1,10 @@
 'use strict';
+document.getElementById('copyFrensContract')?.addEventListener('click', async () => {
+  const address = document.getElementById('frensContractAddress');
+  const status = document.getElementById('frensContractStatus');
+  try { await navigator.clipboard.writeText(address.textContent); status.textContent = 'Contract address copied'; }
+  catch { status.textContent = 'Select the contract address above to copy it.'; }
+});
 (async () => {
   try {
     const response = await fetch('https://api.github.com/repos/dutchiono/TinyFrens/releases/latest');
