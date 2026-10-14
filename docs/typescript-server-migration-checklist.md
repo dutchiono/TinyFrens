@@ -392,7 +392,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Fire-and-forget push delivery does not hold request completion or leak database handles.
 - [ ] GitHub App token cache and concurrent refresh locking.
 - [ ] Provider discovery locks and TTL caches.
-- [ ] Process signals produce a bounded graceful shutdown under systemd and containers.
+- [x] Process signals produce a bounded graceful shutdown under systemd and containers. (Phase 7 Slice 7B: idempotent 10-second deadline, workers stop before Fastify and SQLite close, startup failures close resources.)
 
 ## Test-file migration ledger
 
