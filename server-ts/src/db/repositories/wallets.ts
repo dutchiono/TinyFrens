@@ -31,6 +31,9 @@ export interface WalletSocialProfileRow {
   updated: number;
 }
 
+import type { MagicLinkRow } from './pets.js';
+import type { FrenNftRow, FrensBurnLogRow } from './economy.js';
+
 export function migrateWalletLinks(db: DatabaseConnection): void {
   const columns = db.prepare<{ name: string; pk: number }>('PRAGMA table_info(wallet_links)').all();
   if (columns.some(col => col.name === 'address' && col.pk > 0)) {
@@ -136,5 +139,88 @@ export class WalletRepository {
     this.db.prepare(
       'INSERT OR REPLACE INTO wallet_social_profiles(address, x_handle, source, updated) VALUES(?, ?, ?, ?)'
     ).run(address, xHandle, source, updated);
+  }
+
+  // Magic links
+  createMagicLink(code: string, petId: string, created: number, expires: number): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO magic_links(code, pet_id, created, expires) VALUES(?, ?, ?, ?)'
+    ).run(code, petId, created, expires);
+  }
+
+  getMagicLink(code: string): MagicLinkRow | undefined {
+    return this.db.prepare<MagicLinkRow>(
+      'SELECT code, pet_id, created, expires FROM magic_links WHERE code=?'
+    ).get(code);
+  }
+
+  deleteMagicLink(code: string): void {
+    this.db.prepare('DELETE FROM magic_links WHERE code=?').run(code);
+  }
+
+  deleteExpiredMagicLinks(nowSeconds: number): void {
+    this.db.prepare('DELETE FROM magic_links WHERE expires<=?').run(nowSeconds);
+  }
+
+  // Fren NFTs
+  listFrenNfts(petId: string): FrenNftRow[] {
+    return this.db.prepare<FrenNftRow>(
+      'SELECT id, pet_id, token_id, name, traits, created, locked_frens FROM fren_nfts WHERE pet_id=? ORDER BY id DESC'
+    ).all(petId);
+  }
+
+  getFrenNft(petId: string, tokenId: number): FrenNftRow | undefined {
+    return this.db.prepare<FrenNftRow>(
+      'SELECT id, pet_id, token_id, name, traits, created, locked_frens FROM fren_nfts WHERE pet_id=? AND token_id=?'
+    ).get(petId, tokenId);
+  }
+
+  getAllMintedTokenIds(): Set<number> {
+    const rows = this.db.prepare<{ token_id: number }>('SELECT token_id FROM fren_nfts').all();
+    return new Set(rows.map(r => r.token_id));
+  }
+
+  insertFrenNft(
+    petId: string,
+    tokenId: number,
+    name: string,
+    traitsJson: string,
+    created: number,
+    lockedFrens: string = '0'
+  ): void {
+    this.db.prepare(
+      'INSERT INTO fren_nfts(pet_id, token_id, name, traits, created, locked_frens) VALUES(?, ?, ?, ?, ?, ?)'
+    ).run(petId, tokenId, name, traitsJson, created, lockedFrens);
+  }
+
+  updateFrenNft(petId: string, tokenId: number, name: string, traitsJson: string): boolean {
+    const res = this.db.prepare(
+      'UPDATE fren_nfts SET name=?, traits=? WHERE pet_id=? AND token_id=?'
+    ).run(name, traitsJson, petId, tokenId);
+    return res.changes > 0;
+  }
+
+  deleteFrenNft(petId: string, tokenId: number): boolean {
+    const res = this.db.prepare('DELETE FROM fren_nfts WHERE pet_id=? AND token_id=?').run(petId, tokenId);
+    return res.changes > 0;
+  }
+
+  // Burn log
+  recordBurnLog(
+    petId: string,
+    tokenId: number,
+    action: string,
+    amountBurned: string,
+    amountTreasury: string,
+    created: number
+  ): void {
+    this.db.prepare(
+      'INSERT INTO frens_burn_log(pet_id, token_id, action, amount_burned, amount_treasury, created) VALUES(?, ?, ?, ?, ?, ?)'
+    ).run(petId, tokenId, action, amountBurned, amountTreasury, created);
+  }
+
+  // Pet wallet NFT override
+  updatePetWalletNft(petId: string, nftJson: string | null): void {
+    this.db.prepare('UPDATE pet_wallets SET nft=? WHERE pet_id=?').run(nftJson, petId);
   }
 }
