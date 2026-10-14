@@ -1,19 +1,15 @@
 'use strict';
 /**
- * TinyFrens Farcaster Snap & AR Camera Viewfinder Engine
- * Allows users to snap their pet in their current pose / real-world setting,
- * and compose casts instantly to Farcaster / Warpcast.
+ * TinyFrens Farcaster Snap Generator & Interactive In-Feed Preview
+ * Generates an interactive Farcaster Snap for the user's active companion or Fren pet,
+ * supporting in-feed pet care (Pet, Feed, Play) and 1-click sharing to Farcaster/Warpcast.
  */
 (() => {
-  let stream = null;
-  let facingMode = 'environment';
-  let isDragging = false;
-  let petX = 0;
-  let petY = 0;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let capturedBlob = null;
-  let capturedDataUrl = null;
+  let modal = null;
+  let activeChar = null;
+  let animTimer = null;
+  let spriteCycleTimer = null;
+  let currentFrameIdx = 0;
 
   function petState() {
     if (typeof read === 'function') {
@@ -37,7 +33,7 @@
     return map[s] || 'Fren';
   }
 
-  function generatePetSvg(s, action) {
+  function generatePetSvg(s) {
     const color = s.color || '#a474f1';
     const dark = '#4b2d77';
     let shape = s.shape || 'cat';
@@ -73,21 +69,16 @@
     } else if (shape === 'duck') {
       earsSvg = `<path d="M 58 32 C 54 20 62 14 66 14 C 68 20 66 28 66 32 Z" fill="${color}" stroke="${dark}" stroke-width="3"/>
 <path d="M 64 32 C 68 18 76 16 78 20 C 76 26 72 30 70 32 Z" fill="${color}" stroke="${dark}" stroke-width="3"/>`;
-      snoutSvg = `<ellipse cx="64" cy="72" rx="14" ry="9" fill="#ff9f43" stroke="${dark}" stroke-width="3"/>
-<circle cx="60" cy="70" r="1.5" fill="${dark}"/><circle cx="68" cy="70" r="1.5" fill="${dark}"/>`;
+      snoutSvg = `<ellipse cx="64" cy="72" rx="14" ry="9" fill="#ff9f43" stroke="${dark}" stroke-width="3"/><circle cx="60" cy="70" r="1.5" fill="${dark}"/><circle cx="68" cy="70" r="1.5" fill="${dark}"/>`;
       feetSvg = `<ellipse cx="38" cy="136" rx="16" ry="6" fill="#ff9f43" stroke="${dark}" stroke-width="3"/><ellipse cx="90" cy="136" rx="16" ry="6" fill="#ff9f43" stroke="${dark}" stroke-width="3"/>`;
     } else if (shape === 'pig') {
       earsSvg = `<polygon points="12,38 28,26 34,48" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linejoin="round"/>
 <polygon points="116,38 100,26 94,48" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linejoin="round"/>
 <polygon points="16,38 27,29 31,45" fill="#ff82a7"/>
 <polygon points="112,38 101,29 97,45" fill="#ff82a7"/>`;
-      snoutSvg = `<rect x="50" y="66" width="28" height="18" rx="9" fill="#ff82a7" stroke="${dark}" stroke-width="4"/>
-<circle cx="58" cy="75" r="2.5" fill="${dark}"/><circle cx="70" cy="75" r="2.5" fill="${dark}"/>`;
+      snoutSvg = `<rect x="50" y="66" width="28" height="18" rx="9" fill="#ff82a7" stroke="${dark}" stroke-width="4"/><circle cx="58" cy="75" r="2.5" fill="${dark}"/><circle cx="70" cy="75" r="2.5" fill="${dark}"/>`;
     } else if (shape === 'frog') {
-      earsSvg = `<ellipse cx="36" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<ellipse cx="92" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/>
-<circle cx="36" cy="38" r="5" fill="#fff" opacity="0.6"/>
-<circle cx="92" cy="38" r="5" fill="#fff" opacity="0.6"/>`;
+      earsSvg = `<ellipse cx="36" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/><ellipse cx="92" cy="38" rx="16" ry="14" fill="${color}" stroke="${dark}" stroke-width="7"/><circle cx="36" cy="38" r="5" fill="#fff" opacity="0.6"/><circle cx="92" cy="38" r="5" fill="#fff" opacity="0.6"/>`;
       bodyRadius = 'rx="46" ry="38"';
       shellSvg = `<ellipse cx="64" cy="104" rx="28" ry="22" fill="#c8f7c5" opacity="0.85"/>`;
     } else if (shape === 'turtle') {
@@ -95,32 +86,15 @@
       shellSvg = `<ellipse cx="64" cy="84" rx="34" ry="26" fill="none" stroke="${dark}" stroke-width="4" stroke-dasharray="8 6"/>`;
     }
 
-    let eyesSvg = `<rect x="32" y="66" width="12" height="20" rx="3" fill="${dark}"/>
-<rect x="84" y="66" width="12" height="20" rx="3" fill="${dark}"/>
-<circle cx="35" cy="70" r="2.5" fill="#fff"/>
-<circle cx="87" cy="70" r="2.5" fill="#fff"/>`;
-
+    let eyesSvg = `<rect x="32" y="66" width="12" height="20" rx="3" fill="${dark}"/><rect x="84" y="66" width="12" height="20" rx="3" fill="${dark}"/><circle cx="35" cy="70" r="2.5" fill="#fff"/><circle cx="87" cy="70" r="2.5" fill="#fff"/>`;
     if (expr === 'wink') {
-      eyesSvg = `<rect x="32" y="66" width="12" height="20" rx="3" fill="${dark}"/>
-<circle cx="35" cy="70" r="2.5" fill="#fff"/>
-<path d="M 82 76 Q 90 70 98 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+      eyesSvg = `<rect x="32" y="66" width="12" height="20" rx="3" fill="${dark}"/><circle cx="35" cy="70" r="2.5" fill="#fff"/><path d="M 82 76 Q 90 70 98 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
     } else if (expr === 'shades') {
-      eyesSvg = `<rect x="24" y="64" width="36" height="18" rx="3" fill="#111"/>
-<rect x="68" y="64" width="36" height="18" rx="3" fill="#111"/>
-<rect x="56" y="68" width="16" height="4" fill="#111"/>
-<line x1="28" y1="67" x2="52" y2="78" stroke="#fff" stroke-width="2" opacity="0.6"/>
-<line x1="72" y1="67" x2="96" y2="78" stroke="#fff" stroke-width="2" opacity="0.6"/>`;
+      eyesSvg = `<rect x="24" y="64" width="36" height="18" rx="3" fill="#111"/><rect x="68" y="64" width="36" height="18" rx="3" fill="#111"/><rect x="56" y="68" width="16" height="4" fill="#111"/><line x1="28" y1="67" x2="52" y2="78" stroke="#fff" stroke-width="2" opacity="0.6"/><line x1="72" y1="67" x2="96" y2="78" stroke="#fff" stroke-width="2" opacity="0.6"/>`;
     } else if (expr === 'star_eyes') {
-      eyesSvg = `<polygon points="38,62 41,71 50,71 43,76 46,85 38,80 30,85 33,76 26,71 35,71" fill="#ffd700"/>
-<polygon points="90,62 93,71 102,71 95,76 98,85 90,80 82,85 85,76 78,71 87,71" fill="#ffd700"/>`;
-    } else if (expr === 'sleepy' || action === 'sleep') {
-      eyesSvg = `<line x1="28" y1="76" x2="44" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>
-<line x1="80" y1="76" x2="96" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>
-<text x="100" y="50" font-family="sans-serif" font-weight="bold" font-size="16" fill="#c8b1fa">zZ</text>`;
-    } else if (action === 'pet') {
-      eyesSvg = `<path d="M 30 76 Q 38 68 46 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>
-<path d="M 82 76 Q 90 68 98 76" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>
-<text x="54" y="32" font-size="20">💖</text>`;
+      eyesSvg = `<polygon points="38,62 41,71 50,71 43,76 46,85 38,80 30,85 33,76 26,71 35,71" fill="#ffd700"/><polygon points="90,62 93,71 102,71 95,76 98,85 90,80 82,85 85,76 78,71 87,71" fill="#ffd700"/>`;
+    } else if (expr === 'sleepy') {
+      eyesSvg = `<line x1="28" y1="76" x2="44" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/><line x1="80" y1="76" x2="96" y2="76" stroke="${dark}" stroke-width="4" stroke-linecap="round"/><text x="100" y="50" font-family="sans-serif" font-weight="bold" font-size="16" fill="#c8b1fa">zZ</text>`;
     }
 
     let accSvg = '';
@@ -136,31 +110,6 @@
       accSvg = '<circle cx="114" cy="100" r="12" fill="#00d2d3" opacity="0.85"/><circle cx="111" cy="97" r="4" fill="#fff" opacity="0.9"/>';
     }
 
-    let actionAnim = '';
-    let extraActionSvg = '';
-    if (action === 'dance') {
-      actionAnim = '<animateTransform attributeName="transform" type="translate" values="0 0; 0 -14; 0 2; 0 -14; 0 0" dur="0.48s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="-10 64 80; 10 64 80; -10 64 80" dur="0.48s" additive="sum" repeatCount="indefinite"/>';
-      extraActionSvg = '<text x="102" y="36" font-size="20">🎵</text>';
-    } else if (action === 'wave') {
-      actionAnim = '<animateTransform attributeName="transform" type="rotate" values="0 64 120; -4 64 120; 3 64 120; 0 64 120" dur="0.5s" repeatCount="indefinite"/>';
-      extraActionSvg = `<g>
-        <path d="M 108 90 C 122 80 126 65 120 52 C 114 42 102 50 102 62" fill="${color}" stroke="${dark}" stroke-width="6" stroke-linecap="round">
-          <animateTransform attributeName="transform" type="rotate" values="0 108 80; -35 108 80; 10 108 80; 0 108 80" dur="0.5s" repeatCount="indefinite"/>
-        </path>
-        <text x="104" y="36" font-size="20">👋</text>
-      </g>`;
-    } else if (action === 'feed') {
-      actionAnim = '<animateTransform attributeName="transform" type="translate" values="0 0; 0 -4; 0 0" dur="0.35s" repeatCount="indefinite"/>';
-      extraActionSvg = `<g>
-        <circle cx="64" cy="98" r="9" fill="#ff4757"/>
-        <polygon points="64,87 60,91 68,91" fill="#2ed573"/>
-        <circle cx="62" cy="97" r="1" fill="#ffeaa7"/>
-        <circle cx="66" cy="99" r="1" fill="#ffeaa7"/>
-      </g>`;
-    } else if (action === 'pet') {
-      actionAnim = '<animateTransform attributeName="transform" type="scale" values="1 1; 1.04 0.98; 1 1" dur="0.6s" repeatCount="indefinite"/>';
-    }
-
     let mouthSvg = `<rect x="60" y="96" width="8" height="5" rx="2" fill="${dark}"/>`;
     if (shape === 'frog') {
       mouthSvg = `<path d="M 46 94 Q 64 104 82 94" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
@@ -170,7 +119,6 @@
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 148" width="100%" height="100%">
 <g>
-${actionAnim}
 ${feetSvg}
 ${earsSvg}
 <rect x="9" y="31" width="110" height="105" ${bodyRadius} fill="${color}" stroke="${dark}" stroke-width="8"/>
@@ -181,432 +129,554 @@ ${eyesSvg}
 ${mouthSvg}
 ${snoutSvg}
 ${accSvg}
-${extraActionSvg}
 </g>
 </svg>`;
+  }
+
+  function getAvailableCharacters() {
+    const list = [];
+
+    // 1. Check imported NFT companions
+    let items = [];
+    try {
+      const bridge = window.PetAndroid || window.TinyFrensDesktop;
+      items = bridge?.getTurtle ? JSON.parse(bridge.getTurtle()).items || [] : JSON.parse(localStorage.getItem('tinyfrens-companions') || '[]');
+    } catch {}
+
+    const validCompanions = (Array.isArray(items) ? items : []).filter(
+      nft => nft && nft.active !== false && Date.now() < (nft.validUntil || Infinity) * 1000
+    );
+
+    for (const c of validCompanions) {
+      const adapter = c.companion?.adapter || '';
+      let collName = 'Imported NFT';
+      if (adapter === 'hood-turtles-v1') collName = 'Hood Turtles';
+      else if (adapter === 'tinyfrens-robots-v1') collName = 'Robots v1';
+      else if (adapter === 'nubs-v1') collName = 'The Nubs';
+      else if (adapter === 'bots-computers-v1') collName = 'Bots Computers';
+
+      const spriteUrl = c.companion?.idle || c.companion?.frames?.[0] || c.image || '';
+      const charId = window.TinyFrensCompanionKey ? window.TinyFrensCompanionKey(c) : `nft-${c.chainId}-${c.tokenId}`;
+
+      list.push({
+        id: charId,
+        type: 'nft',
+        name: c.name || `Token #${c.tokenId}`,
+        collection: collName,
+        tokenId: c.tokenId,
+        chainId: c.chainId,
+        spriteUrl: spriteUrl,
+        frames: c.companion?.frames && c.companion.frames.length > 0 ? c.companion.frames : [spriteUrl],
+        frameMs: c.companion?.frameMs || 160,
+        nft: c
+      });
+    }
+
+    // 2. Base Fren pet
+    const s = petState();
+    const species = getSpeciesName(s.shape);
+    list.push({
+      id: 'fren-pet',
+      type: 'pet',
+      name: s.name || 'Your fren',
+      collection: `TinyFrens ${species}`,
+      species: species,
+      pet: s
+    });
+
+    return list;
   }
 
   function buildSnapModal() {
     if (document.getElementById('snapModal')) return;
 
-    const modal = document.createElement('div');
+    modal = document.createElement('div');
     modal.id = 'snapModal';
     modal.className = 'snap-modal';
     modal.hidden = true;
     modal.innerHTML = `
-      <div class="snap-viewfinder">
-        <video id="snapVideo" class="snap-video" autoplay playsinline muted></video>
-        <div id="snapStudioBg" class="snap-studio-bg" hidden></div>
-        <div id="snapPetOverlay" class="snap-pet-overlay">
-          <div id="snapPetSvgHost" class="snap-pet-svg-host"></div>
-        </div>
-        <div class="snap-flash" id="snapFlash"></div>
-        
-        <header class="snap-header">
-          <button type="button" id="snapBackBtn" class="snap-back-btn" aria-label="Back">← Back</button>
-          <span class="snap-title">📸 TinyFrens Snap</span>
-          <button type="button" id="snapCloseBtn" class="snap-icon-btn" aria-label="Close">✕</button>
+      <div class="snap-container" role="dialog" aria-modal="true" aria-labelledby="snapModalTitle">
+        <header class="snap-modal-header">
+          <div class="snap-header-left">
+            <span class="snap-badge-tag">🟣 Farcaster Snap 2.0</span>
+            <h2 id="snapModalTitle" class="snap-header-title">Generate In-Feed Card</h2>
+          </div>
+          <button type="button" id="snapModalCloseBtn" class="snap-modal-close" aria-label="Close Snap generator">✕</button>
         </header>
 
-        <footer class="snap-controls">
-          <div class="snap-poses">
-            <button type="button" class="snap-pose-btn active" data-pose="idle">Idle</button>
-            <button type="button" class="snap-pose-btn" data-pose="dance">Dance</button>
-            <button type="button" id="snapPoseWave" class="snap-pose-btn" data-pose="wave">Wave</button>
-            <button type="button" class="snap-pose-btn" data-pose="sleep">Nap</button>
-          </div>
-          <div class="snap-shutter-row">
-            <button type="button" id="snapFlipBtn" class="snap-icon-btn" title="Flip camera">🔄</button>
-            <button type="button" id="snapShutterBtn" class="snap-shutter-trigger" aria-label="Take snap">
-              <span class="snap-shutter-ring"></span>
-            </button>
-            <button type="button" id="snapModeBtn" class="snap-icon-btn" title="Toggle camera / studio">🎨</button>
-          </div>
-          <p class="snap-hint">Drag your fren to place them in your world!</p>
-        </footer>
-      </div>
+        <div class="snap-body">
+          <div id="snapCharPicker" class="snap-char-picker" aria-label="Choose companion to snap"></div>
 
-      <div id="snapPreviewModal" class="snap-preview-modal" hidden>
-        <div class="snap-preview-card">
-          <div class="snap-preview-topbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <button type="button" id="snapPreviewBackBtn" class="snap-back-btn" aria-label="Back to Viewfinder">← Back</button>
-            <span style="color:#fff;font-weight:700;font-size:14px;">Preview Snap</span>
-            <button type="button" id="snapPreviewCloseBtn" class="snap-icon-btn" style="width:32px;height:32px;font-size:13px;" aria-label="Close">✕</button>
-          </div>
-          <canvas id="snapCanvas" hidden></canvas>
-          <img id="snapPreviewImg" class="snap-preview-img" alt="Captured Snap">
-          <div class="snap-preview-actions">
-            <button type="button" id="snapCastBtn" class="snap-cast-btn">🟣 Cast on Farcaster</button>
-            <div class="actions" style="margin:8px 0 0">
-              <button type="button" id="snapDownloadBtn" class="secondary">💾 Save</button>
-              <button type="button" id="snapCopyLinkBtn" class="secondary">📋 Copy Link</button>
-              <button type="button" id="snapRetakeBtn" class="secondary">🔄 Retake</button>
+          <!-- The Simulated Farcaster Snap Card -->
+          <div class="snap-card" id="snapCard">
+            <div class="snap-card-top">
+              <h3 id="snapCardName" class="snap-card-name">Your fren</h3>
+              <span id="snapCardBadge" class="snap-card-badge">Pocket Pet</span>
             </div>
+
+            <div class="snap-hero-frame" id="snapHeroFrame">
+              <img id="snapHeroImg" class="snap-hero-sprite" alt="Companion Sprite" hidden>
+              <div id="snapHeroSvgWrap" class="snap-hero-svg-wrap"></div>
+              <div id="snapReactionAnchor"></div>
+            </div>
+
+            <p id="snapStatusText" class="snap-status-text">Your 1:1 on-chain & floating desktop companion. Pet, feed & play in-feed!</p>
+
+            <div class="snap-action-btns">
+              <button type="button" id="snapActionPet" class="snap-action-btn" data-action="pet">
+                <span aria-hidden="true">💖</span>Pet
+              </button>
+              <button type="button" id="snapActionFeed" class="snap-action-btn" data-action="feed">
+                <span aria-hidden="true">🍓</span>Feed
+              </button>
+              <button type="button" id="snapActionPlay" class="snap-action-btn" data-action="play">
+                <span aria-hidden="true">🎾</span>Play
+              </button>
+            </div>
+
+            <button type="button" id="snapCardMiniApp" class="snap-miniapp-btn">
+              Open TinyFrens Mini App 🐾
+            </button>
+          </div>
+
+          <!-- Sharing & Export Toolbar -->
+          <div class="snap-export-bar">
+            <button type="button" id="snapCastPrimaryBtn" class="snap-cast-primary-btn">
+              🟣 Cast on Farcaster
+            </button>
+            <div class="snap-export-subrow">
+              <button type="button" id="snapCopyLinkBtn" class="snap-sub-btn">
+                📋 Copy Link
+              </button>
+              <button type="button" id="snapSaveCardBtn" class="snap-sub-btn">
+                💾 Save Card Image
+              </button>
+            </div>
+            <p class="snap-footer-help">Posts an interactive Snap to Farcaster. Anyone in your feed can pet, feed, and play with your fren!</p>
           </div>
         </div>
       </div>
     `;
+
     document.body.appendChild(modal);
-
-    setupModalEvents();
+    setupEvents();
   }
 
-  let currentPose = 'idle';
-  let studioMode = false;
-
-  function updatePetSvgInOverlay() {
-    const s = petState();
-    const svgStr = generatePetSvg(s, currentPose);
-    const host = document.getElementById('snapPetSvgHost');
-    if (host) host.innerHTML = svgStr;
+  function getSnapUrl(char) {
+    const origin = window.location.origin;
+    if (char.type === 'nft' && char.tokenId) {
+      return `${origin}/snap?nft=${char.tokenId}`;
+    }
+    const name = encodeURIComponent(char.name || 'TinyFren');
+    const species = encodeURIComponent(char.species || 'Fren');
+    return `${origin}/snap?name=${name}&species=${species}`;
   }
 
-  async function startCamera() {
-    stopCamera();
-    const video = document.getElementById('snapVideo');
-    const studio = document.getElementById('snapStudioBg');
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      if (video) {
-        video.srcObject = stream;
-        video.hidden = false;
+  function renderCharacter(char) {
+    activeChar = char;
+    clearInterval(spriteCycleTimer);
+
+    const nameEl = document.getElementById('snapCardName');
+    const badgeEl = document.getElementById('snapCardBadge');
+    const imgEl = document.getElementById('snapHeroImg');
+    const svgWrapEl = document.getElementById('snapHeroSvgWrap');
+    const statusEl = document.getElementById('snapStatusText');
+
+    if (nameEl) nameEl.textContent = char.name;
+    if (badgeEl) badgeEl.textContent = char.collection;
+    if (statusEl) statusEl.textContent = `Your 1:1 on-chain & floating desktop companion. Pet, feed & play with ${char.name} in-feed!`;
+
+    if (char.type === 'nft') {
+      if (svgWrapEl) svgWrapEl.hidden = true;
+      if (imgEl) {
+        imgEl.hidden = false;
+        imgEl.src = char.spriteUrl || char.frames[0] || '';
+        // If animated frames exist, cycle through them
+        if (char.frames && char.frames.length > 1) {
+          currentFrameIdx = 0;
+          spriteCycleTimer = setInterval(() => {
+            currentFrameIdx = (currentFrameIdx + 1) % char.frames.length;
+            imgEl.src = char.frames[currentFrameIdx];
+          }, char.frameMs || 160);
+        }
       }
-      if (studio) studio.hidden = true;
-      studioMode = false;
-    } catch (err) {
-      console.warn('Camera inaccessible, switching to studio mode:', err);
-      if (video) video.hidden = true;
-      if (studio) studio.hidden = false;
-      studioMode = true;
-    }
-  }
-
-  function stopCamera() {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-  }
-
-  function openSnapStudio() {
-    buildSnapModal();
-    const modal = document.getElementById('snapModal');
-    const preview = document.getElementById('snapPreviewModal');
-    if (modal) modal.hidden = false;
-    if (preview) preview.hidden = true;
-
-    // Reset pet position to center
-    const overlay = document.getElementById('snapPetOverlay');
-    if (overlay) {
-      overlay.style.transform = 'translate(-50%, -50%)';
-      petX = 0;
-      petY = 0;
-    }
-
-    currentPose = 'idle';
-    updatePetSvgInOverlay();
-    startCamera();
-  }
-
-  function closeSnapStudio() {
-    const modal = document.getElementById('snapModal');
-    if (modal) modal.hidden = true;
-    stopCamera();
-  }
-
-  function captureSnapshot() {
-    const flash = document.getElementById('snapFlash');
-    if (flash) {
-      flash.classList.add('active');
-      setTimeout(() => flash.classList.remove('active'), 250);
-    }
-
-    const video = document.getElementById('snapVideo');
-    const canvas = document.getElementById('snapCanvas');
-    const overlay = document.getElementById('snapPetOverlay');
-    const ctx = canvas.getContext('2d');
-
-    const width = 720;
-    const height = 960;
-    canvas.width = width;
-    canvas.height = height;
-
-    // 1. Draw Background (Video or Studio Gradient)
-    if (!studioMode && video && video.videoWidth) {
-      // Draw video scaled to cover canvas
-      const vRatio = video.videoWidth / video.videoHeight;
-      const cRatio = width / height;
-      let sx, sy, sWidth, sHeight;
-      if (vRatio > cRatio) {
-        sHeight = video.videoHeight;
-        sWidth = sHeight * cRatio;
-        sx = (video.videoWidth - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = video.videoWidth;
-        sHeight = sWidth / cRatio;
-        sx = 0;
-        sy = (video.videoHeight - sHeight) / 2;
-      }
-      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, width, height);
     } else {
-      // Studio gradient
-      const grad = ctx.createLinearGradient(0, 0, width, height);
-      grad.addColorStop(0, '#2d1b4e');
-      grad.addColorStop(0.5, '#17142a');
-      grad.addColorStop(1, '#0f0c1b');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
-
-      // Subtle studio grid/spotlight
-      const spot = ctx.createRadialGradient(width / 2, height / 2, 40, width / 2, height / 2, 380);
-      spot.addColorStop(0, '#a474f133');
-      spot.addColorStop(1, '#00000000');
-      ctx.fillStyle = spot;
-      ctx.fillRect(0, 0, width, height);
-    }
-
-    // 2. Render Pet SVG onto an off-screen image
-    const s = petState();
-    const svgStr = generatePetSvg(s, currentPose);
-    const img = new Image();
-    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    img.onload = () => {
-      // Compute coordinates relative to canvas
-      const petRenderSize = 240;
-      // Convert relative pet position
-      const centerX = width / 2 + petX * 1.5;
-      const centerY = height / 2 + petY * 1.5 - 40;
-
-      // Soft shadow under pet
-      ctx.save();
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY + petRenderSize / 2 + 10, petRenderSize * 0.35, 14, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-      ctx.fill();
-      ctx.restore();
-
-      // Draw Pet
-      ctx.drawImage(img, centerX - petRenderSize / 2, centerY - petRenderSize / 2, petRenderSize, petRenderSize * (148 / 128));
-      URL.revokeObjectURL(url);
-
-      // 3. Draw Sleek Polaroid / Card Footer
-      const footerH = 110;
-      ctx.fillStyle = 'rgba(23, 20, 42, 0.92)';
-      ctx.fillRect(0, height - footerH, width, footerH);
-
-      // Gradient accent line
-      const lineGrad = ctx.createLinearGradient(0, 0, width, 0);
-      lineGrad.addColorStop(0, '#a474f1');
-      lineGrad.addColorStop(0.5, '#66c7d2');
-      lineGrad.addColorStop(1, '#ffb95e');
-      ctx.fillStyle = lineGrad;
-      ctx.fillRect(0, height - footerH, width, 4);
-
-      // Pet Name & Species
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 28px -apple-system, system-ui, sans-serif';
-      ctx.fillText(s.name || 'TinyFren', 24, height - footerH + 42);
-
-      ctx.fillStyle = '#c8b1fa';
-      ctx.font = '500 18px -apple-system, system-ui, sans-serif';
-      const speciesName = getSpeciesName(s.shape);
-      const today = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      ctx.fillText(`${speciesName} · ${today}`, 24, height - footerH + 74);
-
-      // Farcaster Snap Badge on right
-      ctx.fillStyle = '#855DCD'; // Farcaster purple
-      ctx.beginPath();
-      ctx.roundRect(width - 190, height - footerH + 28, 166, 44, 22);
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 15px -apple-system, system-ui, sans-serif';
-      ctx.fillText('🐾 Farcaster Snap', width - 176, height - footerH + 56);
-
-      // Save Data URL & Show Preview
-      capturedDataUrl = canvas.toDataURL('image/png');
-      canvas.toBlob((blob) => { capturedBlob = blob; }, 'image/png');
-
-      const previewImg = document.getElementById('snapPreviewImg');
-      if (previewImg) previewImg.src = capturedDataUrl;
-
-      const previewModal = document.getElementById('snapPreviewModal');
-      if (previewModal) previewModal.hidden = false;
-    };
-    img.src = url;
-  }
-
-  function setupModalEvents() {
-    const closeBtn = document.getElementById('snapCloseBtn');
-    if (closeBtn) closeBtn.onclick = closeSnapStudio;
-
-    const shutterBtn = document.getElementById('snapShutterBtn');
-    if (shutterBtn) shutterBtn.onclick = captureSnapshot;
-
-    const flipBtn = document.getElementById('snapFlipBtn');
-    if (flipBtn) {
-      flipBtn.onclick = () => {
-        facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-        startCamera();
-      };
-    }
-
-    const modeBtn = document.getElementById('snapModeBtn');
-    if (modeBtn) {
-      modeBtn.onclick = () => {
-        studioMode = !studioMode;
-        const video = document.getElementById('snapVideo');
-        const studio = document.getElementById('snapStudioBg');
-        if (studioMode) {
-          stopCamera();
-          if (video) video.hidden = true;
-          if (studio) studio.hidden = false;
-        } else {
-          startCamera();
-        }
-      };
-    }
-
-    // Pose Buttons
-    const poseBtns = document.querySelectorAll('.snap-pose-btn');
-    poseBtns.forEach(btn => {
-      btn.onclick = () => {
-        poseBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentPose = btn.dataset.pose || 'idle';
-        updatePetSvgInOverlay();
-      };
-    });
-
-    // Pet Dragging on Viewfinder
-    const overlay = document.getElementById('snapPetOverlay');
-    const viewfinder = document.querySelector('.snap-viewfinder');
-
-    function onPointerDown(e) {
-      isDragging = true;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      dragStartX = clientX - petX;
-      dragStartY = clientY - petY;
-    }
-
-    function onPointerMove(e) {
-      if (!isDragging) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      petX = clientX - dragStartX;
-      petY = clientY - dragStartY;
-      if (overlay) {
-        overlay.style.transform = `translate(calc(-50% + ${petX}px), calc(-50% + ${petY}px))`;
+      if (imgEl) imgEl.hidden = true;
+      if (svgWrapEl) {
+        svgWrapEl.hidden = false;
+        svgWrapEl.innerHTML = generatePetSvg(char.pet || petState());
       }
     }
 
-    function onPointerUp() {
-      isDragging = false;
-    }
-
-    if (overlay) {
-      overlay.addEventListener('mousedown', onPointerDown);
-      overlay.addEventListener('touchstart', onPointerDown, { passive: true });
-    }
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('touchmove', onPointerMove, { passive: true });
-    window.addEventListener('mouseup', onPointerUp);
-    window.addEventListener('touchend', onPointerUp);
-
-    // Preview Actions
-    const castBtn = document.getElementById('snapCastBtn');
-    if (castBtn) {
-      castBtn.onclick = () => {
-        const s = petState();
-        const species = getSpeciesName(s.shape);
-        const text = `Snapped my @tinyfrens companion in real life! 🐾✨\n\nMeet ${s.name || 'my fren'}, a ${species} feeling ${currentPose}.\n\n#TinyFrens #FarcasterSnap`;
-        const snapUrl = window.location.origin + '/';
-        window.TinyFrensFC?.composeCast?.({ text, embeds: [snapUrl] });
-      };
-    }
-
-    const downloadBtn = document.getElementById('snapDownloadBtn');
-    if (downloadBtn) {
-      downloadBtn.onclick = () => {
-        if (!capturedDataUrl) return;
-        const a = document.createElement('a');
-        a.href = capturedDataUrl;
-        a.download = `tinyfren-snap-${Date.now()}.png`;
-        a.click();
-      };
-    }
-
-    const copyBtn = document.getElementById('snapCopyLinkBtn');
-    if (copyBtn) {
-      copyBtn.onclick = async () => {
-        const shareUrl = window.location.origin + '/';
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          copyBtn.textContent = 'Copied! ✓';
-          setTimeout(() => { copyBtn.textContent = '📋 Copy Link'; }, 2000);
-        } catch {
-          prompt('Copy this link:', shareUrl);
-        }
-      };
-    }
-
-    const backBtn = document.getElementById('snapBackBtn');
-    if (backBtn) backBtn.onclick = closeSnapStudio;
-
-    const previewBackBtn = document.getElementById('snapPreviewBackBtn');
-    if (previewBackBtn) {
-      previewBackBtn.onclick = () => {
-        const preview = document.getElementById('snapPreviewModal');
-        if (preview) preview.hidden = true;
-      };
-    }
-
-    const previewCloseBtn = document.getElementById('snapPreviewCloseBtn');
-    if (previewCloseBtn) previewCloseBtn.onclick = closeSnapStudio;
-
-    const retakeBtn = document.getElementById('snapRetakeBtn');
-    if (retakeBtn) {
-      retakeBtn.onclick = () => {
-        const preview = document.getElementById('snapPreviewModal');
-        if (preview) preview.hidden = true;
-      };
-    }
+    // Update active pill in character picker
+    const pills = document.querySelectorAll('.snap-char-pill');
+    pills.forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.charId === char.id);
+    });
   }
 
-  // Hook into main UI
-  function initSnapButton() {
-    buildSnapModal();
+  function triggerSnapReaction(action) {
+    if (!activeChar) return;
+    const heroFrame = document.getElementById('snapHeroFrame');
+    const targetGraphic = activeChar.type === 'nft'
+      ? document.getElementById('snapHeroImg')
+      : document.getElementById('snapHeroSvgWrap');
+    const statusEl = document.getElementById('snapStatusText');
 
-    // Check if snap button already exists
-    if (document.getElementById('snapPet')) {
-      document.getElementById('snapPet').onclick = openSnapStudio;
+    clearTimeout(animTimer);
+    if (targetGraphic) {
+      targetGraphic.classList.remove('snap-hero-anim-pet', 'snap-hero-anim-feed', 'snap-hero-anim-play');
+      void targetGraphic.offsetWidth; // Force reflow
+    }
+
+    let emoji = '💖';
+    let statusMsg = '';
+
+    if (action === 'pet') {
+      emoji = '💖';
+      statusMsg = `You petted ${activeChar.name}! They did a little wiggle 💖`;
+      if (targetGraphic) targetGraphic.classList.add('snap-hero-anim-pet');
+    } else if (action === 'feed') {
+      emoji = '🍓';
+      statusMsg = `You fed ${activeChar.name} a fresh strawberry 🍓! Nom nom.`;
+      if (targetGraphic) targetGraphic.classList.add('snap-hero-anim-feed');
+    } else if (action === 'play') {
+      emoji = '🎾';
+      statusMsg = `You played ball with ${activeChar.name} 🎾! Joy is at 100%!`;
+      if (targetGraphic) targetGraphic.classList.add('snap-hero-anim-play');
+    }
+
+    // Spawn floating emoji burst
+    if (heroFrame) {
+      const burst = document.createElement('div');
+      burst.className = 'snap-reaction-burst';
+      burst.textContent = emoji;
+      burst.style.left = `${35 + Math.random() * 30}%`;
+      burst.style.top = `${30 + Math.random() * 20}%`;
+      heroFrame.appendChild(burst);
+      setTimeout(() => burst.remove(), 900);
+    }
+
+    // Update status text with highlight glow
+    if (statusEl) {
+      statusEl.textContent = statusMsg;
+      statusEl.classList.remove('snap-status-highlight');
+      void statusEl.offsetWidth;
+      statusEl.classList.add('snap-status-highlight');
+    }
+
+    // Confetti effect if supported
+    if (window.TinyFrensEffects?.confetti) {
+      try { window.TinyFrensEffects.confetti(); } catch {}
+    }
+
+    // Local pet care reward if active character is Fren pet
+    if (activeChar.type === 'pet' && typeof act === 'function' && typeof read === 'function') {
+      try { act(read(), action); } catch {}
+    }
+
+    // Non-blocking ping to relay server if available
+    const base = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
+    if (base) {
+      try {
+        fetch(`${base}/api/snap/interact?action=${encodeURIComponent(action)}&name=${encodeURIComponent(activeChar.name)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }).catch(() => {});
+      } catch {}
+    }
+
+    animTimer = setTimeout(() => {
+      if (targetGraphic) {
+        targetGraphic.classList.remove('snap-hero-anim-pet', 'snap-hero-anim-feed', 'snap-hero-anim-play');
+      }
+    }, 1000);
+  }
+
+  function castOnFarcaster() {
+    if (!activeChar) return;
+    const snapUrl = getSnapUrl(activeChar);
+    const text = `Check out my @tinyfrens companion ${activeChar.name} (${activeChar.collection})! 🐾✨\n\nInteract with the snap below to Pet, Feed, or Play! #TinyFrens #FarcasterSnap`;
+
+    if (window.TinyFrensFC?.composeCast) {
+      window.TinyFrensFC.composeCast({ text, embeds: [snapUrl] });
       return;
     }
 
-    const littleActions = document.querySelector('.little-actions');
-    if (littleActions) {
-      const btn = document.createElement('button');
-      btn.id = 'snapPet';
-      btn.type = 'button';
-      btn.className = 'secondary snap-action-btn';
-      btn.innerHTML = '<span aria-hidden="true">📸</span>Snap!';
-      btn.title = 'Snap your fren with camera & share to Farcaster';
-      btn.onclick = openSnapStudio;
-      littleActions.appendChild(btn);
+    // Fallback: direct Warpcast compose link
+    const params = new URLSearchParams();
+    params.set('text', text);
+    params.append('embeds[]', snapUrl);
+    window.open(`https://warpcast.com/~/compose?${params.toString()}`, '_blank', 'noopener,noreferrer');
+  }
+
+  async function copySnapLink() {
+    if (!activeChar) return;
+    const snapUrl = getSnapUrl(activeChar);
+    const btn = document.getElementById('snapCopyLinkBtn');
+    try {
+      await navigator.clipboard.writeText(snapUrl);
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = 'Copied! ✓';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+      }
+    } catch {
+      prompt('Copy your Farcaster Snap link:', snapUrl);
+    }
+  }
+
+  async function saveCardImage() {
+    if (!activeChar) return;
+    const btn = document.getElementById('snapSaveCardBtn');
+    const origText = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = 'Rendering…';
+
+    try {
+      const width = 600;
+      const height = 740;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // 1. Card Background & Gradient border
+      ctx.fillStyle = '#17142a';
+      ctx.fillRect(0, 0, width, height);
+
+      // Gradient accent header stripe
+      const grad = ctx.createLinearGradient(0, 0, width, 0);
+      grad.addColorStop(0, '#a474f1');
+      grad.addColorStop(0.5, '#66c7d2');
+      grad.addColorStop(1, '#ffb95e');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, 6);
+
+      // Inner card panel
+      ctx.fillStyle = '#201b3a';
+      ctx.strokeStyle = '#4a386d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(24, 24, width - 48, height - 48, 24);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top header in card
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+      ctx.fillText('TinyFrens', 48, 66);
+
+      // Farcaster Snap 2.0 Badge
+      ctx.fillStyle = '#855DCD';
+      ctx.beginPath();
+      ctx.roundRect(width - 230, 44, 180, 32, 16);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+      ctx.fillText('🟣 Farcaster Snap 2.0', width - 216, 65);
+
+      // 2. Hero Box
+      const heroY = 96;
+      const heroW = width - 96;
+      const heroH = 260;
+      ctx.fillStyle = '#19152b';
+      ctx.strokeStyle = '#3d2f5a';
+      ctx.beginPath();
+      ctx.roundRect(48, heroY, heroW, heroH, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Spotlight glow
+      const spot = ctx.createRadialGradient(width / 2, heroY + heroH / 2, 20, width / 2, heroY + heroH / 2, 160);
+      spot.addColorStop(0, 'rgba(164, 116, 241, 0.25)');
+      spot.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = spot;
+      ctx.fillRect(48, heroY, heroW, heroH);
+
+      // Render character into Hero Box
+      const renderCharImg = new Image();
+      let imgSrc = '';
+
+      if (activeChar.type === 'nft') {
+        imgSrc = activeChar.spriteUrl || activeChar.frames[0];
+      } else {
+        const svgStr = generatePetSvg(activeChar.pet || petState());
+        const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+        imgSrc = URL.createObjectURL(blob);
+      }
+
+      await new Promise((resolve) => {
+        renderCharImg.onload = () => {
+          const charSize = 160;
+          const cx = (width - charSize) / 2;
+          const cy = heroY + (heroH - charSize) / 2;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(renderCharImg, cx, cy, charSize, charSize);
+          if (activeChar.type === 'pet') URL.revokeObjectURL(imgSrc);
+          resolve();
+        };
+        renderCharImg.onerror = resolve;
+        renderCharImg.src = imgSrc;
+      });
+
+      // 3. Name & Collection labels
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+      ctx.fillText(activeChar.name, 48, 400);
+
+      ctx.fillStyle = '#c8b1fa';
+      ctx.font = '600 16px system-ui, -apple-system, sans-serif';
+      ctx.fillText(activeChar.collection, 48, 428);
+
+      // 4. Status message box
+      ctx.fillStyle = '#171329';
+      ctx.strokeStyle = '#382b54';
+      ctx.beginPath();
+      ctx.roundRect(48, 452, heroW, 58, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#d5c4f7';
+      ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+      const statusText = `Your 1:1 on-chain & floating desktop companion. Pet, feed & play with ${activeChar.name} in-feed!`;
+      ctx.fillText(statusText, 64, 488);
+
+      // 5. Interactive action pills
+      const pillW = (heroW - 16) / 3;
+      const actions = [
+        { label: '💖 Pet', x: 48 },
+        { label: '🍓 Feed', x: 48 + pillW + 8 },
+        { label: '🎾 Play', x: 48 + (pillW + 8) * 2 }
+      ];
+      ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+      for (const a of actions) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.strokeStyle = '#4a386d';
+        ctx.beginPath();
+        ctx.roundRect(a.x, 526, pillW, 46, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(a.label, a.x + (pillW / 2) - 26, 555);
+      }
+
+      // 6. Mini App Launch Button
+      ctx.fillStyle = '#855DCD';
+      ctx.beginPath();
+      ctx.roundRect(48, 586, heroW, 48, 12);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Open TinyFrens Mini App 🐾', 48 + (heroW / 2) - 105, 617);
+
+      // 7. Footer Tagline
+      ctx.fillStyle = '#9b8eb6';
+      ctx.font = '12px system-ui, -apple-system, sans-serif';
+      ctx.fillText('tinyfrens.lol · Built for Farcaster & Warpcast', (width / 2) - 110, 680);
+
+      // 8. Download PNG
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      const cleanName = (activeChar.name || 'fren').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      a.href = dataUrl;
+      a.download = `tinyfren-${cleanName}-farcaster-snap.png`;
+      a.click();
+    } catch (err) {
+      console.warn('Snap card download failed:', err);
+    } finally {
+      if (btn) btn.innerHTML = origText;
+    }
+  }
+
+  function setupEvents() {
+    const closeBtn = document.getElementById('snapModalCloseBtn');
+    if (closeBtn) closeBtn.onclick = closeSnapModal;
+
+    // Action buttons inside card
+    const petBtn = document.getElementById('snapActionPet');
+    if (petBtn) petBtn.onclick = () => triggerSnapReaction('pet');
+
+    const feedBtn = document.getElementById('snapActionFeed');
+    if (feedBtn) feedBtn.onclick = () => triggerSnapReaction('feed');
+
+    const playBtn = document.getElementById('snapActionPlay');
+    if (playBtn) playBtn.onclick = () => triggerSnapReaction('play');
+
+    const miniAppBtn = document.getElementById('snapCardMiniApp');
+    if (miniAppBtn) {
+      miniAppBtn.onclick = () => {
+        closeSnapModal();
+        if (typeof window.showScreen === 'function') window.showScreen('pet');
+      };
+    }
+
+    // Export Toolbar
+    const castBtn = document.getElementById('snapCastPrimaryBtn');
+    if (castBtn) castBtn.onclick = castOnFarcaster;
+
+    const copyBtn = document.getElementById('snapCopyLinkBtn');
+    if (copyBtn) copyBtn.onclick = copySnapLink;
+
+    const saveBtn = document.getElementById('snapSaveCardBtn');
+    if (saveBtn) saveBtn.onclick = saveCardImage;
+
+    // Close on backdrop tap
+    modal.onclick = (e) => {
+      if (e.target === modal) closeSnapModal();
+    };
+
+    // Close on Escape key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && !modal.hidden) closeSnapModal();
+    });
+  }
+
+  function openSnapModal() {
+    buildSnapModal();
+    const characters = getAvailableCharacters();
+    if (!characters.length) return;
+
+    // Setup character picker pills
+    const picker = document.getElementById('snapCharPicker');
+    if (picker) {
+      picker.innerHTML = '';
+      characters.forEach((char, idx) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = `snap-char-pill${idx === 0 ? ' active' : ''}`;
+        pill.dataset.charId = char.id;
+        pill.textContent = char.name;
+        pill.onclick = () => renderCharacter(char);
+        picker.appendChild(pill);
+      });
+    }
+
+    // Default to the first character (active NFT if exists, otherwise pet Fren)
+    renderCharacter(characters[0]);
+
+    if (modal) modal.hidden = false;
+  }
+
+  function closeSnapModal() {
+    clearInterval(spriteCycleTimer);
+    clearTimeout(animTimer);
+    if (modal) modal.hidden = true;
+  }
+
+  function initSnapButton() {
+    buildSnapModal();
+    const btn = document.getElementById('snapPet');
+    if (btn) {
+      btn.onclick = openSnapModal;
     }
   }
 
   window.TinyFrensSnap = {
-    open: openSnapStudio,
-    close: closeSnapStudio,
-    capture: captureSnapshot
+    open: openSnapModal,
+    close: closeSnapModal,
+    getCharacters: getAvailableCharacters,
+    triggerAction: triggerSnapReaction,
+    getSnapUrl: getSnapUrl
   };
 
   if (document.readyState === 'loading') {
