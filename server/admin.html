@@ -1,48 +1,71 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17142a"><title>TinyFrens admin</title><link rel="icon" href="icons/icon.svg"><style>
-:root{color-scheme:dark;background:#17142a;color:#f3eeff;font-family:system-ui,sans-serif}
+:root{color-scheme:dark;background:#121020;color:#f5f1fb;font-family:Inter,ui-sans-serif,system-ui,sans-serif;--bg:#121020;--surface:#1a1728;--surface-2:#211d31;--line:#3b324e;--muted:#a99eb9;--accent:#b88aff;--good:#72d89a}
 *{box-sizing:border-box}
-body{max-width:1440px;margin:auto;padding:32px 28px 80px;background:radial-gradient(ellipse at top right,#302042,transparent 60%)}
-h1{font-size:clamp(26px,4vw,40px);margin:0 0 6px}
-h2{font-size:20px;margin:32px 0 12px}
-p{color:#b9aecb;line-height:1.6}
+body{max-width:1280px;margin:auto;padding:28px 32px 80px;background:linear-gradient(180deg,#19132a 0,#121020 280px);min-height:100vh}
+h1{font-size:clamp(28px,4vw,44px);letter-spacing:-.035em;margin:3px 0 6px}
+h2{font-size:18px;margin:36px 0 5px;letter-spacing:-.01em}
+h3{margin:0;font-size:14px}
+p{color:var(--muted);line-height:1.55}
 a{color:#c7a6ff}
 code{background:#211c39;border-radius:6px;padding:2px 6px}
-.card{background:#211c39;border:1px solid #47365f;border-radius:16px;padding:18px;margin:16px 0}
+.card,.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin:14px 0;overflow:hidden}
+.card{padding:18px}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#b9aecb}
-input{background:#17142a;color:#f3eeff;border:1px solid #47365f;border-radius:10px;padding:10px 12px;font:inherit;width:150px}
+input{background:#121020;color:#f3eeff;border:1px solid #4b3f60;border-radius:8px;padding:9px 10px;font:inherit;width:150px}
 input.wide{width:min(280px,100%)}
-button{background:#a474f1;color:#17142a;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
-button.ghost{background:transparent;color:#c7a6ff;border:1px solid #47365f}
+button{background:var(--accent);color:#171022;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:750;cursor:pointer}
+button.ghost{background:transparent;color:#d3baff;border:1px solid #514366}
 button:disabled{opacity:.5;cursor:default}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #332a4c;white-space:nowrap}
-th{color:#b9aecb;font-weight:600}
-.muted{color:#8f83a8;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #30293e;white-space:nowrap}
+th{color:#a99eb9;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.muted{color:#9a8fab;font-size:13px}
 .err{color:#ff9db1}
 .ok{color:#8ee6b0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.stat{background:#17142a;border:1px solid #47365f;border-radius:12px;padding:18px;min-width:0}
-.stat b{display:block;font-size:clamp(20px,2vw,28px);overflow-wrap:anywhere;font-variant-numeric:tabular-nums;margin-bottom:8px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.stat{padding:16px 18px;min-width:0;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat b{display:block;font-size:20px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;margin-bottom:5px}
+.detail-list{margin:0}
+.detail-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(170px,.75fr);gap:24px;align-items:start;padding:14px 18px;border-bottom:1px solid #30293e}
+.detail-row:last-child{border-bottom:0}
+.detail-row dt{color:var(--muted);font-size:13px}
+.detail-row dd{margin:0;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.detail-row small{display:block;font-weight:400;color:#847992;margin-top:4px}
+.split{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.split>div+div{border-left:1px solid var(--line)}
+.panel-heading{padding:16px 18px 10px}
+.panel-heading p{margin:5px 0 0;font-size:13px}
+.policy-list{border-top:1px solid var(--line)}
+.policy-row{display:grid;grid-template-columns:minmax(150px,.65fr) minmax(220px,1.7fr) 130px;gap:20px;align-items:center;padding:15px 18px;border-bottom:1px solid #30293e}
+.policy-row:last-child{border-bottom:0}
+.policy-title strong{display:block;text-transform:capitalize}
+.policy-title span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.slider-wrap{display:grid;grid-template-columns:1fr 78px;gap:14px;align-items:center}
+input[type=range]{width:100%;padding:0;border:0;background:transparent;accent-color:var(--accent)}
+.policy-value{width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.policy-estimate{text-align:right;color:var(--muted);font-size:12px}
+.policy-estimate strong{display:block;color:#d9cae9;font-size:13px;margin-bottom:3px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;background:#171422;border-top:1px solid var(--line)}
 .hidden{display:none}
-.user-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#282142;border:1px solid #47365f;border-radius:12px;margin:16px 0}
-nav{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0;position:sticky;top:0;background:#17142af5;padding:12px 0;z-index:1}
-nav a{text-decoration:none;padding:9px 14px;border:1px solid #47365f;border-radius:9px}
+.user-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:9px;margin:18px 0}
+nav{display:flex;gap:22px;flex-wrap:wrap;margin:24px 0;position:sticky;top:0;background:#121020f2;border-bottom:1px solid var(--line);padding:13px 2px;z-index:1;backdrop-filter:blur(10px)}
+nav a{text-decoration:none;color:#a99eb9;font-size:13px;font-weight:700}
+nav a:hover{color:#e6d8fa}
 section{scroll-margin-top:90px}
-.table-wrap{overflow:auto;max-height:420px}
-.table-wrap th{position:sticky;top:0;background:#211c39}
+.table-wrap{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:10px;margin-top:12px}
+.table-wrap th{position:sticky;top:0;background:#1c1829}
 td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .section-heading h2{margin:0}
-.dashboard-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
-.dashboard-grid .card{margin:0}
 .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#c7a6ff}
 .contract{overflow-wrap:anywhere;font-family:monospace;font-size:12px}
-#marketStats{grid-template-columns:repeat(2,minmax(0,1fr))}
-#marketStats .stat b{font-size:clamp(12px,1.3vw,20px);white-space:nowrap;overflow:auto}
-@media(max-width:760px){body{padding:20px 14px}.dashboard-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{padding:12px}.stat b{font-size:20px}.user-bar{gap:12px}.grid input{width:100%}nav{position:static}input{max-width:100%}}
+.section-note{margin:4px 0 14px;font-size:13px}
+details.panel summary{cursor:pointer;padding:16px 18px;font-weight:700}
+details.panel[open] summary{border-bottom:1px solid var(--line)}
+@media(max-width:800px){body{padding:20px 14px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(2n){border-right:0}.split{grid-template-columns:1fr}.split>div+div{border-left:0;border-top:1px solid var(--line)}.policy-row{grid-template-columns:1fr;gap:10px}.policy-estimate{text-align:left}.detail-row{grid-template-columns:1fr;gap:6px}.detail-row dd{text-align:left}.toolbar{align-items:flex-start;flex-direction:column}.user-bar{gap:12px}nav{position:static}input{max-width:100%}}
 </style></head><body>
 <div class="eyebrow">TinyFrens · operator console</div>
 <h1>Your frens, at a glance.</h1>
@@ -85,30 +108,38 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
   <section id="overview">
     <div class="section-heading"><h2>Economy overview</h2><button class="ghost" id="refresh">Refresh overview</button></div>
     <p id="loadmsg" class="muted" role="status"></p>
-    <div class="card"><div class="stats" id="stats"></div>
-      <p class="muted">Registered devices are browser/app credentials, including older installations. Sync accounts group linked devices. Neither is a count of imported frens or active users.</p>
-      <p class="muted" id="economy"></p>
+    <div class="panel">
+      <div class="stats" id="stats"></div>
+      <div class="split">
+        <div>
+          <div class="panel-heading"><div class="eyebrow">Production Base · indicative quote</div><h2 style="margin-top:6px">FRENS market</h2></div>
+          <dl class="detail-list" id="marketStats"></dl>
+        </div>
+        <div>
+          <div class="panel-heading"><div class="eyebrow">USD conversion</div><h2 style="margin-top:6px">Conversion reference</h2></div>
+          <dl class="detail-list" id="conversions"></dl>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div><p class="muted" id="marketSource" role="status" style="margin:0">Loading market quote…</p><p class="contract" id="marketContract" style="margin:5px 0 0"></p></div>
+        <div><p class="muted" id="oracleStatus" style="margin:0"></p><p class="muted" style="margin:5px 0 0">Five-minute shared cache · no RPC polling · care prices remain denominated in FRENS.</p></div>
+      </div>
     </div>
-    <div class="dashboard-grid">
-      <div class="card"><div class="eyebrow">Production Base · indicative quote</div><h2 style="margin-top:8px">FRENS market</h2><div class="stats" id="marketStats"></div><p class="muted" id="marketSource" role="status">Loading market quote…</p><p class="contract" id="marketContract"></p></div>
-      <div class="card"><div class="eyebrow">USD conversion</div><h2 style="margin-top:8px">How many FRENS?</h2><div class="stats" id="conversions"></div><p class="muted">FRENS/ETH × ETH/USD = FRENS/USD. Quotes are cached for five minutes; refreshing does not bypass the cache. No RPC polling.</p><p class="muted" id="oracleStatus"></p><p class="muted">These estimates do not change care charges. Care prices remain denominated in FRENS.</p></div>
-    </div>
+    <p class="section-note">Registered devices are browser/app credentials, including older installations. Sync accounts group linked devices. Neither is a count of imported frens or active users.</p>
+    <p class="section-note" id="economy"></p>
   </section>
   <section id="care-settings">
-  <h2>Care tunables</h2>
-  <div class="card">
-    <div class="row">
-      <label>Free daily allowance
-        <input id="allowance" type="number" min="0" step="1">
-      </label>
-      <label>Game reward (credits)
-        <input id="gameReward" type="number" min="0" step="1">
-      </label>
+  <h2>Care policy</h2>
+  <p class="section-note">Tune exact values with the number field, or use the slider for quick adjustments. Credits convert at <span id="cpf">?</span> per FRENS.</p>
+  <div class="panel">
+    <div class="panel-heading"><h3>Allowance and rewards</h3><p>Global limits applied to every linked device.</p></div>
+    <div class="policy-list">
+      <div class="policy-row"><div class="policy-title"><strong>Free daily allowance</strong><span>Care actions available before a FRENS charge</span></div><div class="slider-wrap"><input id="allowanceRange" aria-label="Free daily allowance slider" type="range" min="0" max="100" step="1"><input class="policy-value" aria-label="Free daily allowance exact value" id="allowance" type="number" min="0" max="100000" step="1"></div><div class="policy-estimate"><strong id="allowanceSummary">—</strong>actions / UTC day</div></div>
+      <div class="policy-row"><div class="policy-title"><strong>Game reward</strong><span>Credits granted after a completed game round</span></div><div class="slider-wrap"><input id="gameRewardRange" aria-label="Game reward slider" type="range" min="0" max="100000" step="100"><input class="policy-value" aria-label="Game reward exact value" id="gameReward" type="number" min="0" step="100"></div><div class="policy-estimate"><strong id="gameRewardSummary">—</strong><span id="gameRewardFrens">— FRENS</span></div></div>
     </div>
-    <p class="muted">FRENS price of one use once the free allowance is spent, and the credits earned back
-      per finished game round (0 = off). Credits convert at <span id="cpf">?</span> per FRENS.</p>
-    <div class="grid" id="prices"></div>
-    <div class="row" style="margin-top:16px">
+    <div class="panel-heading"><h3>Paid care actions</h3><p>FRENS charged for one use after the daily allowance is exhausted.</p></div>
+    <div class="policy-list" id="prices"></div>
+    <div class="toolbar">
       <button id="save">Save tunables</button>
       <span id="savemsg" class="muted"></span>
     </div>
@@ -116,24 +147,20 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 
   </section><section id="activity">
   <h2>Credit ledger</h2>
-  <div class="card">
-    <p class="muted">Device credit entries. Delta and balance are in internal credits; the conversion rate is shown above.</p>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ credits</th><th>Balance (credits)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
-  </div>
+  <p class="section-note">Device credit entries. Delta and balance are in internal credits; the conversion rate is shown above.</p>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ credits</th><th>Balance (credits)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
 
   <h2>Care usage today</h2>
-  <div class="card">
-    <p class="muted">Daily allowance usage, per device, for the current UTC day.</p>
-    <div class="table-wrap"><table><thead><tr><th>Device</th><th>Used</th></tr></thead><tbody id="care"></tbody></table></div>
-  </div>
+  <p class="section-note">Daily allowance usage, per device, for the current UTC day.</p>
+  <div class="table-wrap"><table><thead><tr><th>Device</th><th>Used</th></tr></thead><tbody id="care"></tbody></table></div>
 
   <h2>Recent admin changes</h2>
-  <div class="card">
-    <div class="table-wrap"><table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table></div>
-  </div>
+  <div class="table-wrap"><table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table></div>
 
-  </section><section id="access"><h2>Admin accounts</h2>
-  <div class="card">
+  </section><section id="access"><h2>Admin access</h2>
+  <details class="panel">
+    <summary>Manage admin accounts</summary>
+    <div style="padding:16px 18px">
     <div class="row">
       <label>New username
         <input id="newUsername" type="text" placeholder="Username">
@@ -147,7 +174,8 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
       <span id="usermsg" class="muted"></span>
     </div>
     <div class="table-wrap"><table style="margin-top:16px"><thead><tr><th>Username</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table></div>
-  </div>
+    </div>
+  </details>
   </section>
 </div>
 
@@ -158,6 +186,8 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
   var KEY = 'tinyfrens.admin.token';
   var USER_KEY = 'tinyfrens.admin.user';
   var state = null;
+  var marketData = null;
+  var ACTION_HELP = {feed:'Restore food',play:'Raise happiness',rest:'Restore energy',adventure:'Run an adventure',clean:'Restore hygiene',vitamin:'Health support',scold:'Correct behavior',revive:'Recover an inactive fren'};
 
   function token(){ return sessionStorage.getItem(KEY) || ''; }
 
@@ -186,13 +216,14 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 
   function when(ts){ return ts ? new Date(ts * 1000).toLocaleString() : ''; }
 
-  function metricCards(id, values){
+  function detailRows(id, values){
     var box = $(id); box.textContent = '';
     values.forEach(function(pair){
-      var card = document.createElement('div'); card.className = 'stat';
-      var value = document.createElement('b'); value.textContent = pair[1];
-      var label = document.createElement('span'); label.className = 'muted'; label.textContent = pair[0];
-      card.appendChild(value); card.appendChild(label); box.appendChild(card);
+      var row = document.createElement('div'); row.className = 'detail-row';
+      var label = document.createElement('dt'); label.textContent = pair[0];
+      var value = document.createElement('dd'); value.textContent = pair[1];
+      if(pair[2]){ var note = document.createElement('small'); note.textContent = pair[2]; value.appendChild(note); }
+      row.appendChild(label); row.appendChild(value); box.appendChild(row);
     });
   }
 
@@ -206,22 +237,26 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 
   function loadMarket(){
     return api('/api/admin/market').then(function(m){
-      metricCards('marketStats', [['1 FRENS / USD', amount(m.priceUsd, true)],
-        ['Market cap · provider reported', amount(m.marketCapUsd, true)],
-        ['1 FRENS / ETH', amount(m.frensEth, false)], ['1 ETH / USD', amount(m.ethUsd, true)],
-        ['Pool liquidity · USD', amount(m.liquidityUsd, true)], ['FDV · provider reported', amount(m.fdvUsd, true)]]);
-      // ETH fractions need enough precision to remain visible.
-      var eth = $('marketStats').children[2].querySelector('b');
-      eth.textContent = m.frensEth != null ? Number(m.frensEth).toLocaleString(undefined,{maximumSignificantDigits:8}) : 'Unavailable';
-      metricCards('conversions', [['$0.01 ≈ FRENS', amount(m.frensPerCent, false)], ['$1 ≈ FRENS', amount(m.frensPerDollar, false)]]);
+      marketData = m;
+      detailRows('marketStats', [['FRENS price', amount(m.priceUsd, true),'1 FRENS in USD'],
+        ['FRENS / ETH', m.frensEth != null ? Number(m.frensEth).toLocaleString(undefined,{maximumSignificantDigits:8}) : 'Unavailable','Pool-derived ratio'],
+        ['ETH / USD', amount(m.ethUsd, true),'Reference pool'],
+        ['Market cap', amount(m.marketCapUsd, true),'Provider reported'],
+        ['Fully diluted value', amount(m.fdvUsd, true),'Provider reported'],
+        ['Pool liquidity', amount(m.liquidityUsd, true),'USD value']]);
+      detailRows('conversions', [['One cent', amount(m.frensPerCent, false) + ' FRENS','$0.01 at current quote'],
+        ['One dollar', amount(m.frensPerDollar, false) + ' FRENS','$1.00 at current quote'],
+        ['Formula','FRENS/ETH × ETH/USD','Indicative; not a settlement oracle']]);
       $('marketSource').textContent = (m.status === 'stale' ? 'STALE · ' : '') + (m.source || 'Market quote') +
         (m.fetchedAt ? ' · retrieved ' + when(m.fetchedAt) + ' (provider may lag trades)' : '') + (m.error ? ' · ' + m.error : '');
       $('marketSource').className = m.status === 'available' ? 'muted' : 'err';
       $('oracleStatus').textContent = m.oracle || 'No settlement price oracle configured';
       $('marketContract').textContent = m.token ? 'Base · ' + m.token + ' · pool ' + (m.pairAddress || 'unavailable') : '';
+      updatePolicyEstimates();
     }).catch(function(err){
-      metricCards('marketStats', [['Market quote', 'Unavailable']]);
-      metricCards('conversions', [['USD conversions', 'Unavailable']]);
+      marketData = null;
+      detailRows('marketStats', [['Market quote', 'Unavailable']]);
+      detailRows('conversions', [['USD conversions', 'Unavailable']]);
       $('marketSource').textContent = err.message; $('marketSource').className = 'err';
     });
   }
@@ -259,22 +294,65 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
     });
   }
 
+  function bindRange(range, number, changed){
+    range.value = Math.min(Number(range.max), Math.max(Number(range.min), Number(number.value) || 0));
+    range.oninput = function(){ number.value = range.value; changed(); };
+    number.oninput = function(){ range.value = Math.min(Number(range.max), Math.max(Number(range.min), Number(number.value) || 0)); changed(); };
+  }
+
+  function sliderMax(value){
+    value = Math.max(0, Number(value) || 0);
+    if(value <= 1000) return 5000;
+    if(value <= 10000) return 25000;
+    if(value <= 100000) return 200000;
+    return Math.ceil(value * 1.5 / 100000) * 100000;
+  }
+
+  function priceEstimate(frens){
+    var usd = marketData && Number(marketData.priceUsd);
+    return Number.isFinite(usd) ? amount((Number(frens) || 0) * usd, true) : 'USD unavailable';
+  }
+
+  function updatePolicyEstimates(){
+    $('allowanceSummary').textContent = (Number($('allowance').value) || 0).toLocaleString();
+    var credits = Number($('gameReward').value) || 0;
+    var cpf = Number((state && state.economy || {}).creditsPerFrens) || 0;
+    $('gameRewardSummary').textContent = credits.toLocaleString() + ' credits';
+    $('gameRewardFrens').textContent = cpf ? amount(credits / cpf, false) + ' FRENS' : 'FRENS conversion unavailable';
+    Array.prototype.forEach.call($('prices').querySelectorAll('[data-price-estimate]'), function(node){
+      var input = $('price-' + node.dataset.priceEstimate);
+      node.textContent = priceEstimate(input ? input.value : 0);
+    });
+  }
+
   function render(){
     var s = state.settings || {}, overrides = state.overrides || {}, prices = s.prices || {};
     $('allowance').value = s.dailyAllowance;
     $('gameReward').value = s.gameRewardCredits != null ? s.gameRewardCredits : 0;
+    bindRange($('allowanceRange'), $('allowance'), updatePolicyEstimates);
+    $('gameRewardRange').max = String(Math.max(100000, sliderMax($('gameReward').value)));
+    bindRange($('gameRewardRange'), $('gameReward'), updatePolicyEstimates);
     var box = $('prices');
     box.textContent = '';
     (state.actions || []).forEach(function(action){
-      var wrap = document.createElement('label');
-      wrap.textContent = action;
-      var input = document.createElement('input');
-      input.type = 'number'; input.min = '0'; input.step = '1';
-      input.dataset.action = action;
-      input.value = prices[action] != null ? prices[action] : 0;
-      wrap.appendChild(input);
-      box.appendChild(wrap);
+      var value = prices[action] != null ? prices[action] : 0;
+      var row = document.createElement('div'); row.className = 'policy-row';
+      var title = document.createElement('div'); title.className = 'policy-title';
+      var strong = document.createElement('strong'); strong.textContent = action;
+      var help = document.createElement('span'); help.textContent = ACTION_HELP[action] || 'Care action';
+      title.appendChild(strong); title.appendChild(help);
+      var controls = document.createElement('div'); controls.className = 'slider-wrap';
+      var range = document.createElement('input'); range.type = 'range'; range.setAttribute('aria-label', action + ' FRENS price slider'); range.min = '0'; range.max = String(sliderMax(value)); range.step = value >= 10000 ? '500' : value >= 1000 ? '100' : '10';
+      var input = document.createElement('input'); input.className = 'policy-value'; input.id = 'price-' + action; input.type = 'number'; input.min = '0'; input.step = '1'; input.dataset.action = action; input.value = value;
+      controls.appendChild(range); controls.appendChild(input);
+      var estimate = document.createElement('div'); estimate.className = 'policy-estimate';
+      var exact = document.createElement('strong'); exact.textContent = Number(value).toLocaleString() + ' FRENS';
+      var usd = document.createElement('span'); usd.dataset.priceEstimate = action;
+      estimate.appendChild(exact); estimate.appendChild(usd);
+      bindRange(range, input, function(){ exact.textContent = (Number(input.value) || 0).toLocaleString() + ' FRENS'; updatePolicyEstimates(); });
+      row.appendChild(title); row.appendChild(controls); row.appendChild(estimate); box.appendChild(row);
     });
+    updatePolicyEstimates();
 
     var counts = state.counts || {}, e = state.economy || {};
     var stats = $('stats'); stats.textContent = '';
@@ -405,7 +483,7 @@ td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
 
   function saveTunables(){
     var prices = {};
-    Array.prototype.forEach.call($('prices').querySelectorAll('input'), function(input){
+    Array.prototype.forEach.call($('prices').querySelectorAll('input[data-action]'), function(input){
       prices[input.dataset.action] = parseInt(input.value, 10);
     });
     var body = {dailyAllowance: parseInt($('allowance').value, 10),
