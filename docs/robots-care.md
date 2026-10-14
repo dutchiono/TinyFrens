@@ -30,6 +30,7 @@ Everything below ships on `origin/main` today and is the foundation — not some
 | Care actions | `GAMEPLAY.md`, `web/app.js` | Feed +25, Play +20 (food −8, energy −12), Nap +25, Clean, Vitamin |
 | Mini-games hub | `web/games.js`, `#screen-games`, `web/index.html` | `More → Games` → picker |
 | Snack Catch | `web/game-snack-catch.js`, `scripts/test-snack-catch.cjs` | first game; pure round model + browser mount |
+| Fren Hop | `web/game-fren-hop.js`, `scripts/test-fren-hop.cjs` | one-tap runner: hop rocks/cacti, stay low under bees, 🍓 bonus; same hub contract as Snack Catch |
 | Game → care bridge | `window.TinyFrensGameCare` in `web/app.js` (`canPlay()`/`complete()` → existing Play action) | a 15s+ round with a positive score invokes Play once |
 | Verified NFT players | `web/game-players.js` (`tinyfrens-robots-v1`, `hood-turtles-v1`, `nubs-v1`, `bots-computers-v1`) | ownership-checked, animation rigs, 5-min inventory cache; `scripts/test-game-players.cjs` |
 | Robots v1 ownership + rig | `server/robot_companion.py` (`Robots`, `CONTRACT`, `CHAIN_ID=8453`, tokens 1–2664), `server/robot_gallery.py` | `/api/featured/companion`, on-chain `ownerOf`, 8-step walk frames |
