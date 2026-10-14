@@ -304,7 +304,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [x] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
 - [ ] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification.
 - [ ] `github_app.py` → GitHub App auth integration; preserve RS256 JWT claims, key loading, installation discovery, least-privilege token requests, cache locking, and refresh margin.
-- [ ] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors.
+- [x] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors. (Phase 8 Slice 8D ports chat transcripts, Gemini drafting, REST issue creation, label filtering, persisted chat mapping, and safe user-facing failures.)
 - [ ] `hood_turtle_art.py` → media adapter; preserve SVG sanitization and walking animation.
 - [ ] `imported_gallery.py` → gallery routes; preserve selection-only exposure, pagination, deduplication, collection/chain constraints, and private-field exclusion.
 - [ ] `indexer.py` → independently runnable workers; preserve block ranges, independent checkpoints, reorg behavior, topic decoding, idempotency, cancellation, and CLI mode.
