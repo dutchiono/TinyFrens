@@ -19,6 +19,7 @@ import { MarketQuote } from './domain/market-quote.js';
 import { TelegramModeration } from './domain/telegram-moderation.js';
 import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
 import type { RealtimeHub } from './domain/realtime.js';
+import { GitHubAuth, GitHubTokenProvider } from './integrations/github-app.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -56,6 +57,7 @@ export interface AppContext {
   marketQuote: MarketQuote;
   telegramApi: TelegramBotApi;
   telegramModeration: TelegramModeration;
+  githubAuth: GitHubTokenProvider;
   realtimeHub?: RealtimeHub;
 }
 
@@ -85,13 +87,19 @@ export function createAppContext(
     marketQuote: null as any,
     telegramApi: null as any,
     telegramModeration: null as any,
+    githubAuth: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
 
   ctx.turtleOwnership = overrides?.turtleOwnership ?? new TurtleOwnership(db, config.ROBINHOOD_RPC_URL, () => ctx.now());
   ctx.robotsVerifier = overrides?.robotsVerifier ?? new Robots(db, config.ROBOTS_RPC_URL, () => ctx.now());
-  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(db);
+  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(
+    db,
+    config.ROBINHOOD_RPC_URL,
+    config.ROBOTS_RPC_URL,
+    () => ctx.now()
+  );
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
   const admin = overrides?.admin ?? new Admin(db, {
     token: config.ADMIN_TOKEN,
@@ -114,6 +122,7 @@ export function createAppContext(
       now: () => ctx.now(),
     }
   );
+  ctx.githubAuth = overrides?.githubAuth ?? new GitHubAuth(config, { now: () => ctx.now() });
   const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(

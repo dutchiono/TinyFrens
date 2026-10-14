@@ -83,12 +83,16 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         await say("I have no AI key set, so I can't summarise the chat yet. (Set GEMINI_API_KEY.)");
         return;
       }
-      const githubToken = context.config.GITHUB_TOKEN;
-      if (!githubToken || !context.config.GITHUB_REPO) {
+      if (!context.config.GITHUB_REPO) {
         await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
         return;
       }
       const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
+      const githubToken = await context.githubAuth.token(owner, repo);
+      if (!githubToken) {
+        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
+        return;
+      }
       const messages = chatHistory.get(String(chatId)) || [];
       const lines = transcript(messages, historyLimit);
       if (!lines) {
@@ -287,7 +291,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         } else if (data === 'gh:refresh') {
           const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
           const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
-          const progress = await fetchGithubProgress(ownerPart, repoPart, context.config.GITHUB_TOKEN);
+          const progress = await fetchGithubProgress(ownerPart, repoPart, await context.githubAuth.token(ownerPart, repoPart));
           const [ghText, ghKb] = renderGithubProgress(progress, repoPart);
           if (cqId) {
             await callTelegramApi(
@@ -398,7 +402,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         if (/^\/(?:progress|github|work)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
           const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
-          const progress = await fetchGithubProgress(ownerPart, repoPart, context.config.GITHUB_TOKEN);
+          const progress = await fetchGithubProgress(ownerPart, repoPart, await context.githubAuth.token(ownerPart, repoPart));
           const [progressText, progressKeyboard] = renderGithubProgress(progress, repoPart);
           await sendCommand({
             chat_id: chatId,
