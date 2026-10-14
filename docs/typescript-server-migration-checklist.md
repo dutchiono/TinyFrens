@@ -440,7 +440,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 0: freeze inventories, parity harness, typed config, database compatibility probe, and deployment skeleton.
 - [x] Phase 1: pure utilities and parsers with no I/O (profile normalization, pairing codes, economy token math, robot care bounds & UTC keys, Telegram command grammar, companion selection, and DEX Screener quote math).
 - [x] Phase 2: media generation and deterministic contract/crypto helpers using known vectors.
-- [ ] Phase 3: repositories and schema compatibility against copied fixture databases.
+- [x] Phase 3: repositories and schema compatibility against copied fixture databases.
 - [ ] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
 - [ ] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
 - [ ] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
