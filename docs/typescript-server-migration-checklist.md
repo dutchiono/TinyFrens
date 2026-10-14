@@ -175,20 +175,20 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `POST /api/wallet-link/confirm`
 - [x] `POST /api/wallet-link/disconnect`
 - [x] `POST /api/wallet-link/nfts`
-- [ ] `POST /api/bankr/wallet`
-- [ ] `POST /api/bankr/nfts`
-- [ ] `POST /api/bankr/transform`
-- [ ] `POST /api/bankr/monitor`
+- [x] `POST /api/bankr/wallet`
+- [x] `POST /api/bankr/nfts`
+- [x] `POST /api/bankr/transform`
+- [x] `POST /api/bankr/monitor`
 - [x] `GET /api/bankr/status`
 - [x] `GET /api/nft/price`
 - [x] `GET /api/nft/uri`
-- [ ] `POST /api/wallet/mint`
-- [ ] `POST /api/wallet/rename-nft`
-- [ ] `POST /api/wallet/evolve-nft`
-- [ ] `POST /api/wallet/unwrap-nft`
-- [ ] `POST /api/wallet/save-nft-changes`
-- [ ] `POST /api/wallet/magic-link`
-- [ ] `POST /api/wallet/restore`
+- [x] `POST /api/wallet/mint`
+- [x] `POST /api/wallet/rename-nft`
+- [x] `POST /api/wallet/evolve-nft`
+- [x] `POST /api/wallet/unwrap-nft`
+- [x] `POST /api/wallet/save-nft-changes`
+- [x] `POST /api/wallet/magic-link`
+- [x] `POST /api/wallet/restore`
 
 ### Turtle connection
 
@@ -337,8 +337,8 @@ For every table: capture exact `sqlite_master` SQL, indexes, primary keys, colla
 - [ ] Admin: `admin_audit`, `admin_sessions`, `admin_users`, `app_settings`.
 - [ ] Core social: `pets`, `friends`, `requests`, `push_subs`.
 - [x] Device sync: `device_sync_accounts`, `device_sync_codes`, `device_sync_members`.
-- [ ] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
-- [ ] NFTs and collections: `fren_nfts`, `frens_burn_log`, `collection_suggestions`, `collection_votes`.
+- [x] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
+- [x] NFTs and collections: `fren_nfts`, `frens_burn_log`, `collection_suggestions`, `collection_votes`.
 - [ ] Economy: `credit_accounts`, `credit_ledger`, `deposit_sessions`, `deposits`, `treasury_transfers`, `indexer_state`.
 - [x] Robots: `robot_care_daily`, `robot_discovery`, `robot_owner_inventory`, `robot_ownership`, `robot_gallery_art`, `robot_gallery_events`, `robot_gallery_owners`, `robot_gallery_state`.
 - [ ] External collections: `extra_companion_inventory`, `extra_companion_ownership`, `turtle_ownership`, `turtle_pairings`.
@@ -355,7 +355,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 
 - [ ] Server/network: `HOST`, `PORT`, `DB_PATH`, `PET_DOMAIN`, `ALLOWED_ORIGINS`, `ALLOW_NATIVE_ORIGIN`, `TRUST_PROXY`.
 - [ ] AI: `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_MODEL`.
-- [ ] Bankr: `BANKR_API_KEY`, `BANKR_API_URL`, `BANKR_PARTNER_KEY`.
+- [x] Bankr: `BANKR_API_KEY`, `BANKR_API_URL`, `BANKR_PARTNER_KEY`.
 - [ ] Chain/NFT: `BASE_RPC_URL`, `CHAIN_ID`, `TINYFRENS_NFT_ADDRESS`, `TINYFRENS_NFT_MINT_PRICE_WEI`, `ALLOW_TESTNET_FREE_MINT`, `FREN_VAULT_SEED`, `FRENS_PER_VAULT_MINT`, `SAVE_CHANGES_FEE_FRENS`, `ROBOTS_RPC_URL`, `ROBINHOOD_RPC_URL`, `ROBINHOOD_BLOCKSCOUT_API_URL`.
 - [ ] Economy/deposits: `ECONOMY_MODE`, `ECONOMY_DEPOSITS`, `ECONOMY_INDEXER_SECRET`, `DEPOSIT_ROUTER_PROXY`, `DEPOSIT_SESSION_ADDRESSES`, `GAME_CONTROLLER_PRIVATE_KEY`, `INDEXER_ENABLED`, `INDEXER_LOOKBACK`, `INDEXER_POLL_SECONDS`.
 - [ ] Treasury: `FRENS_TOKEN`, `FRENS_TREASURY`, `FRENS_TREASURY_INDEXER`, `FRENS_TREASURY_MAX_CREDITS`, `FRENS_TREASURY_CHAIN_ID`, `FRENS_TREASURY_TOKEN`.
@@ -372,7 +372,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 ## External integration parity
 
 - [ ] Gemini request schema, system prompt, model default, temperature, token limit, timeout, and refusal/error parsing.
-- [ ] Bankr authentication, wallet APIs, transform/monitor calls, timeouts, and error redaction.
+- [x] Bankr authentication, wallet APIs, transform/monitor calls, timeouts, and error redaction.
 - [ ] Ethereum JSON-RPC quantities, ABI encoding, checksums, personal-sign recovery, transaction signing, gas padding, and receipt polling.
 - [ ] Robinhood RPC and Blockscout pagination, bounded ranges, ownership rechecks, and partial-result flags.
 - [ ] Robots RPC calls and event decoding.
