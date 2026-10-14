@@ -7,6 +7,8 @@ export const HOOD_TURTLE_CHAIN_ID = 4663;
 export const HOOD_TURTLE_OWNERSHIP_TTL = 86400; // 24 hours
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 export const PAIRING_TTL = 600; // 10 minutes
+const DEFAULT_ROBINHOOD_RPC_URL = 'https://rpc.mainnet.chain.robinhood.com';
+const DEFAULT_ROBINHOOD_BLOCKSCOUT_URL = 'https://robinhoodchain.blockscout.com/api/v2';
 
 export function turtleId(value: unknown): number {
   if (typeof value === 'boolean') {
@@ -46,7 +48,7 @@ export class TurtleOwnership {
     rpcUrl?: string,
     now?: () => number
   ) {
-    this.rpcUrl = rpcUrl ?? process.env.ROBINHOOD_RPC_URL ?? 'https://rpc.mainnet.chain.robinhood.com';
+    this.rpcUrl = rpcUrl ?? DEFAULT_ROBINHOOD_RPC_URL;
     this.now = now ?? (() => Date.now() / 1000);
     this.db.prepare(`
       CREATE TABLE IF NOT EXISTS turtle_ownership(
@@ -211,7 +213,7 @@ export class TurtleOwnership {
 
 export async function rpcCandidates(
   address: string,
-  rpcUrl = process.env.ROBINHOOD_RPC_URL ?? 'https://rpc.mainnet.chain.robinhood.com'
+  rpcUrl = DEFAULT_ROBINHOOD_RPC_URL
 ): Promise<{ candidates: Set<number>; partial: boolean }> {
   async function call(method: string, params: unknown[]): Promise<any> {
     const controller = new AbortController();
@@ -293,8 +295,8 @@ export async function rpcCandidates(
 export async function discoverWallets(
   addresses: string[],
   ownership: TurtleOwnership,
-  rpcUrl = process.env.ROBINHOOD_RPC_URL ?? 'https://rpc.mainnet.chain.robinhood.com',
-  blockscoutUrl = process.env.ROBINHOOD_BLOCKSCOUT_API_URL ?? 'https://robinhoodchain.blockscout.com/api/v2'
+  rpcUrl = DEFAULT_ROBINHOOD_RPC_URL,
+  blockscoutUrl = DEFAULT_ROBINHOOD_BLOCKSCOUT_URL
 ): Promise<{ nfts: any[]; partial: boolean }> {
   const root = blockscoutUrl.replace(/\/+$/, '');
 

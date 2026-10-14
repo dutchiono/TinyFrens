@@ -17,7 +17,7 @@ async function main(): Promise<void> {
     context,
     serverOptions: {
       logger: {
-        level: process.env.LOG_LEVEL || 'info',
+        level: config.LOG_LEVEL,
       },
     },
   });
