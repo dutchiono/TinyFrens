@@ -1,5 +1,5 @@
 {$PET_DOMAIN} {
-    reverse_proxy relay:8080
+    reverse_proxy {$RELAY_UPSTREAM:relay:8080}
 }
 
 # Optional, non-public admin host (see README "Admin"). Set ADMIN_DOMAIN to a hostname that

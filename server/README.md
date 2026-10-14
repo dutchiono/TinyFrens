@@ -5,8 +5,8 @@ Ready to deploy later. The app remains usable without this service; live Friends
 ## Deploy on your server
 
 1. Create a DNS A/AAAA record such as `pets.example.com` pointing to your server. Install Docker with Compose.
-2. Copy this `server/` directory there. Copy `.env.example` to `.env` and set `PET_DOMAIN` to that hostname (no `https://`). Open inbound TCP ports 80 and 443.
-3. Run `docker compose up -d --build`. Caddy gets an HTTPS certificate and forwards HTTP and WebSocket traffic. Check `https://pets.example.com/health` for `{"ok":true}`.
+2. Copy the full repository checkout there. Copy `server/.env.example` to `server/.env` and set `PET_DOMAIN` to that hostname (no `https://`). Open inbound TCP ports 80 and 443.
+3. From `server/`, run `docker compose up -d --build`. The image builds the compiled Node 22 TypeScript server, Caddy gets an HTTPS certificate, and HTTP and WebSocket traffic share the same upstream. Check `https://pets.example.com/health` for `{"ok":true}`.
 4. On each phone: **Settings → Friends server setup → Server address**, enter `https://pets.example.com` and tap **Connect**. Or set that URL in `web/social-config.js` and rebuild once to supply the default to all installs.
 5. Swap the eight-character friend codes. **Add friend → Accept** on the other phone. With both apps open, **Ask to visit → Let them visit**. Wave/Dance synchronize, changes to the visiting pet's name/look appear on the host, and either person can end the visit.
 
@@ -156,11 +156,31 @@ Production FRENS on Base: `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` (see `con
 
 Back up the `pets` Docker volume (SQLite database) and keep it private. Use one relay instance; visits/presence/rate limits are in memory. Scale-out or guaranteed background notifications need additional work. Deploy behind Caddy as provided; `TRUST_PROXY=true` assumes the relay port is not publicly exposed. Limit origin access with `ALLOWED_ORIGINS` (comma-separated exact origins). `ALLOW_NATIVE_ORIGIN=true` admits `Origin: null` for the bundled Android/iOS file WebViews, but still requires private device credentials. For web-only installs, turn it off. Origin checks are not user authentication.
 
+Before the TypeScript cutover, tag the last Python image and set `TINYFRENS_ROLLBACK_IMAGE` in `server/.env`. Rollback reuses the same SQLite volume and does not run a reverse migration:
+
+```sh
+docker compose stop relay caddy
+RELAY_UPSTREAM=relay-rollback:8080 docker compose --profile rollback up -d relay-rollback caddy
+```
+
+Return traffic to TypeScript with `docker compose --profile rollback stop relay-rollback caddy`, then `docker compose up -d relay caddy`. Never run both writers against the shared database.
+
 Registration, requests, messages and connections have rate limits and frame/body size caps. This is suitable for a small family deployment, not an unaudited large public service. Keep dependency/security updates current.
 
 ## Local test
 
-Python 3.12+:
+Node 22+:
+
+```sh
+cd server-ts
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run smoke
+```
+
+The production smoke test launches the compiled entrypoint with a temporary SQLite database, verifies `/health`, sends `SIGTERM`, and requires a clean exit. Python remains the frozen characterization reference during migration:
 
 ```sh
 pip install -r requirements.txt

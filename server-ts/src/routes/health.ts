@@ -3,6 +3,11 @@ import { AppContext } from '../context.js';
 
 export function registerHealthRoutes(app: FastifyInstance, context: AppContext): void {
   app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
-    return reply.status(200).send({ ok: true });
+    try {
+      context.db.prepare<{ ok: number }>('SELECT 1 AS ok').get();
+      return reply.status(200).send({ ok: true });
+    } catch {
+      return reply.status(503).send({ ok: false });
+    }
   });
 }

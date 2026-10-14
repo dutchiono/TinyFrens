@@ -80,6 +80,7 @@ export interface DepositIndexerOptions {
   startBlock?: string | number;
   maxBlockSpan?: number;
   fetcher?: FetchFunction;
+  onError?: (error: unknown) => void;
 }
 
 export class DepositIndexer {
@@ -91,6 +92,7 @@ export class DepositIndexer {
   startBlock: string | number;
   maxSpan: number;
   private fetcher: FetchFunction;
+  private onError?: (error: unknown) => void;
   private stopFlag = false;
   private runningPromise: Promise<void> | null = null;
 
@@ -103,6 +105,7 @@ export class DepositIndexer {
     this.startBlock = options.startBlock ?? 'latest';
     this.maxSpan = Number(options.maxBlockSpan ?? 2000);
     this.fetcher = options.fetcher || globalThis.fetch;
+    this.onError = options.onError;
 
     this.economy.db.exec(INDEXER_SCHEMA);
   }
@@ -267,8 +270,8 @@ export class DepositIndexer {
     while (!this.stopFlag && !stopSignal?.aborted) {
       try {
         await this.runOnce();
-      } catch {
-        // Retry next interval
+      } catch (error) {
+        this.onError?.(error);
       }
       if (this.stopFlag || stopSignal?.aborted) break;
       await new Promise<void>(resolve => {
@@ -314,6 +317,7 @@ export interface TreasuryTransferIndexerOptions {
   resolve?: (sender: string) => string | null;
   maxCredits?: number | null;
   fetcher?: FetchFunction;
+  onError?: (error: unknown) => void;
 }
 
 export class TreasuryTransferIndexer {
@@ -329,6 +333,7 @@ export class TreasuryTransferIndexer {
   resolve: ((sender: string) => string | null) | null;
   maxCredits: number | null;
   private fetcher: FetchFunction;
+  private onError?: (error: unknown) => void;
   private stopFlag = false;
   private runningPromise: Promise<void> | null = null;
 
@@ -345,6 +350,7 @@ export class TreasuryTransferIndexer {
     this.resolve = options.resolve || null;
     this.maxCredits = options.maxCredits !== undefined ? options.maxCredits : null;
     this.fetcher = options.fetcher || globalThis.fetch;
+    this.onError = options.onError;
 
     this.economy.db.exec(INDEXER_SCHEMA);
   }
@@ -483,8 +489,8 @@ export class TreasuryTransferIndexer {
     while (!this.stopFlag && !stopSignal?.aborted) {
       try {
         await this.runOnce();
-      } catch {
-        // Retry next interval
+      } catch (error) {
+        this.onError?.(error);
       }
       if (this.stopFlag || stopSignal?.aborted) break;
       await new Promise<void>(resolve => {
