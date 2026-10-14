@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Native auto-merges requested with GITHUB_TOKEN can suppress push workflows.
+  # Reconcile main periodically too; unchanged releases skip building/publishing.
+  schedule:
+    - cron: '*/5 * * * *'
 permissions:
   contents: read
 concurrency:
@@ -18,14 +22,31 @@ jobs:
       url: https://tinyfrens.lol
     steps:
       - uses: actions/checkout@v4
+      - name: Check whether main needs publishing
+        id: needed
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          try:
+              with urllib.request.urlopen('https://tinyfrens.lol/release.json', timeout=15) as response:
+                  current = json.load(response).get('revision')
+          except Exception:
+              current = None
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('publish=' + str(current != os.environ['GITHUB_SHA']).lower() + '\n')
+          PY
       - uses: actions/setup-node@v4
+        if: steps.needed.outputs.publish == 'true'
         with:
           node-version: '22'
       - name: Build public artifact
+        if: steps.needed.outputs.publish == 'true'
         run: node scripts/build-site.mjs
       - name: Package website
+        if: steps.needed.outputs.publish == 'true'
         run: tar -czf "$RUNNER_TEMP/website.tar.gz" -C dist .
       - name: Check that this is still the latest main revision
+        if: steps.needed.outputs.publish == 'true'
         id: current
         run: |
           latest=$(git ls-remote origin refs/heads/main | cut -f1)

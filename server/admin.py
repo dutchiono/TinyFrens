@@ -18,11 +18,13 @@ import logging
 import os
 import re
 import secrets
+import sqlite3
 import time
 
 from aiohttp import web
 
 import robot_care
+from market_quote import MarketQuote
 
 log = logging.getLogger("admin")
 
@@ -329,6 +331,7 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
         initial_password=pass_init,
         seed_default_user=seed_default_user,
     )
+    market = MarketQuote()
 
     def guard(request):
         if not admin.enabled:
@@ -347,11 +350,13 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
         def one(sql, args=()):
             try:
                 return admin.db.execute(sql, args).fetchone()[0] or 0
-            except Exception:
-                return 0
+            except sqlite3.Error:
+                log.warning('Admin metric unavailable: %s', sql)
+                return None
         day = time.strftime('%Y-%m-%d', time.gmtime(admin.now()))
         return {
-            'pets': one('SELECT COUNT(*) FROM pets'),
+            'registeredDevices': one('SELECT COUNT(*) FROM pets'),
+            'syncAccounts': one('SELECT COUNT(DISTINCT account) FROM device_sync_members'),
             'creditAccounts': one('SELECT COUNT(*) FROM credit_accounts'),
             'credits': one('SELECT COALESCE(SUM(balance),0) FROM credit_accounts'),
             'deposits': one('SELECT COUNT(*) FROM deposits'),
@@ -378,6 +383,7 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
                 s = economy_settings() or {}
                 view.update({'enabled': bool(s.get('enabled')), 'mode': s.get('mode'),
                              'chainId': s.get('chainId'), 'symbol': s.get('symbol'),
+                             'frensToken': s.get('frensToken'),
                              'depositsEnabled': bool(s.get('depositsEnabled'))})
             except Exception:
                 log.warning('economy settings unavailable', exc_info=True)
@@ -463,6 +469,10 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
         })
 
     @guarded
+    async def market_view(request):
+        return web.json_response(await market.get(economy_view()), headers={'Cache-Control': 'no-store'})
+
+    @guarded
     async def ledger(request):
         count = _clamp_int(request.query.get('limit', 50), 1, 200)
         rows = db.execute(
@@ -512,6 +522,7 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
     app.router.add_post('/api/admin/logout', logout)
     app.router.add_post('/api/admin/users', create_user_handler)
     app.router.add_get('/api/admin/state', state)
+    app.router.add_get('/api/admin/market', market_view)
     app.router.add_post('/api/admin/settings', update_settings)
     app.router.add_get('/api/admin/ledger', ledger)
     app.router.add_get('/api/admin/care', care_usage)

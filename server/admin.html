@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17142a"><title>TinyFrens admin</title><link rel="icon" href="icons/icon.svg"><style>
 :root{color-scheme:dark;background:#17142a;color:#f3eeff;font-family:system-ui,sans-serif}
 *{box-sizing:border-box}
-body{max-width:1000px;margin:auto;padding:24px 20px 60px}
+body{max-width:1440px;margin:auto;padding:32px 28px 80px;background:radial-gradient(ellipse at top right,#302042,transparent 60%)}
 h1{font-size:clamp(26px,4vw,40px);margin:0 0 6px}
 h2{font-size:20px;margin:32px 0 12px}
 p{color:#b9aecb;line-height:1.6}
@@ -22,14 +22,31 @@ th{color:#b9aecb;font-weight:600}
 .muted{color:#8f83a8;font-size:13px}
 .err{color:#ff9db1}
 .ok{color:#8ee6b0}
-.stats{display:flex;gap:24px;flex-wrap:wrap}
-.stat b{display:block;font-size:22px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.stat{background:#17142a;border:1px solid #47365f;border-radius:12px;padding:18px;min-width:0}
+.stat b{display:block;font-size:clamp(20px,2vw,28px);overflow-wrap:anywhere;font-variant-numeric:tabular-nums;margin-bottom:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
 .hidden{display:none}
 .user-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#282142;border:1px solid #47365f;border-radius:12px;margin:16px 0}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0;position:sticky;top:0;background:#17142af5;padding:12px 0;z-index:1}
+nav a{text-decoration:none;padding:9px 14px;border:1px solid #47365f;border-radius:9px}
+section{scroll-margin-top:90px}
+.table-wrap{overflow:auto;max-height:420px}
+.table-wrap th{position:sticky;top:0;background:#211c39}
+td{max-width:400px;overflow:hidden;text-overflow:ellipsis}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.section-heading h2{margin:0}
+.dashboard-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+.dashboard-grid .card{margin:0}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#c7a6ff}
+.contract{overflow-wrap:anywhere;font-family:monospace;font-size:12px}
+#marketStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+#marketStats .stat b{font-size:clamp(12px,1.3vw,20px);white-space:nowrap;overflow:auto}
+@media(max-width:760px){body{padding:20px 14px}.dashboard-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{padding:12px}.stat b{font-size:20px}.user-bar{gap:12px}.grid input{width:100%}nav{position:static}input{max-width:100%}}
 </style></head><body>
-<h1>TinyFrens admin</h1>
-<p>Operator surface for the robots care loop, credit ledger, and system tunables. Non-public operator access at <code>miono.live</code>.</p>
+<div class="eyebrow">TinyFrens · operator console</div>
+<h1>Your frens, at a glance.</h1>
+<p>Economy, care activity, and live settings in one place.</p>
 
 <div class="card" id="loginCard">
   <h2 style="margin-top:0">Log in</h2>
@@ -64,6 +81,20 @@ th{color:#b9aecb;font-weight:600}
 </div>
 
 <div id="app" class="hidden">
+  <nav aria-label="Admin sections"><a href="#overview">Overview</a><a href="#care-settings">Care settings</a><a href="#activity">Activity</a><a href="#access">Admin access</a></nav>
+  <section id="overview">
+    <div class="section-heading"><h2>Economy overview</h2><button class="ghost" id="refresh">Refresh overview</button></div>
+    <p id="loadmsg" class="muted" role="status"></p>
+    <div class="card"><div class="stats" id="stats"></div>
+      <p class="muted">Registered devices are browser/app credentials, including older installations. Sync accounts group linked devices. Neither is a count of imported frens or active users.</p>
+      <p class="muted" id="economy"></p>
+    </div>
+    <div class="dashboard-grid">
+      <div class="card"><div class="eyebrow">Indicative market quote</div><h2 style="margin-top:8px">FRENS market</h2><div class="stats" id="marketStats"></div><p class="muted" id="marketSource" role="status">Loading market quote…</p><p class="contract" id="marketContract"></p></div>
+      <div class="card"><div class="eyebrow">USD conversion</div><h2 style="margin-top:8px">How many FRENS?</h2><div class="stats" id="conversions"></div><p class="muted">FRENS/ETH × ETH/USD = FRENS/USD. Quotes are cached for five minutes; refreshing does not bypass the cache. No RPC polling.</p><p class="muted" id="oracleStatus"></p><p class="muted">These estimates do not change care charges. Care prices remain denominated in FRENS.</p></div>
+    </div>
+  </section>
+  <section id="care-settings">
   <h2>Care tunables</h2>
   <div class="card">
     <div class="row">
@@ -83,29 +114,25 @@ th{color:#b9aecb;font-weight:600}
     </div>
   </div>
 
-  <h2>Status</h2>
-  <div class="card">
-    <div class="stats" id="stats"></div>
-    <p class="muted" id="economy"></p>
-  </div>
-
+  </section><section id="activity">
   <h2>Credit ledger</h2>
   <div class="card">
-    <div class="row"><button class="ghost" id="refresh">Refresh</button></div>
-    <table><thead><tr><th>#</th><th>Pet</th><th>Δ</th><th>Balance</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table>
+    <p class="muted">Device credit entries. Delta and balance are in internal credits; the conversion rate is shown above.</p>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ credits</th><th>Balance (credits)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
   </div>
 
   <h2>Care usage today</h2>
   <div class="card">
-    <table><thead><tr><th>Pet</th><th>Used</th></tr></thead><tbody id="care"></tbody></table>
+    <p class="muted">Daily allowance usage, per device, for the current UTC day.</p>
+    <div class="table-wrap"><table><thead><tr><th>Device</th><th>Used</th></tr></thead><tbody id="care"></tbody></table></div>
   </div>
 
   <h2>Recent admin changes</h2>
   <div class="card">
-    <table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table>
+    <div class="table-wrap"><table><thead><tr><th>Action</th><th>Detail</th><th>When</th></tr></thead><tbody id="audit"></tbody></table></div>
   </div>
 
-  <h2>Admin accounts</h2>
+  </section><section id="access"><h2>Admin accounts</h2>
   <div class="card">
     <div class="row">
       <label>New username
@@ -119,8 +146,9 @@ th{color:#b9aecb;font-weight:600}
       </div>
       <span id="usermsg" class="muted"></span>
     </div>
-    <table style="margin-top:16px"><thead><tr><th>Username</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table>
+    <div class="table-wrap"><table style="margin-top:16px"><thead><tr><th>Username</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table></div>
   </div>
+  </section>
 </div>
 
 <script>
@@ -157,6 +185,46 @@ th{color:#b9aecb;font-weight:600}
   }
 
   function when(ts){ return ts ? new Date(ts * 1000).toLocaleString() : ''; }
+
+  function metricCards(id, values){
+    var box = $(id); box.textContent = '';
+    values.forEach(function(pair){
+      var card = document.createElement('div'); card.className = 'stat';
+      var value = document.createElement('b'); value.textContent = pair[1];
+      var label = document.createElement('span'); label.className = 'muted'; label.textContent = pair[0];
+      card.appendChild(value); card.appendChild(label); box.appendChild(card);
+    });
+  }
+
+  function amount(value, currency){
+    if(value == null || !Number.isFinite(Number(value))) return 'Unavailable';
+    return (currency ? '$' : '') + Number(value).toLocaleString(undefined, {
+      maximumSignificantDigits: currency && Number(value) < 0.01 ? 6 : undefined,
+      maximumFractionDigits: currency && Number(value) < 0.01 ? 15 : 2
+    });
+  }
+
+  function loadMarket(){
+    return api('/api/admin/market').then(function(m){
+      metricCards('marketStats', [['1 FRENS / USD', amount(m.priceUsd, true)],
+        ['Market cap · provider reported', amount(m.marketCapUsd, true)],
+        ['1 FRENS / ETH', amount(m.frensEth, false)], ['1 ETH / USD', amount(m.ethUsd, true)],
+        ['Pool liquidity · USD', amount(m.liquidityUsd, true)], ['FDV · provider reported', amount(m.fdvUsd, true)]]);
+      // ETH fractions need enough precision to remain visible.
+      var eth = $('marketStats').children[2].querySelector('b');
+      eth.textContent = m.frensEth != null ? Number(m.frensEth).toLocaleString(undefined,{maximumSignificantDigits:8}) : 'Unavailable';
+      metricCards('conversions', [['$0.01 ≈ FRENS', amount(m.frensPerCent, false)], ['$1 ≈ FRENS', amount(m.frensPerDollar, false)]]);
+      $('marketSource').textContent = (m.status === 'stale' ? 'STALE · ' : '') + (m.source || 'Market quote') +
+        (m.fetchedAt ? ' · retrieved ' + when(m.fetchedAt) + ' (provider may lag trades)' : '') + (m.error ? ' · ' + m.error : '');
+      $('marketSource').className = m.status === 'available' ? 'muted' : 'err';
+      $('oracleStatus').textContent = m.oracle || 'No settlement price oracle configured';
+      $('marketContract').textContent = m.token ? 'Base · ' + m.token + ' · pool ' + (m.pairAddress || 'unavailable') : '';
+    }).catch(function(err){
+      metricCards('marketStats', [['Market quote', 'Unavailable']]);
+      metricCards('conversions', [['USD conversions', 'Unavailable']]);
+      $('marketSource').textContent = err.message; $('marketSource').className = 'err';
+    });
+  }
 
   function showLogin(msg){
     $('loginCard').classList.remove('hidden');
@@ -208,16 +276,15 @@ th{color:#b9aecb;font-weight:600}
       box.appendChild(wrap);
     });
 
-    var counts = state.counts || {};
+    var counts = state.counts || {}, e = state.economy || {};
     var stats = $('stats'); stats.textContent = '';
-    [['Pets', counts.pets], ['Credit accounts', counts.creditAccounts], ['FRENS credits', counts.credits],
+    [['Registered devices', counts.registeredDevices], ['Sync accounts', counts.syncAccounts], ['Credit accounts', counts.creditAccounts], ['FRENS balance', counts.credits != null && e.creditsPerFrens > 0 ? Number(counts.credits / e.creditsPerFrens).toLocaleString(undefined,{maximumFractionDigits:2}) : null],
      ['Deposits', counts.deposits], ['Care actions today', counts.careToday]].forEach(function(pair){
       var d = document.createElement('div'); d.className = 'stat';
       var b = document.createElement('b'); b.textContent = pair[1] != null ? pair[1] : '—';
       var span = document.createElement('span'); span.className = 'muted'; span.textContent = pair[0];
       d.appendChild(b); d.appendChild(span); stats.appendChild(d);
     });
-    var e = state.economy || {};
     $('cpf').textContent = e.creditsPerFrens != null ? e.creditsPerFrens : '?';
     $('economy').textContent = (e.enabled
       ? ('Economy: ' + (e.mode || '?') + ' · chain ' + (e.chainId || '?') + ' · ' + (e.symbol || 'FRENS') +
@@ -273,11 +340,14 @@ th{color:#b9aecb;font-weight:600}
     $('authmsg').className = 'muted';
     return api('/api/admin/state').then(function(data){
       state = data;
+      $('loadmsg').textContent = 'Overview updated ' + new Date().toLocaleTimeString();
+      $('loadmsg').className = 'muted';
       showApp(state.currentUser || sessionStorage.getItem(USER_KEY));
       render();
-      return Promise.all([loadLedger(), loadCare()]);
+      return Promise.all([loadLedger(), loadCare(), loadMarket()]);
     }).catch(function(err){
-      showLogin(err.message);
+      if(!state) showLogin(err.message);
+      else { $('loadmsg').textContent = err.message; $('loadmsg').className = 'err'; }
     });
   }
 
@@ -399,7 +469,11 @@ th{color:#b9aecb;font-weight:600}
   $('tokenBtn').addEventListener('click', loginWithToken);
   $('logoutBtn').addEventListener('click', logout);
   $('save').addEventListener('click', saveTunables);
-  $('refresh').addEventListener('click', function(){ loadLedger(); loadCare(); });
+  $('refresh').addEventListener('click', function(){
+    $('refresh').disabled = true;
+    $('loadmsg').textContent = 'Refreshing…';
+    loadState().finally(function(){ $('refresh').disabled = false; });
+  });
   $('addUserBtn').addEventListener('click', createUser);
 
   if(token()){

@@ -3,7 +3,7 @@
  const panel=document.createElement('section');panel.className='friends-panel';panel.id='friendsPanel';
  panel.innerHTML='<h3>Friends</h3><p id="friendsStatus" role="status">Connecting friends…</p><label for="myFriendCode">Your friend code</label><input id="myFriendCode" readonly placeholder="Connect first" spellcheck="false"><button id="copyFriendCode" class="secondary" disabled>Copy my code</button><form id="addFriendForm"><label for="friendCodeInput">Enter a friend’s code</label><input id="friendCodeInput" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required><button id="addFriendButton" disabled>Add friend</button></form><div id="friendRequests"></div><div id="visitRequests"></div><div id="battleRequests"></div><div id="liveBattle"></div><div id="liveVisit"></div><div id="friendList"></div><p class="small">Friends both accept before visiting. Open TinyFrens on both phones. Visits keep your local save on this device.</p>';
  $('shareVisit').closest('section').append(panel);
- const settings=document.createElement('section');settings.className='overlay';settings.innerHTML='<details><summary>Friends server setup</summary><p>Use the default relay, or connect your own.</p><label for="friendsServer">Server address</label><input id="friendsServer" type="url" placeholder="https://pets.example.com" autocomplete="off"><div class="actions"><button id="connectFriends">Connect</button><button id="disconnectFriends" class="secondary">Disconnect</button></div><p id="serverStatus" role="status"></p><p class="small">Use the same server on both phones. Your private device key stays on this phone. Clearing app data loses your friend code.</p></details>';$('settingsPanel').append(settings);
+ const settings=document.createElement('section');settings.className='overlay';settings.innerHTML='<details><summary>Friends server setup</summary><p>Use the default relay, or connect your own.</p><label for="friendsServer">Server address</label><input id="friendsServer" type="url" placeholder="https://frens.example.com" autocomplete="off"><div class="actions"><button id="connectFriends">Connect</button><button id="disconnectFriends" class="secondary">Disconnect</button></div><p id="serverStatus" role="status"></p><p class="small">Use the same server on both phones. Your private device key stays on this phone. Clearing app data loses your friend code.</p></details>';$('settingsPanel').append(settings);
  let ws=null,endpoint='',identity=null,enabled=false,retry=null,delay=1000,visit=null,battle=null,lastProfile='',generation=0,profileTimer=null;
  const notifiedRequests=new Set();
  const listeners=new Set();
@@ -98,7 +98,7 @@
   },4400);
   setTimeout(()=>{if(card.isConnected){statusNote.textContent='Good fightski! Heading home.';setTimeout(()=>{if(card.isConnected)endBattle();},2000);}},7500);
  }
- function normalize(raw){const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.pathname!=='/')throw new Error('Use an HTTPS server address, like https://pets.example.com');return u.origin;}
+ function normalize(raw){const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.pathname!=='/')throw new Error('Use an HTTPS server address, like https://frens.example.com');return u.origin;}
  let registrationId=0;const nativeRegistrations=new Map();
  window.onNativeFriendRegistration=data=>{const pending=nativeRegistrations.get(data.requestId);if(!pending)return;nativeRegistrations.delete(data.requestId);clearTimeout(pending.timer);if(data.result?.error)pending.reject(new Error(data.result.error));else pending.resolve(data.result);};
  async function register(){
@@ -120,7 +120,7 @@
    socket.onopen=()=>{if(socket!==ws)return;socket.send(JSON.stringify({type:'auth',token:identity.token}));};
    socket.onmessage=e=>{if(socket!==ws)return;try{const data=JSON.parse(e.data);if(data.type==='state'){clearTimeout(deadline);delay=1000;}message(data);}catch{status('Server response wasn’t understood.');}};
    socket.onclose=e=>{clearTimeout(deadline);if(socket!==ws)return;ws=null;endVisit();endBattle();$('addFriendButton').disabled=true;for(const b of $('friendList').querySelectorAll('button'))b.disabled=true;status(e.code===4003?'Device connection expired. Reconnect in Settings.':'Disconnected. Reconnecting when possible.');if(enabled&&e.code!==4003&&e.code!==4001)schedule();};
-   socket.onerror=()=>status('Can’t reach the server yet. Your pet is still here.');
+   socket.onerror=()=>status('Can’t reach the server yet. Your fren is still here.');
   }catch(e){if(gen!==generation)return;status(e.message||'Couldn’t connect.');if(enabled)schedule();}
  }
  function schedule(){clearTimeout(retry);retry=setTimeout(()=>{if(enabled)connect();},delay);delay=Math.min(30000,delay*2);}

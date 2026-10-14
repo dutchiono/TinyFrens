@@ -210,9 +210,26 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(data['actions']), set(rc.CARE_ACTIONS))
         self.assertEqual(data['economy']['treasury'], '0x' + 'de' * 20)
         self.assertEqual(data['economy']['symbol'], 'FRENS')
-        self.assertEqual(data['counts']['pets'], 0)
+        self.assertIsNone(data['counts']['registeredDevices'])  # absent table is not a fake zero
+        self.assertIsNone(data['counts']['syncAccounts'])
         self.assertEqual(data['audit'], [{'action': 'create_user', 'detail': {'username': 'dutch'},
                                           'created': data['audit'][0]['created']}])
+
+    async def test_device_count_is_not_a_fren_count(self):
+        self.db.execute('CREATE TABLE pets(id TEXT)')
+        self.db.executemany('INSERT INTO pets VALUES(?)', [('device-a',), ('device-b',)])
+        self.db.execute('CREATE TABLE device_sync_members(device TEXT, account TEXT)')
+        self.db.executemany('INSERT INTO device_sync_members VALUES(?,?)', [('device-a', 'shared'), ('device-b', 'shared')])
+        data = await (await self.client.get('/api/admin/state', headers=AUTH)).json()
+        self.assertEqual(data['counts']['registeredDevices'], 2)
+        self.assertEqual(data['counts']['syncAccounts'], 1)
+        self.assertNotIn('pets', data['counts'])
+
+    async def test_market_is_guarded_and_unsupported_config_is_explicit(self):
+        self.assertEqual((await self.client.get('/api/admin/market')).status, 401)
+        data = await (await self.client.get('/api/admin/market', headers=AUTH)).json()
+        self.assertEqual(data['status'], 'unavailable')
+        self.assertNotIn('priceUsd', data)
 
     async def test_update_settings_and_audit(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH, json={'gameRewardCredits': 750})

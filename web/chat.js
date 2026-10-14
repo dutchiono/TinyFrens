@@ -62,12 +62,12 @@
         body: JSON.stringify({message, pet: petProfile()})
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Pet chat is unavailable.');
+      if (!response.ok) throw new Error(data.error || 'Fren chat is unavailable.');
       line('pet', data.reply);
       status.textContent = '';
       window.animatePet?.('wave');
     } catch (error) {
-      status.textContent = error.message || 'Pet chat is unavailable.';
+      status.textContent = error.message || 'Fren chat is unavailable.';
       line('pet', 'I lost the signal for a second.');
     } finally {
       send.disabled = false;

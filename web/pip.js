@@ -37,11 +37,11 @@
     if (typeof video.webkitEnterFullscreen === 'function') {
       try {video.webkitEnterFullscreen();status.textContent='Use the video’s Picture in Picture control, or switch apps from full-screen playback. Availability depends on your iPhone settings.';return;} catch (_) {}
     }
-    status.textContent='Floating video is unavailable here. Try Safari on iPhone, or use the video’s controls. Your pet still works in this page.';
+    status.textContent='Floating video is unavailable here. Try Safari on iPhone, or use the video’s controls. Your fren still works in this page.';
   }
   const isFloating=()=>video.webkitPresentationMode==='picture-in-picture'||document.pictureInPictureElement===video;
   function refreshFloatButton(){button.textContent=isFloating()?'Hide pet':'Float pet';$('start').textContent=isFloating()?'Hide pet video':'Float pet video';}
-  function stopFloating(){if(video.webkitPresentationMode==='picture-in-picture')video.webkitSetPresentationMode('inline');else if(document.pictureInPictureElement===video)document.exitPictureInPicture().catch(()=>{});video.pause();status.textContent='Pet video hidden. Your pet stays saved.';refreshFloatButton();}
+  function stopFloating(){if(video.webkitPresentationMode==='picture-in-picture')video.webkitSetPresentationMode('inline');else if(document.pictureInPictureElement===video)document.exitPictureInPicture().catch(()=>{});video.pause();status.textContent='Fren video hidden. Your fren stays saved.';refreshFloatButton();}
   for(const event of ['enterpictureinpicture','leavepictureinpicture','webkitpresentationmodechanged'])video.addEventListener(event,refreshFloatButton);
   button.onclick = () => {
     if(isFloating()){stopFloating();return;}

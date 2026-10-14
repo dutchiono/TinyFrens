@@ -66,7 +66,7 @@ styleSection.innerHTML = `
   <input id="petSize" type="range" min="56" max="128" value="80">
 
   <!-- Imported NFTs have individual movement controls on Show NFTs. -->
-  <div hidden><output id="speedValue">60</output><input id="petSpeed" type="range" min="20" max="140" value="60" aria-label="Legacy pet speed"></div>
+  <div hidden><output id="speedValue">60</output><input id="petSpeed" type="range" min="20" max="140" value="60" aria-label="Legacy fren speed"></div>
 
   <!-- On-chain Spec Compiler -->
   <div class="compiler-box">
@@ -204,7 +204,7 @@ function saveLook(reset) {
   stylePet(state);
   render(state);
   window.dispatchEvent(new Event('pet-profile-changed'));
-  $('styleMessage').textContent = (native || desktop) ? 'Saved! Your floating pet changes immediately.' : 'Look saved!';
+  $('styleMessage').textContent = (native || desktop) ? 'Saved! Your floating fren changes immediately.' : 'Look saved!';
 }
 
 function applyImmediateLook(data) {
@@ -349,8 +349,8 @@ $('dancePet')?.addEventListener('click', () => {
 
 $('toyPet')?.addEventListener('click', () => {
   window.tinyFrensEffects?.respond('toy');
-  if (desktop) { desktop.action('toy'); $('styleMessage').textContent = 'Toy placed beside your floating pet.'; }
-  else if (native) { PetAndroid.toy(); $('styleMessage').textContent = 'Toy placed. Show your pet to watch the chase.'; }
+  if (desktop) { desktop.action('toy'); $('styleMessage').textContent = 'Toy placed beside your floating fren.'; }
+  else if (native) { PetAndroid.toy(); $('styleMessage').textContent = 'Toy placed. Show your fren to watch the chase.'; }
   else {
     const stage = $('stage'); stage.classList.add('chasing'); let toy = stage.querySelector('.web-toy');
     if (!toy) { toy = document.createElement('button'); toy.className = 'web-toy'; toy.textContent = '●'; toy.setAttribute('aria-label', 'Move the toy'); stage.append(toy); }
