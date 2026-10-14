@@ -1,4 +1,7 @@
 import assert from 'node:assert';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, test } from 'node:test';
 import { getAddress, keccak256, stringToBytes } from 'viem';
 import { createDbConnection } from '../../src/db/connection.js';
@@ -210,6 +213,78 @@ describe('Domain: Indexer (Deposit & Treasury Transfer Indexers)', () => {
       assert.strictEqual(indexer.stateLast(), 1000);
       assert.strictEqual(scannedRanges.length, 2); // 801-900, 901-1000
     });
+
+    test('reopens the database and resumes after the persisted checkpoint', async () => {
+      const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'tinyfrens-indexer-restart-'));
+      const databasePath = path.join(tempRoot, 'restart.db');
+      const scannedRanges: Array<{ from: string; to: string }> = [];
+
+      try {
+        let head = 100;
+        const fetcher = async (_url: any, init: any) => {
+          const body = JSON.parse(init.body);
+          if (body.method === 'eth_blockNumber') {
+            return { ok: true, json: async () => ({ result: `0x${head.toString(16)}` }) } as any;
+          }
+          scannedRanges.push({ from: body.params[0].fromBlock, to: body.params[0].toBlock });
+          return { ok: true, json: async () => ({ result: [] }) } as any;
+        };
+
+        const firstDb = createDbConnection(databasePath);
+        runMigrations(firstDb);
+        const firstEconomy = new Economy(firstDb, () => 1000);
+        firstEconomy.openSession('pet-restart', '0x4444444444444444444444444444444444444444', 1);
+        const firstIndexer = new DepositIndexer({
+          economy: firstEconomy,
+          rpcUrl: 'http://127.0.0.1:8545',
+          chainId: 84532,
+          startBlock: 90,
+          fetcher,
+        });
+        assert.deepStrictEqual(await firstIndexer.runOnce(), { confirmed: 0, blocks: 10 });
+        firstDb.close();
+
+        head = 105;
+        const secondDb = createDbConnection(databasePath);
+        runMigrations(secondDb);
+        const secondIndexer = new DepositIndexer({
+          economy: new Economy(secondDb, () => 1000),
+          rpcUrl: 'http://127.0.0.1:8545',
+          chainId: 84532,
+          startBlock: 'earliest',
+          fetcher,
+        });
+        assert.deepStrictEqual(await secondIndexer.runOnce(), { confirmed: 0, blocks: 5 });
+        assert.deepStrictEqual(scannedRanges.at(-1), { from: '0x65', to: '0x69' });
+        assert.strictEqual(secondIndexer.stateLast(), 105);
+        secondDb.close();
+      } finally {
+        await rm(tempRoot, { recursive: true, force: true });
+      }
+    });
+
+    test('retries poll failures and stops through its abort signal', async () => {
+      const db = createDbConnection(':memory:');
+      runMigrations(db);
+      const errors: unknown[] = [];
+      const controller = new AbortController();
+      const indexer = new DepositIndexer({
+        economy: new Economy(db),
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+        pollSeconds: 0.001,
+        onError: error => errors.push(error),
+      });
+      indexer.runOnce = async () => {
+        controller.abort();
+        throw new Error('provider unavailable');
+      };
+
+      await indexer.runForever(controller.signal);
+      assert.strictEqual(errors.length, 1);
+      assert.match(String(errors[0]), /provider unavailable/);
+      db.close();
+    });
   });
 
   describe('TreasuryTransferIndexer', () => {
@@ -258,6 +333,79 @@ describe('Domain: Indexer (Deposit & Treasury Transfer Indexers)', () => {
       assert.strictEqual(credited, 1);
       assert.strictEqual(economy.balance('pet-treasury-owner'), 10000);
       assert.strictEqual(indexer.stateLast(), null); // scan doesn't commit head, runOnce does
+    });
+
+    test('filters treasury logs and records unmatched, capped, and duplicate transfers without crediting', async () => {
+      const db = createDbConnection(':memory:');
+      runMigrations(db);
+      const economy = new Economy(db, () => 1000);
+      const treasury = '0x8888888888888888888888888888888888888888';
+      const other = '0x7777777777777777777777777777777777777777';
+      const sender = '0x9999999999999999999999999999999999999999';
+      const token = '0x1A96226727a1D0a46334b3A4b3878B32B7659ba3';
+      const transfer = (recipient: string, amount: bigint, transactionHash: string) => ({
+        address: token,
+        topics: [
+          TRANSFER_TOPIC,
+          '0x000000000000000000000000' + sender.slice(2),
+          '0x000000000000000000000000' + recipient.slice(2),
+        ],
+        data: '0x' + amount.toString(16).padStart(64, '0'),
+        transactionHash,
+        logIndex: '0x0',
+      });
+      const calls: any[] = [];
+      let logs = [
+        transfer(other, 10n ** 18n, '0x' + '11'.repeat(32)),
+        transfer(treasury, 10n ** 18n, '0x' + '22'.repeat(32)),
+      ];
+      const fetcher = async (_url: any, init: any) => {
+        const body = JSON.parse(init.body);
+        calls.push(body);
+        return { ok: true, json: async () => ({ result: logs }) } as any;
+      };
+
+      const unmatched = new TreasuryTransferIndexer({
+        economy,
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+        treasury,
+        token,
+        resolve: () => null,
+        fetcher,
+      });
+      assert.strictEqual(await unmatched.scan(1, 2), 0);
+      assert.strictEqual(calls[0].params[0].address, getAddress(token));
+      assert.strictEqual(calls[0].params[0].topics[2], unmatched.recipientTopic());
+
+      logs = [transfer(treasury, 10n ** 21n, '0x' + '33'.repeat(32))];
+      const capped = new TreasuryTransferIndexer({
+        economy,
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+        treasury,
+        token,
+        resolve: () => 'pet-capped',
+        maxCredits: 100,
+        fetcher,
+      });
+      assert.strictEqual(await capped.scan(1, 2), 0);
+      assert.strictEqual(economy.balance('pet-capped'), 0);
+
+      logs = [transfer(treasury, 10n ** 18n, '0x' + '44'.repeat(32))];
+      const credited = new TreasuryTransferIndexer({
+        economy,
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+        treasury,
+        token,
+        resolve: () => 'pet-credited',
+        fetcher,
+      });
+      assert.strictEqual(await credited.scan(1, 2), 1);
+      assert.strictEqual(await credited.scan(1, 2), 0);
+      assert.strictEqual(economy.balance('pet-credited'), 100);
+      db.close();
     });
 
     test('runOnce manages treasury_last_block checkpoint', async () => {

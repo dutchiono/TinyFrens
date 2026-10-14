@@ -80,6 +80,10 @@ jobs:
         with:
           version: stable
 
+      - name: Test TypeScript indexer against Anvil
+        working-directory: server-ts
+        run: npm run test:indexer-integration
+
       - name: Check NFT artwork and storage budget
         run: node --test scripts/test-nft-art.mjs
 

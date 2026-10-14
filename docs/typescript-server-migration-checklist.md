@@ -309,7 +309,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [x] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors. (Phase 8 Slice 8D ports chat transcripts, Gemini drafting, REST issue creation, label filtering, persisted chat mapping, and safe user-facing failures.)
 - [ ] `hood_turtle_art.py` → media adapter; preserve SVG sanitization and walking animation.
 - [ ] `imported_gallery.py` → gallery routes; preserve selection-only exposure, pagination, deduplication, collection/chain constraints, and private-field exclusion.
-- [ ] `indexer.py` → independently runnable workers; preserve block ranges, independent checkpoints, reorg behavior, topic decoding, idempotency, cancellation, and CLI mode.
+- [x] `indexer.py` → independently runnable workers; preserve block ranges, independent checkpoints, reorg behavior, topic decoding, idempotency, cancellation, and CLI mode. (Phase 7 runs restart/checkpoint tests plus a real Anvil deployment covering ETH and ERC-20 deposits through the production allocator and indexer.)
 - [x] `nub_art.py` → media adapter; preserve image validation, dimensions, transparency, and hopping animation. (Pure-JavaScript PNG decoding/resizing generates the canonical four-frame transparent hop rig.)
 - [ ] `robot_care.py` → robot-care domain/routes/repository; preserve ownership checks, UTC allowance reset, live settings, charging order, prices, and rewards.
 - [ ] `robot_companion.py` → Robots RPC/metadata/ownership service; preserve token bounds, batch discovery, cache rules, and SVG sanitization.
@@ -387,8 +387,8 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 
 ## Background jobs and lifecycle
 
-- [ ] Deposit indexer startup, polling, checkpointing, stop signal, and shutdown.
-- [ ] Treasury transfer indexer startup, polling, checkpointing, stop signal, and shutdown.
+- [x] Deposit indexer startup, polling, checkpointing, stop signal, and shutdown. (Worker startup/lifecycle tests cover enablement and bounded shutdown; indexer tests cover retry, abort, persisted restart, chunking, and a real Anvil scan.)
+- [x] Treasury transfer indexer startup, polling, checkpointing, stop signal, and shutdown. (Worker startup/lifecycle tests cover enablement and bounded shutdown; indexer tests cover independent checkpoints, filters, caps, unmatched transfers, and idempotency.)
 - [x] Telegram challenge timers restored from SQLite after restart. (Phase 8 Slice 8A: persisted challenges reschedule on startup and cancel during graceful shutdown.)
 - [x] Five-second visit/battle/rate-limit cleanup loop. (Phase 9: one hub timer expires sessions and prunes stale rate-limit buckets.)
 - [x] Fire-and-forget push delivery does not hold request completion or leak database handles. (Phase 9: offline notifications use the real `web-push` sender and isolate best-effort failures from socket handling.)
@@ -412,7 +412,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [x] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.
 - [ ] `test_hood_turtle_art.py`: sanitization and animation.
 - [ ] `test_imported_gallery.py`: privacy, selection, collection/chain boundaries, deduplication, and pagination.
-- [ ] `test_indexer.py`: log decoding, filters, checkpoints, idempotency, caps, and ETH/ERC-20 indexing.
+- [x] `test_indexer.py`: log decoding, filters, checkpoints, idempotency, caps, and ETH/ERC-20 indexing. (The TypeScript integration test deploys the real economy contracts on Anvil and credits both asset paths.)
 - [ ] `test_nft_uri.py`: minted/unminted metadata and assets.
 - [x] `test_nub_art.py`: image validation and animation.
 - [x] `test_robot_care.py`: catalog, allowances, UTC reset, ownership, charging, prices, routes, and rewards.
@@ -446,7 +446,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
 - [x] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
 - [x] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
-- [ ] Phase 7: workers and restart recovery.
+- [x] Phase 7: workers and restart recovery.
 - [x] Phase 8: Telegram orchestration and moderation. (Slices 8A–8E cover persisted challenge recovery, moderation enforcement, interactive commands, conversational/issue flows, `/show`, GIF rendering, multipart upload, and media caching.)
 - [x] Phase 9: stateful WebSocket protocol and process-local presence. (Authentication, duplicate replacement, presence, parties, friends, visits, battles, expiry, heartbeat, payload limits, and graceful close are implemented.)
 - [ ] Phase 10: shadow comparison in staging with outbound side effects disabled.
