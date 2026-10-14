@@ -137,6 +137,20 @@ const requests = [
     headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
     body: '{}',
   },
+  {
+    name: 'malformed JSON registration',
+    method: 'POST',
+    path: '/api/register',
+    headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
+    body: '{',
+  },
+  {
+    name: 'oversized registration',
+    method: 'POST',
+    path: '/api/register',
+    headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
+    body: JSON.stringify({ pet: { name: 'x'.repeat(5000) } }),
+  },
 ];
 
 const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'tinyfrens-differential-'));

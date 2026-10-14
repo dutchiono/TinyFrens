@@ -37,7 +37,7 @@ export function getClientIp(request: FastifyRequest, trustProxy = false): string
   if (trustProxy) {
     const xff = request.headers['x-forwarded-for'];
     if (typeof xff === 'string' && xff.trim()) {
-      return xff.split(',')[0].trim();
+      return xff;
     }
   }
   return request.ip || '?';
