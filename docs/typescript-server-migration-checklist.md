@@ -130,7 +130,7 @@ server-ts/
 - [ ] Preserve JSON parsing failures and their existing status mappings.
 - [ ] Preserve provider error redaction so credentials, private keys, and upstream bodies cannot leak.
 - [ ] Preserve graceful shutdown: stop workers, cancel challenge timers, close sockets with code 1001, then close SQLite.
-- [ ] Preserve startup order so schemas exist before handlers or workers access them.
+- [x] Preserve startup order so schemas exist before handlers or workers access them.
 
 ## HTTP route inventory
 
@@ -324,10 +324,10 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `server/fixtures/**`: reference the same canonical assets and add integrity checks.
 - [ ] `server/.env.example`: replace with a complete typed configuration reference after all keys are reconciled.
 - [ ] `server/requirements.txt`: retain while Python reference exists; remove only after final rollback window.
-- [ ] `server/Dockerfile`: build one coherent artifact from the full TypeScript server tree; no hand-maintained production-module copy list.
-- [ ] `server/compose.yml`: update health checks, runtime, command, volumes, secrets, and rollback image.
-- [ ] `server/Caddyfile`: preserve host, proxy, body, timeout, TLS, and WebSocket behavior.
-- [ ] `server/README.md`: document dual-run, parity, deployment, rollback, backups, and final TypeScript operation.
+- [x] `server/Dockerfile`: build one coherent artifact from the full TypeScript server tree; no hand-maintained production-module copy list.
+- [x] `server/compose.yml`: update health checks, runtime, command, volumes, secrets, and rollback image.
+- [x] `server/Caddyfile`: preserve host, proxy, body, timeout, TLS, and WebSocket behavior.
+- [x] `server/README.md`: document dual-run, parity, deployment, rollback, backups, and final TypeScript operation.
 
 ## SQLite schema ledger
 
@@ -487,7 +487,7 @@ Use this sequence for every production file or extracted behavior group.
 - [ ] No production process imports or executes `server/*.py`.
 - [ ] No workflow, systemd unit, Docker file, Compose file, Caddy config, runbook, or deployment script starts Python.
 - [ ] No client depends on an unported error shape or undocumented response field.
-- [ ] Required GitHub checks run the TypeScript typecheck, targeted tests, parity manifest, build, and production startup smoke test.
+- [x] Required GitHub checks run the TypeScript typecheck, targeted tests, parity manifest, build, production image build, and startup smoke test.
 - [ ] Python requirements and tests are archived or removed only in the retirement PR.
 - [ ] Documentation describes the TypeScript source of truth and the supported local/deployment commands.
 - [ ] Final production backup and rollback artifact locations are recorded privately.

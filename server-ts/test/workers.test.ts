@@ -67,4 +67,28 @@ describe('Workers startup rules', () => {
     assert.ok(on.moderation);
     await on.stop();
   });
+
+  test('reports provider failures instead of silently swallowing them', async () => {
+    const expected = new Error('RPC unavailable');
+    let reported: { worker: string; error: unknown } | undefined;
+    let resolveReported!: () => void;
+    const reportedPromise = new Promise<void>(resolve => { resolveReported = resolve; });
+    const workers = startWorkers(
+      ctx({
+        BASE_RPC_URL: 'http://127.0.0.1:1',
+        DEPOSIT_ROUTER_PROXY: '0x' + '1'.repeat(40),
+        GAME_CONTROLLER_PRIVATE_KEY: '0x' + '2'.repeat(64),
+        INDEXER_POLL_SECONDS: '1',
+      }),
+      async () => { throw expected; },
+      (worker, error) => {
+        reported = { worker, error };
+        resolveReported();
+      }
+    );
+
+    await reportedPromise;
+    assert.deepStrictEqual(reported, { worker: 'deposit', error: expected });
+    await workers.stop();
+  });
 });

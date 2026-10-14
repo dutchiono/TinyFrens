@@ -68,6 +68,10 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+          npm run smoke
+
+      - name: Build TypeScript server production image
+        run: docker build -f server/Dockerfile -t tinyfrens-server:ci .
 
 
       - name: Install Foundry

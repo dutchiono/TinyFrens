@@ -39,6 +39,17 @@ describe('HTTP /health Route & Middleware Parity', () => {
     await app.close();
   });
 
+  test('GET /health fails when SQLite is unavailable', async () => {
+    const { app, db } = await setupTestApp();
+    db.close();
+
+    const response = await app.inject({ method: 'GET', url: '/health' });
+
+    assert.equal(response.statusCode, 503);
+    assert.deepEqual(JSON.parse(response.body), { ok: false });
+    await app.close();
+  });
+
   test('OPTIONS /health preflight returns 200 with CORS headers', async () => {
     const { app } = await setupTestApp();
 
