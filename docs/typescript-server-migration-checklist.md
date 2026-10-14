@@ -387,7 +387,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 
 - [ ] Deposit indexer startup, polling, checkpointing, stop signal, and shutdown.
 - [ ] Treasury transfer indexer startup, polling, checkpointing, stop signal, and shutdown.
-- [ ] Telegram challenge timers restored from SQLite after restart.
+- [x] Telegram challenge timers restored from SQLite after restart. (Phase 8 Slice 8A: persisted challenges reschedule on startup and cancel during graceful shutdown.)
 - [ ] Five-second visit/battle/rate-limit cleanup loop.
 - [ ] Fire-and-forget push delivery does not hold request completion or leak database handles.
 - [ ] GitHub App token cache and concurrent refresh locking.

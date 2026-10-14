@@ -11,6 +11,7 @@ const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
 export interface Workers {
   deposit: DepositIndexer | null;
   treasury: TreasuryTransferIndexer | null;
+  moderation: AppContext['telegramModeration'] | null;
   stop(): Promise<void>;
 }
 
@@ -26,6 +27,9 @@ export function startWorkers(context: AppContext, fetcher?: FetchFunction): Work
   const mode = String(config.INDEXER_ENABLED || 'auto').toLowerCase();
   let deposit: DepositIndexer | null = null;
   let treasury: TreasuryTransferIndexer | null = null;
+  const moderation = config.TELEGRAM_MODERATION && config.TELEGRAM_BOT_TOKEN
+    ? context.telegramModeration
+    : null;
 
   const autoReady = Boolean(config.DEPOSIT_ROUTER_PROXY && config.GAME_CONTROLLER_PRIVATE_KEY && rpc);
   if (rpc && mode !== 'false' && (mode === 'true' || autoReady)) {
@@ -56,12 +60,14 @@ export function startWorkers(context: AppContext, fetcher?: FetchFunction): Work
 
   deposit?.start().catch(() => undefined);
   treasury?.start().catch(() => undefined);
+  moderation?.start();
 
   return {
     deposit,
     treasury,
+    moderation,
     async stop() {
-      await Promise.all([deposit?.aclose(), treasury?.aclose()]);
+      await Promise.all([deposit?.aclose(), treasury?.aclose(), moderation?.stop()]);
     },
   };
 }
