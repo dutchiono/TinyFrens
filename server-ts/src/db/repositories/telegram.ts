@@ -120,9 +120,10 @@ export class TelegramRepository {
   }
 
   // TG Moderation Filters
-  listFilters(chatId: string): { trigger: string; response: string }[] {
-    return this.db.prepare<{ trigger: string; response: string }>(
-      'SELECT trigger, response FROM tg_filters WHERE chat_id=?'
+  listFilters(chatId: string): TgFilterRow[] {
+    return this.db.prepare<TgFilterRow>(
+      `SELECT chat_id, trigger, response, created_by, created_at
+       FROM tg_filters WHERE chat_id=? ORDER BY trigger ASC`
     ).all(chatId);
   }
 
@@ -155,14 +156,14 @@ export class TelegramRepository {
   // TG Moderation Blocklist
   listBlocklist(chatId: string): string[] {
     const rows = this.db.prepare<{ pattern: string }>(
-      'SELECT pattern FROM tg_blocklist WHERE chat_id=?'
+      'SELECT pattern FROM tg_blocklist WHERE chat_id=? ORDER BY pattern ASC'
     ).all(chatId);
     return rows.map(r => r.pattern);
   }
 
   addBlocklistPattern(chatId: string, pattern: string, createdBy: string, createdAt: number): void {
     this.db.prepare(
-      'INSERT OR IGNORE INTO tg_blocklist(chat_id, pattern, created_by, created_at) VALUES(?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO tg_blocklist(chat_id, pattern, created_by, created_at) VALUES(?, ?, ?, ?)'
     ).run(chatId, pattern, createdBy, createdAt);
   }
 
@@ -196,8 +197,8 @@ export class TelegramRepository {
     ).run(chatId, userId, strikes, lastViolation, updatedAt);
   }
 
-  resetStrikes(chatId: string, userId: string): void {
-    this.db.prepare('DELETE FROM tg_strikes WHERE chat_id=? AND user_id=?').run(chatId, userId);
+  resetStrikes(chatId: string, userId: string): boolean {
+    return this.db.prepare('DELETE FROM tg_strikes WHERE chat_id=? AND user_id=?').run(chatId, userId).changes > 0;
   }
 
   // TG Captcha Challenges
@@ -205,6 +206,12 @@ export class TelegramRepository {
     return this.db.prepare<TgChallengeRow>(
       'SELECT chat_id, user_id, token, answer, attempts, expires, message_id FROM tg_challenges WHERE chat_id=? AND user_id=?'
     ).get(chatId, userId);
+  }
+
+  getChallengeByToken(token: string): TgChallengeRow | undefined {
+    return this.db.prepare<TgChallengeRow>(
+      'SELECT chat_id, user_id, token, answer, attempts, expires, message_id FROM tg_challenges WHERE token=?'
+    ).get(token);
   }
 
   saveChallenge(challenge: TgChallengeRow): void {
@@ -225,6 +232,33 @@ export class TelegramRepository {
 
   deleteChallenge(chatId: string, userId: string): void {
     this.db.prepare('DELETE FROM tg_challenges WHERE chat_id=? AND user_id=?').run(chatId, userId);
+  }
+
+  setChallengeMessage(token: string, messageId: number | null): void {
+    this.db.prepare('UPDATE tg_challenges SET message_id=? WHERE token=?').run(messageId, token);
+  }
+
+  recordChallengeFailure(token: string): number {
+    const update = this.db.transaction(() => {
+      const row = this.db.prepare<{ attempts: number }>(
+        'SELECT attempts FROM tg_challenges WHERE token=?'
+      ).get(token);
+      if (!row) return 0;
+      const attempts = Number(row.attempts) + 1;
+      this.db.prepare('UPDATE tg_challenges SET attempts=? WHERE token=?').run(attempts, token);
+      return attempts;
+    });
+    return update();
+  }
+
+  deleteChallengeByToken(token: string): boolean {
+    return this.db.prepare('DELETE FROM tg_challenges WHERE token=?').run(token).changes > 0;
+  }
+
+  pendingChallenges(): TgChallengeRow[] {
+    return this.db.prepare<TgChallengeRow>(
+      'SELECT chat_id, user_id, token, answer, attempts, expires, message_id FROM tg_challenges'
+    ).all();
   }
 
   deleteExpiredChallenges(nowSeconds: number): void {

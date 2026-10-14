@@ -16,6 +16,8 @@ import { Economy, AddressPool } from './domain/economy.js';
 import { DepositRouterAllocator } from './integrations/deposit-allocator.js';
 import { Admin } from './domain/admin.js';
 import { MarketQuote } from './domain/market-quote.js';
+import { TelegramModeration } from './domain/telegram-moderation.js';
+import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -51,6 +53,8 @@ export interface AppContext {
   robotCareSettings?: () => RobotCareSettings | null | undefined;
   admin: Admin;
   marketQuote: MarketQuote;
+  telegramApi: TelegramBotApi;
+  telegramModeration: TelegramModeration;
 }
 
 export function createAppContext(
@@ -77,6 +81,8 @@ export function createAppContext(
     robotCare: null as any,
     admin: null as any,
     marketQuote: null as any,
+    telegramApi: null as any,
+    telegramModeration: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
@@ -94,6 +100,18 @@ export function createAppContext(
   });
   ctx.admin = admin;
   ctx.marketQuote = overrides?.marketQuote ?? new MarketQuote(() => ctx.now());
+  ctx.telegramApi = overrides?.telegramApi ?? new FetchTelegramBotApi();
+  ctx.telegramModeration = overrides?.telegramModeration ?? new TelegramModeration(
+    repos.telegram,
+    ctx.telegramApi,
+    {
+      enabled: config.TELEGRAM_MODERATION,
+      timeout: config.TELEGRAM_MODERATION_TIMEOUT,
+      botUsername: config.TELEGRAM_BOT_USERNAME,
+      token: config.TELEGRAM_BOT_TOKEN,
+      now: () => ctx.now(),
+    }
+  );
   const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(

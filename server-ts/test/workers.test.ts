@@ -53,4 +53,18 @@ describe('Workers startup rules', () => {
     assert.ok(good.treasury);
     await good.stop();
   });
+
+  test('restores moderation challenges only when moderation and bot token are configured', async () => {
+    const off = startWorkers(ctx({ TELEGRAM_MODERATION: 'false', TELEGRAM_BOT_TOKEN: 'token' }), rpcStub);
+    assert.strictEqual(off.moderation, null);
+    await off.stop();
+
+    const missingToken = startWorkers(ctx({ TELEGRAM_MODERATION: 'true' }), rpcStub);
+    assert.strictEqual(missingToken.moderation, null);
+    await missingToken.stop();
+
+    const on = startWorkers(ctx({ TELEGRAM_MODERATION: 'true', TELEGRAM_BOT_TOKEN: 'token' }), rpcStub);
+    assert.ok(on.moderation);
+    await on.stop();
+  });
 });

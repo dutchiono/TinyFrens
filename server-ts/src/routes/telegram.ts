@@ -85,6 +85,10 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         return reply.status(200).send({ ok: true });
       }
 
+      if (await context.telegramModeration.handleUpdate(update)) {
+        return reply.status(200).send({ ok: true });
+      }
+
       const [kind, chatId, chat] = classify(update);
 
       const syncCode = linkCode(update);
