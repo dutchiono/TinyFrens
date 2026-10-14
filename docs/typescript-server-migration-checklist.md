@@ -313,7 +313,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `robot_companion.py` → Robots RPC/metadata/ownership service; preserve token bounds, batch discovery, cache rules, and SVG sanitization.
 - [ ] `robot_gallery.py` → robot gallery route/repository/service; preserve event indexing, pagination, cache markers, provider-failure behavior, and HTTP cache headers.
 - [ ] `telegram_integration.py` → Telegram core integration; preserve init-data HMAC, auth age, deterministic identities, Bot API multipart requests, classifications, deep links, and issue commands.
-- [ ] `telegram_interactive.py` → Telegram game/admin/status service; preserve secret redaction, owner/admin rules, game state, rendering, GitHub progress, and triage output.
+- [x] `telegram_interactive.py` → Telegram game/admin/status service; preserve secret redaction, owner/admin rules, game state, rendering, GitHub progress, and triage output.
 - [ ] `telegram_media.py` → Telegram GIF renderer; preserve supported SVG elements, path rendering, transforms, dimensions, frame timing, and PNG behavior.
 - [x] `telegram_moderation.py` → Telegram moderation service/repository; preserve parser grammar, whole-word filters, strike rules, admin lookup, randomized challenges, persisted expiry, and fail-open restoration.
 - [ ] `turtle_connect.py` → turtle-connect routes/service/repository; preserve EIP-191 messages, signature recovery, token bounds, wallet-wide links, Bankr verification, bounded discovery, pairing expiry, agent paths, and fail-closed ownership.
@@ -416,7 +416,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [x] `test_robot_care.py`: catalog, allowances, UTC reset, ownership, charging, prices, routes, and rewards.
 - [x] `test_robot_companion.py`: art parsing, ownership renewal, transfer revocation, discovery, and incomplete inventories.
 - [ ] `test_robot_gallery.py`: concurrency, restarts, refreshes, mint/burn/reorgs, cache fallback, pagination, and headers.
-- [ ] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
+- [x] `test_telegram_interactive.py`: redaction, permissions, game loop, cards, GitHub progress, status, and triage.
 - [ ] `test_telegram_media.py`: robot/turtle/PNG animation rendering.
 - [x] `test_telegram_moderation.py`: command grammar, filters, blocklist, strikes, and admin roles.
 - [x] `test_turtle_connect.py`: wallet-wide pairing, signatures, Bankr, multi-wallet discovery, RPC fallback, expiry, restart, ownership, unlinking, and origins.

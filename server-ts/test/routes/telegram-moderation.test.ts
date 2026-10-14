@@ -107,4 +107,44 @@ describe('Telegram moderation webhook orchestration', () => {
     assert.ok(api.calls.some(call => call.method === 'deleteMessage' && call.payload.message_id === 4));
     assert.ok(api.calls.some(call => call.method === 'banChatMember' && call.payload.user_id === 5));
   });
+
+  test('serves game and public status commands', async () => {
+    const chat = { id: -200, type: 'private' };
+    await webhook({
+      message_id: 6,
+      text: '/game',
+      chat,
+      from: { id: 22, first_name: 'Ada' },
+    });
+    assert.match(String(api.calls.at(-1)?.payload.text), /Ada's Fren/);
+    assert.equal(api.calls.at(-1)?.payload.parse_mode, 'HTML');
+
+    await webhook({
+      message_id: 7,
+      text: '/status',
+      chat,
+      from: { id: 22, first_name: 'Ada' },
+    });
+    assert.match(String(api.calls.at(-1)?.payload.text), /Server Status: Online/);
+  });
+
+  test('restricts admin triage in DMs to the owner', async () => {
+    const chat = { id: -300, type: 'private' };
+    await webhook({
+      message_id: 8,
+      text: '/admin',
+      chat,
+      from: { id: 22, username: 'random_user' },
+    });
+    assert.match(String(api.calls.at(-1)?.payload.text), /Access Denied/);
+
+    await webhook({
+      message_id: 9,
+      text: '/admin',
+      chat,
+      from: { id: 1, username: 'dutchiono' },
+    });
+    assert.match(String(api.calls.at(-1)?.payload.text), /Host & Server Triage/);
+    assert.doesNotMatch(String(api.calls.at(-1)?.payload.text), /bot-token/);
+  });
 });
