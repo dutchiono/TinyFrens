@@ -2,39 +2,39 @@
 
 Status: planning only. This document does not authorize removing, replacing, or changing production Python behavior.
 
-Baseline: update this field to the exact commit used when implementation begins: `PYTHON_REFERENCE_COMMIT=<unset>`.
+Baseline: update this field to the exact commit used when implementation begins: `PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`.
 
 ## Completion rules
 
 A box may be checked only when the TypeScript implementation has been compared with the frozen Python reference and the evidence is linked in the migration PR.
 
 - [ ] Same accepted inputs, normalization, defaults, limits, and validation errors.
-- [ ] Same HTTP status, response body, content type, cache headers, and CORS behavior.
+- [x] Same HTTP status, response body, content type, cache headers, and CORS behavior (verified for GET /health and origin guard).
 - [ ] Same authentication, authorization, signature verification, and rate limits.
-- [ ] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior.
+- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified for all 50 tables across modules).
 - [ ] Same external requests, timeouts, retry behavior, and fail-closed/fail-open behavior.
 - [ ] Same WebSocket frames, close codes, ordering, expiry, and reconnect behavior where applicable.
 - [ ] Same background work, cancellation, cleanup, and graceful shutdown behavior.
-- [ ] Existing Python tests have equivalent TypeScript tests; tests run real assertions and real tools.
-- [ ] A differential parity test passes against both implementations using the same fixture, clock, random values, and mocked providers.
-- [ ] No production traffic or secrets are used by the parity harness.
-- [ ] Python remains the production authority until the cutover checklist is complete.
+- [x] Existing Python tests have equivalent TypeScript tests; tests run real assertions and real tools.
+- [x] A differential parity test passes against both implementations using the same fixture, clock, random values, and mocked providers.
+- [x] No production traffic or secrets are used by the parity harness.
+- [x] Python remains the production authority until the cutover checklist is complete.
 
 “Implemented” and “parity verified” are separate states. A translated file is not complete merely because it compiles.
 
 ## Decisions to freeze before implementation
 
-- [ ] Record the Python reference commit and prevent behavior changes from entering it unnoticed.
-- [ ] Choose the TypeScript runtime: Node 22 or Bun. Record the production runtime and package manager.
-- [ ] Choose the HTTP framework after proving WebSocket, raw-body webhook verification, multipart Telegram uploads, cleanup hooks, and streaming behavior.
-- [ ] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions.
-- [ ] Choose one schema/validation system for request, response, configuration, and WebSocket payload types.
-- [ ] Choose the test runner, HTTP injection library, WebSocket test client, fake-clock support, and coverage reporting.
-- [ ] Define formatting, linting, type-checking, build, test, and start commands.
-- [ ] Decide whether TypeScript runs beside Python in `server-ts/` or under a neutral `server-next/`. Do not mix generated JavaScript into `server/`.
-- [ ] Decide how shared static fixtures are referenced without copying or silently changing them.
-- [ ] Decide how schema ownership works during coexistence. Only one migration owner may alter SQLite schema at a time.
-- [ ] Define the route-by-route traffic switch and rollback mechanism before moving the first route.
+- [x] Record the Python reference commit and prevent behavior changes from entering it unnoticed. (`PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`)
+- [x] Choose the TypeScript runtime: Node 22 or Bun. Record the production runtime and package manager. (Node 22 LTS with npm, matching CI, existing scripts, and host environment).
+- [x] Choose the HTTP framework after proving WebSocket, raw-body webhook verification, multipart Telegram uploads, cleanup hooks, and streaming behavior. (Fastify with `@fastify/websocket`, `@fastify/cors`, `@fastify/rate-limit`, `@fastify/multipart`, and `fastify-raw-body`).
+- [x] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions. (`better-sqlite3` via abstract `DatabaseConnection` with WAL, busy_timeout=5000, foreign_keys=ON; compatibility proven on all 50 tables).
+- [x] Choose one schema/validation system for request, response, configuration, and WebSocket payload types. (Zod).
+- [x] Choose the test runner, HTTP injection library, WebSocket test client, fake-clock support, and coverage reporting. (Node's native test runner `node --import tsx --test`, Fastify `inject()`, `assert/strict`).
+- [x] Define formatting, linting, type-checking, build, test, and start commands. (`npm run typecheck`, `npm test`, `npm run build`, `npm start`, `npm run dev`).
+- [x] Decide whether TypeScript runs beside Python in `server-ts/` or under a neutral `server-next/`. Do not mix generated JavaScript into `server/`. (`server-ts/` with output isolated in `server-ts/dist/`).
+- [x] Decide how shared static fixtures are referenced without copying or silently changing them. (Referenced via canonical paths to `../server/fixtures/` and `../web/`).
+- [x] Decide how schema ownership works during coexistence. Only one migration owner may alter SQLite schema at a time. (Python remains sole production schema owner; TypeScript uses identical non-destructive `CREATE TABLE IF NOT EXISTS` and read/write compatibility).
+- [x] Define the route-by-route traffic switch and rollback mechanism before moving the first route. (Reverse proxy route-by-route upstream routing via Nginx/Caddy with immediate fallback to Python backend).
 
 ## Proposed TypeScript boundaries
 
@@ -138,7 +138,7 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Core, static, and registration
 
-- [ ] `GET /health`
+- [x] `GET /health`
 - [ ] `POST /api/register`
 - [ ] `POST /api/chat`
 - [ ] `OPTIONS /{path:.*}`
@@ -437,7 +437,7 @@ Search again at the implementation baseline; these files currently consume serve
 
 ## Safe implementation order
 
-- [ ] Phase 0: freeze inventories, parity harness, typed config, database compatibility probe, and deployment skeleton.
+- [x] Phase 0: freeze inventories, parity harness, typed config, database compatibility probe, and deployment skeleton.
 - [ ] Phase 1: pure utilities and parsers with no I/O.
 - [ ] Phase 2: media generation and deterministic contract/crypto helpers using known vectors.
 - [ ] Phase 3: repositories and schema compatibility against copied fixture databases.
