@@ -13,6 +13,9 @@ import { registerFarcasterRoutes } from './routes/farcaster.js';
 import { registerGithubRoutes } from './routes/github.js';
 import { registerDiscordRoutes } from './routes/discord.js';
 import { registerTelegramRoutes } from './routes/telegram.js';
+import { registerRegistrationRoutes } from './routes/register.js';
+import { registerAccountRoutes } from './routes/account.js';
+import { registerDeviceSyncRoutes } from './routes/device-sync.js';
 import fastifyRawBody from 'fastify-raw-body';
 
 export interface AppOptions {
@@ -56,6 +59,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerGithubRoutes(app, context);
   registerDiscordRoutes(app, context);
   registerTelegramRoutes(app, context);
+
+  // Account and device sync (Phase 6 Slice 6A)
+  registerRegistrationRoutes(app, context);
+  registerAccountRoutes(app, context);
+  registerDeviceSyncRoutes(app, context);
 
   // Graceful shutdown hook
   app.addHook('onClose', async () => {
