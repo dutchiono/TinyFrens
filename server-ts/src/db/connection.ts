@@ -62,3 +62,6 @@ export class BetterSqliteConnection implements DatabaseConnection {
 export function createDbConnection(path: string = ':memory:'): DatabaseConnection {
   return new BetterSqliteConnection(path);
 }
+
+export const createDatabaseConnection = createDbConnection;
+

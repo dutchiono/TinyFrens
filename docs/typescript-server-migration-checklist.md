@@ -202,15 +202,15 @@ Each route needs contract fixtures for success, validation failure, authenticati
 ### Economy and collections
 
 - [x] `GET /api/economy/status`
-- [ ] `POST /api/deposits/open`
-- [ ] `POST /api/deposits/status`
-- [ ] `POST /api/deposits/confirm`
-- [ ] `POST /api/credits/balance`
+- [x] `POST /api/deposits/open`
+- [x] `POST /api/deposits/status`
+- [x] `POST /api/deposits/confirm`
+- [x] `POST /api/credits/balance`
 - [x] `GET /api/collections/suggestions`
-- [ ] `POST /api/collections/suggestions`
-- [ ] `POST /api/collections/vote`
+- [x] `POST /api/collections/suggestions`
+- [x] `POST /api/collections/vote`
 - [x] `GET /api/vote/status`
-- [ ] `POST /api/vote/status`
+- [x] `POST /api/vote/status`
 
 ### Robots, imported collections, and galleries
 
@@ -297,11 +297,11 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `admin.py` → admin repository/service/routes; preserve password hashing, constant-time checks, session expiry, settings overlay, audit records, and HTML serving.
 - [ ] `bankr_identity.py` → Bankr identity integration; preserve wallet-match-only acceptance and outage behavior.
 - [ ] `bots_computer_art.py` → media adapter; compare sanitized SVG and animation semantics.
-- [ ] `collection_suggestions.py` → collection route/service/repository; preserve address normalization, vote accounting, and credit spending.
-- [ ] `deposit_allocator.py` → deposit-router integration; preserve nonce serialization, ABI encoding, receipts, timeouts, ETH/ERC-20 forwarding, and error classes.
+- [x] `collection_suggestions.py` → collection route/service/repository; preserve address normalization, vote accounting, and credit spending.
+- [x] `deposit_allocator.py` → deposit-router integration; preserve nonce serialization, ABI encoding, receipts, timeouts, ETH/ERC-20 forwarding, and error classes.
 - [x] `device_sync.py` → device-sync route/service/repository; preserve code reuse/renewal, expiry, approval, merge, limits, ordering, revision conflicts, and cleanup.
 - [ ] `discord_integration.py` → Discord integration; preserve Ed25519 verification, OAuth exchange, and channel room IDs.
-- [ ] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
+- [x] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
 - [ ] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification.
 - [ ] `github_app.py` → GitHub App auth integration; preserve RS256 JWT claims, key loading, installation discovery, least-privilege token requests, cache locking, and refresh margin.
 - [ ] `github_integration.py` → GitHub issue integration; preserve transcript bounds, AI draft parsing, label filtering, webhook HMAC, issue-event mapping, and sanitized errors.
@@ -402,10 +402,10 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [ ] `test_admin.py`: admin settings, users, sessions, audit, authorization, and HTML.
 - [x] `test_bankr_identity.py`: verified handle/address matching.
 - [ ] `test_bots_computer_art.py`: SVG sanitization and animation.
-- [ ] `test_collection_suggestions.py`: suggestions, validation, votes, credit spending, and over-voting prevention.
-- [ ] `test_deposit_allocator.py`: ETH/ERC-20 forwarding and nonce serialization.
+- [x] `test_collection_suggestions.py`: suggestions, validation, votes, credit spending, and over-voting prevention.
+- [x] `test_deposit_allocator.py`: ETH/ERC-20 forwarding and nonce serialization.
 - [x] `test_device_sync.py`: approval, restart, selection revisions, wallet ordering, expiry, and unsync.
-- [ ] `test_economy.py`: arithmetic, sessions, deposits, ledger, idempotency, caps, routes, and disabled mode.
+- [x] `test_economy.py`: arithmetic, sessions, deposits, ledger, idempotency, caps, routes, and disabled mode.
 - [ ] `test_extra_companions.py`: discovery, caches, transfers, provider failures, and Nub reconstruction.
 - [ ] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.
 - [ ] `test_hood_turtle_art.py`: sanitization and animation.

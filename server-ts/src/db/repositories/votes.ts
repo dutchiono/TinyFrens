@@ -10,6 +10,7 @@ export interface CollectionSuggestionRow {
 
 export interface CollectionSuggestionWithVotes extends CollectionSuggestionRow {
   total_credits: number;
+  vote_count: number;
   total_voters: number;
 }
 
@@ -55,11 +56,13 @@ export class VoteRepository {
     return this.db.prepare<CollectionSuggestionWithVotes>(
       `SELECT s.id, s.chain_id, s.address, s.name, s.created,
               COALESCE(SUM(v.credits), 0) AS total_credits,
+              COUNT(v.id) AS vote_count,
               COUNT(DISTINCT v.pet_id) AS total_voters
        FROM collection_suggestions s
        LEFT JOIN collection_votes v ON v.collection_id = s.id
-       GROUP BY s.id, s.chain_id, s.address, s.name, s.created
-       ORDER BY total_credits DESC, s.created ASC`
+       GROUP BY s.id
+       ORDER BY total_credits DESC, s.created DESC, s.id DESC
+       LIMIT 100`
     ).all();
   }
 

@@ -230,6 +230,10 @@ export const INDEX_STATEMENTS: string[] = [
   'CREATE INDEX IF NOT EXISTS credit_ledger_pet ON credit_ledger(pet_id, id);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_address ON deposit_sessions(address);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_pet ON deposit_sessions(pet_id, status);',
+  'CREATE INDEX IF NOT EXISTS treasury_transfers_sender ON treasury_transfers(sender);',
+  'CREATE INDEX IF NOT EXISTS treasury_transfers_pet ON treasury_transfers(pet_id, id);',
+  'CREATE INDEX IF NOT EXISTS collection_votes_collection ON collection_votes(collection_id);',
+  'CREATE INDEX IF NOT EXISTS collection_votes_pet ON collection_votes(pet_id);',
 ];
 
 export function initSchema(db: DatabaseConnection): void {
