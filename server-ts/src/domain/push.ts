@@ -1,6 +1,7 @@
 import { DatabaseConnection } from '../db/connection.js';
 import { Config } from '../config.js';
 import { RateLimiter } from '../rate-limit.js';
+import webpush from 'web-push';
 
 export interface PushSubscriptionInfo {
   endpoint: string;
@@ -20,22 +21,31 @@ export interface PushSender {
   send(
     subscription: PushSubscriptionInfo,
     payload: unknown,
-    options: { vapidPrivateKey?: string; vapidSubject?: string }
+    options: { vapidPublicKey?: string; vapidPrivateKey?: string; vapidSubject?: string }
   ): Promise<{ status: number }>;
 }
 
 export function pushConfigured(config: Config): boolean {
-  return Boolean(config.VAPID_PRIVATE_KEY && config.VAPID_SUBJECT);
+  return Boolean(config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY && config.VAPID_SUBJECT);
 }
 
 export class DefaultPushSender implements PushSender {
   async send(
-    _subscription: PushSubscriptionInfo,
-    _payload: unknown,
-    _options: { vapidPrivateKey?: string; vapidSubject?: string }
+    subscription: PushSubscriptionInfo,
+    payload: unknown,
+    options: { vapidPublicKey?: string; vapidPrivateKey?: string; vapidSubject?: string }
   ): Promise<{ status: number }> {
-    // Best-effort push sender fallback when web-push is not installed
-    return { status: 200 };
+    if (!options.vapidPublicKey || !options.vapidPrivateKey || !options.vapidSubject) {
+      throw new Error('Web Push is not configured');
+    }
+    const result = await webpush.sendNotification(subscription, JSON.stringify(payload), {
+      vapidDetails: {
+        subject: options.vapidSubject,
+        publicKey: options.vapidPublicKey,
+        privateKey: options.vapidPrivateKey,
+      },
+    });
+    return { status: result.statusCode };
   }
 }
 
@@ -59,7 +69,7 @@ export async function deliverPush(
       const res = await activeSender.send(
         { endpoint, keys: { p256dh, auth } },
         payload,
-        { vapidPrivateKey: key, vapidSubject: subject }
+        { vapidPublicKey: config.VAPID_PUBLIC_KEY, vapidPrivateKey: key, vapidSubject: subject }
       );
 
       if (res && (res.status === 404 || res.status === 410)) {

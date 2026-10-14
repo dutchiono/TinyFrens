@@ -18,6 +18,7 @@ import { Admin } from './domain/admin.js';
 import { MarketQuote } from './domain/market-quote.js';
 import { TelegramModeration } from './domain/telegram-moderation.js';
 import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
+import type { RealtimeHub } from './domain/realtime.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -55,6 +56,7 @@ export interface AppContext {
   marketQuote: MarketQuote;
   telegramApi: TelegramBotApi;
   telegramModeration: TelegramModeration;
+  realtimeHub?: RealtimeHub;
 }
 
 export function createAppContext(
