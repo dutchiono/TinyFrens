@@ -3,6 +3,7 @@ import { createDbConnection } from './db/connection.js';
 import { initSchema } from './db/schema.js';
 import { createAppContext } from './context.js';
 import { buildApp } from './app.js';
+import { startWorkers } from './workers.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -20,9 +21,12 @@ async function main(): Promise<void> {
     },
   });
 
+  const workers = startWorkers(context);
+
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'Shutting down server');
     try {
+      await workers.stop();
       await app.close();
       process.exit(0);
     } catch (err) {
