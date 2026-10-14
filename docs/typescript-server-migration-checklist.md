@@ -260,25 +260,25 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 The WebSocket route moves last because it shares process-local presence, rooms, visits, battles, timers, and rate limits.
 
-- [ ] `GET /ws`: heartbeat 30 seconds, maximum message size 4096 bytes.
-- [ ] Authentication must arrive within 10 seconds as `{type:"auth", token}`.
-- [ ] Duplicate device connection closes the old socket with code 4001.
-- [ ] Authentication failure closes with code 4003.
-- [ ] Input `profile` and output friend/state refresh behavior.
-- [ ] Input `party-join`: public, private, Telegram, and Discord rooms; validation and 80-member cap.
-- [ ] Input `party-leave`.
-- [ ] Input `party-action`: `wave`, `dance`, `berry`, `pet`, `heart`; target and 100-character text behavior.
-- [ ] Input `friend-request`, including caps, pairing checks, notices, and offline push.
-- [ ] Input `friend-answer`, including symmetric friendship writes.
-- [ ] Input `friend-remove`, including visit and battle cleanup.
-- [ ] Input `visit-request`, `visit-answer`, `visit-end`, and `visit-action`.
-- [ ] Input `battle-request`, `battle-answer`, `battle-action`, and `battle-end`.
-- [ ] Output `state`, `notice`, `error`, and `party-state`.
-- [ ] Output `visit-request`, `visit-start`, `visit-profile`, `visit-action`, `visit-ended`, and `visit-request-ended`.
-- [ ] Output `battle-request`, `battle-start`, `battle-action`, `battle-ended`, and `battle-request-ended`.
-- [ ] Five-second cleanup loop, 60-second pending expiry, 30-minute visits, and 10-minute battles.
-- [ ] Disconnect cleanup and friend presence rebroadcast.
-- [ ] Restart semantics: process-local rooms and sessions disappear; persistent friendships remain.
+- [x] `GET /ws`: heartbeat 30 seconds, maximum message size 4096 bytes. (Phase 9: Fastify WebSocket route with protocol-level payload enforcement.)
+- [x] Authentication must arrive within 10 seconds as `{type:"auth", token}`.
+- [x] Duplicate device connection closes the old socket with code 4001.
+- [x] Authentication failure closes with code 4003.
+- [x] Input `profile` and output friend/state refresh behavior.
+- [x] Input `party-join`: public, private, Telegram, and Discord rooms; validation and 80-member cap.
+- [x] Input `party-leave`.
+- [x] Input `party-action`: `wave`, `dance`, `berry`, `pet`, `heart`; target and 100-character text behavior.
+- [x] Input `friend-request`, including caps, pairing checks, notices, and offline push.
+- [x] Input `friend-answer`, including symmetric friendship writes.
+- [x] Input `friend-remove`, including visit and battle cleanup.
+- [x] Input `visit-request`, `visit-answer`, `visit-end`, and `visit-action`.
+- [x] Input `battle-request`, `battle-answer`, `battle-action`, and `battle-end`.
+- [x] Output `state`, `notice`, `error`, and `party-state`.
+- [x] Output `visit-request`, `visit-start`, `visit-profile`, `visit-action`, `visit-ended`, and `visit-request-ended`.
+- [x] Output `battle-request`, `battle-start`, `battle-action`, `battle-ended`, and `battle-request-ended`.
+- [x] Five-second cleanup loop, 60-second pending expiry, 30-minute visits, and 10-minute battles.
+- [x] Disconnect cleanup and friend presence rebroadcast.
+- [x] Restart semantics: process-local rooms and sessions disappear; persistent friendships remain.
 
 ## File-by-file production ledger
 
@@ -388,8 +388,8 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Deposit indexer startup, polling, checkpointing, stop signal, and shutdown.
 - [ ] Treasury transfer indexer startup, polling, checkpointing, stop signal, and shutdown.
 - [x] Telegram challenge timers restored from SQLite after restart. (Phase 8 Slice 8A: persisted challenges reschedule on startup and cancel during graceful shutdown.)
-- [ ] Five-second visit/battle/rate-limit cleanup loop.
-- [ ] Fire-and-forget push delivery does not hold request completion or leak database handles.
+- [x] Five-second visit/battle/rate-limit cleanup loop. (Phase 9: one hub timer expires sessions and prunes stale rate-limit buckets.)
+- [x] Fire-and-forget push delivery does not hold request completion or leak database handles. (Phase 9: offline notifications use the real `web-push` sender and isolate best-effort failures from socket handling.)
 - [ ] GitHub App token cache and concurrent refresh locking.
 - [ ] Provider discovery locks and TTL caches.
 - [x] Process signals produce a bounded graceful shutdown under systemd and containers. (Phase 7 Slice 7B: idempotent 10-second deadline, workers stop before Fastify and SQLite close, startup failures close resources.)
@@ -446,7 +446,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
 - [ ] Phase 7: workers and restart recovery.
 - [x] Phase 8: Telegram orchestration and moderation. (Slices 8A–8E cover persisted challenge recovery, moderation enforcement, interactive commands, conversational/issue flows, `/show`, GIF rendering, multipart upload, and media caching.)
-- [ ] Phase 9: stateful WebSocket protocol and process-local presence.
+- [x] Phase 9: stateful WebSocket protocol and process-local presence. (Authentication, duplicate replacement, presence, parties, friends, visits, battles, expiry, heartbeat, payload limits, and graceful close are implemented.)
 - [ ] Phase 10: shadow comparison in staging with outbound side effects disabled.
 - [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
 - [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.

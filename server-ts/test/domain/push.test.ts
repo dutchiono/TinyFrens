@@ -7,12 +7,12 @@ import { RateLimiter } from '../../src/rate-limit.js';
 import { deliverPush, pushConfigured, pushOffline, PushSender, PushSubscriptionInfo } from '../../src/domain/push.js';
 
 describe('Domain: Push Notifications', () => {
-  test('pushConfigured returns true only when VAPID_PRIVATE_KEY and VAPID_SUBJECT are set', () => {
+  test('pushConfigured returns true only when all VAPID values are set', () => {
     assert.strictEqual(pushConfigured(loadConfig({})), false);
     assert.strictEqual(pushConfigured(loadConfig({ VAPID_PRIVATE_KEY: 'priv' })), false);
     assert.strictEqual(pushConfigured(loadConfig({ VAPID_SUBJECT: 'mailto:a@b.c' })), false);
     assert.strictEqual(
-      pushConfigured(loadConfig({ VAPID_PRIVATE_KEY: 'priv', VAPID_SUBJECT: 'mailto:a@b.c' })),
+      pushConfigured(loadConfig({ VAPID_PUBLIC_KEY: 'pub', VAPID_PRIVATE_KEY: 'priv', VAPID_SUBJECT: 'mailto:a@b.c' })),
       true
     );
   });
@@ -23,6 +23,7 @@ describe('Domain: Push Notifications', () => {
 
     const config = loadConfig({
       VAPID_PRIVATE_KEY: 'test-private-key',
+      VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_SUBJECT: 'mailto:admin@tinyfrens.lol',
     });
 
@@ -64,6 +65,7 @@ describe('Domain: Push Notifications', () => {
 
     const config = loadConfig({
       VAPID_PRIVATE_KEY: 'test-private-key',
+      VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_SUBJECT: 'mailto:admin@tinyfrens.lol',
     });
 

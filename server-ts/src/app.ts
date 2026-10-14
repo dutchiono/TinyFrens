@@ -23,6 +23,8 @@ import { registerWalletNftRoutes } from './routes/wallet-nft.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerChatRoutes } from './routes/chat.js';
 import fastifyRawBody from 'fastify-raw-body';
+import fastifyWebsocket from '@fastify/websocket';
+import { registerWebSocketRoutes } from './routes/websocket.js';
 
 export interface AppOptions {
   context: AppContext;
@@ -43,6 +45,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     global: false,
     encoding: false,
     runFirst: true,
+  });
+  await app.register(fastifyWebsocket, {
+    options: { maxPayload: 4096 },
+    preClose(done) {
+      for (const socket of this.websocketServer.clients) socket.close(1001, 'Server stopping');
+      this.websocketServer.close();
+      done();
+    },
   });
 
   // Error handling
@@ -87,8 +97,12 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   // Chat (Phase 6 Slice 6G)
   registerChatRoutes(app, context);
 
+  // Stateful realtime protocol (Phase 9)
+  registerWebSocketRoutes(app, context);
+
   // Graceful shutdown hook
   app.addHook('onClose', async () => {
+    await context.realtimeHub?.stop();
     context.db.close();
   });
 
