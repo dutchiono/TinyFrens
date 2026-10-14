@@ -3,6 +3,7 @@ on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled, unlabeled]
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 concurrency:
@@ -39,3 +40,20 @@ jobs:
           sha=$(jq -r '.head.sha' <<< "$pr")
           # Owner-authorized for every path. GitHub still enforces all required checks.
           gh pr merge "$PR" --repo "$REPO" --squash --auto --match-head-commit "$sha"
+
+          # A merge performed with GITHUB_TOKEN does not emit a usable push event for
+          # downstream workflows. Wait for GitHub's native auto-merge to finish, then
+          # explicitly dispatch the website publisher on the resulting main branch.
+          for attempt in $(seq 1 120); do
+            pr=$(gh api "repos/$REPO/pulls/$PR")
+            if jq -e '.state == "closed" and .merged == true' <<< "$pr" >/dev/null; then
+              gh workflow run publish-server.yml --repo "$REPO" --ref main
+              exit 0
+            fi
+            if ! jq -e '.state == "open" and (.draft | not) and (any(.labels[]; .name == "hold-merge") | not)' <<< "$pr" >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for native auto-merge" >&2
+          exit 1
