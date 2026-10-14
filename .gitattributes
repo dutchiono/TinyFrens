@@ -1,2 +1,4 @@
 # Preserve published bytecode/verification file hashes across Windows and CI.
 web/robots-launch/* text eol=lf
+scripts/deploy-web.sh text eol=lf
+server/renew-web-certificate.sh text eol=lf
