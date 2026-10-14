@@ -102,19 +102,21 @@ server-ts/
 
 ## Differential parity harness
 
-- [ ] Start the frozen Python server on an isolated port with a temporary SQLite database.
-- [ ] Start the TypeScript server on another isolated port with an identical database copy.
+- [x] Start the frozen Python server on an isolated port with a temporary SQLite database.
+- [x] Start the TypeScript server on another isolated port with an identical database copy.
 - [ ] Stub Gemini, Bankr, Neynar, Telegram, Discord, GitHub, RPC, Blockscout, web push, and metadata endpoints.
 - [ ] Capture and compare outbound method, URL, headers, body, timeout class, and call order.
 - [ ] Normalize explicitly nondeterministic values only: timestamps, nonces, random IDs, and generated secrets.
 - [ ] Inject deterministic time and random sources rather than broadly deleting fields from comparisons.
-- [ ] Compare response status, JSON, text/binary bytes, headers, and error bodies.
+- [x] Compare response status, JSON, text/binary bytes, headers, and error bodies for the side-effect-free smoke manifest.
 - [ ] Compare SQLite schema and row snapshots after every mutating request.
 - [ ] Compare restart behavior by closing and reopening each implementation against its resulting database.
-- [ ] Compare rejected requests as carefully as successful requests.
+- [x] Compare rejected requests as carefully as successful requests in the smoke manifest.
 - [ ] Run webhook comparisons only against captured requests and fake provider servers; never send each webhook twice in production.
 - [ ] Replay WebSocket transcript fixtures and compare frames, order, close codes, and database effects.
 - [x] Add a manifest listing every route, WebSocket input, table, environment key, and Python test. CI fails if the source inventory gains an uncovered item.
+
+The local differential smoke harness covers 15 side-effect-free and rejected requests with isolated database copies. It does not replace the provider-capture, mutation, restart, WebSocket, or staging-shadow gates below.
 
 ## Middleware and application-wide behavior
 

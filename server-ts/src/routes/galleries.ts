@@ -22,7 +22,7 @@ export const SUPPORTED_GALLERY_COLLECTIONS = [
   },
   {
     id: 'nubs',
-    name: 'Nubs',
+    name: 'The Nubs',
     contract: '0x34d9e560ee16662d19e44315a822bd51eea0133c',
     chainId: 4663,
     release: false,
