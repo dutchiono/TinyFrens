@@ -1,0 +1,261 @@
+import { DatabaseConnection } from '../connection.js';
+
+export interface TgUserRow {
+  tg_id: string;
+  pet_id: string;
+  updated: number;
+}
+
+export interface TgFrenGameRow {
+  chat_id: string;
+  user_id: string;
+  name: string;
+  stage: string;
+  level: number;
+  xp: number;
+  health: number;
+  hunger: number;
+  energy: number;
+  frens_coins: number;
+  inventory: string;
+  updated_at: number;
+}
+
+export interface TgFilterRow {
+  chat_id: string;
+  trigger: string;
+  response: string;
+  created_by: string;
+  created_at: number;
+}
+
+export interface TgChallengeRow {
+  chat_id: string;
+  user_id: string;
+  token: string;
+  answer: number;
+  attempts: number;
+  expires: number;
+  message_id: number | null;
+}
+
+export class TelegramRepository {
+  constructor(private db: DatabaseConnection) {}
+
+  // TG Users Link
+  getPetIdForTgUser(tgId: string): string | undefined {
+    const row = this.db.prepare<{ pet_id: string }>(
+      'SELECT pet_id FROM tg_users WHERE tg_id=?'
+    ).get(tgId);
+    return row?.pet_id;
+  }
+
+  linkTgUser(tgId: string, petId: string, updated: number): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO tg_users(tg_id, pet_id, updated) VALUES(?, ?, ?)'
+    ).run(tgId, petId, updated);
+  }
+
+  // Discord Users Link
+  getPetIdForDcUser(userId: string): string | undefined {
+    const row = this.db.prepare<{ pet_id: string }>(
+      'SELECT pet_id FROM dc_users WHERE user_id=?'
+    ).get(userId);
+    return row?.pet_id;
+  }
+
+  linkDcUser(userId: string, petId: string, updated: number): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO dc_users(user_id, pet_id, updated) VALUES(?, ?, ?)'
+    ).run(userId, petId, updated);
+  }
+
+  // TG Media Cache
+  getCachedMediaFileId(chainId: number, collection: string, tokenId: number): string | undefined {
+    const row = this.db.prepare<{ file_id: string }>(
+      'SELECT file_id FROM tg_media_cache WHERE chain=? AND collection=? COLLATE NOCASE AND token_id=?'
+    ).get(chainId, collection, tokenId);
+    return row?.file_id;
+  }
+
+  setCachedMediaFileId(
+    chainId: number,
+    collection: string,
+    tokenId: number,
+    fileId: string,
+    updated: number
+  ): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO tg_media_cache(chain, collection, token_id, file_id, updated) VALUES(?, ?, ?, ?, ?)'
+    ).run(chainId, collection, tokenId, fileId, updated);
+  }
+
+  // TG Interactive Fren Game
+  getFrenGame(chatId: string, userId: string): TgFrenGameRow | undefined {
+    return this.db.prepare<TgFrenGameRow>(
+      `SELECT chat_id, user_id, name, stage, level, xp, health, hunger, energy, frens_coins, inventory, updated_at
+       FROM tg_fren_game WHERE chat_id=? AND user_id=?`
+    ).get(chatId, userId);
+  }
+
+  saveFrenGame(game: TgFrenGameRow): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO tg_fren_game(
+        chat_id, user_id, name, stage, level, xp, health, hunger, energy, frens_coins, inventory, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      game.chat_id,
+      game.user_id,
+      game.name,
+      game.stage,
+      game.level,
+      game.xp,
+      game.health,
+      game.hunger,
+      game.energy,
+      game.frens_coins,
+      game.inventory,
+      game.updated_at
+    );
+  }
+
+  // TG Moderation Filters
+  listFilters(chatId: string): { trigger: string; response: string }[] {
+    return this.db.prepare<{ trigger: string; response: string }>(
+      'SELECT trigger, response FROM tg_filters WHERE chat_id=?'
+    ).all(chatId);
+  }
+
+  getFilter(chatId: string, trigger: string): string | undefined {
+    const row = this.db.prepare<{ response: string }>(
+      'SELECT response FROM tg_filters WHERE chat_id=? AND trigger=?'
+    ).get(chatId, trigger);
+    return row?.response;
+  }
+
+  setFilter(
+    chatId: string,
+    trigger: string,
+    response: string,
+    createdBy: string,
+    createdAt: number
+  ): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO tg_filters(chat_id, trigger, response, created_by, created_at) VALUES(?, ?, ?, ?, ?)'
+    ).run(chatId, trigger, response, createdBy, createdAt);
+  }
+
+  deleteFilter(chatId: string, trigger: string): boolean {
+    const result = this.db.prepare(
+      'DELETE FROM tg_filters WHERE chat_id=? AND trigger=?'
+    ).run(chatId, trigger);
+    return result.changes > 0;
+  }
+
+  // TG Moderation Blocklist
+  listBlocklist(chatId: string): string[] {
+    const rows = this.db.prepare<{ pattern: string }>(
+      'SELECT pattern FROM tg_blocklist WHERE chat_id=?'
+    ).all(chatId);
+    return rows.map(r => r.pattern);
+  }
+
+  addBlocklistPattern(chatId: string, pattern: string, createdBy: string, createdAt: number): void {
+    this.db.prepare(
+      'INSERT OR IGNORE INTO tg_blocklist(chat_id, pattern, created_by, created_at) VALUES(?, ?, ?, ?)'
+    ).run(chatId, pattern, createdBy, createdAt);
+  }
+
+  deleteBlocklistPattern(chatId: string, pattern: string): boolean {
+    const result = this.db.prepare(
+      'DELETE FROM tg_blocklist WHERE chat_id=? AND pattern=?'
+    ).run(chatId, pattern);
+    return result.changes > 0;
+  }
+
+  // TG Strikes
+  getStrikes(chatId: string, userId: string): { strikes: number; lastViolation: string } {
+    const row = this.db.prepare<{ strikes: number; last_violation: string }>(
+      'SELECT strikes, last_violation FROM tg_strikes WHERE chat_id=? AND user_id=?'
+    ).get(chatId, userId);
+    return {
+      strikes: row?.strikes ?? 0,
+      lastViolation: row?.last_violation ?? '',
+    };
+  }
+
+  recordStrike(
+    chatId: string,
+    userId: string,
+    strikes: number,
+    lastViolation: string,
+    updatedAt: number
+  ): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO tg_strikes(chat_id, user_id, strikes, last_violation, updated_at) VALUES(?, ?, ?, ?, ?)'
+    ).run(chatId, userId, strikes, lastViolation, updatedAt);
+  }
+
+  resetStrikes(chatId: string, userId: string): void {
+    this.db.prepare('DELETE FROM tg_strikes WHERE chat_id=? AND user_id=?').run(chatId, userId);
+  }
+
+  // TG Captcha Challenges
+  getChallenge(chatId: string, userId: string): TgChallengeRow | undefined {
+    return this.db.prepare<TgChallengeRow>(
+      'SELECT chat_id, user_id, token, answer, attempts, expires, message_id FROM tg_challenges WHERE chat_id=? AND user_id=?'
+    ).get(chatId, userId);
+  }
+
+  saveChallenge(challenge: TgChallengeRow): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO tg_challenges(
+        chat_id, user_id, token, answer, attempts, expires, message_id
+      ) VALUES(?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      challenge.chat_id,
+      challenge.user_id,
+      challenge.token,
+      challenge.answer,
+      challenge.attempts,
+      challenge.expires,
+      challenge.message_id
+    );
+  }
+
+  deleteChallenge(chatId: string, userId: string): void {
+    this.db.prepare('DELETE FROM tg_challenges WHERE chat_id=? AND user_id=?').run(chatId, userId);
+  }
+
+  deleteExpiredChallenges(nowSeconds: number): void {
+    this.db.prepare('DELETE FROM tg_challenges WHERE expires<=?').run(nowSeconds);
+  }
+
+  // GitHub Issue Chats
+  getChatForIssue(repo: string, issueNumber: number): string | undefined {
+    const row = this.db.prepare<{ chat_id: string }>(
+      'SELECT chat_id FROM github_issue_chats WHERE repo=? AND issue_number=?'
+    ).get(repo, issueNumber);
+    return row?.chat_id;
+  }
+
+  linkChatToIssue(repo: string, issueNumber: number, chatId: string): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO github_issue_chats(repo, issue_number, chat_id) VALUES(?, ?, ?)'
+    ).run(repo, issueNumber, chatId);
+  }
+
+  // Indexer State
+  getIndexerState(key: string): string | undefined {
+    const row = this.db.prepare<{ value: string }>(
+      'SELECT value FROM indexer_state WHERE key=?'
+    ).get(key);
+    return row?.value;
+  }
+
+  setIndexerState(key: string, value: string): void {
+    this.db.prepare(
+      'INSERT OR REPLACE INTO indexer_state(key, value) VALUES(?, ?)'
+    ).run(key, value);
+  }
+}

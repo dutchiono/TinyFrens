@@ -222,7 +222,7 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   },
   {
     table: 'wallet_links_next',
-    sql: 'CREATE TABLE IF NOT EXISTS wallet_links_next(pet_id TEXT NOT NULL, address TEXT NOT NULL COLLATE NOCASE, position INTEGER NOT NULL, PRIMARY KEY(pet_id, address));',
+    sql: 'CREATE TABLE IF NOT EXISTS wallet_links_next(pet_id TEXT NOT NULL, address TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL, PRIMARY KEY(pet_id, address));',
   },
 ];
 
