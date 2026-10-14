@@ -184,7 +184,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         return reply.status(200).send({ ok: true });
       }
 
-      const [kind, chatId, chat] = classify(update);
+      const [kind, chatId, chat] = classify(update, context.config.TELEGRAM_BOT_USERNAME);
 
       const syncCode = linkCode(update);
       if (syncCode && chatId !== null && chatId !== undefined) {
@@ -198,7 +198,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         const label = username ? `Telegram @${username}` : 'Telegram Mini App';
         requestSync(context, pet.id, syncCode, label);
 
-        const miniapp = process.env.TELEGRAM_MINI_APP_URL || context.config.TELEGRAM_MINIAPP_URL || 'https://tinyfrens.miono.live';
+        const miniapp = context.config.TELEGRAM_MINIAPP_URL;
         await callTelegramApi(
           'sendMessage',
           {

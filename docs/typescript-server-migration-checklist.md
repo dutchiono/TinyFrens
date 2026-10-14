@@ -93,7 +93,7 @@ server-ts/
 
 - [ ] `app.ts` contains only dependency construction, middleware order, route registration, lifecycle registration, and static assets.
 - [ ] Every route module exposes one registration function and receives typed dependencies.
-- [ ] Route modules never read process environment directly.
+- [x] Route modules never read process environment directly.
 - [ ] Services never construct global database or HTTP clients implicitly.
 - [ ] External providers are interfaces with real and fake implementations.
 - [ ] Time, randomness, and outbound network calls are injectable for differential tests.
@@ -114,7 +114,7 @@ server-ts/
 - [ ] Compare rejected requests as carefully as successful requests.
 - [ ] Run webhook comparisons only against captured requests and fake provider servers; never send each webhook twice in production.
 - [ ] Replay WebSocket transcript fixtures and compare frames, order, close codes, and database effects.
-- [ ] Add a manifest listing every route, WebSocket input, table, environment key, and Python test. CI fails if the source inventory gains an uncovered item.
+- [x] Add a manifest listing every route, WebSocket input, table, environment key, and Python test. CI fails if the source inventory gains an uncovered item.
 
 ## Middleware and application-wide behavior
 
@@ -141,8 +141,8 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `GET /health`
 - [x] `POST /api/register`
 - [x] `POST /api/chat`
-- [ ] `OPTIONS /{path:.*}`
-- [ ] Static `/web/` mounting, path traversal protection, MIME types, and cache behavior
+- [x] `OPTIONS /{path:.*}`
+- [x] Static `/web/` mounting, path traversal protection, MIME types, and cache behavior
 
 ### Snap and Farcaster
 
@@ -289,7 +289,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [x] Move Gemini chat into `routes/chat.ts` plus a Gemini integration.
 - [ ] Move Bankr and wallet transaction logic into separate route and service modules.
 - [ ] Move Snap/Farcaster, Telegram, GitHub, Discord, push, NFT metadata, and WebSocket logic into their own route modules.
-- [ ] Replace module-global environment access with typed config passed through application context.
+- [x] Replace module-global environment access with typed config passed through application context.
 
 ### Existing Python modules
 
@@ -367,7 +367,7 @@ Build a typed schema with the same defaults and enablement rules. Classify each 
 - [ ] Push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
 - [x] Admin: `ADMIN_TOKEN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
 - [ ] Reconcile documented but apparently indirect/unused keys: `TREASURY_PROXY`, `JACKPOT_VAULT_PROXY`, `GAME_CONTROLLER`.
-- [ ] CI fails if application code reads an undeclared key or the example declares an unclassified key.
+- [x] CI fails if application code reads an undeclared key or the example declares an unclassified key.
 
 ## External integration parity
 

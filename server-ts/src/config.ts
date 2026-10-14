@@ -23,6 +23,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'ALLOWED_ORIGINS', classification: 'public', description: 'Comma-separated allowed CORS origins' },
   { key: 'ALLOW_NATIVE_ORIGIN', classification: 'public', description: 'Allow Origin: null for native mobile/desktop apps' },
   { key: 'TRUST_PROXY', classification: 'public', description: 'Trust X-Forwarded-For headers when behind reverse proxy' },
+  { key: 'LOG_LEVEL', classification: 'public', description: 'Fastify structured log level' },
 
   // AI
   { key: 'GEMINI_API_KEY', classification: 'secret', description: 'Google Gemini API key for conversational AI' },
@@ -124,6 +125,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'TREASURY_PROXY', classification: 'documentation-only', description: 'Documented economy contract proxy' },
   { key: 'JACKPOT_VAULT_PROXY', classification: 'documentation-only', description: 'Documented economy jackpot vault' },
   { key: 'GAME_CONTROLLER', classification: 'documentation-only', description: 'Documented game controller address' },
+  { key: 'SSH_ORIGINAL_COMMAND', classification: 'optional', description: 'Restricted web publisher SSH command' },
 ];
 
 export const ConfigSchema = z.object({
@@ -135,6 +137,7 @@ export const ConfigSchema = z.object({
   ALLOWED_ORIGINS: z.string().default('https://tinyfrens.lol,https://www.tinyfrens.lol'),
   ALLOW_NATIVE_ORIGIN: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  LOG_LEVEL: z.string().default('info'),
 
   // AI
   GEMINI_API_KEY: z.string().optional(),

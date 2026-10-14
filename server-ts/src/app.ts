@@ -1,4 +1,7 @@
-import fastify, { FastifyInstance, FastifyServerOptions } from 'fastify';
+import fastify, { FastifyInstance, FastifyServerOptions, RouteOptions } from 'fastify';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fastifyStatic from '@fastify/static';
 import { AppContext } from './context.js';
 import { registerOriginGuard } from './middleware/origin.js';
 import { registerErrorHandler } from './middleware/errors.js';
@@ -29,6 +32,7 @@ import { registerWebSocketRoutes } from './routes/websocket.js';
 export interface AppOptions {
   context: AppContext;
   serverOptions?: FastifyServerOptions;
+  onRoute?: (route: RouteOptions) => void;
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
@@ -38,6 +42,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     bodyLimit: 4096, // default 4096 bytes request body limit matching Python client_max_size
     ...serverOptions,
   });
+  if (options.onRoute) app.addHook('onRoute', options.onRoute);
 
   // Preserve raw request bodies for webhooks and signatures
   await app.register(fastifyRawBody, {
@@ -60,6 +65,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   // Origin guard & CORS
   registerOriginGuard(app, context);
+
+  await app.register(fastifyStatic, {
+    root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web'),
+    prefix: '/web/',
+    index: false,
+    decorateReply: false,
+  });
+  app.options('/*', async (_request, reply) => reply.status(200).send());
 
   // Read-only routes (Phase 0 & Phase 4)
   registerHealthRoutes(app, context);

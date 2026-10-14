@@ -110,7 +110,10 @@ export function isIssueCommand(text: unknown): boolean {
   return /\b(open|file|create|make|log|raise|report|start)\s+(?:(?:a|an|the|this|that)\s+(?:(?:github|new|bug|feature|fresh)\s+)*|(?:github|new|bug|feature|fresh)\s+)(issue|bug\s+report|feature\s+request|ticket)/.test(cleaned);
 }
 
-export function classify(update: unknown): [UpdateKind, unknown, Record<string, unknown> | null] {
+export function classify(
+  update: unknown,
+  configuredBotUsername = 'tinyfrensbot'
+): [UpdateKind, unknown, Record<string, unknown> | null] {
   if (!update || typeof update !== 'object') {
     return ['unknown', null, null];
   }
@@ -136,7 +139,7 @@ export function classify(update: unknown): [UpdateKind, unknown, Record<string, 
       return ['issue', chatId, chat];
     }
 
-    const botUser = (process.env.TELEGRAM_BOT_USERNAME || 'tinyfrensbot').toLowerCase().replace(/^@/, '');
+    const botUser = configuredBotUsername.toLowerCase().replace(/^@/, '') || 'tinyfrensbot';
     const replyFrom = (msg.reply_to_message && typeof msg.reply_to_message === 'object')
       ? ((msg.reply_to_message as Record<string, unknown>).from as Record<string, unknown> | null)
       : null;
