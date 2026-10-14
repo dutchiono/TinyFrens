@@ -10,7 +10,10 @@ null and display unavailable, rather than reporting an invented zero.
 FRENS balance converts the credit-account total using `creditsPerFrens`.
 
 Indicative market data uses the [DEX Screener token-pairs API](https://docs.dexscreener.com/api/reference).
-Only production FRENS on Base (8453) is supported. The highest-liquidity
+Only production FRENS on Base (8453) is supported.
+The quote is independent of whether the relay's deposit/credit economy is
+enabled; it always identifies the production Base token, including on a test relay.
+The highest-liquidity
 matching FRENS/WETH and WETH/USDC pools supply FRENS/ETH and ETH/USD;
 their product supplies FRENS/USD. USD conversions use Decimal arithmetic.
 Market cap and FDV are separately labeled provider-reported values, not

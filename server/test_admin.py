@@ -4,7 +4,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -225,11 +225,26 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['counts']['syncAccounts'], 1)
         self.assertNotIn('pets', data['counts'])
 
-    async def test_market_is_guarded_and_unsupported_config_is_explicit(self):
+    async def test_market_is_guarded_and_independent_of_credit_economy(self):
         self.assertEqual((await self.client.get('/api/admin/market')).status, 401)
-        data = await (await self.client.get('/api/admin/market', headers=AUTH)).json()
-        self.assertEqual(data['status'], 'unavailable')
-        self.assertNotIn('priceUsd', data)
+        with patch.object(admin_mod.MarketQuote, 'get', new_callable=AsyncMock,
+                          return_value={'status': 'available', 'priceUsd': '0.0000002'}) as quote:
+            data = await (await self.client.get('/api/admin/market', headers=AUTH)).json()
+            self.assertEqual(data['status'], 'available')
+            quote.assert_awaited_once_with({'chainId': 8453, 'frensToken': admin_mod.MARKET_TOKEN})
+
+        app, db = build_app(economy_settings=lambda: {'enabled': False})
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            with patch.object(admin_mod.MarketQuote, 'get', new_callable=AsyncMock,
+                              return_value={'status': 'available'}) as quote:
+                response = await client.get('/api/admin/market', headers=AUTH)
+                self.assertEqual(response.status, 200)
+                quote.assert_awaited_once_with({'chainId': 8453, 'frensToken': admin_mod.MARKET_TOKEN})
+        finally:
+            await client.close()
+            db.close()
 
     async def test_update_settings_and_audit(self):
         r = await self.client.post('/api/admin/settings', headers=AUTH, json={'gameRewardCredits': 750})
