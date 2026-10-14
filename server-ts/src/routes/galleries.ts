@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { AppContext } from '../context.js';
+import { turtleId } from '../domain/turtle-ownership.js';
+import { getClientIp } from '../rate-limit.js';
 
 export const SUPPORTED_GALLERY_COLLECTIONS = [
   {
@@ -223,34 +225,43 @@ export function registerGalleryRoutes(app: FastifyInstance, context: AppContext)
   });
 
   // Hood Turtle Preview endpoint
+  const turtlePreviews = new Map<number, [number, any]>();
+
   app.get('/api/hood-turtles/preview', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as Record<string, string | undefined>;
-    const rawTid = query.tokenId ?? '1';
-    const tid = parseInt(rawTid, 10);
-    if (isNaN(tid) || tid < 1 || tid > 10000) {
-      return reply.status(400).send({ error: 'Choose a Hood Turtle from #1 to #10000' });
-    }
+    try {
+      const ip = getClientIp(request, context.config.TRUST_PROXY);
+      context.rateLimiter.limit(`turtle-preview:${ip}`, 30, 60, context.now());
 
-    // Check cached ownership or metadata
-    const cached = context.db.prepare<{ payload: string }>(
-      'SELECT payload FROM turtle_ownership WHERE token_id=? LIMIT 1'
-    ).get(tid);
+      const query = request.query as Record<string, string | undefined>;
+      const tid = turtleId(query.tokenId ?? '1');
 
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached.payload);
-        return reply.status(200).send({
-          tokenId: tid,
-          name: parsed.name ?? `Hood Turtle #${tid}`,
-          image: parsed.image,
-          originalAddress: '0xca28587b61eac19a87dfcfd9420870867a916675',
-          chainId: 4663,
-        });
-      } catch {
-        // Fall back
+      const cached = turtlePreviews.get(tid);
+      const now = context.now();
+      if (cached && cached[0] > now) {
+        return reply.status(200).send(cached[1]);
       }
-    }
 
-    return reply.status(503).send({ error: 'Collection preview unavailable' });
+      const original = await context.turtleOwnership.read(null, tid);
+      const data = {
+        tokenId: original.tokenId,
+        name: original.name,
+        image: original.image,
+        originalAddress: original.originalAddress,
+        chainId: original.chainId,
+      };
+
+      if (turtlePreviews.size >= 64) {
+        const firstKey = turtlePreviews.keys().next().value;
+        if (firstKey !== undefined) turtlePreviews.delete(firstKey);
+      }
+      turtlePreviews.set(tid, [now + 300, data]);
+
+      return reply.status(200).send(data);
+    } catch (err: any) {
+      if (err?.message?.includes('Enter a Hood Turtle token number')) {
+        return reply.status(400).send({ error: err.message });
+      }
+      return reply.status(503).send({ error: 'Collection preview unavailable' });
+    }
   });
 }

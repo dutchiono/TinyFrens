@@ -31,6 +31,21 @@ export interface WalletSocialProfileRow {
   updated: number;
 }
 
+export function migrateWalletLinks(db: DatabaseConnection): void {
+  const columns = db.prepare<{ name: string; pk: number }>('PRAGMA table_info(wallet_links)').all();
+  if (columns.some(col => col.name === 'address' && col.pk > 0)) {
+    return;
+  }
+  db.transaction(() => {
+    db.prepare(
+      'CREATE TABLE wallet_links_next(pet_id TEXT, address TEXT COLLATE NOCASE NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(pet_id, address))'
+    ).run();
+    db.prepare('INSERT INTO wallet_links_next SELECT pet_id, address, created FROM wallet_links').run();
+    db.prepare('DROP TABLE wallet_links').run();
+    db.prepare('ALTER TABLE wallet_links_next RENAME TO wallet_links').run();
+  })();
+}
+
 export class WalletRepository {
   constructor(private db: DatabaseConnection) {}
 

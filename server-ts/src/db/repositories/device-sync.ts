@@ -175,8 +175,14 @@ export class DeviceSyncRepository {
     return result.changes > 0;
   }
 
-  verifyTurtlePairing(code: string, challengeId: string): boolean {
+  verifyTurtlePairing(code: string, challengeId: string, nowSeconds?: number): boolean {
     const cleanCode = code.replace(/[- ]/g, '').toUpperCase();
+    if (nowSeconds !== undefined) {
+      const result = this.db.prepare(
+        'UPDATE turtle_pairings SET verified=1 WHERE code=? AND challenge_id=? AND verified=0 AND expires>?'
+      ).run(cleanCode, challengeId, nowSeconds);
+      return result.changes > 0;
+    }
     const result = this.db.prepare(
       'UPDATE turtle_pairings SET verified=1 WHERE code=? AND challenge_id=?'
     ).run(cleanCode, challengeId);
@@ -198,5 +204,12 @@ export class DeviceSyncRepository {
 
   deleteTurtlePairingForPet(petId: string): void {
     this.db.prepare('DELETE FROM turtle_pairings WHERE pet_id=?').run(petId);
+  }
+
+  deleteCodesForDevice(deviceId: string): void {
+    this.db.prepare('DELETE FROM device_sync_codes WHERE device=? OR requester=?').run(
+      deviceId,
+      deviceId
+    );
   }
 }
