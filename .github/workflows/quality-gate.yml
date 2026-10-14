@@ -61,6 +61,15 @@ jobs:
       - name: Test pet engine care rules
         run: node scripts/test-pet-engine.cjs
 
+      - name: Test TypeScript server (server-ts)
+        run: |
+          cd server-ts
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
