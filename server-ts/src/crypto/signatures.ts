@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { getAddress, isAddress, recoverMessageAddress } from 'viem';
 
 export function isValidAddress(address: unknown): address is `0x${string}` {
@@ -54,6 +54,7 @@ export interface ValidatedTelegramInitData {
   auth_date: number;
   start_param?: string;
   chat_instance?: string;
+  chat?: unknown;
   raw_fields: Record<string, string>;
 }
 
@@ -123,11 +124,51 @@ export function validateTelegramInitData(
     }
   }
 
+  let chat: unknown;
+  if (fields['chat']) {
+    try {
+      chat = JSON.parse(fields['chat']);
+    } catch {
+      // ignore invalid chat JSON
+    }
+  }
+
   return {
     user,
     auth_date: authDate,
     start_param: fields['start_param'],
     chat_instance: fields['chat_instance'],
+    chat,
     raw_fields: fields,
   };
+}
+
+export function verifyDiscordInteraction(
+  signature: string | undefined | null,
+  timestamp: string | undefined | null,
+  body: Buffer | Uint8Array | undefined | null,
+  publicKey: string | undefined | null
+): boolean {
+  if (!signature || !timestamp || !body || !publicKey) {
+    return false;
+  }
+  try {
+    const rawKey = Buffer.from(publicKey, 'hex');
+    if (rawKey.length !== 32) return false;
+    const rawSig = Buffer.from(signature, 'hex');
+    if (rawSig.length !== 64) return false;
+
+    // SPKI DER prefix for ed25519 (12 bytes)
+    const spkiPrefix = Buffer.from('302a300506032b6570032100', 'hex');
+    const keyObject = createPublicKey({
+      key: Buffer.concat([spkiPrefix, rawKey]),
+      format: 'der',
+      type: 'spki',
+    });
+
+    const data = Buffer.concat([Buffer.from(timestamp, 'utf-8'), Buffer.from(body)]);
+    return cryptoVerify(null, data, keyObject, rawSig);
+  } catch {
+    return false;
+  }
 }

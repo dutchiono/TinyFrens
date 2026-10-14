@@ -112,4 +112,99 @@ export function registerFarcasterRoutes(app: FastifyInstance, _context: AppConte
   app.get('/', handleSnap);
   app.get('/snap', handleSnap);
   app.get('/api/snap', handleSnap);
+
+  app.post('/api/farcaster/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const data = request.body;
+      if (data && typeof data === 'object') {
+        return reply.status(200).send({ received: true });
+      }
+      return reply.status(200).send({ ok: true });
+    } catch {
+      return reply.status(200).send({ ok: true });
+    }
+  });
+
+  app.post('/api/farcaster/notify', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const apiKey = _context.config.NEYNAR_API_KEY;
+      if (!apiKey) {
+        return reply.status(503).send({ error: 'Neynar API key is not configured' });
+      }
+      const body = (request.body || {}) as Record<string, unknown>;
+      const title = String(body.title || 'TinyFrens').trim().slice(0, 60);
+      const msgBody = String(body.body || 'Your fren wants to play!').trim().slice(0, 160);
+      const targetUrl = String(body.targetUrl || 'https://tinyfrens.lol/').trim();
+
+      const neynarUrl = (_context.config as Record<string, unknown>).NEYNAR_URL as string || 'https://api.neynar.com';
+      const response = await fetch(`${neynarUrl}/v2/farcaster/frame/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          notification: {
+            title,
+            body: msgBody,
+            target_url: targetUrl,
+          },
+        }),
+      });
+
+      const data = (await response.json()) as Record<string, unknown>;
+      if (response.status >= 400) {
+        return reply.status(response.status).send({ error: data.message || 'Could not send notification' });
+      }
+      return reply.status(response.status).send(data);
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message });
+    }
+  });
+
+  app.post('/api/farcaster/cast', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const apiKey = _context.config.NEYNAR_API_KEY;
+      const signerUuid = _context.config.FARCASTER_SIGNER_UUID;
+      if (!apiKey) {
+        return reply.status(503).send({ error: 'Neynar API key is not configured' });
+      }
+      if (!signerUuid) {
+        return reply.status(503).send({ error: 'FARCASTER_SIGNER_UUID is not configured yet' });
+      }
+
+      const body = (request.body || {}) as Record<string, unknown>;
+      const text = String(body.text || '').trim().slice(0, 1024);
+      if (!text) {
+        return reply.status(400).send({ error: 'Cast text cannot be empty' });
+      }
+
+      const payload: Record<string, unknown> = {
+        signer_uuid: signerUuid,
+        text,
+      };
+      if (Array.isArray(body.embeds) && body.embeds.length > 0) {
+        payload.embeds = body.embeds;
+      }
+
+      const neynarUrl = (_context.config as Record<string, unknown>).NEYNAR_URL as string || 'https://api.neynar.com';
+      const response = await fetch(`${neynarUrl}/v2/farcaster/cast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json()) as Record<string, unknown>;
+      if (response.status >= 400) {
+        return reply.status(response.status).send({ error: data.message || 'Could not publish cast' });
+      }
+      return reply.status(response.status).send(data);
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message });
+    }
+  });
 }
+
