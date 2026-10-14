@@ -1,7 +1,7 @@
-/* Robots v1 Tamagotchi economy client.
+/* Robots v1 care economy client.
  *
  * The care *simulation* stays in pet-engine.js; the server owns only what touches
- * money (docs/tamagotchi-robots.md §6.1). This module is the web client for that
+ * money (docs/robots-care.md §6.1). This module is the web client for that
  * server contract: it finds which Robots v1 the player is caring for, shows the
  * FRENS balance and today's free allowance, reports care actions, and collects the
  * game earn-back. It gates robot care on server approval; other collections keep their local loop.

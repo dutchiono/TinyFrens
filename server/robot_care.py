@@ -1,8 +1,8 @@
-"""Robots v1 (Tamagotchi) care economy: ownership gate, action quotes, the free
+"""Robots v1 care economy: ownership gate, action quotes, the free
 daily allowance ledger, and the paid top-up.
 
 The care *simulation* stays in `web/pet-engine.js`; the server only owns what
-touches money (see docs/tamagotchi-robots.md). That is:
+touches money (see docs/robots-care.md). That is:
 
   * which care actions exist and what each costs once the free allowance is gone,
   * how much of today's free allowance a pet has left,

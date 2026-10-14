@@ -1,6 +1,6 @@
 """Token-protected admin surface for the TinyFrens relay.
 
-Non-public by design (docs/tamagotchi-robots.md §8):
+Non-public by design (docs/robots-care.md §8):
 
   * every route needs `Authorization: Bearer <ADMIN_TOKEN>`;
   * with no `ADMIN_TOKEN` configured the whole surface stays disabled (503), so

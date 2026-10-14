@@ -1,20 +1,20 @@
-# Tamagotchi Robots v1 — design plan
+# Robots v1 Care System — design plan
 
 Status: **Building in phases.** P1 (mechanics), P2 (server care layer), P3 (admin), P4 (money —
 server core) and P4b (client wiring) ship in stacked branches; P5 follows. Live mainnet deposits are
 **not yet enabled** (§6.2, §9).
 
-Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/tamagotchi-robots-economy`).
+Baseline: `origin/main` @ `2e2e8d3` (this worktree, branch `feat/robots-care-economy`).
 The previous draft of this doc was written against a stale branch and treated games/ownership/
 economy as new. This version is corrected against the code that actually ships.
 
 ## 1. Goal
 
-Turn **TinyFrens: Robots v1** NFTs into a Tamagotchi-style virtual pet:
+Turn **TinyFrens: Robots v1** NFTs into a living virtual pet:
 
 - Only Robots v1 (`tinyfrens-robots-v1`, `0xd745…` on Base 8453, tokens 1–2664) get the gamified
   layer. Every other shape/NFT stays a friend/visitor.
-- As close to the original Tamagotchi (P1/P2, 1996–97) as practical, on top of the care engine
+- Classic retro virtual pet care loops (weight, discipline, care mistakes), on top of the care engine
   that already exists.
 - A very cheap FRENS economy: users deposit FRENS → in-game **credits**; FRENS go to the Dev
   wallet; credits land ~1:1-ish on the account.
@@ -44,7 +44,7 @@ or token rewards."** That boundary is exactly what this feature crosses — for 
 
 ## 3. The actual gap (what is missing)
 
-1. Tamagotchi-faithful mechanics not yet in `pet-engine.js`: **weight, discipline/scold,
+1. Classic virtual pet care mechanics not yet in `pet-engine.js`: **weight, discipline/scold,
    care-mistake counter, a real lifecycle consequence**, and a hearts view.
 2. Games reward care but **nothing earns or spends credits** from play.
 3. `CREDITS_PER_FRENS` is a fixed `100`, unrelated to USD — not the "few cents" pricing wanted.
@@ -64,7 +64,7 @@ or token rewards."** That boundary is exactly what this feature crosses — for 
 - **No silent fallbacks for chain calls.** Ownership and deposit checks fail closed, as the repo
   already does (`server/robot_companion.py`, `ONCHAIN-ECONOMY.md`).
 
-## 5. Mechanics (Tamagotchi-faithful, additive)
+## 5. Mechanics (Robots v1 care, additive)
 
 Added to `web/pet-engine.js` (plain ES5, additive so other shapes are unaffected), mirrored in a
 small server module only for the parts that touch money (P2):

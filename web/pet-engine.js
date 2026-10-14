@@ -60,7 +60,7 @@
       away: [1 * HOUR, 4 * HOUR], returnEnergy: 10 },
     nagEvery: 60 * MINUTE,    // pester again while a need is unresolved
     maxCatchUpDays: 30,
-    // Tamagotchi-faithful additions (see docs/tamagotchi-robots.md). Additive: the defaults
+    // Robots v1 care additions (see docs/robots-care.md). Additive: the defaults
     // below leave existing shapes/pets with unchanged behaviour.
     weight: { start: 30, feed: 4, play: 3, adventurePerHour: 1, over: 70, under: 10, max: 100 },
     discipline: { start: 50, scoldRight: 12, scoldWrong: 8, misbehaveEvery: [4 * HOUR, 9 * HOUR], low: 25 },
@@ -151,7 +151,7 @@
     s.reduceMotion = bool(raw.reduceMotion, false);
     s.expression = (typeof raw.expression === 'string' && ['happy', 'wink', 'shades', 'star_eyes', 'sleepy', 'loving', 'laser', 'grin'].indexOf(raw.expression) >= 0) ? raw.expression : 'happy';
     s.accessory = (typeof raw.accessory === 'string' && ['none', 'party_hat', 'crown', 'halo', 'bow_tie', 'orb'].indexOf(raw.accessory) >= 0) ? raw.accessory : 'none';
-    // Tamagotchi state
+    // Extended care state
     s.activity = ['idle', 'resting', 'adventuring', 'lost'].indexOf(raw.activity) >= 0 ? raw.activity : 'idle';
     s.poops = Math.floor(num(raw.poops, 0, RULES.maxPoops, 0));
     s.sick = raw.sick === true;

@@ -1,4 +1,4 @@
-// Tamagotchi-faithful pet engine mechanics: hearts, weight, discipline/scold,
+// Robots v1 pet engine care mechanics: hearts, weight, discipline/scold,
 // care mistakes and the downed/revive lifecycle. Existing shapes must be unaffected.
 const assert = require('node:assert/strict');
 const Engine = require('../web/pet-engine.js');
