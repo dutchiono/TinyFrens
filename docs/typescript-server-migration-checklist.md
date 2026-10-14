@@ -139,7 +139,7 @@ Each route needs contract fixtures for success, validation failure, authenticati
 ### Core, static, and registration
 
 - [x] `GET /health`
-- [ ] `POST /api/register`
+- [x] `POST /api/register`
 - [ ] `POST /api/chat`
 - [ ] `OPTIONS /{path:.*}`
 - [ ] Static `/web/` mounting, path traversal protection, MIME types, and cache behavior
@@ -160,13 +160,13 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Account and device sync
 
-- [ ] `POST /api/account/profile`
-- [ ] `POST /api/device-sync/state`
-- [ ] `POST /api/device-sync/start`
-- [ ] `POST /api/device-sync/request`
-- [ ] `POST /api/device-sync/status`
-- [ ] `POST /api/device-sync/accept`
-- [ ] `POST /api/device-sync/leave`
+- [x] `POST /api/account/profile`
+- [x] `POST /api/device-sync/state`
+- [x] `POST /api/device-sync/start`
+- [x] `POST /api/device-sync/request`
+- [x] `POST /api/device-sync/status`
+- [x] `POST /api/device-sync/accept`
+- [x] `POST /api/device-sync/leave`
 
 ### Wallet linking, discovery, and transactions
 
@@ -293,13 +293,13 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 
 ### Existing Python modules
 
-- [ ] `account_profile.py` → account-profile repository/service/routes; preserve account merging and Telegram identity rules.
+- [x] `account_profile.py` → account-profile repository/service/routes; preserve account merging and Telegram identity rules.
 - [ ] `admin.py` → admin repository/service/routes; preserve password hashing, constant-time checks, session expiry, settings overlay, audit records, and HTML serving.
 - [ ] `bankr_identity.py` → Bankr identity integration; preserve wallet-match-only acceptance and outage behavior.
 - [ ] `bots_computer_art.py` → media adapter; compare sanitized SVG and animation semantics.
 - [ ] `collection_suggestions.py` → collection route/service/repository; preserve address normalization, vote accounting, and credit spending.
 - [ ] `deposit_allocator.py` → deposit-router integration; preserve nonce serialization, ABI encoding, receipts, timeouts, ETH/ERC-20 forwarding, and error classes.
-- [ ] `device_sync.py` → device-sync route/service/repository; preserve code reuse/renewal, expiry, approval, merge, limits, ordering, revision conflicts, and cleanup.
+- [x] `device_sync.py` → device-sync route/service/repository; preserve code reuse/renewal, expiry, approval, merge, limits, ordering, revision conflicts, and cleanup.
 - [ ] `discord_integration.py` → Discord integration; preserve Ed25519 verification, OAuth exchange, and channel room IDs.
 - [ ] `economy.py` → economy domain/repository/routes; preserve integer arithmetic, append-only ledger, caps, idempotent transaction handling, packages, deposits, and disabled-mode behavior.
 - [ ] `extra_companions.py` → extra-collection discovery service; preserve supported collection map, bounded scans, ownership cache, partial results, and fail-closed verification.
@@ -333,10 +333,10 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 
 For every table: capture exact `sqlite_master` SQL, indexes, primary keys, collations, defaults, nullability, migration behavior, row serialization, and ownership module. Test both a new database and a copy of production schema.
 
-- [ ] Accounts: `account_identities`, `account_profiles`.
+- [x] Accounts: `account_identities`, `account_profiles`.
 - [ ] Admin: `admin_audit`, `admin_sessions`, `admin_users`, `app_settings`.
 - [ ] Core social: `pets`, `friends`, `requests`, `push_subs`.
-- [ ] Device sync: `device_sync_accounts`, `device_sync_codes`, `device_sync_members`.
+- [x] Device sync: `device_sync_accounts`, `device_sync_codes`, `device_sync_members`.
 - [ ] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
 - [ ] NFTs and collections: `fren_nfts`, `frens_burn_log`, `collection_suggestions`, `collection_votes`.
 - [ ] Economy: `credit_accounts`, `credit_ledger`, `deposit_sessions`, `deposits`, `treasury_transfers`, `indexer_state`.
@@ -404,7 +404,7 @@ Create a TypeScript counterpart before checking off each Python test file. Prese
 - [ ] `test_bots_computer_art.py`: SVG sanitization and animation.
 - [ ] `test_collection_suggestions.py`: suggestions, validation, votes, credit spending, and over-voting prevention.
 - [ ] `test_deposit_allocator.py`: ETH/ERC-20 forwarding and nonce serialization.
-- [ ] `test_device_sync.py`: approval, restart, selection revisions, wallet ordering, expiry, and unsync.
+- [x] `test_device_sync.py`: approval, restart, selection revisions, wallet ordering, expiry, and unsync.
 - [ ] `test_economy.py`: arithmetic, sessions, deposits, ledger, idempotency, caps, routes, and disabled mode.
 - [ ] `test_extra_companions.py`: discovery, caches, transfers, provider failures, and Nub reconstruction.
 - [ ] `test_github_app.py`: JWT cryptography, installation discovery, token scope/cache/refresh, key replacement, and static-token compatibility.

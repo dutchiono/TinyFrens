@@ -4,13 +4,16 @@ import { validateTelegramInitData } from '../crypto/signatures.js';
 import {
   classify,
   getOrCreatePet,
+  linkCode,
   performCareAction,
   publicServerStatus,
   renderGameCard,
   renderGithubProgress,
+  replyMarkup,
   TG_API,
 } from '../integrations/telegram.js';
 import { readAccountProfile, telegramPet } from '../domain/account.js';
+import { requestSync } from '../domain/device-sync.js';
 
 async function callTelegramApi(
   method: string,
@@ -83,6 +86,31 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
       }
 
       const [kind, chatId, chat] = classify(update);
+
+      const syncCode = linkCode(update);
+      if (syncCode && chatId !== null && chatId !== undefined) {
+        if (!secret) {
+          return reply.status(503).send({ error: 'Telegram webhook secret is required' });
+        }
+        const msg = (update as Record<string, unknown>).message as Record<string, unknown> | undefined;
+        const sender = (msg?.from && typeof msg.from === 'object') ? (msg.from as Record<string, unknown>) : {};
+        const pet = telegramPet(context, sender);
+        const username = sender.username ? String(sender.username) : '';
+        const label = username ? `Telegram @${username}` : 'Telegram Mini App';
+        requestSync(context, pet.id, syncCode, label);
+
+        const miniapp = process.env.TELEGRAM_MINI_APP_URL || context.config.TELEGRAM_MINIAPP_URL || 'https://tinyfrens.miono.live';
+        await callTelegramApi(
+          'sendMessage',
+          {
+            chat_id: chatId,
+            text: 'Link requested. Approve it on the TinyFrens device that made the code, then open TinyFrens here.',
+            reply_markup: replyMarkup(`${miniapp}#settings`, '🐾 Open linked account', true),
+          },
+          token
+        );
+        return reply.status(200).send({ ok: true });
+      }
 
       if (kind === 'callback_query') {
         const cq = (update as Record<string, unknown>).callback_query as Record<string, unknown>;

@@ -19,7 +19,7 @@ export function mintPet(
   petProfile: unknown
 ): { id: string; token: string; code: string } {
   const pid = crypto.randomBytes(16).toString('hex');
-  const token = crypto.randomBytes(24).toString('base64url');
+  const token = crypto.randomBytes(32).toString('base64url');
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   let code = '';
@@ -46,18 +46,39 @@ export function reissueToken(
   db: DatabaseConnection,
   pid: string
 ): { token: string; code: string } {
-  const token = crypto.randomBytes(24).toString('base64url');
+  const token = crypto.randomBytes(32).toString('base64url');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   db.prepare('UPDATE pets SET token=? WHERE id=?').run(tokenHash, pid);
   const row = db.prepare<{ code: string }>('SELECT code FROM pets WHERE id=?').get(pid);
   return { token, code: row?.code || '' };
 }
 
+export function tokenPet(
+  contextOrDb: AppContext | DatabaseConnection,
+  token: unknown
+): string {
+  if (typeof token !== 'string' || token.length > 200 || !token) {
+    throw new Error('Device credential not recognized');
+  }
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  if ('repos' in contextOrDb) {
+    const pet = contextOrDb.repos.pets.findByToken(tokenHash);
+    if (!pet) {
+      throw new Error('Device credential not recognized');
+    }
+    return pet.id;
+  }
+  const row = contextOrDb.prepare<{ id: string }>('SELECT id FROM pets WHERE token=?').get(tokenHash);
+  if (!row) {
+    throw new Error('Device credential not recognized');
+  }
+  return row.id;
+}
+
 export interface AccountProfileResult {
-  account: string;
   displayName: string;
   xHandle: string;
-  source: string | null;
+  xHandleSource: string | null;
   identities: Array<{
     platform: string;
     handle: string;
@@ -110,7 +131,7 @@ export function readAccountProfile(
 
   const xIdentity = identities.find(item => item.platform === 'x' && item.verified);
   let xHandle = xIdentity ? xIdentity.handle : '';
-  let source = xIdentity ? 'verified-identity' : null;
+  let source: string | null = xIdentity ? 'verified-identity' : null;
 
   if (!xIdentity) {
     const wallets = context.repos.wallets.getLinkedWallets(pid);
@@ -118,22 +139,16 @@ export function readAccountProfile(
       const social = context.repos.wallets.getSocialProfile(wallet);
       if (social?.x_handle && social.source === 'bankr-verified') {
         xHandle = social.x_handle;
-        source = 'bankr-verified';
+        source = 'bankr';
         break;
       }
     }
   }
 
-  if (!xHandle && profileRow?.x_handle) {
-    xHandle = profileRow.x_handle;
-    source = 'legacy-profile';
-  }
-
   return {
-    account,
     displayName: profileRow?.display_name || '',
     xHandle,
-    source,
+    xHandleSource: source,
     identities,
   };
 }
