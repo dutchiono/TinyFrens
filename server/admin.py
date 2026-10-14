@@ -24,7 +24,7 @@ import time
 from aiohttp import web
 
 import robot_care
-from market_quote import MarketQuote
+from market_quote import MarketQuote, TOKEN as MARKET_TOKEN
 
 log = logging.getLogger("admin")
 
@@ -470,7 +470,9 @@ def install(app, db, *, token=None, initial_user=None, initial_password=None,
 
     @guarded
     async def market_view(request):
-        return web.json_response(await market.get(economy_view()), headers={'Cache-Control': 'no-store'})
+        # Production market visibility must not depend on deposits/game credits being enabled.
+        return web.json_response(await market.get({'chainId': 8453, 'frensToken': MARKET_TOKEN}),
+                                 headers={'Cache-Control': 'no-store'})
 
     @guarded
     async def ledger(request):
