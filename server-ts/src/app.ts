@@ -10,6 +10,10 @@ import { registerCollectionRoutes } from './routes/collections.js';
 import { registerGalleryRoutes } from './routes/galleries.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerFarcasterRoutes } from './routes/farcaster.js';
+import { registerGithubRoutes } from './routes/github.js';
+import { registerDiscordRoutes } from './routes/discord.js';
+import { registerTelegramRoutes } from './routes/telegram.js';
+import fastifyRawBody from 'fastify-raw-body';
 
 export interface AppOptions {
   context: AppContext;
@@ -20,8 +24,16 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const { context, serverOptions } = options;
 
   const app = fastify({
-    bodyLimit: 4096, // 4096 bytes request body limit matching Python client_max_size
+    bodyLimit: 4096, // default 4096 bytes request body limit matching Python client_max_size
     ...serverOptions,
+  });
+
+  // Preserve raw request bodies for webhooks and signatures
+  await app.register(fastifyRawBody, {
+    field: 'rawBody',
+    global: false,
+    encoding: false,
+    runFirst: true,
   });
 
   // Error handling
@@ -39,6 +51,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerGalleryRoutes(app, context);
   registerPushRoutes(app, context);
   registerFarcasterRoutes(app, context);
+
+  // Webhooks and external integrations (Phase 5)
+  registerGithubRoutes(app, context);
+  registerDiscordRoutes(app, context);
+  registerTelegramRoutes(app, context);
 
   // Graceful shutdown hook
   app.addHook('onClose', async () => {

@@ -1,0 +1,182 @@
+import crypto from 'node:crypto';
+import { DatabaseConnection } from '../db/connection.js';
+import { AppContext } from '../context.js';
+import { userProfile } from '../integrations/telegram.js';
+
+export function cleanName(value: unknown): string {
+  const cleaned = String(value || '')
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (cleaned && (cleaned.length < 1 || cleaned.length > 32)) {
+    throw new Error('Display name must be 1 to 32 characters');
+  }
+  return cleaned;
+}
+
+export function mintPet(
+  db: DatabaseConnection,
+  petProfile: unknown
+): { id: string; token: string; code: string } {
+  const pid = crypto.randomBytes(16).toString('hex');
+  const token = crypto.randomBytes(24).toString('base64url');
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  let code = '';
+  while (true) {
+    code = Array.from({ length: 8 }, () => alphabet[crypto.randomInt(0, alphabet.length)]).join('');
+    const existing = db.prepare<{ id: string }>('SELECT id FROM pets WHERE code=?').get(code);
+    if (!existing) {
+      break;
+    }
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  db.prepare('INSERT INTO pets(id, code, token, profile) VALUES(?, ?, ?, ?)').run(
+    pid,
+    code,
+    tokenHash,
+    JSON.stringify(petProfile)
+  );
+
+  return { id: pid, token, code };
+}
+
+export function reissueToken(
+  db: DatabaseConnection,
+  pid: string
+): { token: string; code: string } {
+  const token = crypto.randomBytes(24).toString('base64url');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  db.prepare('UPDATE pets SET token=? WHERE id=?').run(tokenHash, pid);
+  const row = db.prepare<{ code: string }>('SELECT code FROM pets WHERE id=?').get(pid);
+  return { token, code: row?.code || '' };
+}
+
+export interface AccountProfileResult {
+  account: string;
+  displayName: string;
+  xHandle: string;
+  source: string | null;
+  identities: Array<{
+    platform: string;
+    handle: string;
+    displayName: string;
+    verified: boolean;
+  }>;
+}
+
+export function telegramIdentity(
+  context: AppContext,
+  pid: string,
+  user: Record<string, unknown>
+): string {
+  const account = context.repos.deviceSync.ensureAccount(pid);
+  const subject = String(user.id || '');
+  if (!subject) {
+    throw new Error('Telegram user is missing');
+  }
+  const handle = String(user.username || '').slice(0, 32);
+  const rawDisplayName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+  const displayName = cleanName(rawDisplayName);
+  const now = Math.floor(context.now());
+
+  context.repos.accounts.upsertIdentity(
+    account,
+    'telegram',
+    subject,
+    handle,
+    displayName,
+    true,
+    now
+  );
+  return account;
+}
+
+export function readAccountProfile(
+  context: AppContext,
+  pid: string
+): AccountProfileResult {
+  const account = context.repos.deviceSync.ensureAccount(pid);
+  const profileRow = context.repos.accounts.getProfile(account);
+  const identitiesRows = context.repos.accounts.getIdentities(account);
+
+  const identities = identitiesRows.map(r => ({
+    platform: r.platform,
+    handle: r.handle,
+    displayName: r.display_name,
+    verified: Boolean(r.verified),
+  }));
+
+  const xIdentity = identities.find(item => item.platform === 'x' && item.verified);
+  let xHandle = xIdentity ? xIdentity.handle : '';
+  let source = xIdentity ? 'verified-identity' : null;
+
+  if (!xIdentity) {
+    const wallets = context.repos.wallets.getLinkedWallets(pid);
+    for (const wallet of wallets) {
+      const social = context.repos.wallets.getSocialProfile(wallet);
+      if (social?.x_handle && social.source === 'bankr-verified') {
+        xHandle = social.x_handle;
+        source = 'bankr-verified';
+        break;
+      }
+    }
+  }
+
+  if (!xHandle && profileRow?.x_handle) {
+    xHandle = profileRow.x_handle;
+    source = 'legacy-profile';
+  }
+
+  return {
+    account,
+    displayName: profileRow?.display_name || '',
+    xHandle,
+    source,
+    identities,
+  };
+}
+
+export function telegramPet(
+  context: AppContext,
+  user: Record<string, unknown>,
+  issueToken = false
+): { id: string; token: string | null; code: string } {
+  const tgId = String(user.id || '');
+  if (!tgId) {
+    throw new Error('No Telegram user in request');
+  }
+
+  const existingPetId = context.repos.telegram.getPetIdForTgUser(tgId);
+  const petExists = existingPetId
+    ? context.repos.pets.findById(existingPetId) !== undefined
+    : false;
+
+  let pid = '';
+  let token: string | null = null;
+  let code = '';
+
+  if (existingPetId && petExists) {
+    pid = existingPetId;
+    if (issueToken) {
+      const reissued = reissueToken(context.db, pid);
+      token = reissued.token;
+      code = reissued.code;
+    } else {
+      const pet = context.repos.pets.findById(pid);
+      code = pet?.code || '';
+    }
+  } else {
+    const profile = userProfile(user);
+    const minted = mintPet(context.db, profile);
+    pid = minted.id;
+    token = minted.token;
+    code = minted.code;
+    const now = Math.floor(context.now());
+    context.repos.telegram.linkTgUser(tgId, pid, now);
+  }
+
+  telegramIdentity(context, pid, user);
+  return { id: pid, token, code };
+}

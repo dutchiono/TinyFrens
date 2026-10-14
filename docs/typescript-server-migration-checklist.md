@@ -154,9 +154,9 @@ Each route needs contract fixtures for success, validation failure, authenticati
 - [x] `GET /snap`
 - [ ] `POST /snap`
 - [x] `GET /.well-known/farcaster.json`
-- [ ] `POST /api/farcaster/notify`
-- [ ] `POST /api/farcaster/webhook`
-- [ ] `POST /api/farcaster/cast`
+- [x] `POST /api/farcaster/notify`
+- [x] `POST /api/farcaster/webhook`
+- [x] `POST /api/farcaster/cast`
 
 ### Account and device sync
 
@@ -226,12 +226,12 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 ### Telegram, GitHub, and Discord
 
-- [ ] `POST /api/telegram/auth`
-- [ ] `POST /api/telegram/webhook`
-- [ ] `POST /api/github/webhook`
-- [ ] `POST /api/discord/token`
-- [ ] `POST /api/discord/interactions`
-- [ ] Preserve raw request bodies for GitHub HMAC and Discord Ed25519 verification.
+- [x] `POST /api/telegram/auth`
+- [x] `POST /api/telegram/webhook`
+- [x] `POST /api/github/webhook`
+- [x] `POST /api/discord/token`
+- [x] `POST /api/discord/interactions`
+- [x] Preserve raw request bodies for GitHub HMAC and Discord Ed25519 verification.
 - [ ] Preserve Telegram multipart upload behavior and cached Telegram `file_id` reuse.
 - [ ] Preserve Telegram callback-query routing so moderation and game callbacks do not consume each other.
 
@@ -442,7 +442,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 2: media generation and deterministic contract/crypto helpers using known vectors.
 - [x] Phase 3: repositories and schema compatibility against copied fixture databases.
 - [x] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
-- [ ] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
+- [x] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
 - [ ] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
 - [ ] Phase 7: workers and restart recovery.
 - [ ] Phase 8: Telegram orchestration and moderation.
