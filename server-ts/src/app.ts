@@ -21,6 +21,7 @@ import { registerWalletLinkRoutes } from './routes/wallet-link.js';
 import { registerRobotCareRoutes } from './routes/robot-care.js';
 import { registerWalletNftRoutes } from './routes/wallet-nft.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerChatRoutes } from './routes/chat.js';
 import fastifyRawBody from 'fastify-raw-body';
 
 export interface AppOptions {
@@ -82,6 +83,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   // Admin surface and settings (Phase 6 Slice 6F)
   registerAdminRoutes(app, context);
+
+  // Chat (Phase 6 Slice 6G)
+  registerChatRoutes(app, context);
 
   // Graceful shutdown hook
   app.addHook('onClose', async () => {

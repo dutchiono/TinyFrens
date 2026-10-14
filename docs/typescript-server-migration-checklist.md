@@ -140,19 +140,19 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 - [x] `GET /health`
 - [x] `POST /api/register`
-- [ ] `POST /api/chat`
+- [x] `POST /api/chat`
 - [ ] `OPTIONS /{path:.*}`
 - [ ] Static `/web/` mounting, path traversal protection, MIME types, and cache behavior
 
 ### Snap and Farcaster
 
 - [x] `GET /`
-- [ ] `POST /`
+- [x] `POST /`
 - [x] `GET /api/snap`
-- [ ] `POST /api/snap`
-- [ ] `POST /api/snap/interact`
+- [x] `POST /api/snap`
+- [x] `POST /api/snap/interact`
 - [x] `GET /snap`
-- [ ] `POST /snap`
+- [x] `POST /snap`
 - [x] `GET /.well-known/farcaster.json`
 - [x] `POST /api/farcaster/notify`
 - [x] `POST /api/farcaster/webhook`
@@ -238,9 +238,9 @@ Each route needs contract fixtures for success, validation failure, authenticati
 ### Push notifications
 
 - [x] `GET /api/push/public-key`
-- [ ] `POST /api/push/subscribe`
-- [ ] `POST /api/push/unsubscribe`
-- [ ] Preserve best-effort offline push, subscription removal, payload shape, and rate limits.
+- [x] `POST /api/push/subscribe`
+- [x] `POST /api/push/unsubscribe`
+- [x] Preserve best-effort offline push, subscription removal, payload shape, and rate limits.
 
 ### Admin
 
@@ -286,7 +286,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 
 - [ ] `server/app.py` → composition plus the route modules above. Account for every nested helper, middleware, schema statement, startup hook, cleanup hook, route, WebSocket event, and in-memory map before deleting any Python line.
 - [ ] Move registration/profile validation into `routes/registration.ts` and a shared profile domain module.
-- [ ] Move Gemini chat into `routes/chat.ts` plus a Gemini integration.
+- [x] Move Gemini chat into `routes/chat.ts` plus a Gemini integration.
 - [ ] Move Bankr and wallet transaction logic into separate route and service modules.
 - [ ] Move Snap/Farcaster, Telegram, GitHub, Discord, push, NFT metadata, and WebSocket logic into their own route modules.
 - [ ] Replace module-global environment access with typed config passed through application context.
@@ -443,7 +443,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 3: repositories and schema compatibility against copied fixture databases.
 - [x] Phase 4: read-only routes such as health, metadata, galleries, and status endpoints.
 - [x] Phase 5: isolated signed webhooks and external integrations using captured fixtures and fake providers.
-- [ ] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
+- [x] Phase 6: authenticated mutation routes for profiles, pairing, device sync, care, voting, wallets, and economy.
 - [ ] Phase 7: workers and restart recovery.
 - [ ] Phase 8: Telegram orchestration and moderation.
 - [ ] Phase 9: stateful WebSocket protocol and process-local presence.
