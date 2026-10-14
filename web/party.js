@@ -2,12 +2,72 @@
 (() => {
   const status = $('partyStatus'), stage = $('partyStage'), leave = $('leaveParty'), code = $('privatePartyCode');
   const inspectModal = $('partyInspectModal'), closeInspectBtn = $('closePartyInspect');
+  const plazaBadge = $('plazaBadge');
+  const btnModePublic = $('btnModePublic'), btnModePrivate = $('btnModePrivate');
+  const panelPublicPlaza = $('panelPublicPlaza'), panelPrivateRoom = $('panelPrivateRoom');
+  const createPrivateRoomBtn = $('createPrivateRoomBtn');
+  const privateActiveCard = $('privateActiveCard'), activePrivateCode = $('activePrivateCode');
+  const copyRoomCodeBtn = $('copyRoomCodeBtn'), copyRoomLinkBtn = $('copyRoomLinkBtn');
+  const switchBackPublicBtn = $('switchBackPublicBtn');
+  const homeVisitPlaza = $('homeVisitPlaza');
   let active = null;
   const memberNodes = new Map(); // id -> { el, x, y, facing, nextMove, member }
   let inspectTarget = null;
   let roamInterval = null;
   const saved = 'tinyfrens-party-code';
-  try { code.value = localStorage.getItem(saved) || ''; } catch {}
+  try { if (code) code.value = localStorage.getItem(saved) || ''; } catch {}
+
+  function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let suffix = '';
+    for (let i = 0; i < 4; i++) {
+      suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return 'FREN-' + suffix;
+  }
+
+  function setMode(mode) {
+    if (mode === 'private') {
+      btnModePrivate?.classList.add('active');
+      btnModePublic?.classList.remove('active');
+      if (panelPrivateRoom) panelPrivateRoom.hidden = false;
+      if (panelPublicPlaza) panelPublicPlaza.hidden = true;
+    } else {
+      btnModePublic?.classList.add('active');
+      btnModePrivate?.classList.remove('active');
+      if (panelPublicPlaza) panelPublicPlaza.hidden = false;
+      if (panelPrivateRoom) panelPrivateRoom.hidden = true;
+    }
+  }
+
+  function copyText(text, successMsg) {
+    const feedback = $('privateCopyFeedback');
+    const doFeedback = () => {
+      if (feedback) {
+        feedback.textContent = successMsg;
+        setTimeout(() => { if (feedback.textContent === successMsg) feedback.textContent = ''; }, 3000);
+      }
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(doFeedback).catch(() => {
+        fallbackCopy(text, doFeedback);
+      });
+    } else {
+      fallbackCopy(text, doFeedback);
+    }
+  }
+
+  function fallbackCopy(text, cb) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); cb(); } catch {}
+    ta.remove();
+  }
+
 
   const VALID_SHAPES = ['cat','blob','robot','bunny','duck','pig','frog','turtle'];
   const VALID_EXPRS = ['happy','wink','shades','star_eyes','sleepy','loving','laser','grin'];
@@ -258,28 +318,39 @@
 
   function join(room, roomCode='') {
     const api = window.TinyFrensFriends;
-    if (!api) { status.textContent = 'Party mode needs the TinyFrens server.'; return; }
+    if (!api) { status.textContent = 'Plaza mode needs the TinyFrens server.'; return; }
     if (!api.connected()) {
       api.connect?.();
       status.textContent = 'Connecting to the TinyFrens server. Try again in a moment.';
       return;
     }
     active = {room, code: roomCode};
-    leave.disabled = false;
+    if (leave) leave.disabled = false;
     api.send({type:'party-join', room, code: roomCode, pet: petProfile()});
-    status.textContent = room === 'public' ? 'Entering the Public Plaza...' : 'Joining private room ' + roomCode + '...';
+    if (room === 'private') {
+      setMode('private');
+      if (privateActiveCard) privateActiveCard.hidden = false;
+      if (activePrivateCode) activePrivateCode.textContent = roomCode;
+      if (plazaBadge) plazaBadge.textContent = '🔒 Room ' + roomCode;
+      status.textContent = 'Joining private room ' + roomCode + '...';
+    } else {
+      setMode('public');
+      if (privateActiveCard) privateActiveCard.hidden = true;
+      if (plazaBadge) plazaBadge.textContent = '🌳 Public Plaza';
+      status.textContent = 'Entering the Public Plaza...';
+    }
   }
 
   function joinChat(platform, chatId, label) {
     const api = window.TinyFrensFriends;
-    if (!api) { status.textContent = 'Party mode needs the TinyFrens server.'; return; }
+    if (!api) { status.textContent = 'Plaza mode needs the TinyFrens server.'; return; }
     if (!api.connected()) {
       api.connect?.();
       status.textContent = 'Connecting to the TinyFrens server. Try again in a moment.';
       return;
     }
     active = {room: 'chat', platform, chatId};
-    leave.disabled = false;
+    if (leave) leave.disabled = false;
     api.send({type:'party-join', room:'chat', platform, chatId, pet: petProfile()});
     status.textContent = 'Joining ' + (label || (platform === 'discord' ? 'this Discord channel' : 'this Telegram group')) + '...';
   }
@@ -288,8 +359,10 @@
     if (data.type !== 'party-state') return;
     if (!data.members?.length || data.room === 'none') {
       active = null;
-      leave.disabled = true;
-      status.textContent = 'Plaza is quiet right now. Join to step outside!';
+      if (leave) leave.disabled = true;
+      status.textContent = 'Plaza is quiet right now. Reconnect to step outside!';
+      if (plazaBadge) plazaBadge.textContent = '🌳 Public Plaza';
+      if (privateActiveCard) privateActiveCard.hidden = true;
       memberNodes.forEach(item => item.el.remove());
       memberNodes.clear();
       stopRoaming();
@@ -299,7 +372,17 @@
       }
       return;
     }
-    leave.disabled = false;
+    if (leave) leave.disabled = false;
+    if (data.room === 'private') {
+      setMode('private');
+      if (privateActiveCard) privateActiveCard.hidden = false;
+      if (activePrivateCode) activePrivateCode.textContent = data.code;
+      if (plazaBadge) plazaBadge.textContent = '🔒 Room ' + data.code;
+    } else if (data.room === 'public') {
+      setMode('public');
+      if (privateActiveCard) privateActiveCard.hidden = true;
+      if (plazaBadge) plazaBadge.textContent = '🌳 Public Plaza';
+    }
     const label = data.room === 'chat'
       ? (data.platform === 'discord' ? 'Discord channel' : 'Telegram group') + ' · '
       : (data.room === 'public' ? 'Public Plaza' : 'Private room ' + data.code) + ' · ';
@@ -367,18 +450,21 @@
     }
   }
 
-  $('joinPublicParty').onclick = () => join('public');
-  $('privatePartyForm').onsubmit = event => {
+  $('joinPublicParty')?.addEventListener('click', () => join('public'));
+  $('privatePartyForm')?.addEventListener('submit', event => {
     event.preventDefault();
     const roomCode = code.value.replace(/[^A-Za-z0-9-]/g,'').toUpperCase().slice(0,24);
     if (roomCode.length < 3) { status.textContent = 'Enter a private room code.'; code.focus(); return; }
     code.value = roomCode;
     try { localStorage.setItem(saved, roomCode); } catch {}
     join('private', roomCode);
-  };
-  leave.onclick = () => {
+  });
+  leave?.addEventListener('click', () => {
     window.TinyFrensFriends?.send({type:'party-leave'});
-    active = null; leave.disabled = true;
+    active = null;
+    if (leave) leave.disabled = true;
+    if (privateActiveCard) privateActiveCard.hidden = true;
+    if (plazaBadge) plazaBadge.textContent = '🌳 Public Plaza';
     memberNodes.forEach(item => item.el.remove());
     memberNodes.clear();
     stopRoaming();
@@ -387,18 +473,83 @@
     if (window.PetAndroid?.setGuests) {
       try { window.PetAndroid.setGuests('[]'); } catch {}
     }
-  };
+    window.showScreen?.('pet');
+  });
 
-  // Space switcher hooks
-  $('spaceHome')?.addEventListener('click', () => window.showScreen('pet'));
+  btnModePublic?.addEventListener('click', () => {
+    setMode('public');
+    if (!active || active.room !== 'public') join('public');
+  });
+  btnModePrivate?.addEventListener('click', () => {
+    setMode('private');
+  });
+  createPrivateRoomBtn?.addEventListener('click', () => {
+    const newCode = generateRoomCode();
+    if (code) code.value = newCode;
+    try { localStorage.setItem(saved, newCode); } catch {}
+    join('private', newCode);
+  });
+  copyRoomCodeBtn?.addEventListener('click', () => {
+    const currentCode = active?.code || code?.value;
+    if (currentCode) copyText(currentCode, 'Copied room code!');
+  });
+  copyRoomLinkBtn?.addEventListener('click', () => {
+    const currentCode = active?.code || code?.value;
+    if (currentCode) {
+      const url = `${location.origin}${location.pathname}#plaza?room=${encodeURIComponent(currentCode)}`;
+      copyText(url, 'Copied invite link!');
+    }
+  });
+  switchBackPublicBtn?.addEventListener('click', () => {
+    join('public');
+  });
+
+  // Space switcher & Home jump hooks
+  $('spaceHome')?.addEventListener('click', () => window.showScreen?.('pet'));
   $('spacePlaza')?.addEventListener('click', () => {
-    window.showScreen('party');
+    window.showScreen?.('party');
     if (!active) join('public');
   });
   $('visitPlazaQuick')?.addEventListener('click', () => {
-    window.showScreen('party');
+    window.showScreen?.('party');
     if (!active) join('public');
   });
+  homeVisitPlaza?.addEventListener('click', () => {
+    window.showScreen?.('party');
+    if (!active) join('public');
+  });
+
+  function checkUrlRoom() {
+    let roomParam = null;
+    const hash = window.location.hash || '';
+    if (hash.includes('?')) {
+      const q = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
+      roomParam = q.get('room');
+    }
+    if (!roomParam) {
+      const search = new URLSearchParams(window.location.search || '');
+      roomParam = search.get('room');
+    }
+    if (roomParam) {
+      const cleaned = roomParam.replace(/[^A-Za-z0-9-]/g, '').toUpperCase().slice(0, 24);
+      if (cleaned.length >= 3) {
+        if (code) code.value = cleaned;
+        window.showScreen?.('party');
+        const tryJoin = () => {
+          const api = window.TinyFrensFriends;
+          if (api?.connected?.()) {
+            join('private', cleaned);
+          } else {
+            api?.connect?.();
+            setTimeout(tryJoin, 400);
+          }
+        };
+        tryJoin();
+        return true;
+      }
+    }
+    return false;
+  }
 
   window.TinyFrensFriends?.on(handleMessage);
   window.addEventListener('pet-profile-changed', () => {
@@ -409,6 +560,8 @@
       else api.send({type:'party-join', room:active.room, code:active.code, ...base});
     }
   });
+
+  checkUrlRoom();
 
   // Public API
   window.TinyFrensParty = {
