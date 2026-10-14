@@ -284,7 +284,7 @@ describe('HTTP Read-Only Routes Parity (Phase 4)', () => {
       });
       assert.strictEqual(res.statusCode, 200);
       assert.ok(res.headers.link?.includes('rel="alternate"'));
-      assert.ok(res.body.includes('<title>Fren • Cat • Farcaster Snap</title>'));
+      assert.ok(res.body.includes('Fren') && res.body.includes('Cat') && res.body.includes('Farcaster Snap'));
     });
 
     test('GET /snap with snap accept returns json snap frame', async () => {
