@@ -56,6 +56,8 @@ export function registerOriginGuard(app: FastifyInstance, context: AppContext): 
   });
 
   app.addHook('onSend', async (request: FastifyRequest, reply: FastifyReply, payload) => {
+    if ((reply as FastifyReply & { skipOriginHeaders?: boolean }).skipOriginHeaders) return payload;
+
     const origin = request.headers.origin;
     const path = request.url.split('?')[0];
     const accept = request.headers.accept || '';

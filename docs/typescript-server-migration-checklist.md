@@ -120,18 +120,18 @@ The local differential smoke harness covers 15 side-effect-free and rejected req
 
 ## Middleware and application-wide behavior
 
-- [ ] Port the exact origin allowlist behavior from `origin_guard`.
-- [ ] Preserve public-path exceptions and `Origin: null` behavior.
-- [ ] Preserve special origin-free agent access for turtle challenge and confirmation endpoints.
-- [ ] Preserve separate admin CORS and bearer/session authorization behavior.
-- [ ] Preserve preflight responses and the exact allowed methods and headers.
-- [ ] Preserve `Cache-Control: no-store` on private, admin, pairing, and agent responses.
-- [ ] Preserve the 4096-byte server request limit and 4096-byte WebSocket message limit.
-- [ ] Preserve trusted-proxy behavior; never trust `X-Forwarded-For` unless `TRUST_PROXY=true`.
+- [x] Port the exact origin allowlist behavior from `origin_guard`. (The differential harness and middleware tests cover public, allowed, rejected, native, agent, and admin paths.)
+- [x] Preserve public-path exceptions and `Origin: null` behavior.
+- [x] Preserve special origin-free agent access for turtle challenge and confirmation endpoints.
+- [x] Preserve separate admin CORS and bearer/session authorization behavior.
+- [x] Preserve preflight responses and the exact allowed methods and headers.
+- [x] Preserve `Cache-Control: no-store` on private, admin, pairing, and agent responses.
+- [x] Preserve the 4096-byte server request limit and 4096-byte WebSocket message limit. (Oversized HTTP bodies match Python's undecorated plain-text 413; WebSocket tests require close code 1009.)
+- [x] Preserve trusted-proxy behavior; never trust `X-Forwarded-For` unless `TRUST_PROXY=true`. (The full header is retained as Python does rather than silently changing rate-limit keys.)
 - [ ] Inventory every rate-limit key, threshold, period, and cleanup rule.
-- [ ] Preserve JSON parsing failures and their existing status mappings.
-- [ ] Preserve provider error redaction so credentials, private keys, and upstream bodies cannot leak.
-- [ ] Preserve graceful shutdown: stop workers, cancel challenge timers, close sockets with code 1001, then close SQLite.
+- [x] Preserve JSON parsing failures and their existing status mappings. (Malformed and oversized JSON are compared directly against the frozen Python process.)
+- [x] Preserve provider error redaction so credentials, private keys, and upstream bodies cannot leak.
+- [x] Preserve graceful shutdown: stop workers, cancel challenge timers, close sockets with code 1001, then close SQLite.
 - [x] Preserve startup order so schemas exist before handlers or workers access them.
 
 ## HTTP route inventory
