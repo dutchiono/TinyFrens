@@ -26,14 +26,23 @@ class OwnerAutoMergeTests(unittest.TestCase):
         pr.update(changes)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            merged = dict(pr, state='closed', merged=True)
             (root / 'response.json').write_text(json.dumps(pr))
+            (root / 'merged.json').write_text(json.dumps(merged))
             (root / 'mock.py').write_text('''import json, os, sys
 from pathlib import Path
 root = Path(os.environ['MOCK_ROOT'])
 with (root/'calls.jsonl').open('a') as log: log.write(json.dumps(sys.argv[1:])+'\\n')
 if sys.argv[1:] == ['api', 'repos/dutchiono/TinyFrens/pulls/42']:
-    print((root/'response.json').read_text())
-elif sys.argv[1:3] != ['pr', 'merge']:
+    count_file = root/'api-count'
+    count = int(count_file.read_text()) if count_file.exists() else 0
+    count_file.write_text(str(count + 1))
+    print((root/('response.json' if count == 0 else 'merged.json')).read_text())
+elif sys.argv[1:3] == ['pr', 'merge']:
+    pass
+elif sys.argv[1:] == ['workflow', 'run', 'publish-server.yml', '--repo', 'dutchiono/TinyFrens', '--ref', 'main']:
+    pass
+else:
     raise SystemExit('Unexpected GitHub operation')
 ''')
             (root / 'gh').write_text('#!/usr/bin/env bash\npython "$MOCK_ROOT/mock.py" "$@"\n')
@@ -49,7 +58,9 @@ elif sys.argv[1:3] != ['pr', 'merge']:
         calls = self.run_policy()
         self.assertEqual(calls[1], ['pr', 'merge', '42', '--repo', 'dutchiono/TinyFrens',
                                   '--squash', '--auto', '--match-head-commit', 'current-head'])
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[-1], ['workflow', 'run', 'publish-server.yml', '--repo',
+                                    'dutchiono/TinyFrens', '--ref', 'main'])
+        self.assertEqual(len(calls), 4)
 
     def test_other_author_is_not_merged(self):
         self.assertEqual(len(self.run_policy(user={'login': 'someone-else'})), 1)
