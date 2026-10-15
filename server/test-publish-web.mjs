@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { parseCommand, publish, REQUIRED, unpack, validateRelativePath } from './publish-web.mjs';
+import { loopbackLookup, parseCommand, publish, REQUIRED, unpack, validateRelativePath } from './publish-web.mjs';
 
 async function fixtureArchive(root, omit = null) {
   const source = path.join(root, 'source');
@@ -28,6 +28,18 @@ test('restricted command accepts only publish and notify with a full SHA', () =>
   for (const command of ['notify main', `notify ${revision} extra`, `sh -c notify ${revision}`, '']) {
     assert.throws(() => parseCommand(command));
   }
+});
+
+test('loopback lookup supports Node single and all-address callbacks', () => {
+  loopbackLookup('tinyfrens.lol', {}, (error, address, family) => {
+    assert.equal(error, null);
+    assert.equal(address, '127.0.0.1');
+    assert.equal(family, 4);
+  });
+  loopbackLookup('tinyfrens.lol', { all: true }, (error, addresses) => {
+    assert.equal(error, null);
+    assert.deepEqual(addresses, [{ address: '127.0.0.1', family: 4 }]);
+  });
 });
 
 test('archive paths reject traversal, private files, and admin files', () => {
