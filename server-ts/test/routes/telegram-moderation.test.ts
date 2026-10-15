@@ -34,6 +34,7 @@ describe('Telegram moderation webhook orchestration', () => {
       TELEGRAM_BOT_TOKEN: 'bot-token',
       TELEGRAM_WEBHOOK_SECRET: 'webhook-secret',
       TELEGRAM_MODERATION: 'true',
+      TELEGRAM_DEPLOY_OWNER_ID: '969561894',
     }), db, {
       telegramApi: api,
       now: () => 1000,
@@ -142,7 +143,7 @@ describe('Telegram moderation webhook orchestration', () => {
       message_id: 9,
       text: '/admin',
       chat,
-      from: { id: 1, username: 'dutchiono' },
+      from: { id: 969561894, username: 'renamed-owner' },
     });
     assert.match(String(api.calls.at(-1)?.payload.text), /Host & Server Triage/);
     assert.doesNotMatch(String(api.calls.at(-1)?.payload.text), /bot-token/);

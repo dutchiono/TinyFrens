@@ -103,7 +103,7 @@ describe('Parity Manifest & Inventory Verification', () => {
       'ROBOT_CARE_DAILY_ALLOWANCE',
       'NEYNAR_API_KEY',
       'TELEGRAM_BOT_TOKEN',
-      'TELEGRAM_DEPLOY_OWNER',
+      'TELEGRAM_DEPLOY_OWNER_ID',
       'GITHUB_TOKEN',
       'DISCORD_CLIENT_ID',
       'VAPID_PUBLIC_KEY',

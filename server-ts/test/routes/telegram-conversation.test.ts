@@ -95,7 +95,7 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.match(String(api.calls.at(-1)?.payload.text), /Tiny Crew/);
 
     await webhook({ message: { message_id: 2, text: '/help', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
-    assert.match(String(api.calls.at(-1)?.payload.text), /Talk to me normally/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /TinyFrens — Commands/);
     assert.equal(api.calls.at(-1)?.payload.reply_to_message_id, 2);
   });
 
