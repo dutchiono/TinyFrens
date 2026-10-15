@@ -32,7 +32,7 @@ Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open
 
 ### Group scrap prototype
 
-Use `/scrap` in a group to open a 60-second scrap lobby. The bot posts one message with **Join** and **Resolve** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to open a 60-second scrap lobby. `/scrap` is an alias. The bot posts one message with **Join** and **Resolve** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player. `/pet` and `/play` keep the older care card available during the transition.
 
 - A crew holds up to four operators.
 - The operator who starts the run joins automatically.

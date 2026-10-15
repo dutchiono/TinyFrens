@@ -625,7 +625,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           update_id: 200,
           message: {
             message_id: 700,
-            text: '/scrap',
+            text: '/game',
             chat: { id: '-100-scrap', type: 'supergroup' },
             from: { id: 'starter', first_name: 'Ada' },
           },

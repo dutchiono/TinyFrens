@@ -248,7 +248,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                   'answerCallbackQuery',
                   {
                     callback_query_id: cqId,
-                    text: "This isn't your Fren! Use /game to spawn your own companion.",
+                    text: "This isn't your Fren! Use /pet to spawn your own companion.",
                     show_alert: true,
                   },
                   token
@@ -462,9 +462,10 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '🐾 <b>TinyFrens — Commands</b>',
               '',
               '<b>🎮 Group’s Fren</b>',
-              '/game — Open Fren care controls.',
-              '/scrap — Start or reopen one quiet group scrap run.',
-              'Feed · Play · Rest · Dice · Bag · Refresh',
+              isPrivate
+                ? '/game · /pet · /play — Open Fren care controls.'
+                : '/game · /scrap — Start or reopen one quiet group scrap run.',
+              isPrivate ? 'Feed · Play · Rest · Dice · Bag · Refresh' : '/pet · /play — Open the legacy Fren care card.',
               '<i>Game FRENS coins are not on-chain tokens. Shared group progress is still being developed.</i>',
               '',
               '<b>🖼 Your NFT Frens</b>',
@@ -526,7 +527,11 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\/(?:game|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+        const isGroupChat = chat?.type === 'group' || chat?.type === 'supergroup';
+        const isGameCommand = /^\/game(?:@\w+)?\s*$/i.test(text);
+        const isLegacyCareCommand = /^\/(?:pet|play)(?:@\w+)?\s*$/i.test(text) ||
+          (isGameCommand && !isGroupChat);
+        if (isLegacyCareCommand && chatId !== null && chatId !== undefined) {
           const pet = getOrCreatePet(
             context.db,
             String(chatId),
@@ -543,8 +548,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\/scrap(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
-          if (chat?.type !== 'group' && chat?.type !== 'supergroup') {
+        if (/^\/(?:game|scrap)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          if (!isGroupChat) {
             await sendCommand({ chat_id: chatId, text: 'Group scrap runs are played in a Telegram group.' });
             return reply.status(200).send({ ok: true });
           }
