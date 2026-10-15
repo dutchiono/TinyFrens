@@ -518,20 +518,14 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(telegramCalls.length, 2);
     });
 
-    test('POST /api/telegram/webhook executes game callback query care action', async () => {
-      let answeredQuery: Record<string, unknown> | null = null;
-      let editedMessage: Record<string, unknown> | null = null;
-      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
-        const urlStr = String(url);
-        if (urlStr.includes('/answerCallbackQuery')) {
-          answeredQuery = JSON.parse(String(init?.body || '{}'));
-          return new Response(JSON.stringify({ ok: true }), { status: 200 });
-        }
-        if (urlStr.includes('/editMessageText')) {
-          editedMessage = JSON.parse(String(init?.body || '{}'));
-          return new Response(JSON.stringify({ ok: true }), { status: 200 });
-        }
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    test('POST /api/telegram/webhook retires old care-card buttons', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return { data: { ok: true }, status: 200 };
+        },
       };
 
       const res = await app.inject({
@@ -554,51 +548,14 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         }),
       });
+      sharedContext.telegramApi = originalTelegramApi;
 
       assert.strictEqual(res.statusCode, 200);
       assert.deepStrictEqual(res.json(), { ok: true });
-      assert.ok(answeredQuery);
-      assert.ok(String(answeredQuery.text).includes('Yum! Fed delicious snacks'));
-      assert.ok(editedMessage);
-      assert.ok(String(editedMessage.text).includes("Fren"));
-    });
-
-    test('POST /api/telegram/webhook rejects game action from unauthorized user with alert', async () => {
-      let answeredAlert: Record<string, unknown> | null = null;
-      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
-        if (String(url).includes('/answerCallbackQuery')) {
-          answeredAlert = JSON.parse(String(init?.body || '{}'));
-          return new Response(JSON.stringify({ ok: true }), { status: 200 });
-        }
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      };
-
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/telegram/webhook',
-        headers: {
-          'content-type': 'application/json',
-          'x-telegram-bot-api-secret-token': 'test-tg-secret',
-        },
-        payload: JSON.stringify({
-          update_id: 101,
-          callback_query: {
-            id: 'cq_intruder',
-            data: 'g:owner_user:feed',
-            from: { id: 'different_user', first_name: 'Stranger' },
-            message: {
-              message_id: 56,
-              chat: { id: 'chat_777', type: 'group' },
-            },
-          },
-        }),
-      });
-
-      assert.strictEqual(res.statusCode, 200);
-      assert.deepStrictEqual(res.json(), { ok: true });
-      assert.ok(answeredAlert);
-      assert.strictEqual(answeredAlert.show_alert, true);
-      assert.ok(String(answeredAlert.text).includes("This isn't your Fren"));
+      assert.deepEqual(calls.map(call => call.method), ['answerCallbackQuery', 'editMessageText']);
+      assert.match(String(calls[0].payload.text), /version has ended/);
+      assert.match(String(calls[1].payload.text), /TinyFrens Group Game/);
+      assert.deepEqual(calls[1].payload.reply_markup, { inline_keyboard: [] });
     });
 
     test('POST /api/telegram/webhook keeps group scrap participation in one edited message', async () => {
@@ -633,7 +590,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       });
       assert.equal(command.statusCode, 200);
       assert.equal(calls[0].method, 'sendMessage');
-      assert.match(String(calls[0].payload.text), /Group Scrap Run/);
+      assert.match(String(calls[0].payload.text), /TinyFrens Group Game/);
       assert.equal(calls[0].payload.reply_to_message_id, 700);
       assert.equal(calls[1].method, 'deleteMessage');
       assert.deepEqual(calls[1].payload, { chat_id: '-100-scrap', message_id: 700 });

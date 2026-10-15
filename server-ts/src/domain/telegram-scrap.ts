@@ -189,7 +189,7 @@ export function renderScrapCard(
     const bonus = Math.max(0, members.length - 1) * 10;
     return [
       [
-        '🧲 <b>Group Scrap Run — Complete</b>',
+        '🎮 <b>TinyFrens Group Game — Complete</b>',
         '━━━━━━━━━━━━━━━━━━━━━',
         `The crew recovered <b>${escapeHtml(run.loot_name || 'Unknown Scrap')}</b>.`,
         `Rarity: <b>${escapeHtml(run.rarity || 'Unknown')}</b>`,
@@ -207,7 +207,7 @@ export function renderScrapCard(
   const timer = seconds > 0 ? `${seconds}s left to join` : 'Lobby ready to resolve';
   return [
     [
-      '🧲 <b>Group Scrap Run</b>',
+      '🎮 <b>TinyFrens Group Game</b>',
       '━━━━━━━━━━━━━━━━━━━━━',
       `<b>${escapeHtml(run.starter_name)}</b> found a promising scrap field.`,
       `<b>${timer}</b> · Crew ${members.length}/${MAX_CREW_SIZE}`,
@@ -219,7 +219,7 @@ export function renderScrapCard(
     {
       inline_keyboard: [[
         { text: `🤝 Join (${members.length}/${MAX_CREW_SIZE})`, callback_data: `scrap:${run.id}:join` },
-        { text: '🧲 Resolve', callback_data: `scrap:${run.id}:resolve` },
+        { text: '✨ Reveal', callback_data: `scrap:${run.id}:resolve` },
       ]],
     },
   ];

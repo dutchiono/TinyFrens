@@ -32,13 +32,13 @@ Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open
 
 ### Group scrap prototype
 
-Use `/scrap` in a group to open a 60-second scrap lobby. The bot posts one message with **Join** and **Resolve** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to open a 60-second lobby built around a shared scrap run. It is the only game command. The bot posts one message with **Join** and **Reveal** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
 
 - A crew holds up to four operators.
 - The operator who starts the run joins automatically.
 - After 60 seconds, any crew member can resolve it.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
-- Only one unresolved scrap run can exist in a group. Reusing `/scrap` refreshes the existing message.
+- Only one unresolved run can exist in a group. Reusing `/game` refreshes the existing message.
 - Joins and rewards are stored in SQLite and are idempotent.
 
 This is an intentionally small Telegram-first playtest. Lobby duration, crew size, loot weights, rewards, cooldowns, and cross-platform presentation are still design inputs rather than finalized balance.

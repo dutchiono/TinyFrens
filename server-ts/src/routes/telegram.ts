@@ -12,11 +12,8 @@ import {
   chatMessage,
   fetchGithubProgress,
   generateTelegramReply,
-  getOrCreatePet,
   linkCode,
-  performCareAction,
   publicServerStatus,
-  renderGameCard,
   renderGithubProgress,
   renderTelegramUpdateBriefing,
   replyMarkup,
@@ -236,72 +233,23 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         const cqMsgId = cqMsg.message_id as number | undefined;
 
         if (data.startsWith('g:')) {
-          const parts = data.split(':');
-          if (parts.length === 3) {
-            const targetUid = parts[1];
-            const action = parts[2];
-            const senderUid = String(cqSender.id || '');
-
-            if (targetUid !== senderUid) {
-              if (cqId) {
-                await callTelegramApi(
-                  'answerCallbackQuery',
-                  {
-                    callback_query_id: cqId,
-                    text: "This isn't your Fren! Use /game to spawn your own companion.",
-                    show_alert: true,
-                  },
-                  token
-                );
-              }
-              return reply.status(200).send({ ok: true });
-            }
-
-            let cardText: string;
-            let cardKb: Record<string, unknown>;
-            let toast: string;
-
-            if (action === 'refresh') {
-              const pet = getOrCreatePet(
-                context.db,
-                String(cqChatId),
-                senderUid,
-                String(cqSender.first_name || 'Fren')
-              );
-              const [renderedText, renderedKb] = renderGameCard(pet);
-              cardText = renderedText;
-              cardKb = renderedKb;
-              toast = 'Refreshed Fren stats.';
-            } else {
-              const [pet, note] = performCareAction(context.db, String(cqChatId), senderUid, action);
-              const [renderedText, renderedKb] = renderGameCard(pet, note);
-              cardText = renderedText;
-              cardKb = renderedKb;
-              toast = note.split('\n')[0].slice(0, 100);
-            }
-
-            if (cqId) {
-              await callTelegramApi(
-                'answerCallbackQuery',
-                { callback_query_id: cqId, text: toast },
-                token
-              );
-            }
-            if (cqChatId && cqMsgId) {
-              await callTelegramApi(
-                'editMessageText',
-                {
-                  chat_id: cqChatId,
-                  message_id: cqMsgId,
-                  text: cardText,
-                  parse_mode: 'HTML',
-                  reply_markup: cardKb,
-                },
-                token
-              );
-            }
-            return reply.status(200).send({ ok: true });
+          if (cqId) {
+            await context.telegramApi.call('answerCallbackQuery', {
+              callback_query_id: cqId,
+              text: 'This version has ended. Start the new group game with /game.',
+              show_alert: true,
+            }, token);
           }
+          if (cqChatId && cqMsgId) {
+            await context.telegramApi.call('editMessageText', {
+              chat_id: cqChatId,
+              message_id: cqMsgId,
+              text: '🎮 <b>TinyFrens Group Game</b>\n\nThis card has retired. Send /game in the group to start a new run.',
+              parse_mode: 'HTML',
+              reply_markup: { inline_keyboard: [] },
+            }, token);
+          }
+          return reply.status(200).send({ ok: true });
         } else if (data.startsWith('scrap:')) {
           const parts = data.split(':');
           const runId = parts[1] || '';
@@ -461,11 +409,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             text: [
               '🐾 <b>TinyFrens — Commands</b>',
               '',
-              '<b>🎮 Group’s Fren</b>',
-              '/game — Open Fren care controls.',
-              '/scrap — Start or reopen one quiet group scrap run.',
-              'Feed · Play · Rest · Dice · Bag · Refresh',
-              '<i>Game FRENS coins are not on-chain tokens. Shared group progress is still being developed.</i>',
+              '<b>🎮 Group Game</b>',
+              '/game — Start or reopen the group game.',
+              '<i>Join the run, wait for the crew, then reveal the shared scrap find.</i>',
               '',
               '<b>🖼 Your NFT Frens</b>',
               '/show — Post your first selected NFT.',
@@ -526,26 +472,15 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\/(?:game|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
-          const pet = getOrCreatePet(
-            context.db,
-            String(chatId),
-            String(sender.id || '0'),
-            String(sender.first_name || 'Fren')
-          );
-          const [cardText, cardKeyboard] = renderGameCard(pet);
-          await sendCommand({
-            chat_id: chatId,
-            text: cardText,
-            parse_mode: 'HTML',
-            reply_markup: cardKeyboard,
-          });
+        const isGroupChat = chat?.type === 'group' || chat?.type === 'supergroup';
+        if (/^\/(?:scrap|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          await sendCommand({ chat_id: chatId, text: 'Use /game — it is the one TinyFrens group game.' });
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\/scrap(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
-          if (chat?.type !== 'group' && chat?.type !== 'supergroup') {
-            await sendCommand({ chat_id: chatId, text: 'Group scrap runs are played in a Telegram group.' });
+        if (/^\/game(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          if (!isGroupChat) {
+            await sendCommand({ chat_id: chatId, text: 'Add TinyFrensBot to a group, then send /game there to start a run.' });
             return reply.status(200).send({ ok: true });
           }
           const cid = String(chatId);
