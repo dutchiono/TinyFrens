@@ -20,7 +20,6 @@ describe('Parity Manifest & Inventory Verification', () => {
     'device_sync_members',
     'pet_wallets',
     'wallet_links',
-    'wallet_links_next',
     'wallet_link_challenges',
     'wallet_social_profiles',
     'magic_links',
@@ -57,7 +56,7 @@ describe('Parity Manifest & Inventory Verification', () => {
     'github_issue_chats',
   ];
 
-  test('all 50 checklist tables are present in schema statements', () => {
+  test('all 49 permanent checklist tables are present in schema statements', () => {
     const definedTables = new Set(SCHEMA_STATEMENTS.map(s => s.table));
     for (const table of CHECKLIST_TABLES) {
       assert.ok(definedTables.has(table), `Manifest missing checklist table: ${table}`);

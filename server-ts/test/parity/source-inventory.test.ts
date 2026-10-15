@@ -16,6 +16,7 @@ import { SCHEMA_STATEMENTS } from '../../src/db/schema.js';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const pythonRoot = path.join(repoRoot, 'server');
 const tsRoot = path.join(repoRoot, 'server-ts');
+const EPHEMERAL_MIGRATION_TABLES = new Set(['wallet_links_next']);
 
 function walk(root: string, predicate: (file: string) => boolean): string[] {
   const files: string[] = [];
@@ -124,7 +125,7 @@ describe('source-derived migration inventory', () => {
     for (const file of walk(pythonRoot, file => file.endsWith('.py') && !path.basename(file).startsWith('test_'))) {
       const source = readFileSync(file, 'utf8');
       for (const table of matches(source, /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["'`]?([A-Za-z_][A-Za-z0-9_]*)/gi)) {
-        pythonTables.add(table);
+        if (!EPHEMERAL_MIGRATION_TABLES.has(table)) pythonTables.add(table);
       }
     }
     const tsTables = new Set(SCHEMA_STATEMENTS.map(statement => statement.table));

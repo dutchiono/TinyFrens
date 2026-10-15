@@ -37,9 +37,11 @@ import type { FrenNftRow, FrensBurnLogRow } from './economy.js';
 export function migrateWalletLinks(db: DatabaseConnection): void {
   const columns = db.prepare<{ name: string; pk: number }>('PRAGMA table_info(wallet_links)').all();
   if (columns.some(col => col.name === 'address' && col.pk > 0)) {
+    db.exec('DROP TABLE IF EXISTS wallet_links_next;');
     return;
   }
   db.transaction(() => {
+    db.prepare('DROP TABLE IF EXISTS wallet_links_next').run();
     db.prepare(
       'CREATE TABLE wallet_links_next(pet_id TEXT, address TEXT COLLATE NOCASE NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(pet_id, address))'
     ).run();

@@ -5,12 +5,13 @@ import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
 import { migrateWalletLinks, runMigrations } from '../../src/db/migrations.js';
 
 describe('Database: Schema & Migrations', () => {
-  test('initializes all 50 tables and indexes on fresh database', () => {
+  test('initializes all 49 permanent tables and indexes on fresh database', () => {
     const db = createDbConnection(':memory:');
     runMigrations(db);
 
     const tables = getAllTableNames(db);
-    assert.strictEqual(tables.length, 50);
+    assert.strictEqual(tables.length, 49);
+    assert.ok(!tables.includes('wallet_links_next'));
 
     for (const statement of SCHEMA_STATEMENTS) {
       assert.ok(
@@ -49,11 +50,14 @@ describe('Database: Schema & Migrations', () => {
     db.prepare('INSERT INTO wallet_links VALUES(?, ?, ?)').run('device-1', secondWallet, 200);
     const updatedRows = db.prepare<{ address: string }>('SELECT address FROM wallet_links WHERE pet_id=?').all('device-1');
     assert.strictEqual(updatedRows.length, 2);
+    assert.ok(!getAllTableNames(db).includes('wallet_links_next'));
 
     // Re-running migration is idempotent
+    db.exec('CREATE TABLE wallet_links_next(value TEXT);');
     migrateWalletLinks(db);
     const idempotentRows = db.prepare<{ address: string }>('SELECT address FROM wallet_links WHERE pet_id=?').all('device-1');
     assert.strictEqual(idempotentRows.length, 2);
+    assert.ok(!getAllTableNames(db).includes('wallet_links_next'));
 
     db.close();
   });
