@@ -450,13 +450,14 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 7: workers and restart recovery.
 - [x] Phase 8: Telegram orchestration and moderation. (Slices 8A–8E cover persisted challenge recovery, moderation enforcement, interactive commands, conversational/issue flows, `/show`, GIF rendering, multipart upload, and media caching.)
 - [x] Phase 9: stateful WebSocket protocol and process-local presence. (Authentication, duplicate replacement, presence, parties, friends, visits, battles, expiry, heartbeat, payload limits, and graceful close are implemented.)
-- [ ] Phase 10: shadow comparison in staging with outbound side effects disabled.
+- [x] Phase 10: shadow comparison in staging with outbound side effects disabled.
   - [x] Staging shadow Compose isolation and hard-failing remote comparator are implemented.
-  - [ ] Run the shadow comparison on staging and record immutable image digests, backup identity, output, and logs.
+  - [x] Run the shadow comparison on staging and record immutable image digests, backup identity, output, and logs. (Completed 2026-10-15 against isolated copies of a production SQLite snapshot; 17/17 requests matched, both post-run copies remained byte-identical, and both integrity checks returned `ok`. Evidence is retained privately on the host.)
 - [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
   - [x] Read-only SQLite mode and GET/HEAD/OPTIONS-only canary routing are implemented.
   - [x] Canary verification and immediate proxy rollback runbook is documented.
-  - [ ] Exercise the canary against production traffic after Phase 10 succeeds.
+  - [x] Exercise the canary against production traffic after Phase 10 succeeds. (`/health` canary verified through public TLS with an explicit response marker and TypeScript request logs.)
+  - [x] Initial production `/health` canary routes to a read-only TypeScript container; Python remains the sole writer and rollback to Python was exercised before restoring the canary.
 - [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.
 
 ## Per-file workflow
@@ -476,15 +477,15 @@ Use this sequence for every production file or extracted behavior group.
 
 ## Cutover and rollback gates
 
-- [ ] A production database backup has been created and a restore has been timed and verified.
-- [ ] The TypeScript process can open a copied production database without schema mutation or data loss.
-- [ ] There is only one writer for any stateful route during canary operation.
+- [x] A production database backup has been created and a restore has been timed and verified.
+- [x] The TypeScript process can open a copied production database without schema mutation or data loss.
+- [x] There is only one writer for any stateful route during canary operation.
 - [ ] Webhook providers point to only one side-effecting implementation.
-- [ ] Shadow traffic strips credentials where possible and disables all external mutations.
+- [x] Shadow traffic strips credentials where possible and disables all external mutations.
 - [ ] Health checks include database access and worker readiness without exposing secrets.
 - [ ] Logs and metrics cover request failures, provider failures, WebSocket connections, worker lag, SQLite locks, webhook backlog, and challenge timers.
-- [ ] The previous Python artifact, environment, service unit, and database backup are retained for rollback.
-- [ ] Rollback requires no reverse database migration.
+- [x] The previous Python artifact, environment, service unit, and database backup are retained for rollback.
+- [x] Rollback requires no reverse database migration.
 - [ ] Public health, web clients, native clients, Telegram, GitHub webhooks, Discord, WebSockets, RPC reads, and background indexers pass production smoke checks.
 - [ ] Observe at least one complete timeout/cache/indexer cycle relevant to each migrated background behavior.
 - [ ] Remove Python only after the agreed observation window and a separate explicit approval.
