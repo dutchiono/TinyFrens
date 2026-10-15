@@ -156,14 +156,9 @@ Production FRENS on Base: `0x1A96226727a1D0a46334b3A4b3878B32B7659ba3` (see `con
 
 Back up the `pets` Docker volume (SQLite database) and keep it private. Use one relay instance; visits/presence/rate limits are in memory. Scale-out or guaranteed background notifications need additional work. Deploy behind Caddy as provided; `TRUST_PROXY=true` assumes the relay port is not publicly exposed. Limit origin access with `ALLOWED_ORIGINS` (comma-separated exact origins). `ALLOW_NATIVE_ORIGIN=true` admits `Origin: null` for the bundled Android/iOS file WebViews, but still requires private device credentials. For web-only installs, turn it off. Origin checks are not user authentication.
 
-Before the TypeScript cutover, tag the last Python image and set `TINYFRENS_ROLLBACK_IMAGE` in `server/.env`. Rollback reuses the same SQLite volume and does not run a reverse migration:
-
-```sh
-docker compose stop relay caddy
-RELAY_UPSTREAM=relay-rollback:8080 docker compose --profile rollback up -d relay-rollback caddy
-```
-
-Return traffic to TypeScript with `docker compose --profile rollback stop relay-rollback caddy`, then `docker compose up -d relay caddy`. Never run both writers against the shared database.
+Production rollback uses the previous immutable TypeScript image and a verified
+pre-deploy SQLite backup. Never start a Python relay or run two writers against
+the shared database.
 
 Registration, requests, messages and connections have rate limits and frame/body size caps. This is suitable for a small family deployment, not an unaudited large public service. Keep dependency/security updates current.
 
@@ -180,7 +175,7 @@ npm run build
 npm run smoke
 ```
 
-The production smoke test launches the compiled entrypoint with a temporary SQLite database, verifies `/health`, sends `SIGTERM`, and requires a clean exit. Python remains the frozen characterization reference during migration:
+The production smoke test launches the compiled entrypoint with a temporary SQLite database, verifies `/health`, sends `SIGTERM`, and requires a clean exit. Historical Python tests remain local compatibility references only:
 
 ```sh
 pip install -r requirements.txt

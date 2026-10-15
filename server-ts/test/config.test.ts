@@ -17,6 +17,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ROBOT_CARE_PRICE_FEED, 1000);
     assert.equal(config.ECONOMY_MODE, 'off');
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);
+    assert.equal(config.TELEGRAM_DEPLOY_OWNER, 'ionodutch');
   });
 
   test('parses environment overrides and coercions', () => {

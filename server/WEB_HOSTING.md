@@ -33,12 +33,17 @@ whose `GITHUB_TOKEN` suppresses downstream push workflows. GitHub may delay
 scheduled runs. Unchanged releases skip the build and upload.
 
 The `tinyfrens-deploy` system account is separate from the API user and has
-no sudo privileges. Its SSH key is restricted to the root-owned
-`/usr/local/libexec/tinyfrens-publish-web` receiver (`server/publish_web.py`).
+no sudo privileges. Its SSH key is restricted to the root-owned Node 22
+`/usr/local/libexec/tinyfrens-publish-web` receiver (`server/publish-web.mjs`).
 That receiver validates the archive, locks concurrent publishes, records the
 commit in `/release.json`, and atomically switches `current`. It verifies
 HTTPS responses on both names and restores the previous release on failure.
 The current release is idempotent; failed releases can be retried.
+
+After public verification, the workflow invokes the same restricted receiver
+with `notify <commit SHA>`. The receiver re-verifies the release and calls the
+loopback-only TypeScript endpoint using a server-owned secret. Telegram
+subscriptions are managed by the owner-only `/deploynotify` command.
 
 Documentation is built offline with bundled marked 15.0.12 under `/docs/`;
 links now use that path instead of an unconfigured documentation subdomain.
@@ -61,7 +66,7 @@ and the obsolete GitHub Pages workflow and Pages site have been removed.
 
 ## Verification
 
-Run `python scripts/verify-web-hosting.py --address 198.71.54.203` to bypass DNS
+Run `node scripts/verify-web-hosting.mjs --address 198.71.54.203` to bypass DNS
 caches while still validating the actual TLS certificate for each name. The
 checks cover HTML, docs, app/gallery, skills, manifests, Snap negotiation and
 POST, redirects, and blocked private paths. The server's regular-DNS version
@@ -69,5 +74,5 @@ of the same checks should pass too. `certbot renew --cert-name tinyfrens.lol
 --dry-run --no-random-sleep-on-renew` validates renewal. The domain-scoped
 reload hook is `server/renew-web-certificate.sh`.
 
-This workflow publishes the **website**, not backend Python modules, native
-app releases, contracts, or funds. Those retain their existing release paths.
+This workflow publishes the **website**, not backend modules, native app
+releases, contracts, or funds. Production server-bound code is Node/TypeScript.

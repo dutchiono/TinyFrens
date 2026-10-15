@@ -51,6 +51,8 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       GITHUB_WEBHOOK_SECRET: 'test-gh-secret',
       TELEGRAM_BOT_TOKEN: '123456:TEST_BOT_TOKEN',
       TELEGRAM_WEBHOOK_SECRET: 'test-tg-secret',
+      TELEGRAM_DEPLOY_OWNER: 'ionodutch',
+      DEPLOY_NOTIFY_SECRET: 'deploy-secret',
       DISCORD_CLIENT_ID: 'discord-client-id-123',
       DISCORD_CLIENT_SECRET: 'discord-client-secret-456',
       DISCORD_PUBLIC_KEY: discordPublicKeyHex,
@@ -440,6 +442,60 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       });
       assert.strictEqual(res.statusCode, 403);
       assert.strictEqual(res.body, 'Telegram webhook secret did not match');
+    });
+
+    test('owner registers a private deployment notification chat', async () => {
+      const originalTelegramApi = sharedContext.telegramApi;
+      sharedContext.telegramApi = {
+        async call() { return { data: { ok: true }, status: 200 }; },
+      };
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: JSON.stringify({
+          update_id: 2,
+          message: {
+            message_id: 10,
+            text: '/deploynotify',
+            chat: { id: 7123, type: 'private' },
+            from: { id: 42, username: 'IonODutch' },
+          },
+        }),
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      assert.equal(res.statusCode, 200);
+      assert.equal(sharedContext.repos.telegram.listDeployNotificationChats()[0].chat_id, '7123');
+    });
+
+    test('loopback deployment event requires its secret and deduplicates', async () => {
+      const telegramCalls: Record<string, unknown>[] = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      sharedContext.telegramApi = {
+        async call(_method, payload) {
+          telegramCalls.push(payload);
+          return { data: { ok: true }, status: 200 };
+        },
+      };
+      const revision = 'd'.repeat(40);
+      const missing = await app.inject({
+        method: 'POST',
+        url: '/api/internal/website-published',
+        payload: { revision },
+      });
+      assert.equal(missing.statusCode, 404);
+      const headers = { 'x-tinyfrens-deploy-secret': 'deploy-secret' };
+      const first = await app.inject({ method: 'POST', url: '/api/internal/website-published', headers, payload: { revision } });
+      const second = await app.inject({ method: 'POST', url: '/api/internal/website-published', headers, payload: { revision } });
+      sharedContext.telegramApi = originalTelegramApi;
+      assert.equal(first.statusCode, 200);
+      assert.equal(first.json().sent, 1);
+      assert.equal(second.statusCode, 200);
+      assert.equal(second.json().alreadyNotified, 1);
+      assert.equal(telegramCalls.length, 1);
     });
 
     test('POST /api/telegram/webhook executes game callback query care action', async () => {

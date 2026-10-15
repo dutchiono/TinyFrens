@@ -43,8 +43,9 @@ export function registerOriginGuard(app: FastifyInstance, context: AppContext): 
     const isPublic = PUBLIC_PATHS.has(path) || isSnapReq || path.startsWith('/web/');
     const isAgent = AGENT_PATHS.has(path) && origin === undefined;
     const isAdmin = path.startsWith('/api/admin/');
+    const isInternal = path === '/api/internal/website-published' && origin === undefined;
 
-    if (!isPublic && !isAgent && !isAdmin && (!origin || !allowed.has(origin))) {
+    if (!isPublic && !isAgent && !isAdmin && !isInternal && (!origin || !allowed.has(origin))) {
       reply.status(403);
       throw new Error('Origin not allowed');
     }

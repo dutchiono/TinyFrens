@@ -365,6 +365,26 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           await context.telegramApi.call('sendMessage', payload, token);
         };
 
+        const deployNotify = text.match(/^\/deploynotify(?:@\w+)?(?:\s+(off))?\s*$/i);
+        if (deployNotify && chatId !== null && chatId !== undefined) {
+          const owner = context.config.TELEGRAM_DEPLOY_OWNER.toLowerCase().replace(/^@/, '');
+          const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
+          let responseText: string;
+          if (chat?.type !== 'private') {
+            responseText = 'Deployment notifications can only be registered in a private chat.';
+          } else if (!owner || username !== owner) {
+            responseText = 'This Telegram account cannot manage deployment notifications.';
+          } else if (deployNotify[1]) {
+            context.repos.telegram.unsubscribeDeployNotifications(String(chatId), Math.floor(context.now()));
+            responseText = 'Website deployment notifications are off for this chat.';
+          } else {
+            context.repos.telegram.subscribeDeployNotifications(String(chatId), username, Math.floor(context.now()));
+            responseText = "I'll DM this private chat after a website revision is verified live. Use /deploynotify off to stop notifications.";
+          }
+          await sendCommand({ chat_id: chatId, text: responseText });
+          return reply.status(200).send({ ok: true });
+        }
+
         const show = text.match(/^\/show(?:@\w+)?(?:\s+([1-5]))?\s*$/i);
         if (show && chatId !== null && chatId !== undefined) {
           if (!secret) return reply.status(503).send({ error: 'Telegram webhook secret is required' });
@@ -488,7 +508,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             const isPrivate = chat?.type === 'private';
             await sendCommand({
               chat_id: chatId,
-              text: 'Talk to me normally, use /game to play with your pet, /progress for GitHub updates, /status for server health, or /show for your selected NFT. Group admins can also use /filter, /blocklist, and /ban.',
+              text: 'Talk to me normally, use /game to play with your fren, /progress for GitHub updates, /status for server health, or /show for your selected NFT. The site owner can use /deploynotify in a private chat. Group admins can also use /filter, /blocklist, and /ban.',
               reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
             });
           } else {

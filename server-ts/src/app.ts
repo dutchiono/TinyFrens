@@ -16,6 +16,7 @@ import { registerFarcasterRoutes } from './routes/farcaster.js';
 import { registerGithubRoutes } from './routes/github.js';
 import { registerDiscordRoutes } from './routes/discord.js';
 import { registerTelegramRoutes } from './routes/telegram.js';
+import { registerInternalRoutes } from './routes/internal.js';
 import { registerRegistrationRoutes } from './routes/register.js';
 import { registerAccountRoutes } from './routes/account.js';
 import { registerDeviceSyncRoutes } from './routes/device-sync.js';
@@ -92,6 +93,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerGithubRoutes(app, context);
   registerDiscordRoutes(app, context);
   registerTelegramRoutes(app, context);
+  registerInternalRoutes(app, context);
 
   // Account and device sync (Phase 6 Slice 6A)
   registerRegistrationRoutes(app, context);

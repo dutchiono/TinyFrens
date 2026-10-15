@@ -13,4 +13,4 @@ ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
   -o UserKnownHostsFile="$TF_WEB_KNOWN_HOSTS_FILE" \
   -i "$TF_WEB_SSH_KEY_FILE" tinyfrens-deploy@198.71.54.203 \
   "publish $revision" < "$archive"
-python scripts/verify-web-hosting.py --address 198.71.54.203
+node scripts/verify-web-hosting.mjs --address 198.71.54.203

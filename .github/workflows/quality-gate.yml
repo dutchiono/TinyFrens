@@ -41,6 +41,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Test restricted Node website publisher
+        run: node --test server/test-publish-web.mjs
+
       - name: Check browser JavaScript syntax
         shell: bash
         run: |

@@ -52,11 +52,12 @@ describe('Parity Manifest & Inventory Verification', () => {
     'tg_strikes',
     'tg_challenges',
     'tg_fren_game',
+    'deploy_notification_chats',
     'dc_users',
     'github_issue_chats',
   ];
 
-  test('all 49 permanent checklist tables are present in schema statements', () => {
+  test('all 50 permanent checklist tables are present in schema statements', () => {
     const definedTables = new Set(SCHEMA_STATEMENTS.map(s => s.table));
     for (const table of CHECKLIST_TABLES) {
       assert.ok(definedTables.has(table), `Manifest missing checklist table: ${table}`);
@@ -73,6 +74,7 @@ describe('Parity Manifest & Inventory Verification', () => {
       'ALLOWED_ORIGINS',
       'ALLOW_NATIVE_ORIGIN',
       'TRUST_PROXY',
+      'DEPLOY_NOTIFY_SECRET',
       'GEMINI_API_KEY',
       'GOOGLE_API_KEY',
       'GEMINI_MODEL',
@@ -101,6 +103,7 @@ describe('Parity Manifest & Inventory Verification', () => {
       'ROBOT_CARE_DAILY_ALLOWANCE',
       'NEYNAR_API_KEY',
       'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_DEPLOY_OWNER',
       'GITHUB_TOKEN',
       'DISCORD_CLIENT_ID',
       'VAPID_PUBLIC_KEY',
