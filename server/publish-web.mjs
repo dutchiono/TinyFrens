@@ -79,13 +79,19 @@ async function archiveEntries(archive) {
     child.on('error', reject);
     child.on('exit', code => {
       if (code !== 0) return reject(new Error(`tar list failed: ${stderr.trim()}`));
-      for (const line of stdout.split('\n').filter(Boolean)) {
-        const type = line[0];
-        const fields = line.trim().split(/\s+/);
-        const name = fields.slice(5).join(' ').replace(/ -> .*$/, '');
-        if (!name) return reject(new Error('Invalid archive listing'));
-        types.push(type);
-        names.push(validateRelativePath(name.replace(/\/$/, '')));
+      try {
+        for (const line of stdout.split('\n').filter(Boolean)) {
+          const type = line[0];
+          const fields = line.trim().split(/\s+/);
+          const name = fields.slice(5).join(' ').replace(/ -> .*$/, '');
+          if (!name) throw new Error('Invalid archive listing');
+          if ((name === '.' || name === './') && type === 'd') continue;
+          types.push(type);
+          names.push(validateRelativePath(name.replace(/\/$/, '')));
+        }
+      } catch (error) {
+        reject(error);
+        return;
       }
       resolve();
     });
