@@ -582,7 +582,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           update_id: 200,
           message: {
             message_id: 700,
-            text: '/scrap',
+            text: '/game',
             chat: { id: '-100-scrap', type: 'supergroup' },
             from: { id: 'starter', first_name: 'Ada' },
           },
@@ -590,7 +590,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       });
       assert.equal(command.statusCode, 200);
       assert.equal(calls[0].method, 'sendMessage');
-      assert.match(String(calls[0].payload.text), /TinyFrens Group Game/);
+      assert.match(String(calls[0].payload.text), /SCRAP RUN/);
       assert.equal(calls[0].payload.reply_to_message_id, 700);
       assert.equal(calls[1].method, 'deleteMessage');
       assert.deepEqual(calls[1].payload, { chat_id: '-100-scrap', message_id: 700 });
@@ -612,7 +612,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           update_id: 201,
           callback_query: {
             id: 'cq_scrap_join',
-            data: `scrap:${run.id}:join`,
+            data: `game:${run.id}:join`,
             from: { id: 'friend', first_name: 'Bob' },
             message: {
               message_id: 808,
@@ -633,8 +633,29 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           update_id: 202,
           callback_query: {
             id: 'cq_scrap_resolve',
-            data: `scrap:${run.id}:resolve`,
+            data: `game:${run.id}:resolve`,
             from: { id: 'starter', first_name: 'Ada' },
+            message: {
+              message_id: 808,
+              chat: { id: '-100-scrap', type: 'supergroup' },
+            },
+          },
+        },
+      });
+      sharedContext.now = () => 1700000062;
+      const replay = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 203,
+          callback_query: {
+            id: 'cq_scrap_replay',
+            data: 'game:new',
+            from: { id: 'friend', first_name: 'Bob' },
             message: {
               message_id: 808,
               chat: { id: '-100-scrap', type: 'supergroup' },
@@ -647,13 +668,16 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
 
       assert.equal(joined.statusCode, 200);
       assert.equal(resolved.statusCode, 200);
+      assert.equal(replay.statusCode, 200);
       const edits = calls.filter(call => call.method === 'editMessageText');
-      assert.equal(edits.length, 2);
+      assert.equal(edits.length, 3);
       assert.equal(edits[0].payload.message_id, 808);
       assert.match(String(edits[0].payload.text), /Ada/);
       assert.match(String(edits[0].payload.text), /Bob/);
-      assert.match(String(edits[1].payload.text), /Complete/);
+      assert.match(String(edits[1].payload.text), /COMPLETE/);
       assert.match(String(edits[1].payload.text), /credits/);
+      assert.match(String(edits[2].payload.text), /SCRAP RUN/);
+      assert.match(String(edits[2].payload.text), /Bob/);
       assert.equal(calls.filter(call => call.method === 'sendMessage').length, 1);
       assert.equal(calls.at(-1)?.method, 'answerCallbackQuery');
       const petIds = sharedContext.db.prepare<{ pet_id: string }>(
@@ -675,7 +699,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       };
       globalThis.fetch = async input => {
         const url = String(input);
-        if (url.includes('/commits')) {
+        if (url.includes('/commits?')) {
           return new Response(JSON.stringify([{
             sha: 'abc1234def',
             commit: {
@@ -683,6 +707,14 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
               author: { name: 'dutch', date: '2023-11-14T22:12:00Z' },
             },
           }]), { status: 200 });
+        }
+        if (url.includes('/commits/')) {
+          return new Response(JSON.stringify({
+            files: [
+              { filename: 'server-ts/src/routes/telegram.ts' },
+              { filename: 'server-ts/src/domain/telegram-scrap.ts' },
+            ],
+          }), { status: 200 });
         }
         if (url.includes('/pulls')) {
           return new Response(JSON.stringify([{
@@ -731,6 +763,8 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(calls[0].method, 'sendMessage');
       const text = String(calls[0].payload.text);
       assert.match(text, /^Hey @LIMI7LESS/);
+      assert.match(text, /🤖 Telegram/);
+      assert.match(text, /⚙️ Backend/);
       assert.match(text, /PR #98/);
       assert.match(text, /Ship Telegram scrap lobbies/);
       assert.match(text, /Build & Test: success/);

@@ -44,18 +44,20 @@ describe('Telegram group scrap runs', () => {
       balances.set(petId, (balances.get(petId) || 0) + credits);
     };
 
-    const early = resolveScrapRun(db, started.state.run.id, '1', 2_059, 0.97, grant);
+    const early = resolveScrapRun(db, started.state.run.id, '1', 2_044, 0.97, grant);
     assert.deepEqual(early, { ok: false, reason: 'waiting', waitSeconds: 1 });
 
-    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_060, 0.97, grant);
+    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_045, 0.97, grant);
     assert.equal(resolved.ok, true);
     if (!resolved.ok) throw new Error('resolve failed');
     assert.equal(resolved.changed, true);
     assert.equal(resolved.state.run.loot_name, 'Plasma Core');
     assert.equal(resolved.state.run.reward_each, 260);
     assert.deepEqual(resolved.state.members.map(member => member.reward), [260, 260]);
+    const [, completedKeyboard] = renderScrapCard(resolved.state, 2_045);
+    assert.equal(completedKeyboard.inline_keyboard[0][0].callback_data, 'game:new');
 
-    const replay = resolveScrapRun(db, started.state.run.id, '1', 2_061, 0.999, grant);
+    const replay = resolveScrapRun(db, started.state.run.id, '1', 2_046, 0.999, grant);
     assert.equal(replay.ok, true);
     if (!replay.ok) throw new Error('replay failed');
     assert.equal(replay.changed, false);
@@ -79,7 +81,7 @@ describe('Telegram group scrap runs', () => {
     const [text, keyboard] = renderScrapCard(state.state, 3_005);
     assert.match(text, /&lt;Ada&gt;/);
     assert.doesNotMatch(text, /<Ada>/);
-    assert.equal(keyboard.inline_keyboard[0][0].text, '🤝 Join (4/4)');
+    assert.equal(keyboard.inline_keyboard[0][0].text, '🤝 Join crew (4/4)');
     db.close();
   });
 });

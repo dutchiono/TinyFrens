@@ -1,6 +1,6 @@
 import { DatabaseConnection } from '../db/connection.js';
 
-const LOBBY_SECONDS = 60;
+const LOBBY_SECONDS = 45;
 const MAX_CREW_SIZE = 4;
 
 export interface ScrapRun {
@@ -189,17 +189,16 @@ export function renderScrapCard(
     const bonus = Math.max(0, members.length - 1) * 10;
     return [
       [
-        '🎮 <b>TinyFrens Group Game — Complete</b>',
+        '🛰 <b>SCRAP RUN COMPLETE</b>',
         '━━━━━━━━━━━━━━━━━━━━━',
-        `The crew recovered <b>${escapeHtml(run.loot_name || 'Unknown Scrap')}</b>.`,
-        `Rarity: <b>${escapeHtml(run.rarity || 'Unknown')}</b>`,
+        `The crew recovered <b>${escapeHtml(run.loot_name || 'Unknown Scrap')}</b>`,
+        `<b>${escapeHtml(run.rarity || 'Unknown')}</b> find · <b>${run.reward_each || 0} credits each</b>`,
         '',
+        '<b>Crew</b>',
         `${names}`,
-        '',
-        `Each operator receives <b>${run.reward_each || 0} credits</b>${bonus ? ` (${bonus} group bonus)` : ''}.`,
-        '<i>One run, one result, one message.</i>',
+        bonus ? `\n🤝 Group bonus: +${bonus} each` : '',
       ].join('\n'),
-      { inline_keyboard: [] },
+      { inline_keyboard: [[{ text: '🔁 New scrap run', callback_data: 'game:new' }]] },
     ];
   }
 
@@ -207,19 +206,20 @@ export function renderScrapCard(
   const timer = seconds > 0 ? `${seconds}s left to join` : 'Lobby ready to resolve';
   return [
     [
-      '🎮 <b>TinyFrens Group Game</b>',
+      '🛰 <b>SCRAP RUN</b>',
       '━━━━━━━━━━━━━━━━━━━━━',
-      `<b>${escapeHtml(run.starter_name)}</b> found a promising scrap field.`,
-      `<b>${timer}</b> · Crew ${members.length}/${MAX_CREW_SIZE}`,
+      `<b>${escapeHtml(run.starter_name)}</b> found a scrap signal.`,
+      `⏱ <b>${timer}</b> · Crew <b>${members.length}/${MAX_CREW_SIZE}</b>`,
       '',
+      '<b>Crew</b>',
       names,
       '',
-      '<i>Join with your robot. After the timer, any crew member can resolve the run.</i>',
+      '<i>Join once. When the window closes, any crew member can search. Everyone gets the same find.</i>',
     ].join('\n'),
     {
       inline_keyboard: [[
-        { text: `🤝 Join (${members.length}/${MAX_CREW_SIZE})`, callback_data: `scrap:${run.id}:join` },
-        { text: '✨ Reveal', callback_data: `scrap:${run.id}:resolve` },
+        { text: `🤝 Join crew (${members.length}/${MAX_CREW_SIZE})`, callback_data: `game:${run.id}:join` },
+        { text: '🔎 Search scrap', callback_data: `game:${run.id}:resolve` },
       ]],
     },
   ];

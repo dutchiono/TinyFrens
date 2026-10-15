@@ -6,12 +6,9 @@ import {
   adminServerTriage,
   canAccessAdminTools,
   fetchGithubProgress,
-  getOrCreatePet,
   isOwner,
-  performCareAction,
   publicServerStatus,
   redactSecrets,
-  renderGameCard,
   renderGithubProgress,
   renderTelegramUpdateBriefing,
   telegramUpdateBriefingRequest,
@@ -43,44 +40,16 @@ describe('Telegram interactive parity', () => {
     assert.equal(canAccessAdminTools(user, group, false), false);
   });
 
-  test('runs game care loop, level-up, and card rendering', () => {
-    const db = createDbConnection(':memory:');
-    runMigrations(db);
-    let pet = getOrCreatePet(db, '-100', '42', 'Alice');
-    assert.equal(pet.name, "Alice's Fren");
-    [pet] = performCareAction(db, '-100', '42', 'feed');
-    assert.equal(pet.hunger, 95);
-    assert.equal(pet.xp, 10);
-    let note: string;
-    [pet, note] = performCareAction(db, '-100', '42', 'play');
-    assert.match(note, /fetch/);
-    [pet, note] = performCareAction(db, '-100', '42', 'rest');
-    assert.match(note, /Cozy nap/);
-    [, note] = performCareAction(db, '-100', '42', 'bag');
-    assert.match(note, /Backpack Contents/);
-    for (let roll = 1; roll <= 6; roll += 1) {
-      performCareAction(db, '-100', '42', 'rest');
-      [, note] = performCareAction(db, '-100', '42', 'dice', roll);
-      assert.match(note, new RegExp(`Rolled a ${roll}!`));
-    }
-    db.prepare('UPDATE tg_fren_game SET xp=95, level=1 WHERE chat_id=? AND user_id=?').run('-100', '42');
-    [pet, note] = performCareAction(db, '-100', '42', 'feed');
-    assert.match(note, /LEVEL UP!/);
-    assert.equal(pet.level, 2);
-    const [text, keyboard] = renderGameCard(pet, 'Ready to explore!');
-    assert.match(text, /Health:/);
-    assert.match(text, /Ready to explore!/);
-    assert.ok(keyboard.inline_keyboard.flat().some(button => button.callback_data === 'g:42:dice'));
-    db.close();
-  });
-
   test('fetches, caches, and renders GitHub progress', async () => {
     let calls = 0;
     const fetcher: typeof fetch = async url => {
       calls += 1;
       const value = String(url);
-      if (value.includes('/commits')) {
+      if (value.includes('/commits?')) {
         return new Response(JSON.stringify([{ sha: '1a2b3c4d', commit: { message: 'Add game mode\nbody', author: { name: 'dutch' } } }]), { status: 200 });
+      }
+      if (value.includes('/commits/')) {
+        return new Response(JSON.stringify({ files: [{ filename: 'web/games.js' }] }), { status: 200 });
       }
       if (value.includes('/pulls')) {
         return new Response(JSON.stringify([{ number: 36, title: 'Telegram moderation', state: 'closed', merged_at: 'today' }]), { status: 200 });
@@ -89,7 +58,7 @@ describe('Telegram interactive parity', () => {
     };
     const first = await fetchGithubProgress('owner', 'interactive-test', 'token', fetcher, () => 1000);
     const second = await fetchGithubProgress('owner', 'interactive-test', 'token', fetcher, () => 1030);
-    assert.equal(calls, 3);
+    assert.equal(calls, 4);
     assert.deepEqual(second, first);
     const [text, keyboard] = renderGithubProgress(first);
     assert.match(text, /1a2b3c4/);
@@ -106,21 +75,35 @@ describe('Telegram interactive parity', () => {
     );
     assert.deepEqual(request, { target: '@LIMI7LESS', hours: 24 });
     assert.equal(telegramUpdateBriefingRequest('@TinyFrensBot say hi to @friend'), null);
+    assert.deepEqual(telegramUpdateBriefingRequest('@TinyFrensBot what is new?'), { target: null, hours: 24 });
 
     const text = renderTelegramUpdateBriefing({
       ok: true,
       commits: [
-        { sha: 'new1234', msg: 'Add group scrap runs', author: 'dutch', timestamp: 99_000 },
+        {
+          sha: 'new1234',
+          msg: 'Add group scrap runs',
+          author: 'dutch',
+          timestamp: 99_000,
+          files: ['server-ts/src/routes/telegram.ts', 'server-ts/src/db/schema.ts'],
+          areas: ['telegram', 'backend'],
+        },
         { sha: 'old1234', msg: 'Old change', author: 'dutch', timestamp: 1_000 },
       ],
       prs: [{ num: 98, title: 'Quiet Telegram scrap runs', state: 'open', merged: false, timestamp: 99_500 }],
       runs: [{ name: 'Build', conclusion: 'success', timestamp: 99_900 }],
     }, '@LIMI7LESS', 'TinyFrens', 24, 100_000);
     assert.match(text, /^Hey @LIMI7LESS/);
+    assert.match(text, /🌐 Website/);
+    assert.match(text, /No verified code changes/);
+    assert.match(text, /🤖 Telegram/);
+    assert.match(text, /⚙️ Backend/);
     assert.match(text, /PR #98/);
     assert.match(text, /Add group scrap runs/);
+    assert.match(text, /bot commands/);
     assert.doesNotMatch(text, /Old change/);
     assert.match(text, /Build: success/);
+    assert.match(text, /“live” is only reported after deployment verification/);
   });
 
   test('renders public status and private admin triage', () => {

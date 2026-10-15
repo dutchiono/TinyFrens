@@ -250,7 +250,59 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             }, token);
           }
           return reply.status(200).send({ ok: true });
-        } else if (data.startsWith('scrap:')) {
+        } else if (data === 'game:new') {
+          const senderUid = String(cqSender.id || '0');
+          const now = Math.floor(context.now());
+          const existing = cqChatId ? getOpenScrapRun(context.db, String(cqChatId)) : undefined;
+          if (!cqChatId || !cqMsgId) {
+            if (cqId) {
+              await context.telegramApi.call('answerCallbackQuery', {
+                callback_query_id: cqId,
+                text: 'Start the next run from the group.',
+                show_alert: true,
+              }, token);
+            }
+            return reply.status(200).send({ ok: true });
+          }
+          if (existing && existing.run.message_id !== cqMsgId) {
+            if (cqId) {
+              await context.telegramApi.call('answerCallbackQuery', {
+                callback_query_id: cqId,
+                text: 'A scrap run is already open. Use /game to find it.',
+                show_alert: true,
+              }, token);
+            }
+            return reply.status(200).send({ ok: true });
+          }
+          const senderPet = telegramPet(context, cqSender);
+          const started = existing
+            ? { state: existing, created: false }
+            : startScrapRun(
+                context.db,
+                String(cqChatId),
+                senderUid,
+                senderPet.id,
+                String(cqSender.first_name || cqSender.username || 'Fren'),
+                now,
+                context.random()
+              );
+          if (started.created) setScrapMessageId(context.db, started.state.run.id, cqMsgId);
+          const [scrapText, scrapKeyboard] = renderScrapCard(started.state, now);
+          await context.telegramApi.call('editMessageText', {
+            chat_id: cqChatId,
+            message_id: cqMsgId,
+            text: scrapText,
+            parse_mode: 'HTML',
+            reply_markup: scrapKeyboard,
+          }, token);
+          if (cqId) {
+            await context.telegramApi.call('answerCallbackQuery', {
+              callback_query_id: cqId,
+              text: started.created ? 'New scrap run opened.' : 'Scrap run refreshed.',
+            }, token);
+          }
+          return reply.status(200).send({ ok: true });
+        } else if (data.startsWith('game:') || data.startsWith('scrap:')) {
           const parts = data.split(':');
           const runId = parts[1] || '';
           const action = parts[2] || '';
@@ -284,12 +336,12 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           if (!result.ok) {
             if (result.reason === 'full') toast = 'That crew is full or its join window has closed.';
             if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
-            if (result.reason === 'waiting') toast = `Give the crew ${result.waitSeconds || 1}s more to join.`;
+            if (result.reason === 'waiting') toast = `Crew is still open for ${result.waitSeconds || 1}s.`;
             showAlert = result.reason !== 'waiting';
           } else {
             toast = action === 'join'
-              ? (result.changed ? 'Your robot joined the scrap run.' : 'You are already in this crew.')
-              : (result.changed ? 'Scrap recovered!' : 'This run is already complete.');
+              ? (result.changed ? 'You joined the crew.' : 'You are already in this crew.')
+              : (result.changed ? 'The crew found scrap!' : 'This run is already complete.');
             if (cqChatId && cqMsgId) {
               const [scrapText, scrapKeyboard] = renderScrapCard(result.state, now);
               await context.telegramApi.call('editMessageText', {
@@ -410,8 +462,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '🐾 <b>TinyFrens — Commands</b>',
               '',
               '<b>🎮 Group Game</b>',
-              '/game — Start or reopen the group game.',
-              '<i>Join the run, wait for the crew, then reveal the shared scrap find.</i>',
+              '/game — Open the group Scrap Run.',
+              '<i>Join the crew, then search together for one shared result. The card updates in place.</i>',
               '',
               '<b>🖼 Your NFT Frens</b>',
               '/show — Post your first selected NFT.',
