@@ -635,6 +635,8 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(calls[0].method, 'sendMessage');
       assert.match(String(calls[0].payload.text), /Group Scrap Run/);
       assert.equal(calls[0].payload.reply_to_message_id, 700);
+      assert.equal(calls[1].method, 'deleteMessage');
+      assert.deepEqual(calls[1].payload, { chat_id: '-100-scrap', message_id: 700 });
 
       const run = sharedContext.db.prepare<{ id: string; message_id: number }>(
         'SELECT id, message_id FROM tg_scrap_runs WHERE chat_id=?'

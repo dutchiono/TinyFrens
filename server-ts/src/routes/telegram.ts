@@ -585,6 +585,16 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               : 0;
             if (sentMessageId > 0) setScrapMessageId(context.db, started.state.run.id, sentMessageId);
           }
+          if (messageId) {
+            try {
+              await context.telegramApi.call('deleteMessage', {
+                chat_id: chatId,
+                message_id: messageId,
+              }, token);
+            } catch {
+              // Cleanup is optional; the scrap run remains playable if Telegram rejects deletion.
+            }
+          }
           return reply.status(200).send({ ok: true });
         }
 
