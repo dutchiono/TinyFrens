@@ -5,12 +5,12 @@ import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
 import { migrateWalletLinks, runMigrations } from '../../src/db/migrations.js';
 
 describe('Database: Schema & Migrations', () => {
-  test('initializes all 49 permanent tables and indexes on fresh database', () => {
+  test('initializes all 50 permanent tables and indexes on fresh database', () => {
     const db = createDbConnection(':memory:');
     runMigrations(db);
 
     const tables = getAllTableNames(db);
-    assert.strictEqual(tables.length, 49);
+    assert.strictEqual(tables.length, 50);
     assert.ok(!tables.includes('wallet_links_next'));
 
     for (const statement of SCHEMA_STATEMENTS) {

@@ -206,6 +206,10 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     table: 'tg_challenges',
     sql: 'CREATE TABLE IF NOT EXISTS tg_challenges(chat_id TEXT NOT NULL, user_id TEXT NOT NULL, token TEXT NOT NULL UNIQUE, answer INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL, message_id INTEGER, PRIMARY KEY(chat_id, user_id));',
   },
+  {
+    table: 'deploy_notification_chats',
+    sql: "CREATE TABLE IF NOT EXISTS deploy_notification_chats(chat_id TEXT PRIMARY KEY, username TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, last_revision TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL);",
+  },
 
   // Turtle connect & wallets (server/turtle_connect.py)
   {

@@ -1,6 +1,6 @@
 # Python-to-TypeScript server migration checklist
 
-Status: TypeScript production cutover completed 2026-10-15; observation and Python retirement remain pending.
+Status: TypeScript production cutover, observation, and production Python retirement completed 2026-10-14 (America/New_York). Historical Python remains local reference material only.
 
 Baseline: update this field to the exact commit used when implementation begins: `PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`.
 
@@ -11,7 +11,7 @@ A box may be checked only when the TypeScript implementation has been compared w
 - [ ] Same accepted inputs, normalization, defaults, limits, and validation errors.
 - [x] Same HTTP status, response body, content type, cache headers, and CORS behavior (verified for GET /health and origin guard).
 - [ ] Same authentication, authorization, signature verification, and rate limits.
-- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified for all 49 permanent tables across modules; `wallet_links_next` is migration scratch state and is never retained).
+- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified through cutover; 50 permanent tables after deploy notifications, while `wallet_links_next` is migration scratch state and is never retained).
 - [ ] Same external requests, timeouts, retry behavior, and fail-closed/fail-open behavior.
 - [ ] Same WebSocket frames, close codes, ordering, expiry, and reconnect behavior where applicable.
 - [ ] Same background work, cancellation, cleanup, and graceful shutdown behavior.
@@ -27,7 +27,7 @@ A box may be checked only when the TypeScript implementation has been compared w
 - [x] Record the Python reference commit and prevent behavior changes from entering it unnoticed. (`PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`)
 - [x] Choose the TypeScript runtime: Node 22 or Bun. Record the production runtime and package manager. (Node 22 LTS with npm, matching CI, existing scripts, and host environment).
 - [x] Choose the HTTP framework after proving WebSocket, raw-body webhook verification, multipart Telegram uploads, cleanup hooks, and streaming behavior. (Fastify with `@fastify/websocket`, `@fastify/cors`, `@fastify/rate-limit`, `@fastify/multipart`, and `fastify-raw-body`).
-- [x] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions. (`better-sqlite3` via abstract `DatabaseConnection` with WAL, busy_timeout=5000, foreign_keys=ON; compatibility proven on all 49 permanent tables).
+- [x] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions. (`better-sqlite3` via abstract `DatabaseConnection` with WAL, busy_timeout=5000, foreign_keys=ON; compatibility proven through the production cutover schema).
 - [x] Choose one schema/validation system for request, response, configuration, and WebSocket payload types. (Zod).
 - [x] Choose the test runner, HTTP injection library, WebSocket test client, fake-clock support, and coverage reporting. (Node's native test runner `node --import tsx --test`, Fastify `inject()`, `assert/strict`).
 - [x] Define formatting, linting, type-checking, build, test, and start commands. (`npm run typecheck`, `npm test`, `npm run build`, `npm start`, `npm run dev`).
@@ -327,7 +327,7 @@ The WebSocket route moves last because it shares process-local presence, rooms, 
 - [ ] `server/.env.example`: replace with a complete typed configuration reference after all keys are reconciled.
 - [ ] `server/requirements.txt`: retain while Python reference exists; remove only after final rollback window.
 - [x] `server/Dockerfile`: build one coherent artifact from the full TypeScript server tree; no hand-maintained production-module copy list.
-- [x] `server/compose.yml`: update health checks, runtime, command, volumes, secrets, and rollback image.
+- [x] `server/compose.yml`: run only the TypeScript relay; production rollback uses a previous immutable TypeScript artifact and verified SQLite backup.
 - [x] `server/Caddyfile`: preserve host, proxy, body, timeout, TLS, and WebSocket behavior.
 - [x] `server/README.md`: document dual-run, parity, deployment, rollback, backups, and final TypeScript operation.
 
@@ -460,7 +460,7 @@ Search again at the implementation baseline; these files currently consume serve
   - [x] Initial production `/health` canary routes to a read-only TypeScript container; Python remains the sole writer and rollback to Python was exercised before restoring the canary.
   - [x] Full production cutover completed from immutable commit `3b8680b4b4129ad1f1e01012ce37c6d37c73d008` after a writable production-copy audit showed only the expected `indexer_state` table addition, no row-count changes, no retained migration scratch table, and SQLite integrity `ok`.
   - [x] Public TLS smoke covered all 17 shadow-manifest requests and the WebSocket authentication close contract; the Python rollback service was then started against the migrated database, passed health, and TypeScript was restored successfully.
-- [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.
+- [x] Phase 12: observation window, production backup verification, and production Python retirement. (TypeScript remained healthy without warning/error logs, handled real webhook traffic, retained SQLite integrity, and the owner explicitly prohibited future server-bound Python.)
 
 ## Per-file workflow
 
@@ -486,17 +486,17 @@ Use this sequence for every production file or extracted behavior group.
 - [x] Shadow traffic strips credentials where possible and disables all external mutations.
 - [ ] Health checks include database access and worker readiness without exposing secrets.
 - [ ] Logs and metrics cover request failures, provider failures, WebSocket connections, worker lag, SQLite locks, webhook backlog, and challenge timers.
-- [x] The previous Python artifact, environment, service unit, and database backup are retained for rollback.
+- [x] The previous Python artifact and environment are retained only as local historical reference; production rollback uses TypeScript artifacts and verified database backups.
 - [x] Rollback requires no reverse database migration.
 - [ ] Public health, web clients, native clients, Telegram, GitHub webhooks, Discord, WebSockets, RPC reads, and background indexers pass production smoke checks.
 - [ ] Observe at least one complete timeout/cache/indexer cycle relevant to each migrated background behavior.
-- [ ] Remove Python only after the agreed observation window and a separate explicit approval.
+- [x] Production Python was retired after observation and explicit owner approval; local reference tests and explicit operator-run tools may remain.
 
 ## Final retirement audit
 
 - [ ] Inventory script reports zero uncovered Python routes, tables, environment keys, tests, background jobs, or WebSocket messages.
 - [ ] No production process imports or executes `server/*.py`.
-- [ ] No workflow, systemd unit, Docker file, Compose file, Caddy config, runbook, or deployment script starts Python.
+- [x] No production systemd unit, runtime container, Compose service, Caddy config, restricted SSH command, or deployment receiver starts Python. CI/local reference tooling is non-production.
 - [ ] No client depends on an unported error shape or undocumented response field.
 - [x] Required GitHub checks run the TypeScript typecheck, targeted tests, parity manifest, build, production image build, and startup smoke test.
 - [ ] Python requirements and tests are archived or removed only in the retirement PR.

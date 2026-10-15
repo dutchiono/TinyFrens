@@ -22,23 +22,12 @@ jobs:
       url: https://tinyfrens.lol
     steps:
       - uses: actions/checkout@v4
-      - name: Check whether main needs publishing
-        id: needed
-        run: |
-          python - <<'PY'
-          import json, os, urllib.request
-          try:
-              with urllib.request.urlopen('https://tinyfrens.lol/release.json', timeout=15) as response:
-                  current = json.load(response).get('revision')
-          except Exception:
-              current = None
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('publish=' + str(current != os.environ['GITHUB_SHA']).lower() + '\n')
-          PY
       - uses: actions/setup-node@v4
-        if: steps.needed.outputs.publish == 'true'
         with:
           node-version: '22'
+      - name: Check whether main needs publishing
+        id: needed
+        run: node scripts/check-web-publish.mjs
       - name: Build public artifact
         if: steps.needed.outputs.publish == 'true'
         run: node scripts/build-site.mjs
@@ -75,4 +64,22 @@ jobs:
             "publish $GITHUB_SHA" < "$RUNNER_TEMP/website.tar.gz"
       - name: Verify public origin
         if: steps.current.outputs.publish == 'true'
-        run: python scripts/verify-web-hosting.py --address 198.71.54.203
+        run: node scripts/verify-web-hosting.mjs --address 198.71.54.203
+      - name: Notify owner after verified publish
+        if: steps.current.outputs.publish == 'true'
+        env:
+          DEPLOY_KEY: ${{ secrets.TF_WEB_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.TF_WEB_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/web-ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/web-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/web-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/web-ssh/key"
+          trap 'rm -f "$RUNNER_TEMP/web-ssh/key"' EXIT
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/web-ssh/known_hosts" \
+            -i "$RUNNER_TEMP/web-ssh/key" tinyfrens-deploy@198.71.54.203 \
+            "notify $GITHUB_SHA"

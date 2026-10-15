@@ -25,22 +25,6 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
-  relay-rollback:
-    image: ${TINYFRENS_ROLLBACK_IMAGE:-tinyfrens-server-python:rollback}
-    profiles: ["rollback"]
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DB_PATH: /data/tinyfrens.db
-      ALLOWED_ORIGINS: https://tinyfrens.lol,https://www.tinyfrens.lol
-      ALLOW_NATIVE_ORIGIN: "true"
-      TRUST_PROXY: "true"
-      HOST: 0.0.0.0
-    volumes:
-      - pets:/data
-    expose:
-      - "8080"
   caddy:
     image: caddy:2
     restart: unless-stopped

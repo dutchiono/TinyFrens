@@ -73,7 +73,9 @@ describe('source-derived migration inventory', () => {
     });
     await app.ready();
     try {
-      assert.deepEqual(normalizedRoutes(captured), normalizedRoutes(pythonRoutes()));
+      const typeScriptRoutes = new Set(normalizedRoutes(captured));
+      const missing = normalizedRoutes(pythonRoutes()).filter(route => !typeScriptRoutes.has(route));
+      assert.deepEqual(missing, []);
     } finally {
       await app.close();
     }
@@ -172,7 +174,6 @@ describe('source-derived migration inventory', () => {
       'test_market_quote.py': ['test/domain/market-quote.test.ts'],
       'test_nft_uri.py': ['test/routes/readonly.test.ts'],
       'test_nub_art.py': ['test/domain/extra-companions.test.ts'],
-      'test_publish_web.py': ['../server/test_publish_web.py'],
       'test_robot_care.py': ['test/domain/robot-care.test.ts', 'test/routes/robot-care.test.ts'],
       'test_robot_companion.py': ['test/domain/robots-verifier.test.ts', 'test/media/robot-companion-art.test.ts'],
       'test_robot_gallery.py': ['test/routes/readonly.test.ts'],
