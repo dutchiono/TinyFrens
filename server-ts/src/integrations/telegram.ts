@@ -2,7 +2,6 @@ import { DatabaseConnection } from '../db/connection.js';
 
 export const TG_API = 'https://api.telegram.org';
 
-const OWNER_USERNAMES = new Set(['dutchiono']);
 const SECRET_PATTERNS = [
   /\b0x[a-fA-F0-9]{64}\b/g,
   /\b\d{8,11}:[A-Za-z0-9_-]{35}\b/g,
@@ -22,14 +21,13 @@ export function redactSecrets(text: unknown): string {
   );
 }
 
-export function isOwner(sender: unknown): boolean {
-  if (!sender || typeof sender !== 'object') return false;
-  const username = String((sender as Record<string, unknown>).username || '').toLowerCase().replace(/^@/, '');
-  return OWNER_USERNAMES.has(username);
+export function isOwner(sender: unknown, ownerId?: string): boolean {
+  return Boolean(ownerId && sender && typeof sender === 'object' &&
+    String((sender as Record<string, unknown>).id ?? '') === ownerId);
 }
 
-export function canAccessAdminTools(sender: unknown, chat: unknown, isAdmin = false): boolean {
-  if (isOwner(sender)) return true;
+export function canAccessAdminTools(sender: unknown, chat: unknown, isAdmin = false, ownerId?: string): boolean {
+  if (isOwner(sender, ownerId)) return true;
   const chatType = chat && typeof chat === 'object' ? (chat as Record<string, unknown>).type : null;
   return (chatType === 'group' || chatType === 'supergroup') && isAdmin;
 }
