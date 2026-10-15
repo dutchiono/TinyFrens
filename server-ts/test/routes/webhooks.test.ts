@@ -469,6 +469,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       sharedContext.telegramApi = originalTelegramApi;
       assert.equal(res.statusCode, 200);
       assert.equal(sharedContext.repos.telegram.listDeployNotificationChats()[0].chat_id, '7123');
+      assert.equal(sharedContext.repos.telegram.listDeployNotificationChats()[0].username, 'renamed-owner');
     });
 
     test('loopback deployment event requires its secret and deduplicates', async () => {

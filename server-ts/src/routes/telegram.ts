@@ -432,7 +432,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             context.repos.telegram.unsubscribeDeployNotifications(String(chatId), Math.floor(context.now()));
             responseText = 'Website deployment notifications are off for this chat.';
           } else {
-            context.repos.telegram.subscribeDeployNotifications(String(chatId), ownerId || username, Math.floor(context.now()));
+            context.repos.telegram.subscribeDeployNotifications(String(chatId), username || ownerId || '', Math.floor(context.now()));
             responseText = "I'll DM this private chat after a website revision is verified live. Use /deploynotify off to stop notifications.";
           }
           await sendCommand({ chat_id: chatId, text: responseText });
