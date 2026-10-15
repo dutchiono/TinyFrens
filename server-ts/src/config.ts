@@ -213,7 +213,10 @@ export const ConfigSchema = z.object({
   TELEGRAM_ISSUE_HISTORY: z.coerce.number().int().default(25),
   TELEGRAM_MODERATION: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TELEGRAM_MODERATION_TIMEOUT: z.coerce.number().int().default(180),
-  TELEGRAM_DEPLOY_OWNER_ID: z.string().regex(/^[1-9][0-9]*$/).optional(),
+  TELEGRAM_DEPLOY_OWNER_ID: z.preprocess(
+    value => value === '' ? undefined : value,
+    z.string().regex(/^[1-9][0-9]*$/).optional()
+  ),
   DEPLOY_NOTIFY_SECRET: z.string().optional(),
 
   // GitHub

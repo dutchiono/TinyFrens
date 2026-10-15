@@ -18,6 +18,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ECONOMY_MODE, 'off');
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);
     assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, undefined);
+    assert.equal(loadConfig({ TELEGRAM_DEPLOY_OWNER_ID: '' }).TELEGRAM_DEPLOY_OWNER_ID, undefined);
   });
 
   test('parses environment overrides and coercions', () => {
