@@ -31,10 +31,11 @@ describe('Telegram interactive parity', () => {
     const user = { username: 'random_user', id: 2 };
     const group = { type: 'supergroup', id: -100 };
     const direct = { type: 'private', id: 1 };
-    assert.equal(isOwner(owner), true);
+    assert.equal(isOwner(owner, '1'), true);
+    assert.equal(isOwner({ username: 'dutchiono', id: 2 }, '1'), false);
     assert.equal(isOwner(user), false);
-    assert.equal(canAccessAdminTools(owner, direct), true);
-    assert.equal(canAccessAdminTools(owner, group), true);
+    assert.equal(canAccessAdminTools(owner, direct, false, '1'), true);
+    assert.equal(canAccessAdminTools(owner, group, false, '1'), true);
     assert.equal(canAccessAdminTools(user, direct, true), false);
     assert.equal(canAccessAdminTools(user, group, true), true);
     assert.equal(canAccessAdminTools(user, group, false), false);
