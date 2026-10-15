@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17142a">
+  <meta name="description" content="TinyFrens updates, release notes, and honest notes from behind the scenes.">
+  <title>Updates · TinyFrens</title>
+  <meta property="og:title" content="TinyFrens Updates">
+  <meta property="og:description" content="Release notes and honest notes from behind the scenes at TinyFrens.">
+  <meta property="og:image" content="https://tinyfrens.lol/icons/og-card.png">
+  <meta property="og:url" content="https://tinyfrens.lol/updates/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../web/icons/icon.svg">
+  <link rel="stylesheet" href="../site/style.css">
+  <link rel="stylesheet" href="../web/navigation.css?v=header-frens-3">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="tf-navigation-page">
+  <header id="mainNavigation" data-page="updates"></header>
+  <main class="updates-page">
+    <header class="updates-hero">
+      <span>FROM THE TINYFRENS DESK</span>
+      <h1>Updates, without<br><em>the disappearing act.</em></h1>
+      <p>This is where we’ll share releases, rough edges, fixes, and what we’re building next.</p>
+    </header>
+
+    <article class="update-post">
+      <header>
+        <p class="post-meta"><time datetime="2026-10-14">October 14, 2026</time> · Engineering</p>
+        <h2>23 hours later: the backend migration is done</h2>
+        <p class="post-lede">We went dark for 23 hours while we finished a migration that got much bigger than expected. That part is on us. We should’ve said something sooner.</p>
+      </header>
+
+      <div class="post-body">
+        <p>TinyFrens is now fully running on Node 22 and TypeScript in production. No Python service is sitting behind the app anymore.</p>
+
+        <section>
+          <h3>What changed</h3>
+          <ul>
+            <li>36 migration and closeout pull requests landed.</li>
+            <li>416 TypeScript tests now cover the server.</li>
+            <li>Every client route and all 50 production database tables are inventoried.</li>
+            <li>We ran shadow traffic, a canary, rollback drills, contract-event integration, and live production checks.</li>
+            <li>The deployed JavaScript matches the build from main byte for byte.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>Why it took so long</h3>
+          <p>We treated this like a production migration instead of a file-extension swap. Wallets, ownership checks, deposits, Telegram, WebSockets, mobile clients, desktop clients, and the existing SQLite data all had to keep behaving the same way.</p>
+          <p>We also found unrelated old services crowding the server. Those are gone now. TinyFrens itself is steady at about 100 MB with no restart loop.</p>
+        </section>
+
+        <section>
+          <h3>What happens next</h3>
+          <p>Smaller releases. Clearer updates. Less going quiet while we wrestle the machinery.</p>
+          <p>Thanks for sticking around. Your frens are back, the backend is lighter, and we’ll use this page to keep you in the loop from here on out. 💜</p>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <footer>
+    <a class="brand" href="../">✦ TinyFrens</a>
+    <p>Little by little. Day by day.</p>
+    <nav aria-label="TinyFrens links"><a href="../">Home</a> · <a href="https://x.com/TinyFrens_" target="_blank" rel="noopener">X ↗</a> · <a href="https://github.com/dutchiono/TinyFrens" target="_blank" rel="noopener">GitHub ↗</a></nav>
+  </footer>
+  <script src="../web/navigation.js"></script>
+</body>
+</html>
