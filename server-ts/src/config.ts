@@ -96,7 +96,8 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'TELEGRAM_ISSUE_HISTORY', classification: 'public', description: 'Max buffered chat messages for issue drafting' },
   { key: 'TELEGRAM_MODERATION', classification: 'public', description: 'Enable Telegram gatekeeper/moderation' },
   { key: 'TELEGRAM_MODERATION_TIMEOUT', classification: 'public', description: 'Challenge verification window in seconds' },
-  { key: 'TELEGRAM_DEPLOY_OWNER', classification: 'public', description: 'Telegram username allowed to manage deployment notifications' },
+  { key: 'TELEGRAM_DEPLOY_OWNER', classification: 'public', description: 'Legacy Telegram username allowed to manage deployment notifications when no ID is configured' },
+  { key: 'TELEGRAM_DEPLOY_OWNER_ID', classification: 'public', description: 'Stable numeric Telegram user ID authorized to manage deployment notifications (recommended)' },
   { key: 'DEPLOY_NOTIFY_SECRET', classification: 'secret', description: 'Loopback deployment notification authentication secret' },
 
   // GitHub
@@ -214,6 +215,7 @@ export const ConfigSchema = z.object({
   TELEGRAM_MODERATION: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TELEGRAM_MODERATION_TIMEOUT: z.coerce.number().int().default(180),
   TELEGRAM_DEPLOY_OWNER: z.string().default('ionodutch'),
+  TELEGRAM_DEPLOY_OWNER_ID: z.string().regex(/^[1-9][0-9]*$/).optional(),
   DEPLOY_NOTIFY_SECRET: z.string().optional(),
 
   // GitHub
