@@ -248,6 +248,27 @@ export async function generateTelegramReply(
   return redactSecrets(answer).slice(0, 1000);
 }
 
+export function telegramUpdateBriefingRequest(
+  text: unknown,
+  configuredBotUsername = 'tinyfrensbot'
+): { target: string | null; hours: number } | null {
+  if (typeof text !== 'string') return null;
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned || cleaned.length > 500) return null;
+  const asksForUpdates =
+    /\b(?:update|updates|progress|changelog|shipped|released|built|done)\b/i.test(cleaned) ||
+    /\bfill\s+(?:them|him|her|@[a-z0-9_]+)\s+in\b/i.test(cleaned);
+  if (!asksForUpdates) return null;
+
+  const botUsername = configuredBotUsername.toLowerCase().replace(/^@/, '') || 'tinyfrensbot';
+  const mentions = [...cleaned.matchAll(/(?<!\w)@([a-z0-9_]{5,32})\b/gi)]
+    .map(match => match[1])
+    .filter(username => ![botUsername, 'tinyfrensbot'].includes(username.toLowerCase()));
+  const hoursMatch = cleaned.match(/\b(?:last|past|previous)\s+(\d{1,3})\s*(?:h|hr|hrs|hour|hours)\b/i);
+  const hours = hoursMatch ? Math.max(1, Math.min(168, Number(hoursMatch[1]))) : 24;
+  return { target: mentions[0] ? `@${mentions[0]}` : null, hours };
+}
+
 export function makeBar(value: number, maxVal = 100, length = 8): string {
   const ratio = Math.max(0.0, Math.min(1.0, value / Number(maxVal)));
   const filled = Math.round(ratio * length);
@@ -571,9 +592,9 @@ export function renderGithubProgress(
 
 export interface GithubProgress {
   [key: string]: unknown;
-  commits: Array<{ msg: string; author: string; sha: string }>;
-  prs: Array<{ num: number; title: string; state: string; merged: boolean }>;
-  runs: Array<{ name: string; conclusion: string }>;
+  commits: Array<{ msg: string; author: string; sha: string; timestamp?: number | null }>;
+  prs: Array<{ num: number; title: string; state: string; merged: boolean; timestamp?: number | null }>;
+  runs: Array<{ name: string; conclusion: string; timestamp?: number | null }>;
   ok: boolean;
   error?: string;
 }
@@ -610,10 +631,12 @@ export async function fetchGithubProgress(
           const item = value as Record<string, unknown>;
           const commit = (item.commit || {}) as Record<string, unknown>;
           const author = (commit.author || {}) as Record<string, unknown>;
+          const timestamp = Date.parse(String(author.date || ''));
           return {
             msg: String(commit.message || '').split(/\r?\n/)[0].slice(0, 60),
             author: String(author.name || 'dutch'),
             sha: String(item.sha || '').slice(0, 7),
+            timestamp: Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null,
           };
         });
       }
@@ -625,11 +648,13 @@ export async function fetchGithubProgress(
       if (Array.isArray(pulls)) {
         result.prs = pulls.slice(0, 4).map(value => {
           const item = value as Record<string, unknown>;
+          const timestamp = Date.parse(String(item.merged_at || item.updated_at || item.created_at || ''));
           return {
             num: Number(item.number),
             title: String(item.title || '').slice(0, 55),
             state: String(item.state || ''),
             merged: Boolean(item.merged_at),
+            timestamp: Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null,
           };
         });
       }
@@ -641,9 +666,11 @@ export async function fetchGithubProgress(
       if (Array.isArray(body.workflow_runs)) {
         result.runs = body.workflow_runs.slice(0, 3).map(value => {
           const item = value as Record<string, unknown>;
+          const timestamp = Date.parse(String(item.updated_at || item.run_started_at || item.created_at || ''));
           return {
             name: String(item.name || 'CI').slice(0, 30),
             conclusion: String(item.conclusion || item.status || ''),
+            timestamp: Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null,
           };
         });
       }
@@ -654,6 +681,44 @@ export async function fetchGithubProgress(
     result.error = redactSecrets((error as Error).message);
   }
   return result;
+}
+
+export function renderTelegramUpdateBriefing(
+  progress: GithubProgress,
+  target: string | null,
+  repoName = 'TinyFrens',
+  hours = 24,
+  now = Math.floor(Date.now() / 1000)
+): string {
+  const greeting = target ? `Hey ${target} 👋` : 'TinyFrens update 👋';
+  if (!progress.ok) {
+    return `${greeting}\nI couldn't verify the latest ${repoName} updates right now. Try /progress again shortly.`;
+  }
+
+  const cutoff = now - Math.max(1, Math.min(168, hours)) * 3600;
+  const inWindow = (item: { timestamp?: number | null }) =>
+    typeof item.timestamp !== 'number' || item.timestamp >= cutoff;
+  const prs = progress.prs.filter(inWindow).slice(0, 4);
+  const commits = progress.commits.filter(inWindow).slice(0, 4);
+  const runs = progress.runs.filter(inWindow).slice(0, 2);
+  const lines = [greeting, `Here are the verified ${repoName} updates from the last ${hours} hours:`];
+
+  for (const pr of prs) {
+    const state = pr.merged ? 'merged' : pr.state === 'open' ? 'open' : 'closed';
+    lines.push(`• PR #${pr.num}: ${pr.title} (${state})`);
+  }
+  for (const commit of commits) {
+    lines.push(`• ${commit.sha}: ${commit.msg}`);
+  }
+  if (prs.length === 0 && commits.length === 0) {
+    lines.push('• No commits or pull-request changes were reported in that window.');
+  }
+  if (runs.length > 0) {
+    const ci = runs.map(run => `${run.name}: ${run.conclusion || 'unknown'}`).join('; ');
+    lines.push(`CI: ${ci}`);
+  }
+  lines.push('Use /progress for the live project card.');
+  return redactSecrets(lines.join('\n')).slice(0, 1200);
 }
 
 export function publicServerStatus(

@@ -18,7 +18,9 @@ import {
   publicServerStatus,
   renderGameCard,
   renderGithubProgress,
+  renderTelegramUpdateBriefing,
   replyMarkup,
+  telegramUpdateBriefingRequest,
   TG_API,
   TelegramChatEntry,
 } from '../integrations/telegram.js';
@@ -684,14 +686,34 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         if (kind === 'mention' && chatId !== null && chatId !== undefined) {
           context.rateLimiter.limit(`tg-mention:${String(chatId)}`, 30, 3600, context.now());
           let answer: string;
-          try {
-            answer = await generateTelegramReply(
-              chatHistory.get(String(chatId)) || [],
-              context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
-              context.config.GEMINI_MODEL
+          const briefing = telegramUpdateBriefingRequest(text, context.config.TELEGRAM_BOT_USERNAME);
+          if (briefing) {
+            const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
+            const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
+            const progress = await fetchGithubProgress(
+              ownerPart,
+              repoPart,
+              await context.githubAuth.token(ownerPart, repoPart),
+              fetch,
+              context.now
             );
-          } catch {
-            answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
+            answer = renderTelegramUpdateBriefing(
+              progress,
+              briefing.target,
+              repoPart,
+              briefing.hours,
+              Math.floor(context.now())
+            );
+          } else {
+            try {
+              answer = await generateTelegramReply(
+                chatHistory.get(String(chatId)) || [],
+                context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
+                context.config.GEMINI_MODEL
+              );
+            } catch {
+              answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
+            }
           }
           await sendCommand({ chat_id: chatId, text: answer });
           return reply.status(200).send({ ok: true });

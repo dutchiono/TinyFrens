@@ -13,6 +13,8 @@ import {
   redactSecrets,
   renderGameCard,
   renderGithubProgress,
+  renderTelegramUpdateBriefing,
+  telegramUpdateBriefingRequest,
 } from '../../src/integrations/telegram.js';
 
 describe('Telegram interactive parity', () => {
@@ -95,6 +97,30 @@ describe('Telegram interactive parity', () => {
     assert.match(text, /✅ Merged/);
     assert.match(text, /🟢 Pass/);
     assert.equal(keyboard.inline_keyboard[0][0].callback_data, 'gh:refresh');
+  });
+
+  test('recognizes update briefings, preserves the requested mention, and filters old activity', () => {
+    const request = telegramUpdateBriefingRequest(
+      '@TinyFrensBot say hi to @LIMI7LESS and fill them in on everything weve done in the last 24 hrs',
+      'TinyFrensBot'
+    );
+    assert.deepEqual(request, { target: '@LIMI7LESS', hours: 24 });
+    assert.equal(telegramUpdateBriefingRequest('@TinyFrensBot say hi to @friend'), null);
+
+    const text = renderTelegramUpdateBriefing({
+      ok: true,
+      commits: [
+        { sha: 'new1234', msg: 'Add group scrap runs', author: 'dutch', timestamp: 99_000 },
+        { sha: 'old1234', msg: 'Old change', author: 'dutch', timestamp: 1_000 },
+      ],
+      prs: [{ num: 98, title: 'Quiet Telegram scrap runs', state: 'open', merged: false, timestamp: 99_500 }],
+      runs: [{ name: 'Build', conclusion: 'success', timestamp: 99_900 }],
+    }, '@LIMI7LESS', 'TinyFrens', 24, 100_000);
+    assert.match(text, /^Hey @LIMI7LESS/);
+    assert.match(text, /PR #98/);
+    assert.match(text, /Add group scrap runs/);
+    assert.doesNotMatch(text, /Old change/);
+    assert.match(text, /Build: success/);
   });
 
   test('renders public status and private admin triage', () => {

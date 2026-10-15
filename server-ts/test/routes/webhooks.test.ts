@@ -705,6 +705,80 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(petIds.length, 2);
       assert.deepEqual(petIds.map(row => sharedContext.economy.balance(row.pet_id)), [35, 35]);
     });
+
+    test('POST /api/telegram/webhook addresses update briefings to the requested user with verified progress', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const previousFetch = globalThis.fetch;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return { data: { ok: true }, status: 200 };
+        },
+      };
+      globalThis.fetch = async input => {
+        const url = String(input);
+        if (url.includes('/commits')) {
+          return new Response(JSON.stringify([{
+            sha: 'abc1234def',
+            commit: {
+              message: 'Ship Telegram scrap lobbies',
+              author: { name: 'dutch', date: '2023-11-14T22:12:00Z' },
+            },
+          }]), { status: 200 });
+        }
+        if (url.includes('/pulls')) {
+          return new Response(JSON.stringify([{
+            number: 98,
+            title: 'Add quiet Telegram group scrap runs',
+            state: 'open',
+            merged_at: null,
+            updated_at: '2023-11-14T22:12:30Z',
+          }]), { status: 200 });
+        }
+        if (url.includes('/actions/runs')) {
+          return new Response(JSON.stringify({
+            workflow_runs: [{
+              name: 'Build & Test',
+              conclusion: 'success',
+              updated_at: '2023-11-14T22:13:00Z',
+            }],
+          }), { status: 200 });
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      };
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 203,
+          message: {
+            message_id: 809,
+            text: '@TinyFrensBot say hi to @LIMI7LESS and fill them in on everything weve done in the last 24 hrs',
+            date: 1700000000,
+            chat: { id: '-100-briefing', type: 'supergroup' },
+            from: { id: 'owner', first_name: 'TinyFrens' },
+          },
+        },
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      globalThis.fetch = previousFetch;
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].method, 'sendMessage');
+      const text = String(calls[0].payload.text);
+      assert.match(text, /^Hey @LIMI7LESS/);
+      assert.match(text, /PR #98/);
+      assert.match(text, /Ship Telegram scrap lobbies/);
+      assert.match(text, /Build & Test: success/);
+      assert.doesNotMatch(text, /We love that energy/);
+    });
   });
 
   describe('Farcaster Webhooks & Notifications (POST /api/farcaster/*)', () => {
