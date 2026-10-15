@@ -51,7 +51,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       GITHUB_WEBHOOK_SECRET: 'test-gh-secret',
       TELEGRAM_BOT_TOKEN: '123456:TEST_BOT_TOKEN',
       TELEGRAM_WEBHOOK_SECRET: 'test-tg-secret',
-      TELEGRAM_DEPLOY_OWNER: 'ionodutch',
+      TELEGRAM_DEPLOY_OWNER_ID: '969561894',
       DEPLOY_NOTIFY_SECRET: 'deploy-secret',
       DISCORD_CLIENT_ID: 'discord-client-id-123',
       DISCORD_CLIENT_SECRET: 'discord-client-secret-456',
@@ -462,7 +462,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
             message_id: 10,
             text: '/deploynotify',
             chat: { id: 7123, type: 'private' },
-            from: { id: 42, username: 'IonODutch' },
+            from: { id: 969561894, username: 'renamed-owner' },
           },
         }),
       });

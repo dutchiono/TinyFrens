@@ -17,7 +17,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ROBOT_CARE_PRICE_FEED, 1000);
     assert.equal(config.ECONOMY_MODE, 'off');
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);
-    assert.equal(config.TELEGRAM_DEPLOY_OWNER, 'ionodutch');
+    assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, undefined);
   });
 
   test('parses environment overrides and coercions', () => {
@@ -29,6 +29,7 @@ describe('Configuration Ledger & Parser', () => {
       ALLOWED_ORIGINS: 'https://foo.com, https://bar.com',
       ROBOT_CARE_DAILY_ALLOWANCE: '48',
       DB_READ_ONLY: 'true',
+      TELEGRAM_DEPLOY_OWNER_ID: '969561894',
     });
 
     assert.equal(config.PORT, 9000);
@@ -37,6 +38,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.CHAIN_ID, 8453);
     assert.equal(config.ROBOT_CARE_DAILY_ALLOWANCE, 48);
     assert.equal(config.DB_READ_ONLY, true);
+    assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, '969561894');
 
     const origins = getAllowedOrigins(config);
     assert.ok(origins.has('https://foo.com'));
