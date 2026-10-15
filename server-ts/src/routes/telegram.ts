@@ -564,7 +564,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
             }
             await sendCommand({ chat_id: chatId, text: answer });
-          }
           return reply.status(200).send({ ok: true });
         }
       }
