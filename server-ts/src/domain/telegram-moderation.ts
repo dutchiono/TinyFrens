@@ -312,6 +312,12 @@ export class TelegramModeration {
       } else {
         const previous = this.repo.getModerationWarnings(String(chatId), targetId);
         if (commandMessageId > 0 && previous?.source_message_id === commandMessageId) return true;
+        if (typeof replyMessageId === 'number' && replyMessageId > 0) {
+          await this.api.call('deleteMessage', {
+            chat_id: chatId,
+            message_id: replyMessageId,
+          }, this.options.token).catch(() => undefined);
+        }
         const count = Math.min(3, (previous?.warnings ?? 0) + 1);
         const now = Math.floor(this.now());
         const reason = String(warning[2] || '').replace(/\s+/g, ' ').trim().slice(0, 200);
