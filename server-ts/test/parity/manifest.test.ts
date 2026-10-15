@@ -51,6 +51,7 @@ describe('Parity Manifest & Inventory Verification', () => {
     'tg_blocklist',
     'tg_strikes',
     'tg_challenges',
+    'tg_suspected_bots',
     'tg_fren_game',
     'deploy_notification_chats',
     'dc_users',

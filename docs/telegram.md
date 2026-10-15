@@ -48,6 +48,10 @@ This is an intentionally small Telegram-first playtest. Lobby duration, crew siz
 
 When someone asks the bot for recent work, including asking it to brief another `@username`, the reply groups verified GitHub changes into **Website**, **Telegram**, and **Backend** sections based on the files changed in each commit. It also reports pull-request and CI state. Repository activity is not described as live until a deployment is separately verified.
 
+### Suspected-bot review
+
+A group administrator can reply to a suspicious account's message with `/bot`. TinyFrens records the account for review and posts one notice that mentions the account and replies to the source message. It does not automatically ban or restrict someone based on suspicion alone. Reply with `/unbot` to clear an incorrect label.
+
 ## Troubleshooting
 
 If the Mini App is blank, update Telegram, close the bot, and open it again. If account linking is waiting, return to the device that generated the sync code and approve the Telegram request before the ten-minute code expires.
