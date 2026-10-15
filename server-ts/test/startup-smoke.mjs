@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -38,20 +40,29 @@ const child = spawn(process.execPath, ['dist/main.js'], {
 
 child.stdout.on('data', chunk => output.push(chunk.toString()));
 child.stderr.on('data', chunk => output.push(chunk.toString()));
+let readonlyChild;
 
-try {
+async function databaseHash() {
+  return createHash('sha256').update(await readFile(database)).digest('hex');
+}
+
+async function waitForHealth(process, processOutput) {
   let response;
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    assert.equal(child.exitCode, null, `server exited during startup\n${output.join('')}`);
+    assert.equal(process.exitCode, null, `server exited during startup\n${processOutput.join('')}`);
     try {
       response = await fetch(`http://127.0.0.1:${port}/health`);
-      if (response.ok) break;
+      if (response.ok) return response;
     } catch {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
-  assert.ok(response, `server did not become healthy\n${output.join('')}`);
+  assert.fail(`server did not become healthy\n${processOutput.join('')}`);
+}
+
+try {
+  const response = await waitForHealth(child, output);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true });
   assert.ok((await stat(database)).size > 0, 'startup did not initialize SQLite');
@@ -62,7 +73,29 @@ try {
     ? { code: null, signal: 'SIGTERM' }
     : { code: 0, signal: null };
   assert.deepEqual(exit, expectedExit, `server did not shut down cleanly\n${output.join('')}`);
+
+  const beforeReadonly = await databaseHash();
+  const readonlyOutput = [];
+  readonlyChild = spawn(process.execPath, ['dist/main.js'], {
+    cwd: path.resolve(import.meta.dirname, '..'),
+    env: {
+      ...process.env,
+      HOST: '127.0.0.1',
+      PORT: String(port),
+      DB_PATH: database,
+      DB_READ_ONLY: 'true',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  readonlyChild.stdout.on('data', chunk => readonlyOutput.push(chunk.toString()));
+  readonlyChild.stderr.on('data', chunk => readonlyOutput.push(chunk.toString()));
+  const readonlyResponse = await waitForHealth(readonlyChild, readonlyOutput);
+  assert.deepEqual(await readonlyResponse.json(), { ok: true });
+  readonlyChild.kill('SIGTERM');
+  await new Promise(resolve => readonlyChild.once('exit', resolve));
+  assert.equal(await databaseHash(), beforeReadonly, 'read-only startup changed SQLite');
 } finally {
   if (child.exitCode === null) child.kill('SIGKILL');
+  if (readonlyChild?.exitCode === null) readonlyChild.kill('SIGKILL');
   await rm(tempRoot, { recursive: true, force: true });
 }
