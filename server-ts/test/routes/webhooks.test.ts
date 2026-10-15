@@ -600,6 +600,185 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(answeredAlert.show_alert, true);
       assert.ok(String(answeredAlert.text).includes("This isn't your Fren"));
     });
+
+    test('POST /api/telegram/webhook keeps group scrap participation in one edited message', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const originalNow = sharedContext.now;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return method === 'sendMessage'
+            ? { data: { ok: true, result: { message_id: 808 } }, status: 200 }
+            : { data: { ok: true }, status: 200 };
+        },
+      };
+
+      const command = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 200,
+          message: {
+            message_id: 700,
+            text: '/scrap',
+            chat: { id: '-100-scrap', type: 'supergroup' },
+            from: { id: 'starter', first_name: 'Ada' },
+          },
+        },
+      });
+      assert.equal(command.statusCode, 200);
+      assert.equal(calls[0].method, 'sendMessage');
+      assert.match(String(calls[0].payload.text), /Group Scrap Run/);
+      assert.equal(calls[0].payload.reply_to_message_id, 700);
+      assert.equal(calls[1].method, 'deleteMessage');
+      assert.deepEqual(calls[1].payload, { chat_id: '-100-scrap', message_id: 700 });
+
+      const run = sharedContext.db.prepare<{ id: string; message_id: number }>(
+        'SELECT id, message_id FROM tg_scrap_runs WHERE chat_id=?'
+      ).get('-100-scrap');
+      assert.ok(run);
+      assert.equal(run.message_id, 808);
+
+      const joined = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 201,
+          callback_query: {
+            id: 'cq_scrap_join',
+            data: `scrap:${run.id}:join`,
+            from: { id: 'friend', first_name: 'Bob' },
+            message: {
+              message_id: 808,
+              chat: { id: '-100-scrap', type: 'supergroup' },
+            },
+          },
+        },
+      });
+      sharedContext.now = () => 1700000061;
+      const resolved = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 202,
+          callback_query: {
+            id: 'cq_scrap_resolve',
+            data: `scrap:${run.id}:resolve`,
+            from: { id: 'starter', first_name: 'Ada' },
+            message: {
+              message_id: 808,
+              chat: { id: '-100-scrap', type: 'supergroup' },
+            },
+          },
+        },
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      sharedContext.now = originalNow;
+
+      assert.equal(joined.statusCode, 200);
+      assert.equal(resolved.statusCode, 200);
+      const edits = calls.filter(call => call.method === 'editMessageText');
+      assert.equal(edits.length, 2);
+      assert.equal(edits[0].payload.message_id, 808);
+      assert.match(String(edits[0].payload.text), /Ada/);
+      assert.match(String(edits[0].payload.text), /Bob/);
+      assert.match(String(edits[1].payload.text), /Complete/);
+      assert.match(String(edits[1].payload.text), /credits/);
+      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 1);
+      assert.equal(calls.at(-1)?.method, 'answerCallbackQuery');
+      const petIds = sharedContext.db.prepare<{ pet_id: string }>(
+        "SELECT pet_id FROM tg_users WHERE tg_id IN ('starter', 'friend') ORDER BY tg_id"
+      ).all();
+      assert.equal(petIds.length, 2);
+      assert.deepEqual(petIds.map(row => sharedContext.economy.balance(row.pet_id)), [35, 35]);
+    });
+
+    test('POST /api/telegram/webhook addresses update briefings to the requested user with verified progress', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const previousFetch = globalThis.fetch;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return { data: { ok: true }, status: 200 };
+        },
+      };
+      globalThis.fetch = async input => {
+        const url = String(input);
+        if (url.includes('/commits')) {
+          return new Response(JSON.stringify([{
+            sha: 'abc1234def',
+            commit: {
+              message: 'Ship Telegram scrap lobbies',
+              author: { name: 'dutch', date: '2023-11-14T22:12:00Z' },
+            },
+          }]), { status: 200 });
+        }
+        if (url.includes('/pulls')) {
+          return new Response(JSON.stringify([{
+            number: 98,
+            title: 'Add quiet Telegram group scrap runs',
+            state: 'open',
+            merged_at: null,
+            updated_at: '2023-11-14T22:12:30Z',
+          }]), { status: 200 });
+        }
+        if (url.includes('/actions/runs')) {
+          return new Response(JSON.stringify({
+            workflow_runs: [{
+              name: 'Build & Test',
+              conclusion: 'success',
+              updated_at: '2023-11-14T22:13:00Z',
+            }],
+          }), { status: 200 });
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      };
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 203,
+          message: {
+            message_id: 809,
+            text: '@TinyFrensBot say hi to @LIMI7LESS and fill them in on everything weve done in the last 24 hrs',
+            date: 1700000000,
+            chat: { id: '-100-briefing', type: 'supergroup' },
+            from: { id: 'owner', first_name: 'TinyFrens' },
+          },
+        },
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      globalThis.fetch = previousFetch;
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].method, 'sendMessage');
+      const text = String(calls[0].payload.text);
+      assert.match(text, /^Hey @LIMI7LESS/);
+      assert.match(text, /PR #98/);
+      assert.match(text, /Ship Telegram scrap lobbies/);
+      assert.match(text, /Build & Test: success/);
+      assert.doesNotMatch(text, /We love that energy/);
+    });
   });
 
   describe('Farcaster Webhooks & Notifications (POST /api/farcaster/*)', () => {

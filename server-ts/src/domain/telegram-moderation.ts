@@ -369,7 +369,7 @@ export class TelegramModeration {
   private reservedMessage(text: string): boolean {
     return text.startsWith('/start') || text.startsWith('/show') || text.startsWith('/link') ||
       isIssueCommand(text) || /^\/help(?:@\w+)?\s*$/i.test(text) ||
-      /^\/(?:game|pet|play|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
+      /^\/(?:game|pet|play|scrap|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
   }
 
   private schedule(challenge: TgChallengeRow): void {

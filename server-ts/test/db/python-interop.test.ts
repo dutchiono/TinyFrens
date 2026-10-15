@@ -39,7 +39,7 @@ db.close()
 
       // 2. Open in TypeScript with BetterSqliteConnection
       const db = createDbConnection(dbPath);
-      // Run migrations to ensure all 50 permanent tables are also added if missing
+      // Run migrations to ensure all permanent tables are also added if missing
       runMigrations(db);
       const repos = createRepositories(db);
 
