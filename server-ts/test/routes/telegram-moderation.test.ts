@@ -198,6 +198,8 @@ describe('Telegram moderation webhook orchestration', () => {
     });
     assert.equal(context.repos.telegram.getModerationWarnings('-103', '8')?.warnings, 1);
     assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /warning 1\/3/);
+    assert.ok(api.calls.some(call => call.method === 'deleteMessage' && call.payload.message_id === 60));
+    assert.ok(api.calls.some(call => call.method === 'deleteMessage' && call.payload.message_id === 61));
 
     await webhook({
       message_id: 62,
