@@ -444,7 +444,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(res.body, 'Telegram webhook secret did not match');
     });
 
-    test('owner registers a private deployment notification chat', async () => {
+    test('owner registers private and group deployment notification chats', async () => {
       const originalTelegramApi = sharedContext.telegramApi;
       sharedContext.telegramApi = {
         async call() { return { data: { ok: true }, status: 200 }; },
@@ -466,10 +466,29 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         }),
       });
-      sharedContext.telegramApi = originalTelegramApi;
       assert.equal(res.statusCode, 200);
-      assert.equal(sharedContext.repos.telegram.listDeployNotificationChats()[0].chat_id, '7123');
-      assert.equal(sharedContext.repos.telegram.listDeployNotificationChats()[0].username, 'renamed-owner');
+      const groupRes = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: JSON.stringify({
+          update_id: 3,
+          message: {
+            message_id: 11,
+            text: '/deploynotify',
+            chat: { id: -1004467710774, type: 'supergroup' },
+            from: { id: 969561894, username: 'renamed-owner' },
+          },
+        }),
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      const chats = sharedContext.repos.telegram.listDeployNotificationChats();
+      assert.equal(groupRes.statusCode, 200);
+      assert.deepEqual(chats.map(chat => chat.chat_id), ['-1004467710774', '7123']);
+      assert.ok(chats.every(chat => chat.username === 'renamed-owner'));
     });
 
     test('loopback deployment event requires its secret and deduplicates', async () => {
@@ -493,10 +512,10 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       const second = await app.inject({ method: 'POST', url: '/api/internal/website-published', headers, payload: { revision } });
       sharedContext.telegramApi = originalTelegramApi;
       assert.equal(first.statusCode, 200);
-      assert.equal(first.json().sent, 1);
+      assert.equal(first.json().sent, 2);
       assert.equal(second.statusCode, 200);
-      assert.equal(second.json().alreadyNotified, 1);
-      assert.equal(telegramCalls.length, 1);
+      assert.equal(second.json().alreadyNotified, 2);
+      assert.equal(telegramCalls.length, 2);
     });
 
     test('POST /api/telegram/webhook executes game callback query care action', async () => {

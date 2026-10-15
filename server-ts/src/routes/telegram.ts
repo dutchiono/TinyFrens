@@ -409,7 +409,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '',
               '<b>🔐 Admin</b>',
               '/filter · /blocklist · /ban — Group moderation.',
-              '/deploynotify — Owner-only deployment DMs.',
+              '/deploynotify — Owner-only deployment DMs and group announcements.',
               '',
               '<i>Commands work even when AI chat is unavailable.</i>'
             ].join('\n'),
@@ -424,16 +424,16 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
           const authorized = isTelegramDeployOwner(sender, ownerId);
           let responseText: string;
-          if (chat?.type !== 'private') {
-            responseText = 'Deployment notifications can only be registered in a private chat.';
-          } else if (!authorized) {
+          if (!authorized) {
             responseText = 'This Telegram account cannot manage deployment notifications.';
+          } else if (!['private', 'group', 'supergroup'].includes(String(chat?.type || ''))) {
+            responseText = 'Deployment notifications can only be registered in a DM or group.';
           } else if (deployNotify[1]) {
             context.repos.telegram.unsubscribeDeployNotifications(String(chatId), Math.floor(context.now()));
             responseText = 'Website deployment notifications are off for this chat.';
           } else {
             context.repos.telegram.subscribeDeployNotifications(String(chatId), username || ownerId || '', Math.floor(context.now()));
-            responseText = "I'll DM this private chat after a website revision is verified live. Use /deploynotify off to stop notifications.";
+            responseText = `I'll notify this ${chat?.type === 'private' ? 'DM' : 'group'} after a website revision is verified live. Use /deploynotify off to stop notifications.`;
           }
           await sendCommand({ chat_id: chatId, text: responseText });
           return reply.status(200).send({ ok: true });
