@@ -39,6 +39,16 @@ export interface TgChallengeRow {
   message_id: number | null;
 }
 
+export interface TgSuspectedBotRow {
+  chat_id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  flagged_by: string;
+  source_message_id: number | null;
+  flagged_at: number;
+}
+
 export interface DeployNotificationChatRow {
   chat_id: string;
   username: string;
@@ -234,6 +244,42 @@ export class TelegramRepository {
 
   resetStrikes(chatId: string, userId: string): boolean {
     return this.db.prepare('DELETE FROM tg_strikes WHERE chat_id=? AND user_id=?').run(chatId, userId).changes > 0;
+  }
+
+  // TG suspected-bot review labels
+  markSuspectedBot(row: TgSuspectedBotRow): void {
+    this.db.prepare(
+      `INSERT INTO tg_suspected_bots(
+        chat_id, user_id, username, display_name, flagged_by, source_message_id, flagged_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(chat_id, user_id) DO UPDATE SET
+        username=excluded.username,
+        display_name=excluded.display_name,
+        flagged_by=excluded.flagged_by,
+        source_message_id=excluded.source_message_id,
+        flagged_at=excluded.flagged_at`
+    ).run(
+      row.chat_id,
+      row.user_id,
+      row.username,
+      row.display_name,
+      row.flagged_by,
+      row.source_message_id,
+      row.flagged_at
+    );
+  }
+
+  getSuspectedBot(chatId: string, userId: string): TgSuspectedBotRow | undefined {
+    return this.db.prepare<TgSuspectedBotRow>(
+      `SELECT chat_id, user_id, username, display_name, flagged_by, source_message_id, flagged_at
+       FROM tg_suspected_bots WHERE chat_id=? AND user_id=?`
+    ).get(chatId, userId);
+  }
+
+  clearSuspectedBot(chatId: string, userId: string): boolean {
+    return this.db.prepare(
+      'DELETE FROM tg_suspected_bots WHERE chat_id=? AND user_id=?'
+    ).run(chatId, userId).changes > 0;
   }
 
   // TG Captcha Challenges

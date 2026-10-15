@@ -476,6 +476,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '/myid — Your Telegram numeric user ID (DM only).',
               '',
               '<b>🔐 Admin</b>',
+              '/bot · /unbot — Reply to mark or clear a suspected bot.',
               '/filter · /blocklist · /ban — Group moderation.',
               '/deploynotify — Owner-only deployment DMs and group announcements.',
               '',

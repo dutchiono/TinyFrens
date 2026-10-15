@@ -109,6 +109,75 @@ describe('Telegram moderation webhook orchestration', () => {
     assert.ok(api.calls.some(call => call.method === 'banChatMember' && call.payload.user_id === 5));
   });
 
+  test('admin marks and clears the replied-to user as a suspected bot', async () => {
+    api.members.set(1, 'administrator');
+    api.members.set(5, 'member');
+    const chat = { id: -101, type: 'supergroup' };
+    const replied = {
+      message_id: 40,
+      text: 'generic engagement bait',
+      chat,
+      from: { id: 5, username: 'suspect_user', first_name: 'Suspect' },
+    };
+
+    const flagged = await webhook({
+      message_id: 41,
+      text: '/bot',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    });
+    assert.equal(flagged.statusCode, 200);
+    assert.deepEqual(context.repos.telegram.getSuspectedBot('-101', '5'), {
+      chat_id: '-101',
+      user_id: '5',
+      username: 'suspect_user',
+      display_name: 'Suspect',
+      flagged_by: '1',
+      source_message_id: 40,
+      flagged_at: 1000,
+    });
+    const notice = api.calls.findLast(call => call.method === 'sendMessage');
+    assert.match(String(notice?.payload.text), /@suspect_user was marked as a suspected bot/);
+    assert.equal(notice?.payload.reply_to_message_id, 40);
+    assert.equal(notice?.payload.parse_mode, 'HTML');
+    assert.ok(api.calls.some(call => call.method === 'deleteMessage' && call.payload.message_id === 41));
+
+    const cleared = await webhook({
+      message_id: 42,
+      text: '/unbot',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    });
+    assert.equal(cleared.statusCode, 200);
+    assert.equal(context.repos.telegram.getSuspectedBot('-101', '5'), undefined);
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /Removed/);
+  });
+
+  test('suspected-bot labels require an admin and a replied-to message', async () => {
+    api.members.set(6, 'member');
+    const chat = { id: -102, type: 'supergroup' };
+    await webhook({
+      message_id: 50,
+      text: '/bot',
+      chat,
+      from: { id: 6, username: 'ordinary_user' },
+      reply_to_message: { message_id: 49, chat, from: { id: 7, first_name: 'Target' } },
+    });
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /Only chat administrators/);
+    assert.equal(context.repos.telegram.getSuspectedBot('-102', '7'), undefined);
+
+    api.members.set(1, 'administrator');
+    await webhook({
+      message_id: 51,
+      text: '/bot',
+      chat,
+      from: { id: 1, username: 'admin' },
+    });
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /Reply to a user's message/);
+  });
+
   test('directs private game commands to the group and serves public status', async () => {
     const chat = { id: -200, type: 'private' };
     await webhook({

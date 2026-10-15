@@ -12,6 +12,18 @@ import { isIssueCommand } from '../integrations/telegram.js';
 
 type TelegramObject = Record<string, unknown>;
 
+function escapeHtml(value: unknown): string {
+  return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function userMention(user: TelegramObject): string {
+  const username = String(user.username || '').replace(/^@/, '');
+  if (/^[A-Za-z0-9_]{5,32}$/.test(username)) return `@${username}`;
+  const id = String(user.id || '');
+  const name = escapeHtml(user.first_name || user.last_name || 'This user').slice(0, 80);
+  return /^\d+$/.test(id) ? `<a href="tg://user?id=${id}">${name}</a>` : name;
+}
+
 export interface CreatedChallenge extends TgChallengeRow {
   left: number;
   right: number;
@@ -195,6 +207,67 @@ export class TelegramModeration {
     const chatId = chat?.id;
     const isGroup = chat?.type === 'group' || chat?.type === 'supergroup';
 
+    const botReview = text.match(/^\/(unbot|bot)(?:@\w+)?\s*$/i);
+    if (botReview && chatId !== null && chatId !== undefined) {
+      if (!isGroup) {
+        await this.sendMessage(chatId, 'This command can only be used in group chats.');
+        return true;
+      }
+      if (!await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        await this.sendMessage(chatId, 'Only chat administrators can mark suspected bots.');
+        return true;
+      }
+      const replyMessage = message.reply_to_message;
+      if (!replyMessage || typeof replyMessage !== 'object') {
+        await this.sendMessage(chatId, `Reply to a user's message with /${botReview[1].toLowerCase()}.`);
+        return true;
+      }
+      const target = ((replyMessage as TelegramObject).from || {}) as TelegramObject;
+      const targetId = String(target.id || '');
+      if (!/^\d+$/.test(targetId)) {
+        await this.sendMessage(chatId, 'Could not identify the user in that message.');
+        return true;
+      }
+      const mention = userMention(target);
+      const commandMessageId = Number(message.message_id || 0);
+      if (botReview[1].toLowerCase() === 'bot') {
+        this.repo.markSuspectedBot({
+          chat_id: String(chatId),
+          user_id: targetId,
+          username: String(target.username || '').replace(/^@/, '').slice(0, 32),
+          display_name: String(target.first_name || target.last_name || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 80),
+          flagged_by: String(sender.id || ''),
+          source_message_id: typeof (replyMessage as TelegramObject).message_id === 'number'
+            ? (replyMessage as TelegramObject).message_id as number
+            : null,
+          flagged_at: Math.floor(this.now()),
+        });
+        await this.strictCall('sendMessage', {
+          chat_id: chatId,
+          text: `⚠️ ${mention} was marked as a suspected bot for admin review.`,
+          parse_mode: 'HTML',
+          reply_to_message_id: (replyMessage as TelegramObject).message_id,
+        });
+      } else {
+        const removed = this.repo.clearSuspectedBot(String(chatId), targetId);
+        await this.strictCall('sendMessage', {
+          chat_id: chatId,
+          text: removed
+            ? `✅ Removed the suspected-bot label from ${mention}.`
+            : `${mention} was not marked as a suspected bot.`,
+          parse_mode: 'HTML',
+          reply_to_message_id: (replyMessage as TelegramObject).message_id,
+        });
+      }
+      if (commandMessageId > 0) {
+        await this.api.call('deleteMessage', {
+          chat_id: chatId,
+          message_id: commandMessageId,
+        }, this.options.token).catch(() => undefined);
+      }
+      return true;
+    }
+
     const ban = parseBanCommand(text);
     if (ban.isBan && chatId !== null && chatId !== undefined) {
       if (!isGroup) {
@@ -369,7 +442,7 @@ export class TelegramModeration {
   private reservedMessage(text: string): boolean {
     return text.startsWith('/start') || text.startsWith('/show') || text.startsWith('/link') ||
       isIssueCommand(text) || /^\/help(?:@\w+)?\s*$/i.test(text) ||
-      /^\/(?:game|pet|play|scrap|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
+      /^\/(?:bot|unbot|game|pet|play|scrap|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
   }
 
   private schedule(challenge: TgChallengeRow): void {
