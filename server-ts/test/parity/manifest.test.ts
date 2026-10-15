@@ -57,7 +57,7 @@ describe('Parity Manifest & Inventory Verification', () => {
     'github_issue_chats',
   ];
 
-  test('all 50 permanent checklist tables are present in schema statements', () => {
+  test('all parity-checklist tables are present in schema statements', () => {
     const definedTables = new Set(SCHEMA_STATEMENTS.map(s => s.table));
     for (const table of CHECKLIST_TABLES) {
       assert.ok(definedTables.has(table), `Manifest missing checklist table: ${table}`);

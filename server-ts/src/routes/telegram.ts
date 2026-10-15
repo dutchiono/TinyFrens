@@ -37,6 +37,14 @@ import { readAccountProfile, telegramPet } from '../domain/account.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
+import {
+  getOpenScrapRun,
+  joinScrapRun,
+  renderScrapCard,
+  resolveScrapRun,
+  setScrapMessageId,
+  startScrapRun,
+} from '../domain/telegram-scrap.js';
 
 async function callTelegramApi(
   method: string,
@@ -292,6 +300,65 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             }
             return reply.status(200).send({ ok: true });
           }
+        } else if (data.startsWith('scrap:')) {
+          const parts = data.split(':');
+          const runId = parts[1] || '';
+          const action = parts[2] || '';
+          const senderUid = String(cqSender.id || '');
+          const senderName = String(cqSender.first_name || cqSender.username || 'Fren');
+          const now = Math.floor(context.now());
+          const result = action === 'join'
+            ? joinScrapRun(
+                context.db,
+                runId,
+                senderUid,
+                telegramPet(context, cqSender).id,
+                senderName,
+                now
+              )
+            : action === 'resolve'
+              ? resolveScrapRun(
+                  context.db,
+                  runId,
+                  senderUid,
+                  now,
+                  context.random(),
+                  (petId, credits, scrapRunId) => {
+                    context.economy.grant(petId, credits, 'telegram-scrap', 'scrap-run', scrapRunId);
+                  }
+                )
+              : { ok: false as const, reason: 'missing' as const };
+
+          let toast = 'That scrap run is no longer available.';
+          let showAlert = false;
+          if (!result.ok) {
+            if (result.reason === 'full') toast = 'That crew is full or its join window has closed.';
+            if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
+            if (result.reason === 'waiting') toast = `Give the crew ${result.waitSeconds || 1}s more to join.`;
+            showAlert = result.reason !== 'waiting';
+          } else {
+            toast = action === 'join'
+              ? (result.changed ? 'Your robot joined the scrap run.' : 'You are already in this crew.')
+              : (result.changed ? 'Scrap recovered!' : 'This run is already complete.');
+            if (cqChatId && cqMsgId) {
+              const [scrapText, scrapKeyboard] = renderScrapCard(result.state, now);
+              await context.telegramApi.call('editMessageText', {
+                chat_id: cqChatId,
+                message_id: cqMsgId,
+                text: scrapText,
+                parse_mode: 'HTML',
+                reply_markup: scrapKeyboard,
+              }, token);
+            }
+          }
+          if (cqId) {
+            await context.telegramApi.call('answerCallbackQuery', {
+              callback_query_id: cqId,
+              text: toast,
+              show_alert: showAlert,
+            }, token);
+          }
+          return reply.status(200).send({ ok: true });
         } else if (data === 'gh:refresh') {
           const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
           const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
@@ -394,6 +461,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '',
               '<b>🎮 Group’s Fren</b>',
               '/game — Open Fren care controls.',
+              '/scrap — Start or reopen one quiet group scrap run.',
               'Feed · Play · Rest · Dice · Bag · Refresh',
               '<i>Game FRENS coins are not on-chain tokens. Shared group progress is still being developed.</i>',
               '',
@@ -470,6 +538,53 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             parse_mode: 'HTML',
             reply_markup: cardKeyboard,
           });
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/scrap(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          if (chat?.type !== 'group' && chat?.type !== 'supergroup') {
+            await sendCommand({ chat_id: chatId, text: 'Group scrap runs are played in a Telegram group.' });
+            return reply.status(200).send({ ok: true });
+          }
+          const cid = String(chatId);
+          const uid = String(sender.id || '0');
+          const senderPet = telegramPet(context, sender);
+          const now = Math.floor(context.now());
+          const existing = getOpenScrapRun(context.db, cid);
+          const started = existing
+            ? { state: existing, created: false }
+            : startScrapRun(
+                context.db,
+                cid,
+                uid,
+                senderPet.id,
+                String(sender.first_name || sender.username || 'Fren'),
+                now,
+                context.random()
+              );
+          const [scrapText, scrapKeyboard] = renderScrapCard(started.state, now);
+          if (!started.created && started.state.run.message_id) {
+            await context.telegramApi.call('editMessageText', {
+              chat_id: chatId,
+              message_id: started.state.run.message_id,
+              text: scrapText,
+              parse_mode: 'HTML',
+              reply_markup: scrapKeyboard,
+            }, token);
+          } else {
+            const sent = await context.telegramApi.call('sendMessage', {
+              chat_id: chatId,
+              text: scrapText,
+              parse_mode: 'HTML',
+              reply_markup: scrapKeyboard,
+              reply_to_message_id: messageId,
+            }, token);
+            const result = sent.data?.result;
+            const sentMessageId = result && typeof result === 'object'
+              ? Number((result as Record<string, unknown>).message_id)
+              : 0;
+            if (sentMessageId > 0) setScrapMessageId(context.db, started.state.run.id, sentMessageId);
+          }
           return reply.status(200).send({ ok: true });
         }
 

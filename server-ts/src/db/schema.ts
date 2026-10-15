@@ -191,6 +191,14 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     sql: "CREATE TABLE IF NOT EXISTS tg_fren_game(chat_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, stage TEXT NOT NULL DEFAULT 'Hatchling', level INTEGER NOT NULL DEFAULT 1, xp INTEGER NOT NULL DEFAULT 0, health INTEGER NOT NULL DEFAULT 100, hunger INTEGER NOT NULL DEFAULT 70, energy INTEGER NOT NULL DEFAULT 100, frens_coins INTEGER NOT NULL DEFAULT 50, inventory TEXT NOT NULL DEFAULT '{\"berries\":2,\"snacks\":1}', updated_at INTEGER NOT NULL, PRIMARY KEY(chat_id, user_id));",
   },
   {
+    table: 'tg_scrap_runs',
+    sql: "CREATE TABLE IF NOT EXISTS tg_scrap_runs(id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, message_id INTEGER, starter_user_id TEXT NOT NULL, starter_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, join_until INTEGER NOT NULL, resolved_at INTEGER, loot_name TEXT, rarity TEXT, reward_each INTEGER);",
+  },
+  {
+    table: 'tg_scrap_members',
+    sql: "CREATE TABLE IF NOT EXISTS tg_scrap_members(run_id TEXT NOT NULL, user_id TEXT NOT NULL, pet_id TEXT NOT NULL, display_name TEXT NOT NULL, reward INTEGER NOT NULL DEFAULT 0, joined_at INTEGER NOT NULL, PRIMARY KEY(run_id, pet_id), UNIQUE(run_id, user_id), FOREIGN KEY(run_id) REFERENCES tg_scrap_runs(id));",
+  },
+  {
     table: 'tg_filters',
     sql: "CREATE TABLE IF NOT EXISTS tg_filters(chat_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, created_by TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, PRIMARY KEY(chat_id, trigger));",
   },
@@ -234,6 +242,8 @@ export const INDEX_STATEMENTS: string[] = [
   'CREATE INDEX IF NOT EXISTS treasury_transfers_pet ON treasury_transfers(pet_id, id);',
   'CREATE INDEX IF NOT EXISTS collection_votes_collection ON collection_votes(collection_id);',
   'CREATE INDEX IF NOT EXISTS collection_votes_pet ON collection_votes(pet_id);',
+  "CREATE UNIQUE INDEX IF NOT EXISTS tg_scrap_one_open_run_per_chat ON tg_scrap_runs(chat_id) WHERE status='open';",
+  'CREATE INDEX IF NOT EXISTS tg_scrap_members_run ON tg_scrap_members(run_id, joined_at);',
 ];
 
 export function initSchema(db: DatabaseConnection): void {
