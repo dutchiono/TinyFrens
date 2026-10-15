@@ -436,6 +436,7 @@ Search again at the implementation baseline; these files currently consume serve
 - [ ] Scripts/runbooks: account, robot-care, vote, and testnet-economy scripts.
 - [ ] Capture real client requests as sanitized fixtures and replay them against both servers.
 - [ ] Confirm browser, Android, iOS, desktop, Telegram Mini App, Farcaster, and Discord behavior before cutover.
+- [x] Source-derived CI guard verifies every local route literal referenced by browser, desktop, Android, iOS, Snap, and scripts is registered by TypeScript.
 
 ## Safe implementation order
 

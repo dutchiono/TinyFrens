@@ -78,6 +78,47 @@ describe('source-derived migration inventory', () => {
     }
   });
 
+  test('TypeScript registers every TinyFrens route referenced by clients', async () => {
+    const clientFiles = [
+      ...walk(path.join(repoRoot, 'web'), file => file.endsWith('.js')),
+      path.join(repoRoot, 'desktop', 'turtle.cjs'),
+      ...walk(path.join(repoRoot, 'android', 'app', 'src', 'main'), file => file.endsWith('.kt')),
+      ...walk(path.join(repoRoot, 'ios'), file => file.endsWith('.swift')),
+      ...walk(path.join(repoRoot, 'snap', 'src'), file => file.endsWith('.ts')),
+      ...walk(path.join(repoRoot, 'scripts'), file => /\.(?:cjs|mjs|js|ps1)$/.test(file))
+        .filter(file => !file.includes(`${path.sep}node_modules${path.sep}`) && !file.includes(`${path.sep}vendor${path.sep}`)),
+    ];
+    const externalApiPrefixes = ['/api/v10/activities/', '/api/v2'];
+    const clientRoutes = new Set<string>();
+    for (const file of clientFiles) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/\/(?:api\/[A-Za-z0-9_./:-]+|ws)(?=[?`'"${}\s)]|$)/g)) {
+        const route = match[0];
+        if (!externalApiPrefixes.some(prefix => route.startsWith(prefix))) clientRoutes.add(route);
+      }
+    }
+
+    const serverRoutes = new Set<string>();
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    const app = await buildApp({
+      context: createAppContext(loadConfig({}), db),
+      onRoute(route: RouteOptions) {
+        serverRoutes.add(route.url);
+      },
+    });
+    await app.ready();
+    try {
+      const missing = [...clientRoutes].filter(route => {
+        if (route.endsWith('/')) return ![...serverRoutes].some(candidate => candidate.startsWith(route));
+        return !serverRoutes.has(route);
+      });
+      assert.deepEqual(missing.sort(), []);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('TypeScript schema includes every production Python table', () => {
     const pythonTables = new Set<string>();
     for (const file of walk(pythonRoot, file => file.endsWith('.py') && !path.basename(file).startsWith('test_'))) {
