@@ -178,6 +178,74 @@ describe('Telegram moderation webhook orchestration', () => {
     assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /Reply to a user's message/);
   });
 
+  test('escalates reply warnings from notice to ten-minute mute to ban', async () => {
+    api.members.set(1, 'administrator');
+    api.members.set(8, 'member');
+    const chat = { id: -103, type: 'supergroup' };
+    const replied = {
+      message_id: 60,
+      text: 'uncivil message',
+      chat,
+      from: { id: 8, username: 'rowdy_fren', first_name: 'Rowdy' },
+    };
+
+    await webhook({
+      message_id: 61,
+      text: '/warn be respectful',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    });
+    assert.equal(context.repos.telegram.getModerationWarnings('-103', '8')?.warnings, 1);
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /warning 1\/3/);
+
+    await webhook({
+      message_id: 62,
+      text: '/warn',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    });
+    const restriction = api.calls.findLast(call => call.method === 'restrictChatMember');
+    assert.equal(restriction?.payload.user_id, 8);
+    assert.equal(restriction?.payload.until_date, 1600);
+    assert.equal((restriction?.payload.permissions as Record<string, boolean>).can_send_messages, false);
+    assert.equal(context.repos.telegram.getModerationWarnings('-103', '8')?.warnings, 2);
+
+    await webhook({
+      message_id: 63,
+      text: '/warn final chance used',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    });
+    const ban = api.calls.findLast(call => call.method === 'banChatMember');
+    assert.equal(ban?.payload.user_id, 8);
+    assert.equal(context.repos.telegram.getModerationWarnings('-103', '8')?.warnings, 3);
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /warning 3\/3/);
+  });
+
+  test('does not double-count a retried warn update and lets an admin clear warnings', async () => {
+    api.members.set(1, 'administrator');
+    api.members.set(9, 'member');
+    const chat = { id: -104, type: 'supergroup' };
+    const replied = { message_id: 70, chat, from: { id: 9, first_name: 'Learning Fren' } };
+    const warning = {
+      message_id: 71,
+      text: '/warn',
+      chat,
+      from: { id: 1, username: 'admin' },
+      reply_to_message: replied,
+    };
+    await webhook(warning);
+    await webhook(warning);
+    assert.equal(context.repos.telegram.getModerationWarnings('-104', '9')?.warnings, 1);
+
+    await webhook({ ...warning, message_id: 72, text: '/unwarn' });
+    assert.equal(context.repos.telegram.getModerationWarnings('-104', '9'), undefined);
+    assert.match(String(api.calls.findLast(call => call.method === 'sendMessage')?.payload.text), /Cleared all warnings/);
+  });
+
   test('directs private game commands to the group and serves public status', async () => {
     const chat = { id: -200, type: 'private' };
     await webhook({

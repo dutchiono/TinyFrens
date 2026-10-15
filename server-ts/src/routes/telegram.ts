@@ -17,6 +17,8 @@ import {
   renderGithubProgress,
   renderTelegramUpdateBriefing,
   replyMarkup,
+  telegramHelpText,
+  telegramHelpTopicRequest,
   telegramUpdateBriefingRequest,
   TG_API,
   TelegramChatEntry,
@@ -453,35 +455,13 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\/help(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+        const requestedHelp = telegramHelpTopicRequest(text, context.config.TELEGRAM_BOT_USERNAME);
+        if (requestedHelp && /^\/(?:help|gamehelp|showhelp)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           const isPrivate = chat?.type === 'private';
           await sendCommand({
             chat_id: chatId,
             parse_mode: 'HTML',
-            text: [
-              '🐾 <b>TinyFrens — Commands</b>',
-              '',
-              '<b>🎮 Group Game</b>',
-              '/game — Open the group Scrap Run.',
-              '<i>Join the crew, then search together for one shared result. The card updates in place.</i>',
-              '',
-              '<b>🖼 Your NFT Frens</b>',
-              '/show — Post your first selected NFT.',
-              '/show 2 through /show 5 — Other selected slots.',
-              '/link CODE — Link an existing TinyFrens account.',
-              '',
-              '<b>🛠 Information</b>',
-              '/progress — GitHub work and releases.',
-              '/status — Server status.',
-              '/myid — Your Telegram numeric user ID (DM only).',
-              '',
-              '<b>🔐 Admin</b>',
-              '/bot · /unbot — Reply to mark or clear a suspected bot.',
-              '/filter · /blocklist · /ban — Group moderation.',
-              '/deploynotify — Owner-only deployment DMs and group announcements.',
-              '',
-              '<i>Commands work even when AI chat is unavailable.</i>'
-            ].join('\n'),
+            text: telegramHelpText(requestedHelp),
             reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
           });
           return reply.status(200).send({ ok: true });
@@ -675,7 +655,10 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           context.rateLimiter.limit(`tg-mention:${String(chatId)}`, 30, 3600, context.now());
           let answer: string;
           const briefing = telegramUpdateBriefingRequest(text, context.config.TELEGRAM_BOT_USERNAME);
-          if (briefing) {
+          const helpTopic = telegramHelpTopicRequest(text, context.config.TELEGRAM_BOT_USERNAME);
+          if (helpTopic) {
+            answer = telegramHelpText(helpTopic);
+          } else if (briefing) {
             const repoStr = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
             const [ownerPart, repoPart] = repoStr.includes('/') ? repoStr.split('/', 2) : ['dutchiono', 'TinyFrens'];
             const progress = await fetchGithubProgress(
@@ -703,7 +686,11 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
             }
           }
-          await sendCommand({ chat_id: chatId, text: answer });
+          await sendCommand({
+            chat_id: chatId,
+            text: answer,
+            ...(helpTopic ? { parse_mode: 'HTML' } : {}),
+          });
           return reply.status(200).send({ ok: true });
         }
       }

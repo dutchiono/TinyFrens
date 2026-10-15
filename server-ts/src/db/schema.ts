@@ -219,6 +219,10 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     sql: "CREATE TABLE IF NOT EXISTS tg_suspected_bots(chat_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT NOT NULL DEFAULT '', display_name TEXT NOT NULL DEFAULT '', flagged_by TEXT NOT NULL, source_message_id INTEGER, flagged_at INTEGER NOT NULL, PRIMARY KEY(chat_id, user_id));",
   },
   {
+    table: 'tg_moderation_warnings',
+    sql: "CREATE TABLE IF NOT EXISTS tg_moderation_warnings(chat_id TEXT NOT NULL, user_id TEXT NOT NULL, warnings INTEGER NOT NULL DEFAULT 0, last_reason TEXT NOT NULL DEFAULT '', warned_by TEXT NOT NULL DEFAULT '', muted_until INTEGER, source_message_id INTEGER, updated_at INTEGER NOT NULL, PRIMARY KEY(chat_id, user_id));",
+  },
+  {
     table: 'deploy_notification_chats',
     sql: "CREATE TABLE IF NOT EXISTS deploy_notification_chats(chat_id TEXT PRIMARY KEY, username TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, last_revision TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL);",
   },

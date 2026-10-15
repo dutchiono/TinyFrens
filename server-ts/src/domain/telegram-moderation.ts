@@ -268,6 +268,102 @@ export class TelegramModeration {
       return true;
     }
 
+    const warning = text.match(/^\/(unwarn|warn)(?:@\w+)?(?:\s+([\s\S]+))?\s*$/i);
+    if (warning && chatId !== null && chatId !== undefined) {
+      if (!isGroup) {
+        await this.sendMessage(chatId, 'This command can only be used in group chats.');
+        return true;
+      }
+      if (!await isChatAdmin(this.api, chat, sender, this.options.token, message)) {
+        await this.sendMessage(chatId, 'Only chat administrators can warn members.');
+        return true;
+      }
+      const replyMessage = message.reply_to_message;
+      if (!replyMessage || typeof replyMessage !== 'object') {
+        await this.sendMessage(chatId, `Reply to a user's message with /${warning[1].toLowerCase()}.`);
+        return true;
+      }
+      const target = ((replyMessage as TelegramObject).from || {}) as TelegramObject;
+      const targetId = String(target.id || '');
+      if (!/^\d+$/.test(targetId)) {
+        await this.sendMessage(chatId, 'Could not identify the user in that message.');
+        return true;
+      }
+      if (target.is_bot === true) {
+        await this.sendMessage(chatId, 'This warning ladder is for group members, not bots.');
+        return true;
+      }
+      if (await isChatAdmin(this.api, chat, target, this.options.token)) {
+        await this.sendMessage(chatId, 'Cannot warn a chat administrator.');
+        return true;
+      }
+
+      const mention = userMention(target);
+      const commandMessageId = Number(message.message_id || 0);
+      const replyMessageId = (replyMessage as TelegramObject).message_id;
+      if (warning[1].toLowerCase() === 'unwarn') {
+        const removed = this.repo.clearModerationWarnings(String(chatId), targetId);
+        await this.strictCall('sendMessage', {
+          chat_id: chatId,
+          text: removed ? `✅ Cleared all warnings for ${mention}.` : `${mention} has no active warnings.`,
+          parse_mode: 'HTML',
+          reply_to_message_id: replyMessageId,
+        });
+      } else {
+        const previous = this.repo.getModerationWarnings(String(chatId), targetId);
+        if (commandMessageId > 0 && previous?.source_message_id === commandMessageId) return true;
+        const count = Math.min(3, (previous?.warnings ?? 0) + 1);
+        const now = Math.floor(this.now());
+        const reason = String(warning[2] || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        let mutedUntil: number | null = previous?.muted_until ?? null;
+        let notice: string;
+
+        if (count === 1) {
+          notice = `⚠️ ${mention} warning 1/3. Please keep it civil.${reason ? `\nReason: ${escapeHtml(reason)}` : ''}`;
+        } else if (count === 2) {
+          mutedUntil = now + 10 * 60;
+          await this.strictCall('restrictChatMember', {
+            chat_id: chatId,
+            user_id: Number(targetId),
+            permissions: permissions(false),
+            until_date: mutedUntil,
+          });
+          notice = `🔇 ${mention} warning 2/3. Muted for 10 minutes.${reason ? `\nReason: ${escapeHtml(reason)}` : ''}`;
+        } else {
+          await this.strictCall('banChatMember', {
+            chat_id: chatId,
+            user_id: Number(targetId),
+            revoke_messages: false,
+          });
+          notice = `🚫 ${mention} warning 3/3. Banned from the group.${reason ? `\nReason: ${escapeHtml(reason)}` : ''}`;
+        }
+
+        await this.strictCall('sendMessage', {
+          chat_id: chatId,
+          text: notice,
+          parse_mode: 'HTML',
+          reply_to_message_id: replyMessageId,
+        });
+        this.repo.recordModerationWarning({
+          chat_id: String(chatId),
+          user_id: targetId,
+          warnings: count,
+          last_reason: reason,
+          warned_by: String(sender.id || ''),
+          muted_until: mutedUntil,
+          source_message_id: commandMessageId > 0 ? commandMessageId : null,
+          updated_at: now,
+        });
+      }
+      if (commandMessageId > 0) {
+        await this.api.call('deleteMessage', {
+          chat_id: chatId,
+          message_id: commandMessageId,
+        }, this.options.token).catch(() => undefined);
+      }
+      return true;
+    }
+
     const ban = parseBanCommand(text);
     if (ban.isBan && chatId !== null && chatId !== undefined) {
       if (!isGroup) {
@@ -442,7 +538,7 @@ export class TelegramModeration {
   private reservedMessage(text: string): boolean {
     return text.startsWith('/start') || text.startsWith('/show') || text.startsWith('/link') ||
       isIssueCommand(text) || /^\/help(?:@\w+)?\s*$/i.test(text) ||
-      /^\/(?:bot|unbot|game|pet|play|scrap|progress|github|work|status|admin|server|triage)(?:@\w+)?\s*$/i.test(text);
+      /^\/(?:bot|unbot|warn|unwarn|game|pet|play|scrap|progress|github|work|status|admin|server|triage)(?:@\w+)?(?:\s+.*)?$/i.test(text);
   }
 
   private schedule(challenge: TgChallengeRow): void {

@@ -270,6 +270,81 @@ export function telegramUpdateBriefingRequest(
   return { target: mentions[0] ? `@${mentions[0]}` : null, hours };
 }
 
+export type TelegramHelpTopic = 'all' | 'game' | 'show';
+
+export function telegramHelpText(topic: TelegramHelpTopic): string {
+  if (topic === 'game') {
+    return [
+      '🎮 <b>Group Scrap Run</b>',
+      '',
+      '1. Send /game in a group. The starter joins automatically.',
+      '2. Up to four people tap <b>Join crew</b> during the 45-second window.',
+      '3. A crew member taps <b>Search together</b> after the window closes.',
+      '4. Everyone in the crew gets the same result and their own credit reward.',
+      '',
+      'The bot edits one shared card instead of posting each action as a new message. If a run is already open, /game refreshes that same card.',
+    ].join('\n');
+  }
+  if (topic === 'show') {
+    return [
+      '🖼 <b>Showing your NFT frens</b>',
+      '',
+      '/show — Post selected slot 1.',
+      '/show 2 through /show 5 — Post another selected slot.',
+      '',
+      'Telegram uses the TinyFrens account linked to your Telegram user. In TinyFrens Settings, create a sync code; then DM @TinyFrensBot with <code>/link CODE</code> and approve the request on the original device.',
+      '',
+      'If a slot is empty or stale, open TinyFrens and refresh your account selection before trying again.',
+    ].join('\n');
+  }
+  return [
+    '🐾 <b>TinyFrens — Commands</b>',
+    '',
+    '<b>🎮 Group Game</b>',
+    '/game — Start or refresh the shared Scrap Run.',
+    '/gamehelp — Rules and timing.',
+    '',
+    '<b>🖼 NFT Frens</b>',
+    '/show — Post selected slot 1.',
+    '/show 2 through /show 5 — Post another selected slot.',
+    '/showhelp — Account linking and slot help.',
+    '/link CODE — Link an existing TinyFrens account (DM).',
+    '',
+    '<b>🛠 Information</b>',
+    '/progress — Website, Telegram, and backend updates.',
+    '/status — Server status.',
+    '/issue — Open a GitHub issue from group chat.',
+    '/myid — Your Telegram numeric user ID (DM only).',
+    '',
+    '<b>🔐 Group admins</b>',
+    '/bot · /unbot — Mark or clear a suspected bot.',
+    '/warn — Reply to warn; the second warning mutes for 10 minutes and the third bans.',
+    '/unwarn — Reply to clear that warning history.',
+    '/filter · /blocklist · /ban — Other moderation tools.',
+    '',
+    '<i>Commands work even when AI chat is unavailable.</i>',
+  ].join('\n');
+}
+
+export function telegramHelpTopicRequest(
+  text: unknown,
+  configuredBotUsername = 'tinyfrensbot'
+): TelegramHelpTopic | null {
+  if (typeof text !== 'string') return null;
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const command = cleaned.match(/^\/(help|gamehelp|showhelp)(?:@\w+)?\s*$/i)?.[1]?.toLowerCase();
+  if (command === 'help') return 'all';
+  if (command === 'gamehelp') return 'game';
+  if (command === 'showhelp') return 'show';
+
+  const bot = configuredBotUsername.toLowerCase().replace(/^@/, '') || 'tinyfrensbot';
+  const addressesBot = new RegExp(`(?<!\\w)@(?:${bot}|tinyfrensbot)\\b`, 'i').test(cleaned);
+  if (!addressesBot || !/\b(?:how|help|explain|what|trouble|problem)\b/i.test(cleaned)) return null;
+  if (/\b(?:game|scrap|run|crew)\b/i.test(cleaned)) return 'game';
+  if (/\b(?:show|slot|nft|link|sync|account)\b/i.test(cleaned)) return 'show';
+  return /\b(?:command|commands|bot|use)\b/i.test(cleaned) ? 'all' : null;
+}
+
 export function renderGithubProgress(
   data: Record<string, unknown>,
   repoName = 'TinyFrens'

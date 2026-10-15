@@ -97,6 +97,24 @@ describe('Telegram conversation and issue orchestration', () => {
     await webhook({ message: { message_id: 2, text: '/help', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
     assert.match(String(api.calls.at(-1)?.payload.text), /TinyFrens — Commands/);
     assert.equal(api.calls.at(-1)?.payload.reply_to_message_id, 2);
+
+    await webhook({ message: { message_id: 22, text: '/gamehelp', chat: { id: -10, type: 'group' }, from: { id: 5 } } });
+    assert.match(String(api.calls.at(-1)?.payload.text), /45-second window/);
+
+    await webhook({ message: { message_id: 23, text: '/showhelp', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
+    assert.match(String(api.calls.at(-1)?.payload.text), /selected slot 1/);
+  });
+
+  test('answers common help questions locally without asking the AI provider', async () => {
+    await webhook({ message: {
+      message_id: 24,
+      text: '@TinyFrensBot how does the scrap game work?',
+      chat: { id: -20, type: 'group' },
+      from: { id: 5, first_name: 'Ada' },
+    } });
+    const sent = api.calls.at(-1)?.payload;
+    assert.match(String(sent?.text), /Group Scrap Run/);
+    assert.equal(sent?.parse_mode, 'HTML');
   });
 
   test('answers mentions, redacts generated secrets, and threads the reply', async () => {

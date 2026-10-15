@@ -7,6 +7,7 @@ import { createAppContext } from './context.js';
 import { buildApp } from './app.js';
 import { startWorkers, Workers } from './workers.js';
 import { createGracefulShutdown } from './lifecycle.js';
+import { syncTelegramCommands } from './integrations/telegram-commands.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -33,6 +34,12 @@ async function main(): Promise<void> {
     }
     await app.listen({ host: config.HOST, port: config.PORT });
     app.log.info(`TinyFrens TypeScript server listening on http://${config.HOST}:${config.PORT}`);
+    if (config.TELEGRAM_BOT_TOKEN) {
+      await syncTelegramCommands(context.telegramApi, config.TELEGRAM_BOT_TOKEN).then(
+        () => app.log.info('Telegram command menus synchronized'),
+        error => app.log.warn({ err: error }, 'Telegram command menu synchronization failed')
+      );
+    }
   } catch (err) {
     app.log.error({ err }, 'Server startup failed');
     await workers?.stop().catch(stopError => app.log.error({ err: stopError }, 'Worker startup cleanup failed'));
