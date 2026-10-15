@@ -369,16 +369,22 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         if (deployNotify && chatId !== null && chatId !== undefined) {
           const owner = context.config.TELEGRAM_DEPLOY_OWNER.toLowerCase().replace(/^@/, '');
           const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
+          const ownerId = context.config.TELEGRAM_DEPLOY_OWNER_ID;
+          // Telegram numeric IDs are stable, unlike usernames/display names.
+          // When the ID is configured, never authorize via a username fallback.
+          const authorized = ownerId
+            ? String(sender.id || '') === ownerId
+            : Boolean(owner && username === owner);
           let responseText: string;
           if (chat?.type !== 'private') {
             responseText = 'Deployment notifications can only be registered in a private chat.';
-          } else if (!owner || username !== owner) {
+          } else if (!authorized) {
             responseText = 'This Telegram account cannot manage deployment notifications.';
           } else if (deployNotify[1]) {
             context.repos.telegram.unsubscribeDeployNotifications(String(chatId), Math.floor(context.now()));
             responseText = 'Website deployment notifications are off for this chat.';
           } else {
-            context.repos.telegram.subscribeDeployNotifications(String(chatId), username, Math.floor(context.now()));
+            context.repos.telegram.subscribeDeployNotifications(String(chatId), ownerId || username, Math.floor(context.now()));
             responseText = "I'll DM this private chat after a website revision is verified live. Use /deploynotify off to stop notifications.";
           }
           await sendCommand({ chat_id: chatId, text: responseText });
