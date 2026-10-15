@@ -1,0 +1,68 @@
+services:
+  shadow-python:
+    image: ${TINYFRENS_PYTHON_SHADOW_IMAGE:?Set an immutable Python shadow image}
+    restart: "no"
+    environment: &shadow-environment
+      HOST: 0.0.0.0
+      PORT: "8080"
+      DB_PATH: /data/tinyfrens.db
+      ALLOWED_ORIGINS: https://tinyfrens.lol,https://www.tinyfrens.lol
+      ALLOW_NATIVE_ORIGIN: "true"
+      TRUST_PROXY: "true"
+      INDEXER_ENABLED: "false"
+      FRENS_TREASURY_INDEXER: "false"
+      TELEGRAM_MODERATION: "false"
+      ECONOMY_DEPOSITS: "false"
+      ECONOMY_MODE: "off"
+      GEMINI_API_KEY: ""
+      GOOGLE_API_KEY: ""
+      BANKR_API_KEY: ""
+      BANKR_PARTNER_KEY: ""
+      BASE_RPC_URL: ""
+      ROBOTS_RPC_URL: ""
+      ROBINHOOD_RPC_URL: ""
+      GAME_CONTROLLER_PRIVATE_KEY: ""
+      FREN_VAULT_SEED: ""
+      ECONOMY_INDEXER_SECRET: ""
+      NEYNAR_API_KEY: ""
+      FARCASTER_SIGNER_UUID: ""
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_WEBHOOK_SECRET: ""
+      GITHUB_TOKEN: ""
+      GITHUB_APP_PRIVATE_KEY_PATH: ""
+      GITHUB_WEBHOOK_SECRET: ""
+      DISCORD_CLIENT_SECRET: ""
+      DISCORD_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+      ADMIN_TOKEN: ""
+      ADMIN_PASSWORD: ""
+    volumes:
+      - type: bind
+        source: ${SHADOW_ROOT:?Set the prepared shadow database directory}/python.db
+        target: /data/tinyfrens.db
+    ports:
+      - 127.0.0.1:${PYTHON_SHADOW_PORT:-18080}:8080
+    networks: [shadow]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+  shadow-typescript:
+    image: ${TINYFRENS_TYPESCRIPT_SHADOW_IMAGE:?Set an immutable TypeScript shadow image}
+    restart: "no"
+    environment:
+      <<: *shadow-environment
+    volumes:
+      - type: bind
+        source: ${SHADOW_ROOT:?Set the prepared shadow database directory}/typescript.db
+        target: /data/tinyfrens.db
+    ports:
+      - 127.0.0.1:${TYPESCRIPT_SHADOW_PORT:-18081}:8080
+    networks: [shadow]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+networks:
+  shadow:
+    internal: true
