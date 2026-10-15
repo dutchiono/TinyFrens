@@ -19,7 +19,7 @@ export class Robots implements RobotsVerifier {
 
   constructor(
     private db: DatabaseConnection,
-    private rpcUrl: string = process.env.ROBOTS_RPC_URL || 'https://base-rpc.publicnode.com',
+    private rpcUrl: string = 'https://base-rpc.publicnode.com',
     private now: () => number = () => Date.now() / 1000
   ) {
     this.db.exec(

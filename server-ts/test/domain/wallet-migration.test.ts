@@ -21,6 +21,10 @@ describe('Wallet Migration (server/test_wallet_migration.py)', () => {
 
     // Run migration
     migrateWalletLinks(db);
+    assert.strictEqual(
+      db.prepare<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name='wallet_links_next'").get(),
+      undefined
+    );
 
     const config = loadConfig();
     const context = createAppContext(config, db);

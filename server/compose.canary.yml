@@ -1,0 +1,52 @@
+services:
+  relay-python:
+    image: ${TINYFRENS_PYTHON_IMAGE:?Set the immutable production Python image}
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DB_PATH: /data/tinyfrens.db
+      HOST: 0.0.0.0
+      PORT: "8080"
+      TRUST_PROXY: "true"
+    volumes: [pets:/data]
+    expose: ["8080"]
+
+  relay-typescript:
+    image: ${TINYFRENS_TYPESCRIPT_IMAGE:?Set the immutable TypeScript canary image}
+    restart: unless-stopped
+    environment:
+      DB_PATH: /data/tinyfrens.db
+      DB_READ_ONLY: "true"
+      HOST: 0.0.0.0
+      PORT: "8080"
+      TRUST_PROXY: "true"
+      ALLOW_NATIVE_ORIGIN: "true"
+      ALLOWED_ORIGINS: https://tinyfrens.lol,https://www.tinyfrens.lol
+      INDEXER_ENABLED: "false"
+      FRENS_TREASURY_INDEXER: "false"
+      TELEGRAM_MODERATION: "false"
+      ECONOMY_DEPOSITS: "false"
+      ECONOMY_MODE: "off"
+      ROBOTS_RPC_URL: ""
+    volumes: [pets:/data:ro]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PET_DOMAIN: ${PET_DOMAIN:?Set PET_DOMAIN in .env}
+      RELAY_UPSTREAM: relay-python:8080
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ${CADDYFILE_PATH:-./Caddyfile.canary}:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pets:
+  caddy_data:
+  caddy_config:

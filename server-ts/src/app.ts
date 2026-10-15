@@ -1,4 +1,7 @@
-import fastify, { FastifyInstance, FastifyServerOptions } from 'fastify';
+import fastify, { FastifyInstance, FastifyServerOptions, RouteOptions } from 'fastify';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fastifyStatic from '@fastify/static';
 import { AppContext } from './context.js';
 import { registerOriginGuard } from './middleware/origin.js';
 import { registerErrorHandler } from './middleware/errors.js';
@@ -19,11 +22,17 @@ import { registerDeviceSyncRoutes } from './routes/device-sync.js';
 import { registerTurtleConnectRoutes } from './routes/turtle-connect.js';
 import { registerWalletLinkRoutes } from './routes/wallet-link.js';
 import { registerRobotCareRoutes } from './routes/robot-care.js';
+import { registerWalletNftRoutes } from './routes/wallet-nft.js';
+import { registerAdminRoutes } from './routes/admin.js';
+import { registerChatRoutes } from './routes/chat.js';
 import fastifyRawBody from 'fastify-raw-body';
+import fastifyWebsocket from '@fastify/websocket';
+import { registerWebSocketRoutes } from './routes/websocket.js';
 
 export interface AppOptions {
   context: AppContext;
   serverOptions?: FastifyServerOptions;
+  onRoute?: (route: RouteOptions) => void;
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
@@ -33,6 +42,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     bodyLimit: 4096, // default 4096 bytes request body limit matching Python client_max_size
     ...serverOptions,
   });
+  if (options.onRoute) app.addHook('onRoute', options.onRoute);
 
   // Preserve raw request bodies for webhooks and signatures
   await app.register(fastifyRawBody, {
@@ -41,12 +51,32 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     encoding: false,
     runFirst: true,
   });
+  await app.register(fastifyWebsocket, {
+    options: { maxPayload: 4096 },
+    preClose(done) {
+      for (const socket of this.websocketServer.clients) socket.close(1001, 'Server stopping');
+      this.websocketServer.close();
+      done();
+    },
+  });
 
   // Error handling
   registerErrorHandler(app);
 
   // Origin guard & CORS
   registerOriginGuard(app, context);
+
+  await app.register(fastifyStatic, {
+    root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web'),
+    prefix: '/web/',
+    index: false,
+    decorateReply: false,
+    cacheControl: false,
+    setHeaders(reply, filePath) {
+      if (path.extname(filePath).toLowerCase() === '.js') reply.header('Content-Type', 'text/javascript');
+    },
+  });
+  app.options('/*', async (_request, reply) => reply.status(200).send());
 
   // Read-only routes (Phase 0 & Phase 4)
   registerHealthRoutes(app, context);
@@ -75,8 +105,21 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   // Robot care & companions (Phase 6 Slice 6D)
   registerRobotCareRoutes(app, context);
 
+  // Bankr, Wallets, Minting & NFT Operations (Phase 6 Slice 6E)
+  registerWalletNftRoutes(app, context);
+
+  // Admin surface and settings (Phase 6 Slice 6F)
+  registerAdminRoutes(app, context);
+
+  // Chat (Phase 6 Slice 6G)
+  registerChatRoutes(app, context);
+
+  // Stateful realtime protocol (Phase 9)
+  registerWebSocketRoutes(app, context);
+
   // Graceful shutdown hook
   app.addHook('onClose', async () => {
+    await context.realtimeHub?.stop();
     context.db.close();
   });
 

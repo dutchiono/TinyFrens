@@ -17,11 +17,13 @@ export interface DatabaseConnection {
 export class BetterSqliteConnection implements DatabaseConnection {
   private db: DatabaseInstance;
 
-  constructor(pathOrDb: string | DatabaseInstance) {
+  constructor(pathOrDb: string | DatabaseInstance, options: { readonly?: boolean } = {}) {
     if (typeof pathOrDb === 'string') {
-      this.db = new Database(pathOrDb);
+      this.db = options.readonly
+        ? new Database(pathOrDb, { readonly: true, fileMustExist: true })
+        : new Database(pathOrDb);
       // WAL mode, busy timeout, and foreign keys matching production SQLite expectations
-      if (pathOrDb !== ':memory:') {
+      if (pathOrDb !== ':memory:' && !options.readonly) {
         this.db.pragma('journal_mode = WAL');
       }
       this.db.pragma('busy_timeout = 5000');
@@ -59,8 +61,11 @@ export class BetterSqliteConnection implements DatabaseConnection {
   }
 }
 
-export function createDbConnection(path: string = ':memory:'): DatabaseConnection {
-  return new BetterSqliteConnection(path);
+export function createDbConnection(
+  path: string = ':memory:',
+  options: { readonly?: boolean } = {}
+): DatabaseConnection {
+  return new BetterSqliteConnection(path, options);
 }
 
 export const createDatabaseConnection = createDbConnection;

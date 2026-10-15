@@ -69,12 +69,21 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+          npm run differential
+          npm run smoke
+
+      - name: Build TypeScript server production image
+        run: docker build -f server/Dockerfile -t tinyfrens-server:ci .
 
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
+
+      - name: Test TypeScript indexer against Anvil
+        working-directory: server-ts
+        run: npm run test:indexer-integration
 
       - name: Check NFT artwork and storage budget
         run: node --test scripts/test-nft-art.mjs

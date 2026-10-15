@@ -14,6 +14,12 @@ import { RobotCare, RobotCareSettings } from './domain/robot-care.js';
 
 import { Economy, AddressPool } from './domain/economy.js';
 import { DepositRouterAllocator } from './integrations/deposit-allocator.js';
+import { Admin } from './domain/admin.js';
+import { MarketQuote } from './domain/market-quote.js';
+import { TelegramModeration } from './domain/telegram-moderation.js';
+import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
+import type { RealtimeHub } from './domain/realtime.js';
+import { GitHubAuth, GitHubTokenProvider } from './integrations/github-app.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -47,6 +53,12 @@ export interface AppContext {
   depositAllocator?: any;
   robotCare: RobotCare;
   robotCareSettings?: () => RobotCareSettings | null | undefined;
+  admin: Admin;
+  marketQuote: MarketQuote;
+  telegramApi: TelegramBotApi;
+  telegramModeration: TelegramModeration;
+  githubAuth: GitHubTokenProvider;
+  realtimeHub?: RealtimeHub;
 }
 
 export function createAppContext(
@@ -71,15 +83,47 @@ export function createAppContext(
     extraCompanionsVerifier: null as any,
     economy: null as any,
     robotCare: null as any,
+    admin: null as any,
+    marketQuote: null as any,
+    telegramApi: null as any,
+    telegramModeration: null as any,
+    githubAuth: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
 
   ctx.turtleOwnership = overrides?.turtleOwnership ?? new TurtleOwnership(db, config.ROBINHOOD_RPC_URL, () => ctx.now());
   ctx.robotsVerifier = overrides?.robotsVerifier ?? new Robots(db, config.ROBOTS_RPC_URL, () => ctx.now());
-  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(db);
+  ctx.extraCompanionsVerifier = overrides?.extraCompanionsVerifier ?? new DefaultExtraCompanionsVerifier(
+    db,
+    config.ROBINHOOD_RPC_URL,
+    config.ROBOTS_RPC_URL,
+    () => ctx.now()
+  );
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
-  const careSettings = overrides?.robotCareSettings ?? (() => getRobotCareSettings(ctx.config));
+  const admin = overrides?.admin ?? new Admin(db, {
+    token: config.ADMIN_TOKEN,
+    now: () => ctx.now(),
+    initialUser: config.ADMIN_USERNAME,
+    initialPassword: config.ADMIN_PASSWORD,
+    config,
+  });
+  ctx.admin = admin;
+  ctx.marketQuote = overrides?.marketQuote ?? new MarketQuote(() => ctx.now());
+  ctx.telegramApi = overrides?.telegramApi ?? new FetchTelegramBotApi();
+  ctx.telegramModeration = overrides?.telegramModeration ?? new TelegramModeration(
+    repos.telegram,
+    ctx.telegramApi,
+    {
+      enabled: config.TELEGRAM_MODERATION,
+      timeout: config.TELEGRAM_MODERATION_TIMEOUT,
+      botUsername: config.TELEGRAM_BOT_USERNAME,
+      token: config.TELEGRAM_BOT_TOKEN,
+      now: () => ctx.now(),
+    }
+  );
+  ctx.githubAuth = overrides?.githubAuth ?? new GitHubAuth(config, { now: () => ctx.now() });
+  const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(
     db,

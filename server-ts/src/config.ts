@@ -19,10 +19,12 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'HOST', classification: 'public', description: 'Bind host for HTTP server' },
   { key: 'PORT', classification: 'public', description: 'Bind port for HTTP server' },
   { key: 'DB_PATH', classification: 'optional', description: 'Path to SQLite database file' },
+  { key: 'DB_READ_ONLY', classification: 'public', description: 'Open SQLite without schema or write access' },
   { key: 'PET_DOMAIN', classification: 'public', description: 'Public domain for pet links' },
   { key: 'ALLOWED_ORIGINS', classification: 'public', description: 'Comma-separated allowed CORS origins' },
   { key: 'ALLOW_NATIVE_ORIGIN', classification: 'public', description: 'Allow Origin: null for native mobile/desktop apps' },
   { key: 'TRUST_PROXY', classification: 'public', description: 'Trust X-Forwarded-For headers when behind reverse proxy' },
+  { key: 'LOG_LEVEL', classification: 'public', description: 'Fastify structured log level' },
 
   // AI
   { key: 'GEMINI_API_KEY', classification: 'secret', description: 'Google Gemini API key for conversational AI' },
@@ -124,6 +126,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'TREASURY_PROXY', classification: 'documentation-only', description: 'Documented economy contract proxy' },
   { key: 'JACKPOT_VAULT_PROXY', classification: 'documentation-only', description: 'Documented economy jackpot vault' },
   { key: 'GAME_CONTROLLER', classification: 'documentation-only', description: 'Documented game controller address' },
+  { key: 'SSH_ORIGINAL_COMMAND', classification: 'optional', description: 'Restricted web publisher SSH command' },
 ];
 
 export const ConfigSchema = z.object({
@@ -131,10 +134,12 @@ export const ConfigSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(8080),
   DB_PATH: z.string().default('tinyfrens.db'),
+  DB_READ_ONLY: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   PET_DOMAIN: z.string().optional(),
   ALLOWED_ORIGINS: z.string().default('https://tinyfrens.lol,https://www.tinyfrens.lol'),
   ALLOW_NATIVE_ORIGIN: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  LOG_LEVEL: z.string().default('info'),
 
   // AI
   GEMINI_API_KEY: z.string().optional(),
@@ -150,11 +155,11 @@ export const ConfigSchema = z.object({
   BASE_RPC_URL: z.string().optional(),
   CHAIN_ID: z.coerce.number().int().default(84532),
   TINYFRENS_NFT_ADDRESS: z.string().optional(),
-  TINYFRENS_NFT_MINT_PRICE_WEI: z.string().default('0'),
-  ALLOW_TESTNET_FREE_MINT: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  TINYFRENS_NFT_MINT_PRICE_WEI: z.string().default('1000000000000000'),
+  ALLOW_TESTNET_FREE_MINT: z.enum(['true', 'false']).default('true').transform(v => v === 'true'),
   FREN_VAULT_SEED: z.string().default('tinyfrens-master-vault-seed-v1'),
-  FRENS_PER_VAULT_MINT: z.string().default('0'),
-  SAVE_CHANGES_FEE_FRENS: z.string().default('0'),
+  FRENS_PER_VAULT_MINT: z.string().default('47619047000000000000000000'),
+  SAVE_CHANGES_FEE_FRENS: z.string().default('5000000000000000000000'),
   ROBOTS_RPC_URL: z.string().default('https://base-rpc.publicnode.com'),
   ROBINHOOD_RPC_URL: z.string().optional(),
   ROBINHOOD_BLOCKSCOUT_API_URL: z.string().optional(),

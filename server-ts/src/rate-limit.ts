@@ -22,13 +22,22 @@ export class RateLimiter {
   clear(): void {
     this.rates.clear();
   }
+
+  prune(nowSeconds: number, maxAgeSeconds: number): void {
+    const cutoff = nowSeconds - maxAgeSeconds;
+    for (const [key, timestamps] of this.rates) {
+      if (timestamps.length === 0 || timestamps[timestamps.length - 1] < cutoff) {
+        this.rates.delete(key);
+      }
+    }
+  }
 }
 
 export function getClientIp(request: FastifyRequest, trustProxy = false): string {
   if (trustProxy) {
     const xff = request.headers['x-forwarded-for'];
     if (typeof xff === 'string' && xff.trim()) {
-      return xff.split(',')[0].trim();
+      return xff;
     }
   }
   return request.ip || '?';
