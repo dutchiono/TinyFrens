@@ -150,6 +150,11 @@ function request(url, options = {}) {
   });
 }
 
+export function loopbackLookup(_hostname, options, callback) {
+  if (options.all) callback(null, [{ address: '127.0.0.1', family: 4 }]);
+  else callback(null, '127.0.0.1', 4);
+}
+
 export async function verify(revision) {
   for (const host of ['tinyfrens.lol', 'www.tinyfrens.lol']) {
     for (const [requestPath, accept] of [
@@ -160,7 +165,7 @@ export async function verify(revision) {
     ]) {
       const response = await request(`https://${host}${requestPath}`, {
         headers: { Accept: accept },
-        lookup: (_hostname, _options, callback) => callback(null, '127.0.0.1', 4),
+        lookup: loopbackLookup,
         servername: host,
         timeout: 20_000,
       });
@@ -244,6 +249,10 @@ async function acquireLock(base) {
   } catch (error) {
     if (error?.code !== 'EEXIST') throw error;
     const owner = Number((await readFile(lockPath, 'utf8')).trim());
+    if (!Number.isInteger(owner) || owner <= 0) {
+      await unlink(lockPath);
+      return acquireLock(base);
+    }
     try {
       process.kill(owner, 0);
       throw new Error('Another publish is already running');
