@@ -1,3 +1,10 @@
+export function isTelegramDeployOwner(sender: Record<string, unknown>, ownerId: string | undefined, ownerName: string): boolean {
+  if (ownerId) return String(sender.id ?? '') === ownerId;
+  const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
+  const owner = ownerName.toLowerCase().replace(/^@/, '');
+  return Boolean(username && owner && username === owner);
+}
+
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { AppContext } from '../context.js';
 import { validateTelegramInitData } from '../crypto/signatures.js';
@@ -367,14 +374,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
 
         const deployNotify = text.match(/^\/deploynotify(?:@\w+)?(?:\s+(off))?\s*$/i);
         if (deployNotify && chatId !== null && chatId !== undefined) {
-          const owner = context.config.TELEGRAM_DEPLOY_OWNER.toLowerCase().replace(/^@/, '');
-          const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
           const ownerId = context.config.TELEGRAM_DEPLOY_OWNER_ID;
-          // Telegram numeric IDs are stable, unlike usernames/display names.
-          // When the ID is configured, never authorize via a username fallback.
-          const authorized = ownerId
-            ? String(sender.id || '') === ownerId
-            : Boolean(owner && username === owner);
+          const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
+          const authorized = isTelegramDeployOwner(sender, ownerId, context.config.TELEGRAM_DEPLOY_OWNER);
           let responseText: string;
           if (chat?.type !== 'private') {
             responseText = 'Deployment notifications can only be registered in a private chat.';
