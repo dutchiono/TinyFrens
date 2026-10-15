@@ -42,6 +42,7 @@ for (const host of ['tinyfrens.lol', 'www.tinyfrens.lol']) {
     ['/', 'text/html'],
     ['/web/', 'text/html'],
     ['/web/gallery.html', 'text/html'],
+    ['/updates/', 'text/html'],
     ['/web/robot-live.mjs', 'application/javascript'],
     ['/web/manifest.webmanifest', 'application/manifest+json'],
     ['/web/sw.js', 'application/javascript'],
