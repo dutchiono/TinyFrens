@@ -453,6 +453,9 @@ Search again at the implementation baseline; these files currently consume serve
   - [x] Staging shadow Compose isolation and hard-failing remote comparator are implemented.
   - [ ] Run the shadow comparison on staging and record immutable image digests, backup identity, output, and logs.
 - [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
+  - [x] Read-only SQLite mode and GET/HEAD/OPTIONS-only canary routing are implemented.
+  - [x] Canary verification and immediate proxy rollback runbook is documented.
+  - [ ] Exercise the canary against production traffic after Phase 10 succeeds.
 - [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.
 
 ## Per-file workflow

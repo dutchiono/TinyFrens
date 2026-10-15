@@ -1,0 +1,10 @@
+{$PET_DOMAIN} {
+    route {
+        @typescript_readonly {
+            method GET HEAD OPTIONS
+            path /health /web/* /api/snap /.well-known/farcaster.json /api/bankr/status /api/economy/status /api/collections/suggestions /api/vote/status /api/gallery/collections /api/push/public-key
+        }
+        reverse_proxy @typescript_readonly relay-typescript:8080
+        reverse_proxy relay-python:8080
+    }
+}

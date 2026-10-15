@@ -8,6 +8,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.HOST, '0.0.0.0');
     assert.equal(config.PORT, 8080);
     assert.equal(config.DB_PATH, 'tinyfrens.db');
+    assert.equal(config.DB_READ_ONLY, false);
     assert.equal(config.CHAIN_ID, 84532);
     assert.equal(config.FREN_VAULT_SEED, 'tinyfrens-master-vault-seed-v1');
     assert.equal(config.ALLOW_NATIVE_ORIGIN, false);
@@ -26,6 +27,7 @@ describe('Configuration Ledger & Parser', () => {
       CHAIN_ID: '8453',
       ALLOWED_ORIGINS: 'https://foo.com, https://bar.com',
       ROBOT_CARE_DAILY_ALLOWANCE: '48',
+      DB_READ_ONLY: 'true',
     });
 
     assert.equal(config.PORT, 9000);
@@ -33,6 +35,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.TRUST_PROXY, true);
     assert.equal(config.CHAIN_ID, 8453);
     assert.equal(config.ROBOT_CARE_DAILY_ALLOWANCE, 48);
+    assert.equal(config.DB_READ_ONLY, true);
 
     const origins = getAllowedOrigins(config);
     assert.ok(origins.has('https://foo.com'));

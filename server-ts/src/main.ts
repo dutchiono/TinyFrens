@@ -10,9 +10,9 @@ import { createGracefulShutdown } from './lifecycle.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const db = createDbConnection(config.DB_PATH);
+  const db = createDbConnection(config.DB_PATH, { readonly: config.DB_READ_ONLY });
 
-  initSchema(db);
+  if (!config.DB_READ_ONLY) initSchema(db);
 
   const context = createAppContext(config, db);
   const app = await buildApp({
@@ -26,9 +26,11 @@ async function main(): Promise<void> {
 
   let workers: Workers | undefined;
   try {
-    workers = startWorkers(context, undefined, (worker, error) => {
-      app.log.error({ err: error, worker }, 'Background worker poll failed');
-    });
+    if (!config.DB_READ_ONLY) {
+      workers = startWorkers(context, undefined, (worker, error) => {
+        app.log.error({ err: error, worker }, 'Background worker poll failed');
+      });
+    }
     await app.listen({ host: config.HOST, port: config.PORT });
     app.log.info(`TinyFrens TypeScript server listening on http://${config.HOST}:${config.PORT}`);
   } catch (err) {
@@ -40,7 +42,7 @@ async function main(): Promise<void> {
   }
 
   const shutdown = createGracefulShutdown({
-    stopWorkers: () => workers!.stop(),
+    stopWorkers: () => workers?.stop() || Promise.resolve(),
     closeApp: () => app.close(),
   });
 
