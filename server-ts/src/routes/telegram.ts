@@ -372,6 +372,55 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           await context.telegramApi.call('sendMessage', payload, token);
         };
 
+        // Built-in commands must work even if the AI provider is unavailable.
+        if (/^\/myid(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const userId = String(sender.id || '');
+          if (!/^\d+$/.test(userId)) return reply.status(200).send({ ok: true });
+          const isPrivate = chat?.type === 'private';
+          await sendCommand({
+            chat_id: chatId,
+            text: isPrivate
+              ? `Your Telegram user ID: <code>${userId}</code>\n\nCopy that number into the TinyFrens deployment-owner configuration. It is not a password.`
+              : 'For your privacy, DM @TinyFrensBot and send /myid there. Your ID will not be posted in this group.',
+            parse_mode: 'HTML',
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/help(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const isPrivate = chat?.type === 'private';
+          await sendCommand({
+            chat_id: chatId,
+            parse_mode: 'HTML',
+            text: [
+              '🐾 <b>TinyFrens — Commands</b>',
+              '',
+              '<b>🎮 Group’s Fren</b>',
+              '/game — Open Fren care controls.',
+              'Feed · Play · Rest · Dice · Bag · Refresh',
+              '<i>Game FRENS coins are not on-chain tokens. Shared group progress is still being developed.</i>',
+              '',
+              '<b>🖼 Your NFT Frens</b>',
+              '/show — Post your first selected NFT.',
+              '/show 2 through /show 5 — Other selected slots.',
+              '/link CODE — Link an existing TinyFrens account.',
+              '',
+              '<b>🛠 Information</b>',
+              '/progress — GitHub work and releases.',
+              '/status — Server status.',
+              '/myid — Your Telegram numeric user ID (DM only).',
+              '',
+              '<b>🔐 Admin</b>',
+              '/filter · /blocklist · /ban — Group moderation.',
+              '/deploynotify — Owner-only deployment DMs.',
+              '',
+              '<i>Commands work even when AI chat is unavailable.</i>'
+            ].join('\n'),
+            reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
+          });
+          return reply.status(200).send({ ok: true });
+        }
+
         const deployNotify = text.match(/^\/deploynotify(?:@\w+)?(?:\s+(off))?\s*$/i);
         if (deployNotify && chatId !== null && chatId !== undefined) {
           const ownerId = context.config.TELEGRAM_DEPLOY_OWNER_ID;
@@ -512,26 +561,17 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
 
         if (kind === 'mention' && chatId !== null && chatId !== undefined) {
           context.rateLimiter.limit(`tg-mention:${String(chatId)}`, 30, 3600, context.now());
-          if (/^\/help(?:@\w+)?\s*$/i.test(text)) {
-            const isPrivate = chat?.type === 'private';
-            await sendCommand({
-              chat_id: chatId,
-              text: 'Talk to me normally, use /game to play with your fren, /progress for GitHub updates, /status for server health, or /show for your selected NFT. The site owner can use /deploynotify in a private chat. Group admins can also use /filter, /blocklist, and /ban.',
-              reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
-            });
-          } else {
-            let answer: string;
-            try {
-              answer = await generateTelegramReply(
-                chatHistory.get(String(chatId)) || [],
-                context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
-                context.config.GEMINI_MODEL
-              );
-            } catch {
-              answer = 'My AI brain is having trouble right now. Please try again in a moment.';
-            }
-            await sendCommand({ chat_id: chatId, text: answer });
+          let answer: string;
+          try {
+            answer = await generateTelegramReply(
+              chatHistory.get(String(chatId)) || [],
+              context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
+              context.config.GEMINI_MODEL
+            );
+          } catch {
+            answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
           }
+          await sendCommand({ chat_id: chatId, text: answer });
           return reply.status(200).send({ ok: true });
         }
       }
