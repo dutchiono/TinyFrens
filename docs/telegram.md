@@ -32,16 +32,21 @@ Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open
 
 ### Group scrap prototype
 
-Use `/scrap` in a group to open a 60-second scrap lobby. The bot posts one message with **Join** and **Resolve** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to open a 45-second lobby built around a shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
 
 - A crew holds up to four operators.
 - The operator who starts the run joins automatically.
-- After 60 seconds, any crew member can resolve it.
+- After 45 seconds, any crew member can search the scrap field.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
-- Only one unresolved scrap run can exist in a group. Reusing `/scrap` refreshes the existing message.
+- Only one unresolved run can exist in a group. Reusing `/game` refreshes the existing message.
+- A completed card offers **New scrap run**, which starts the next lobby in the same message instead of adding chat noise.
 - Joins and rewards are stored in SQLite and are idempotent.
 
 This is an intentionally small Telegram-first playtest. Lobby duration, crew size, loot weights, rewards, cooldowns, and cross-platform presentation are still design inputs rather than finalized balance.
+
+### Project awareness
+
+When someone asks the bot for recent work, including asking it to brief another `@username`, the reply groups verified GitHub changes into **Website**, **Telegram**, and **Backend** sections based on the files changed in each commit. It also reports pull-request and CI state. Repository activity is not described as live until a deployment is separately verified.
 
 ## Troubleshooting
 

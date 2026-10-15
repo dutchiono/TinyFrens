@@ -257,7 +257,8 @@ export function telegramUpdateBriefingRequest(
   if (!cleaned || cleaned.length > 500) return null;
   const asksForUpdates =
     /\b(?:update|updates|progress|changelog|shipped|released|built|done)\b/i.test(cleaned) ||
-    /\bfill\s+(?:them|him|her|@[a-z0-9_]+)\s+in\b/i.test(cleaned);
+    /\bfill\s+(?:them|him|her|@[a-z0-9_]+)\s+in\b/i.test(cleaned) ||
+    /\b(?:catch\s+(?:me|us|them|him|her|@[a-z0-9_]+)\s+up|what(?:'s|\s+is)\s+(?:new|going\s+on))\b/i.test(cleaned);
   if (!asksForUpdates) return null;
 
   const botUsername = configuredBotUsername.toLowerCase().replace(/^@/, '') || 'tinyfrensbot';
@@ -269,302 +270,43 @@ export function telegramUpdateBriefingRequest(
   return { target: mentions[0] ? `@${mentions[0]}` : null, hours };
 }
 
-export function makeBar(value: number, maxVal = 100, length = 8): string {
-  const ratio = Math.max(0.0, Math.min(1.0, value / Number(maxVal)));
-  const filled = Math.round(ratio * length);
-  return '█'.repeat(filled) + '░'.repeat(length - filled);
-}
-
-export function getStageName(level: number): string {
-  if (level < 3) return 'Hatchling 🥚';
-  if (level < 5) return 'Baby 🐣';
-  if (level < 8) return 'Juvenile 🐥';
-  if (level < 12) return 'Grown 🐾';
-  return 'Ascended ✨';
-}
-
-export interface GamePetState {
-  chat_id: string;
-  user_id: string;
-  name: string;
-  stage: string;
-  level: number;
-  xp: number;
-  health: number;
-  hunger: number;
-  energy: number;
-  frens_coins: number;
-  inventory: Record<string, number>;
-}
-
-export function getOrCreatePet(
-  db: DatabaseConnection,
-  chatId: string | number,
-  userId: string | number,
-  userName: string
-): GamePetState {
-  const cid = String(chatId);
-  const uid = String(userId);
-  const row = db.prepare<{
-    name: string;
-    stage: string;
-    level: number;
-    xp: number;
-    health: number;
-    hunger: number;
-    energy: number;
-    frens_coins: number;
-    inventory: string;
-  }>(
-    'SELECT name, stage, level, xp, health, hunger, energy, frens_coins, inventory FROM tg_fren_game WHERE chat_id=? AND user_id=?'
-  ).get(cid, uid);
-
-  if (row) {
-    let inv: Record<string, number> = { berries: 2, snacks: 1 };
-    try {
-      inv = JSON.parse(row.inventory);
-    } catch {
-      // fallback
-    }
-    return {
-      chat_id: cid,
-      user_id: uid,
-      name: row.name,
-      stage: row.stage,
-      level: Number(row.level),
-      xp: Number(row.xp),
-      health: Number(row.health),
-      hunger: Number(row.hunger),
-      energy: Number(row.energy),
-      frens_coins: Number(row.frens_coins),
-      inventory: inv,
-    };
-  }
-
-  const cleanName = (userName || 'Fren').trim().slice(0, 20);
-  const petName = `${cleanName}'s Fren`;
-  const now = Math.floor(Date.now() / 1000);
-
-  db.prepare(
-    'INSERT OR REPLACE INTO tg_fren_game(chat_id, user_id, name, stage, level, xp, health, hunger, energy, frens_coins, inventory, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-  ).run(
-    cid,
-    uid,
-    petName,
-    'Hatchling 🥚',
-    1,
-    0,
-    100,
-    70,
-    100,
-    50,
-    JSON.stringify({ berries: 2, snacks: 1 }),
-    now
-  );
-
-  return {
-    chat_id: cid,
-    user_id: uid,
-    name: petName,
-    stage: 'Hatchling 🥚',
-    level: 1,
-    xp: 0,
-    health: 100,
-    hunger: 70,
-    energy: 100,
-    frens_coins: 50,
-    inventory: { berries: 2, snacks: 1 },
-  };
-}
-
-export function performCareAction(
-  db: DatabaseConnection,
-  chatId: string | number,
-  userId: string | number,
-  action: string,
-  roll?: number
-): [GamePetState, string] {
-  const cid = String(chatId);
-  const uid = String(userId);
-  const pet = getOrCreatePet(db, cid, uid, 'Fren');
-
-  let health = pet.health;
-  let hunger = pet.hunger;
-  let energy = pet.energy;
-  let xp = pet.xp;
-  let level = pet.level;
-  let coins = pet.frens_coins;
-  const inventory = { ...pet.inventory };
-  let note = '';
-
-  if (action === 'feed') {
-    hunger = Math.min(100, hunger + 25);
-    health = Math.min(100, health + 5);
-    xp += 10;
-    note = '🍖 Yum! Fed delicious snacks. (+25 Hunger, +5 Health, +10 XP)';
-  } else if (action === 'play') {
-    if (energy < 15) {
-      return [pet, '⚠️ Your Fren is too tired to play! Try resting first.'];
-    }
-    energy = Math.max(0, energy - 15);
-    hunger = Math.max(0, hunger - 10);
-    xp += 20;
-    coins += 15;
-    note = '🎾 Played fetch in the yard! (-15 Energy, -10 Hunger, +20 XP, +15 FRENS)';
-  } else if (action === 'rest') {
-    energy = 100;
-    health = Math.min(100, health + 15);
-    note = '💤 Cozy nap! Energy restored to 100% and Health gained +15.';
-  } else if (action === 'dice') {
-    if (energy < 10) {
-      return [pet, '⚠️ Need at least 10 Energy for a dice adventure! Let your Fren rest first.'];
-    }
-    energy = Math.max(0, energy - 10);
-    const diceVal =
-      roll && roll >= 1 && roll <= 6
-        ? roll
-        : (Math.floor(Date.now()) % 6) + 1;
-    if (diceVal === 1) {
-      health = Math.max(10, health - 5);
-      xp += 5;
-      note = `🎲 Rolled a ${diceVal}! Tripped on a loose pebble. (-5 Health, +5 XP)`;
-    } else if (diceVal === 2 || diceVal === 3) {
-      coins += 35;
-      xp += 15;
-      note = `🎲 Rolled a ${diceVal}! Found shiny coins in the plaza grass! (+35 FRENS, +15 XP)`;
-    } else if (diceVal === 4 || diceVal === 5) {
-      coins += 70;
-      xp += 25;
-      inventory.berries = (inventory.berries || 0) + 1;
-      note = `🎲 Rolled a ${diceVal}! Won a mini sprint challenge! (+70 FRENS, +1 Berry, +25 XP)`;
-    } else {
-      coins += 150;
-      xp += 50;
-      inventory.snacks = (inventory.snacks || 0) + 1;
-      note = `🎲 Rolled a ${diceVal}! 🌟 JACKPOT! Unearthed a hidden treasure chest! (+150 FRENS, +1 Rare Snack, +50 XP)`;
-    }
-  } else if (action === 'bag') {
-    const berries = inventory.berries || 0;
-    const snacks = inventory.snacks || 0;
-    return [
-      pet,
-      `🎒 <b>Backpack Contents</b>:\n• ${berries}x Golden Berries\n• ${snacks}x Crispy Snacks\n• ${coins} FRENS coins`,
-    ];
-  } else {
-    note = '🐾 Ready for the next action!';
-  }
-
-  let neededXp = level * 100;
-  let leveledUp = false;
-  while (xp >= neededXp) {
-    xp -= neededXp;
-    level += 1;
-    neededXp = level * 100;
-    leveledUp = true;
-  }
-
-  const stage = getStageName(level);
-  if (leveledUp) {
-    note += `\n🎉 <b>LEVEL UP!</b> Reached Level ${level}! Stage: ${stage}!`;
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  db.prepare(
-    'UPDATE tg_fren_game SET stage=?, level=?, xp=?, health=?, hunger=?, energy=?, frens_coins=?, inventory=?, updated_at=? WHERE chat_id=? AND user_id=?'
-  ).run(stage, level, xp, health, hunger, energy, coins, JSON.stringify(inventory), now, cid, uid);
-
-  const updatedPet: GamePetState = {
-    chat_id: cid,
-    user_id: uid,
-    name: pet.name,
-    stage,
-    level,
-    xp,
-    health,
-    hunger,
-    energy,
-    frens_coins: coins,
-    inventory,
-  };
-  return [updatedPet, note];
-}
-
-export function renderGameCard(
-  pet: GamePetState,
-  note?: string | null
-): [string, { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }] {
-  const uid = pet.user_id;
-  const name = pet.name;
-  const stage = pet.stage;
-  const level = pet.level;
-  const xp = pet.xp;
-  const neededXp = level * 100;
-  const health = pet.health;
-  const hunger = pet.hunger;
-  const energy = pet.energy;
-  const coins = pet.frens_coins;
-
-  let text =
-    `🐾 <b>${name}</b>\n` +
-    `━━━━━━━━━━━━━━━━━━━━━\n` +
-    `⭐ <b>Level ${level}</b> (${stage})\n` +
-    `❤️ <b>Health:</b> <code>${makeBar(health)}</code> ${health}%\n` +
-    `🍖 <b>Hunger:</b> <code>${makeBar(hunger)}</code> ${hunger}%\n` +
-    `⚡ <b>Energy:</b> <code>${makeBar(energy)}</code> ${energy}%\n` +
-    `✨ <b>XP:</b> ${xp}/${neededXp}  ·  🪙 <b>FRENS:</b> ${coins.toLocaleString()}\n`;
-
-  if (note) {
-    text += `\n<i>${note}</i>\n`;
-  }
-
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { text: '🍖 Feed', callback_data: `g:${uid}:feed` },
-        { text: '🎾 Play', callback_data: `g:${uid}:play` },
-      ],
-      [
-        { text: '💤 Rest', callback_data: `g:${uid}:rest` },
-        { text: '🎲 Dice Adventure', callback_data: `g:${uid}:dice` },
-      ],
-      [
-        { text: '🎒 Bag', callback_data: `g:${uid}:bag` },
-        { text: '🔄 Refresh', callback_data: `g:${uid}:refresh` },
-      ],
-    ],
-  };
-
-  return [text, keyboard];
-}
-
 export function renderGithubProgress(
   data: Record<string, unknown>,
   repoName = 'TinyFrens'
 ): [string, { inline_keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> }] {
-  const lines = [`⚡ <b>${repoName} Development Progress</b>`, '━━━━━━━━━━━━━━━━━━━━━━━━━━'];
+  const html = (value: unknown) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = [`⚡ <b>${html(repoName)} Development Progress</b>`, '━━━━━━━━━━━━━━━━━━━━━━━━━━'];
 
-  const prs = Array.isArray(data.prs) ? data.prs : [];
-  if (prs.length > 0) {
-    lines.push('🔀 <b>Pull Requests:</b>');
-    for (const p of prs) {
-      const statusEmoji = p.merged ? '✅ Merged' : p.state === 'open' ? '🟢 Open' : '⚪ Closed';
-      lines.push(`• <b>#${p.num}</b> ${p.title} (<i>${statusEmoji}</i>)`);
+  const commits = (Array.isArray(data.commits) ? data.commits : []) as GithubProgressCommit[];
+  const sections: Array<[GithubUpdateArea, string]> = [
+    ['website', '🌐 <b>Website</b>'],
+    ['telegram', '🤖 <b>Telegram</b>'],
+    ['backend', '⚙️ <b>Backend</b>'],
+  ];
+  for (const [area, label] of sections) {
+    lines.push(label);
+    const updates = commits.filter(commit => (commit.areas || updateAreas(commit.files || [], commit.msg)).includes(area));
+    if (updates.length === 0) {
+      lines.push('• No recent verified code change.');
+    } else {
+      for (const commit of updates.slice(0, 2)) {
+        lines.push(`• <code>${html(commit.sha)}</code> ${html(commit.msg)}`);
+      }
     }
     lines.push('');
   }
 
-  const commits = Array.isArray(data.commits) ? data.commits : [];
-  if (commits.length > 0) {
-    lines.push('🔨 <b>Recent Shipped Commits:</b>');
-    for (const c of commits) {
-      lines.push(`• <code>${c.sha}</code> ${c.msg}`);
+  const prs = Array.isArray(data.prs) ? data.prs : [];
+  if (prs.length > 0) {
+    lines.push('🚦 <b>Delivery status</b>');
+    for (const p of prs.slice(0, 2)) {
+      const statusEmoji = p.merged ? '✅ Merged' : p.state === 'open' ? '🟢 Open' : '⚪ Closed';
+      lines.push(`• <b>#${html(p.num)}</b> ${html(p.title)} — <i>${statusEmoji}</i>`);
     }
-    lines.push('');
   }
 
   const runs = Array.isArray(data.runs) ? data.runs : [];
   if (runs.length > 0) {
-    lines.push('⚙️ <b>Continuous Integration:</b>');
     for (const r of runs) {
       const badge =
         r.conclusion === 'success'
@@ -572,11 +314,11 @@ export function renderGithubProgress(
           : r.conclusion === 'queued' || r.conclusion === 'in_progress'
           ? '🟡 Running'
           : '🔴 Failed';
-      lines.push(`• ${r.name}: ${badge}`);
+      lines.push(`• CI · ${html(r.name)}: ${badge}`);
     }
   }
 
-  lines.push('\n<i>All tests & PR auto-merge active.</i>');
+  lines.push('\n<i>Repository activity only. Live deployment is reported separately.</i>');
 
   const keyboard = {
     inline_keyboard: [
@@ -590,9 +332,20 @@ export function renderGithubProgress(
   return [lines.join('\n'), keyboard];
 }
 
+export type GithubUpdateArea = 'website' | 'telegram' | 'backend' | 'other';
+
+export interface GithubProgressCommit {
+  msg: string;
+  author: string;
+  sha: string;
+  timestamp?: number | null;
+  files?: string[];
+  areas?: GithubUpdateArea[];
+}
+
 export interface GithubProgress {
   [key: string]: unknown;
-  commits: Array<{ msg: string; author: string; sha: string; timestamp?: number | null }>;
+  commits: GithubProgressCommit[];
   prs: Array<{ num: number; title: string; state: string; merged: boolean; timestamp?: number | null }>;
   runs: Array<{ name: string; conclusion: string; timestamp?: number | null }>;
   ok: boolean;
@@ -600,6 +353,60 @@ export interface GithubProgress {
 }
 
 const githubProgressCache = new Map<string, { timestamp: number; data: GithubProgress }>();
+
+function updateAreas(files: string[], message: string): GithubUpdateArea[] {
+  const messageText = message.toLowerCase();
+  const fileMatches = (pattern: RegExp) => files.some(value => pattern.test(value));
+  const areas: GithubUpdateArea[] = [];
+  if (
+    fileMatches(/^(?:web|site|play|updates|broadcast)\/|^(?:index\.html|vercel\.json)$/i) ||
+    /\b(?:website|frontend|web|site)\b/i.test(messageText)
+  ) {
+    areas.push('website');
+  }
+  if (fileMatches(/telegram|tg_scrap|tg_fren/i) || /\b(?:telegram|tg|bot)\b/i.test(messageText)) {
+    areas.push('telegram');
+  }
+  if (
+    fileMatches(/^(?:server-ts|server)\/(?!.*telegram)|^(?:db|domain|integrations|routes)\//i) ||
+    /\b(?:backend|server|api|database)\b/i.test(messageText)
+  ) {
+    areas.push('backend');
+  }
+  return areas.length > 0 ? areas : ['other'];
+}
+
+function fileSummary(commit: GithubProgressCommit, area: GithubUpdateArea): string {
+  const files = (commit.files || []).filter(file => updateAreas([file], '').includes(area));
+  const scopes = files.flatMap(file => {
+    if (/\/(?:test|tests)\/|\.test\.|^docs\//i.test(file)) return [];
+    if (area === 'website') {
+      if (/^updates\//i.test(file)) return ['Updates page'];
+      if (/^site\//i.test(file)) return ['main site'];
+      if (/^web\//i.test(file)) return ['web app'];
+      if (/^play\//i.test(file)) return ['game page'];
+      if (/^index\.html$/i.test(file)) return ['homepage'];
+      return ['site publishing'];
+    }
+    if (area === 'telegram') {
+      if (/telegram-scrap/i.test(file)) return ['Scrap Run logic'];
+      if (/telegram-moderation/i.test(file)) return ['group moderation'];
+      if (/routes\/telegram/i.test(file)) return ['bot commands'];
+      if (/integrations\/telegram/i.test(file)) return ['update awareness'];
+      return ['Telegram bot'];
+    }
+    if (area === 'backend') {
+      if (/db\/schema/i.test(file)) return ['database'];
+      if (/\/routes\//i.test(file)) return ['API'];
+      if (/\/domain\//i.test(file)) return ['service logic'];
+      if (/config/i.test(file)) return ['server configuration'];
+      return ['server'];
+    }
+    return [];
+  });
+  const unique = [...new Set(scopes)].slice(0, 3);
+  return unique.length > 0 ? ` — ${unique.join(', ')}` : '';
+}
 
 export async function fetchGithubProgress(
   owner: string,
@@ -623,22 +430,50 @@ export async function fetchGithubProgress(
   const result: GithubProgress = { commits: [], prs: [], runs: [], ok: false };
 
   try {
-    const commitsResponse = await fetcher(`${base}/commits?per_page=4`, { headers });
+    const commitsResponse = await fetcher(`${base}/commits?per_page=8`, { headers });
     if (commitsResponse.status === 200) {
       const commits = await commitsResponse.json();
       if (Array.isArray(commits)) {
-        result.commits = commits.slice(0, 4).map(value => {
+        const summaries = commits.slice(0, 8).map(value => {
           const item = value as Record<string, unknown>;
           const commit = (item.commit || {}) as Record<string, unknown>;
           const author = (commit.author || {}) as Record<string, unknown>;
           const timestamp = Date.parse(String(author.date || ''));
           return {
-            msg: String(commit.message || '').split(/\r?\n/)[0].slice(0, 60),
+            fullSha: String(item.sha || ''),
+            msg: String(commit.message || '').split(/\r?\n/)[0].slice(0, 90),
             author: String(author.name || 'dutch'),
             sha: String(item.sha || '').slice(0, 7),
             timestamp: Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null,
           };
         });
+        result.commits = await Promise.all(summaries.map(async summary => {
+          let files: string[] = [];
+          if (summary.fullSha) {
+            try {
+              const detailResponse = await fetcher(`${base}/commits/${encodeURIComponent(summary.fullSha)}`, { headers });
+              if (detailResponse.status === 200) {
+                const detail = await detailResponse.json() as Record<string, unknown>;
+                if (Array.isArray(detail.files)) {
+                  files = detail.files
+                    .map(value => String((value as Record<string, unknown>)?.filename || ''))
+                    .filter(Boolean)
+                    .slice(0, 30);
+                }
+              }
+            } catch {
+              // Commit summaries remain useful if GitHub withholds file details.
+            }
+          }
+          return {
+            msg: summary.msg,
+            author: summary.author,
+            sha: summary.sha,
+            timestamp: summary.timestamp,
+            files,
+            areas: updateAreas(files, summary.msg),
+          };
+        }));
       }
     }
 
@@ -699,26 +534,42 @@ export function renderTelegramUpdateBriefing(
   const inWindow = (item: { timestamp?: number | null }) =>
     typeof item.timestamp !== 'number' || item.timestamp >= cutoff;
   const prs = progress.prs.filter(inWindow).slice(0, 4);
-  const commits = progress.commits.filter(inWindow).slice(0, 4);
+  const commits = progress.commits.filter(inWindow).slice(0, 8);
   const runs = progress.runs.filter(inWindow).slice(0, 2);
-  const lines = [greeting, `Here are the verified ${repoName} updates from the last ${hours} hours:`];
-
-  for (const pr of prs) {
+  const lines = [greeting, `Here’s the verified ${repoName} work from the last ${hours} hours:`];
+  const sections: Array<[GithubUpdateArea, string]> = [
+    ['website', '🌐 Website'],
+    ['telegram', '🤖 Telegram'],
+    ['backend', '⚙️ Backend'],
+  ];
+  for (const [area, label] of sections) {
+    const updates = commits.filter(commit => (commit.areas || updateAreas(commit.files || [], commit.msg)).includes(area));
+    lines.push('', label);
+    if (updates.length === 0) {
+      lines.push('• No verified code changes in this window.');
+      continue;
+    }
+    for (const commit of updates.slice(0, 3)) {
+      lines.push(`• ${commit.msg} (${commit.sha})${fileSummary(commit, area)}`);
+    }
+  }
+  const other = commits.filter(commit => (commit.areas || updateAreas(commit.files || [], commit.msg)).includes('other'));
+  if (other.length > 0) {
+    lines.push('', '📦 Project');
+    for (const commit of other.slice(0, 2)) lines.push(`• ${commit.msg} (${commit.sha})`);
+  }
+  lines.push('', '🚦 Delivery status');
+  for (const pr of prs.slice(0, 2)) {
     const state = pr.merged ? 'merged' : pr.state === 'open' ? 'open' : 'closed';
-    lines.push(`• PR #${pr.num}: ${pr.title} (${state})`);
+    lines.push(`• PR #${pr.num}: ${pr.title} — ${state}`);
   }
-  for (const commit of commits) {
-    lines.push(`• ${commit.sha}: ${commit.msg}`);
-  }
-  if (prs.length === 0 && commits.length === 0) {
-    lines.push('• No commits or pull-request changes were reported in that window.');
-  }
+  if (prs.length === 0) lines.push('• No pull-request changes in this window.');
   if (runs.length > 0) {
     const ci = runs.map(run => `${run.name}: ${run.conclusion || 'unknown'}`).join('; ');
-    lines.push(`CI: ${ci}`);
+    lines.push(`• CI — ${ci}`);
   }
-  lines.push('Use /progress for the live project card.');
-  return redactSecrets(lines.join('\n')).slice(0, 1200);
+  lines.push('', 'Repository activity is verified here; “live” is only reported after deployment verification.');
+  return redactSecrets(lines.join('\n')).slice(0, 1800);
 }
 
 export function publicServerStatus(

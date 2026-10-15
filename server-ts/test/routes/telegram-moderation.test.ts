@@ -109,7 +109,7 @@ describe('Telegram moderation webhook orchestration', () => {
     assert.ok(api.calls.some(call => call.method === 'banChatMember' && call.payload.user_id === 5));
   });
 
-  test('serves game and public status commands', async () => {
+  test('directs private game commands to the group and serves public status', async () => {
     const chat = { id: -200, type: 'private' };
     await webhook({
       message_id: 6,
@@ -117,8 +117,7 @@ describe('Telegram moderation webhook orchestration', () => {
       chat,
       from: { id: 22, first_name: 'Ada' },
     });
-    assert.match(String(api.calls.at(-1)?.payload.text), /Ada's Fren/);
-    assert.equal(api.calls.at(-1)?.payload.parse_mode, 'HTML');
+    assert.match(String(api.calls.at(-1)?.payload.text), /send \/game there/);
 
     await webhook({
       message_id: 7,
