@@ -65,7 +65,7 @@
           const care = duration >= 15 && score > 0 ? window.TinyFrensGameCare.complete() : null;
           window.dispatchEvent(new CustomEvent('tinyfrens-game-finished', {detail:{game:game.id, score, best, player:players().key(nft), duration}}));
           const again = el('button', {type:'button', textContent:'Play again'}); again.onclick = () => play(game);
-          const card = el('div', {className:'game-result', role:'status'}, [el('h3', {textContent:score >= best && score > 0 ? 'New best!' : 'Round complete'}), el('p', {className:'game-result-score', textContent:'★ ' + score}), el('p', {className:'small', textContent:'Best: ' + best}), el('p', {className:'small', textContent:care?.feedback || 'Play for 15 seconds and catch a snack to earn the usual Play care effect.'}), again]);
+          const card = el('div', {className:'game-result', role:'status'}, [el('h3', {textContent:score >= best && score > 0 ? 'New best!' : 'Round complete'}), el('p', {className:'game-result-score', textContent:'★ ' + score}), el('p', {className:'small', textContent:'Best: ' + best}), el('p', {className:'small', textContent:care?.feedback || game.careHint || 'Play for 15 seconds and score to earn the usual Play care effect.'}), again]);
           stage.append(card); again.focus({preventScroll:true});
         }
       });

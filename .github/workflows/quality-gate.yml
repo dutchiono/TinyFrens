@@ -52,6 +52,7 @@ jobs:
       - name: Test mini-game rules and NFT players
         run: |
           node scripts/test-snack-catch.cjs
+          node scripts/test-fren-hop.cjs
           node scripts/test-game-players.cjs
           node scripts/test-robot-care.cjs
           node scripts/test-account-header.cjs

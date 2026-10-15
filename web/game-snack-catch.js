@@ -254,6 +254,7 @@
       title: 'Snack Catch',
       emoji: '🍓',
       blurb: 'Catch falling snacks. Dodge the stinky socks.',
+      careHint: 'Play for 15 seconds and catch a snack to earn the usual Play care effect.',
       mount: mount
     }
   };
