@@ -450,6 +450,8 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 8: Telegram orchestration and moderation. (Slices 8A–8E cover persisted challenge recovery, moderation enforcement, interactive commands, conversational/issue flows, `/show`, GIF rendering, multipart upload, and media caching.)
 - [x] Phase 9: stateful WebSocket protocol and process-local presence. (Authentication, duplicate replacement, presence, parties, friends, visits, battles, expiry, heartbeat, payload limits, and graceful close are implemented.)
 - [ ] Phase 10: shadow comparison in staging with outbound side effects disabled.
+  - [x] Staging shadow Compose isolation and hard-failing remote comparator are implemented.
+  - [ ] Run the shadow comparison on staging and record immutable image digests, backup identity, output, and logs.
 - [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
 - [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.
 

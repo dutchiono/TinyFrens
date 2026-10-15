@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG_INVENTORY, loadConfig } from '../dist/config.js';
+import { compareServers, parityRequests } from './parity-requests.mjs';
 
 const serverTsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(serverTsRoot, '..');
@@ -75,84 +76,6 @@ async function stop(runtime) {
   await new Promise(resolve => runtime.child.once('exit', resolve));
 }
 
-async function snapshot(baseUrl, request) {
-  const response = await fetch(`${baseUrl}${request.path}`, {
-    method: request.method || 'GET',
-    headers: request.headers,
-    body: request.body,
-    redirect: 'manual',
-  });
-  const contentType = response.headers.get('content-type') || '';
-  const isJson = contentType.includes('/json') || contentType.includes('+json');
-  const body = isJson
-    ? await response.json()
-    : Buffer.from(await response.arrayBuffer()).toString('base64');
-  const headers = {};
-  for (const name of [
-    'access-control-allow-headers',
-    'access-control-allow-methods',
-    'access-control-allow-origin',
-    'cache-control',
-    'content-type',
-    'link',
-    'vary',
-  ]) {
-    const value = response.headers.get(name);
-    if (value !== null) headers[name] = value;
-  }
-  return { status: response.status, headers, body };
-}
-
-const allowedOrigin = { origin: 'https://tinyfrens.lol' };
-const requests = [
-  { name: 'health', path: '/health' },
-  { name: 'static asset', path: '/web/app.js' },
-  { name: 'snap default response', path: '/' },
-  { name: 'snap HTML', path: '/', headers: { accept: 'text/html' } },
-  { name: 'snap JSON', path: '/api/snap', headers: { accept: 'application/vnd.farcaster.snap+json' } },
-  { name: 'Farcaster manifest', path: '/.well-known/farcaster.json' },
-  { name: 'Bankr status', path: '/api/bankr/status', headers: allowedOrigin },
-  { name: 'economy status', path: '/api/economy/status', headers: allowedOrigin },
-  { name: 'empty suggestions', path: '/api/collections/suggestions', headers: allowedOrigin },
-  { name: 'vote status', path: '/api/vote/status', headers: allowedOrigin },
-  { name: 'gallery collections', path: '/api/gallery/collections', headers: allowedOrigin },
-  { name: 'push key', path: '/api/push/public-key', headers: allowedOrigin },
-  {
-    name: 'generic preflight',
-    method: 'OPTIONS',
-    path: '/api/wallet-link/status',
-    headers: { origin: 'https://tinyfrens.lol' },
-  },
-  {
-    name: 'rejected origin',
-    method: 'POST',
-    path: '/api/register',
-    headers: { 'content-type': 'application/json', origin: 'https://malicious.example' },
-    body: '{}',
-  },
-  {
-    name: 'rejected registration',
-    method: 'POST',
-    path: '/api/register',
-    headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
-    body: '{}',
-  },
-  {
-    name: 'malformed JSON registration',
-    method: 'POST',
-    path: '/api/register',
-    headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
-    body: '{',
-  },
-  {
-    name: 'oversized registration',
-    method: 'POST',
-    path: '/api/register',
-    headers: { 'content-type': 'application/json', origin: 'https://tinyfrens.lol' },
-    body: JSON.stringify({ pet: { name: 'x'.repeat(5000) } }),
-  },
-];
-
 const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'tinyfrens-differential-'));
 const seed = path.join(tempRoot, 'seed.db');
 const pythonDatabase = path.join(tempRoot, 'python.db');
@@ -180,14 +103,8 @@ try {
   const typescriptUrl = `http://127.0.0.1:${typescriptPort}`;
   await Promise.all([waitForHealth(python, pythonUrl), waitForHealth(typescript, typescriptUrl)]);
 
-  for (const request of requests) {
-    const [expected, actual] = await Promise.all([
-      snapshot(pythonUrl, request),
-      snapshot(typescriptUrl, request),
-    ]);
-    assert.deepEqual(actual, expected, `${request.name} diverged`);
-  }
-  process.stdout.write(`Compared ${requests.length} side-effect-free requests across Python and TypeScript.\n`);
+  await compareServers(pythonUrl, typescriptUrl);
+  process.stdout.write(`Compared ${parityRequests.length} side-effect-free requests across Python and TypeScript.\n`);
 } finally {
   await Promise.all([stop(python), stop(typescript)]);
   await rm(tempRoot, { recursive: true, force: true });
