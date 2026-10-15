@@ -366,21 +366,21 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         };
 
         // Built-in commands must work even if the AI provider is unavailable.
-        if (/^\\/myid(?:@\\w+)?\\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+        if (/^\/myid(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           const userId = String(sender.id || '');
-          if (!/^\\d+$/.test(userId)) return reply.status(200).send({ ok: true });
+          if (!/^\d+$/.test(userId)) return reply.status(200).send({ ok: true });
           const isPrivate = chat?.type === 'private';
           await sendCommand({
             chat_id: chatId,
             text: isPrivate
-              ? `Your Telegram user ID: <code>${userId}</code>\\n\\nCopy that number into the TinyFrens deployment-owner configuration. It is not a password.`
+              ? `Your Telegram user ID: <code>${userId}</code>\n\nCopy that number into the TinyFrens deployment-owner configuration. It is not a password.`
               : 'For your privacy, DM @TinyFrensBot and send /myid there. Your ID will not be posted in this group.',
             parse_mode: 'HTML',
           });
           return reply.status(200).send({ ok: true });
         }
 
-        if (/^\\/help(?:@\\w+)?\\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+        if (/^\/help(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           const isPrivate = chat?.type === 'private';
           await sendCommand({
             chat_id: chatId,
@@ -408,7 +408,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               '/deploynotify — Owner-only deployment DMs.',
               '',
               '<i>Commands work even when AI chat is unavailable.</i>'
-            ].join('\\n'),
+            ].join('\n'),
             reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
           });
           return reply.status(200).send({ ok: true });
