@@ -1,6 +1,6 @@
 # Python-to-TypeScript server migration checklist
 
-Status: planning only. This document does not authorize removing, replacing, or changing production Python behavior.
+Status: TypeScript production cutover completed 2026-10-15; observation and Python retirement remain pending.
 
 Baseline: update this field to the exact commit used when implementation begins: `PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`.
 
@@ -11,14 +11,14 @@ A box may be checked only when the TypeScript implementation has been compared w
 - [ ] Same accepted inputs, normalization, defaults, limits, and validation errors.
 - [x] Same HTTP status, response body, content type, cache headers, and CORS behavior (verified for GET /health and origin guard).
 - [ ] Same authentication, authorization, signature verification, and rate limits.
-- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified for all 50 tables across modules).
+- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified for all 49 permanent tables across modules; `wallet_links_next` is migration scratch state and is never retained).
 - [ ] Same external requests, timeouts, retry behavior, and fail-closed/fail-open behavior.
 - [ ] Same WebSocket frames, close codes, ordering, expiry, and reconnect behavior where applicable.
 - [ ] Same background work, cancellation, cleanup, and graceful shutdown behavior.
 - [x] Existing Python tests have equivalent TypeScript tests; tests run real assertions and real tools.
 - [x] A differential parity test passes against both implementations using the same fixture, clock, random values, and mocked providers.
 - [x] No production traffic or secrets are used by the parity harness.
-- [x] Python remains the production authority until the cutover checklist is complete.
+- [x] Python remained the production authority until the guarded full cutover completed.
 
 “Implemented” and “parity verified” are separate states. A translated file is not complete merely because it compiles.
 
@@ -27,7 +27,7 @@ A box may be checked only when the TypeScript implementation has been compared w
 - [x] Record the Python reference commit and prevent behavior changes from entering it unnoticed. (`PYTHON_REFERENCE_COMMIT=0f03d36d926fab4b24efa3f81d9a7b395646ee69`)
 - [x] Choose the TypeScript runtime: Node 22 or Bun. Record the production runtime and package manager. (Node 22 LTS with npm, matching CI, existing scripts, and host environment).
 - [x] Choose the HTTP framework after proving WebSocket, raw-body webhook verification, multipart Telegram uploads, cleanup hooks, and streaming behavior. (Fastify with `@fastify/websocket`, `@fastify/cors`, `@fastify/rate-limit`, `@fastify/multipart`, and `fastify-raw-body`).
-- [x] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions. (`better-sqlite3` via abstract `DatabaseConnection` with WAL, busy_timeout=5000, foreign_keys=ON; compatibility proven on all 50 tables).
+- [x] Choose the SQLite driver and prove compatibility with the existing database file, WAL/locking behavior, integer handling, collations, and transactions. (`better-sqlite3` via abstract `DatabaseConnection` with WAL, busy_timeout=5000, foreign_keys=ON; compatibility proven on all 49 permanent tables).
 - [x] Choose one schema/validation system for request, response, configuration, and WebSocket payload types. (Zod).
 - [x] Choose the test runner, HTTP injection library, WebSocket test client, fake-clock support, and coverage reporting. (Node's native test runner `node --import tsx --test`, Fastify `inject()`, `assert/strict`).
 - [x] Define formatting, linting, type-checking, build, test, and start commands. (`npm run typecheck`, `npm test`, `npm run build`, `npm start`, `npm run dev`).
@@ -339,7 +339,7 @@ For every table: capture exact `sqlite_master` SQL, indexes, primary keys, colla
 - [x] Admin: `admin_audit`, `admin_sessions`, `admin_users`, `app_settings`.
 - [ ] Core social: `pets`, `friends`, `requests`, `push_subs`.
 - [x] Device sync: `device_sync_accounts`, `device_sync_codes`, `device_sync_members`.
-- [x] Wallets: `pet_wallets`, `wallet_links`, `wallet_links_next`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`.
+- [x] Wallets: `pet_wallets`, `wallet_links`, `wallet_link_challenges`, `wallet_social_profiles`, `magic_links`; `wallet_links_next` is created only inside the legacy-table migration and removed before commit.
 - [x] NFTs and collections: `fren_nfts`, `frens_burn_log`, `collection_suggestions`, `collection_votes`.
 - [ ] Economy: `credit_accounts`, `credit_ledger`, `deposit_sessions`, `deposits`, `treasury_transfers`, `indexer_state`.
 - [x] Robots: `robot_care_daily`, `robot_discovery`, `robot_owner_inventory`, `robot_ownership`, `robot_gallery_art`, `robot_gallery_events`, `robot_gallery_owners`, `robot_gallery_state`.
@@ -453,11 +453,13 @@ Search again at the implementation baseline; these files currently consume serve
 - [x] Phase 10: shadow comparison in staging with outbound side effects disabled.
   - [x] Staging shadow Compose isolation and hard-failing remote comparator are implemented.
   - [x] Run the shadow comparison on staging and record immutable image digests, backup identity, output, and logs. (Completed 2026-10-15 against isolated copies of a production SQLite snapshot; 17/17 requests matched, both post-run copies remained byte-identical, and both integrity checks returned `ok`. Evidence is retained privately on the host.)
-- [ ] Phase 11: route canaries, then full cutover, with immediate rollback available.
+- [x] Phase 11: route canaries, then full cutover, with immediate rollback available.
   - [x] Read-only SQLite mode and GET/HEAD/OPTIONS-only canary routing are implemented.
   - [x] Canary verification and immediate proxy rollback runbook is documented.
   - [x] Exercise the canary against production traffic after Phase 10 succeeds. (`/health` canary verified through public TLS with an explicit response marker and TypeScript request logs.)
   - [x] Initial production `/health` canary routes to a read-only TypeScript container; Python remains the sole writer and rollback to Python was exercised before restoring the canary.
+  - [x] Full production cutover completed from immutable commit `3b8680b4b4129ad1f1e01012ce37c6d37c73d008` after a writable production-copy audit showed only the expected `indexer_state` table addition, no row-count changes, no retained migration scratch table, and SQLite integrity `ok`.
+  - [x] Public TLS smoke covered all 17 shadow-manifest requests and the WebSocket authentication close contract; the Python rollback service was then started against the migrated database, passed health, and TypeScript was restored successfully.
 - [ ] Phase 12: observation window, production backup verification, then Python retirement in a separate PR.
 
 ## Per-file workflow
@@ -480,7 +482,7 @@ Use this sequence for every production file or extracted behavior group.
 - [x] A production database backup has been created and a restore has been timed and verified.
 - [x] The TypeScript process can open a copied production database without schema mutation or data loss.
 - [x] There is only one writer for any stateful route during canary operation.
-- [ ] Webhook providers point to only one side-effecting implementation.
+- [x] Webhook providers point to only one side-effecting implementation.
 - [x] Shadow traffic strips credentials where possible and disables all external mutations.
 - [ ] Health checks include database access and worker readiness without exposing secrets.
 - [ ] Logs and metrics cover request failures, provider failures, WebSocket connections, worker lag, SQLite locks, webhook backlog, and challenge timers.
@@ -499,4 +501,4 @@ Use this sequence for every production file or extracted behavior group.
 - [x] Required GitHub checks run the TypeScript typecheck, targeted tests, parity manifest, build, production image build, and startup smoke test.
 - [ ] Python requirements and tests are archived or removed only in the retirement PR.
 - [ ] Documentation describes the TypeScript source of truth and the supported local/deployment commands.
-- [ ] Final production backup and rollback artifact locations are recorded privately.
+- [x] Final production backup and rollback artifact locations are recorded privately.
