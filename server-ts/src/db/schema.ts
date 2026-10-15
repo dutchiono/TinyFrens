@@ -220,10 +220,6 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     table: 'wallet_social_profiles',
     sql: 'CREATE TABLE IF NOT EXISTS wallet_social_profiles(address TEXT PRIMARY KEY COLLATE NOCASE, x_handle TEXT NOT NULL, source TEXT NOT NULL, updated INTEGER NOT NULL);',
   },
-  {
-    table: 'wallet_links_next',
-    sql: 'CREATE TABLE IF NOT EXISTS wallet_links_next(pet_id TEXT NOT NULL, address TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL, PRIMARY KEY(pet_id, address));',
-  },
 ];
 
 export const INDEX_STATEMENTS: string[] = [

@@ -26,6 +26,7 @@ export function migrateWalletLinks(db: DatabaseConnection): void {
   // Check if address is already part of the composite primary key (pk > 0)
   const isAddressCompositePk = columns.some(col => col.name === 'address' && col.pk > 0);
   if (isAddressCompositePk) {
+    db.exec('DROP TABLE IF EXISTS wallet_links_next;');
     return;
   }
 
@@ -42,12 +43,6 @@ export function migrateWalletLinks(db: DatabaseConnection): void {
         SELECT pet_id, address, created FROM wallet_links;
       DROP TABLE wallet_links;
       ALTER TABLE wallet_links_next RENAME TO wallet_links;
-      CREATE TABLE IF NOT EXISTS wallet_links_next(
-        pet_id TEXT NOT NULL,
-        address TEXT COLLATE NOCASE NOT NULL,
-        created INTEGER NOT NULL,
-        PRIMARY KEY(pet_id, address)
-      );
     `);
   })();
 }
