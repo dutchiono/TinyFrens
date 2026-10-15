@@ -1,8 +1,5 @@
-export function isTelegramDeployOwner(sender: Record<string, unknown>, ownerId: string | undefined, ownerName: string): boolean {
-  if (ownerId) return String(sender.id ?? '') === ownerId;
-  const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
-  const owner = ownerName.toLowerCase().replace(/^@/, '');
-  return Boolean(username && owner && username === owner);
+export function isTelegramDeployOwner(sender: Record<string, unknown>, ownerId: string | undefined): boolean {
+  return Boolean(ownerId && String(sender.id ?? '') === ownerId);
 }
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -425,7 +422,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         if (deployNotify && chatId !== null && chatId !== undefined) {
           const ownerId = context.config.TELEGRAM_DEPLOY_OWNER_ID;
           const username = String(sender.username || '').toLowerCase().replace(/^@/, '');
-          const authorized = isTelegramDeployOwner(sender, ownerId, context.config.TELEGRAM_DEPLOY_OWNER);
+          const authorized = isTelegramDeployOwner(sender, ownerId);
           let responseText: string;
           if (chat?.type !== 'private') {
             responseText = 'Deployment notifications can only be registered in a private chat.';
@@ -505,7 +502,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           const groupAdmin = chat
             ? await isChatAdmin(context.telegramApi, chat, sender, token, telegramMessage)
             : false;
-          if (!canAccessAdminTools(sender, chat, groupAdmin)) {
+          if (!canAccessAdminTools(sender, chat, groupAdmin, context.config.TELEGRAM_DEPLOY_OWNER_ID)) {
             await sendCommand({
               chat_id: chatId,
               text: '🔒 Access Denied: Server triage and administrative diagnostics are restricted to @dutchiono.',
