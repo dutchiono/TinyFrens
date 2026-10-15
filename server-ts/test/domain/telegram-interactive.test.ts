@@ -12,6 +12,8 @@ import {
   renderGithubProgress,
   renderTelegramUpdateBriefing,
   telegramUpdateBriefingRequest,
+  telegramHelpText,
+  telegramHelpTopicRequest,
 } from '../../src/integrations/telegram.js';
 
 describe('Telegram interactive parity', () => {
@@ -104,6 +106,15 @@ describe('Telegram interactive parity', () => {
     assert.doesNotMatch(text, /Old change/);
     assert.match(text, /Build: success/);
     assert.match(text, /“live” is only reported after deployment verification/);
+  });
+
+  test('recognizes deterministic command and conversational help topics', () => {
+    assert.equal(telegramHelpTopicRequest('/help'), 'all');
+    assert.equal(telegramHelpTopicRequest('/gamehelp@TinyFrensBot'), 'game');
+    assert.equal(telegramHelpTopicRequest('@TinyFrensBot help me link and sync my NFT slots'), 'show');
+    assert.equal(telegramHelpTopicRequest('people are talking about the game'), null);
+    assert.match(telegramHelpText('game'), /one shared card/);
+    assert.match(telegramHelpText('all'), /second warning mutes for 10 minutes/);
   });
 
   test('renders public status and private admin triage', () => {

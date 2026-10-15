@@ -49,6 +49,17 @@ export interface TgSuspectedBotRow {
   flagged_at: number;
 }
 
+export interface TgModerationWarningRow {
+  chat_id: string;
+  user_id: string;
+  warnings: number;
+  last_reason: string;
+  warned_by: string;
+  muted_until: number | null;
+  source_message_id: number | null;
+  updated_at: number;
+}
+
 export interface DeployNotificationChatRow {
   chat_id: string;
   username: string;
@@ -279,6 +290,37 @@ export class TelegramRepository {
   clearSuspectedBot(chatId: string, userId: string): boolean {
     return this.db.prepare(
       'DELETE FROM tg_suspected_bots WHERE chat_id=? AND user_id=?'
+    ).run(chatId, userId).changes > 0;
+  }
+
+  // TG staged moderation warnings
+  getModerationWarnings(chatId: string, userId: string): TgModerationWarningRow | undefined {
+    return this.db.prepare<TgModerationWarningRow>(
+      `SELECT chat_id, user_id, warnings, last_reason, warned_by, muted_until, source_message_id, updated_at
+       FROM tg_moderation_warnings WHERE chat_id=? AND user_id=?`
+    ).get(chatId, userId);
+  }
+
+  recordModerationWarning(row: TgModerationWarningRow): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO tg_moderation_warnings(
+        chat_id, user_id, warnings, last_reason, warned_by, muted_until, source_message_id, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      row.chat_id,
+      row.user_id,
+      row.warnings,
+      row.last_reason,
+      row.warned_by,
+      row.muted_until,
+      row.source_message_id,
+      row.updated_at
+    );
+  }
+
+  clearModerationWarnings(chatId: string, userId: string): boolean {
+    return this.db.prepare(
+      'DELETE FROM tg_moderation_warnings WHERE chat_id=? AND user_id=?'
     ).run(chatId, userId).changes > 0;
   }
 
