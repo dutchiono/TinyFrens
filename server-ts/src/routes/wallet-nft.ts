@@ -551,7 +551,7 @@ export function registerWalletNftRoutes(app: FastifyInstance, context: AppContex
       const pid = tokenPet(context, body.token);
       const code = crypto.randomBytes(16).toString('base64url');
       const nowSec = Math.floor(context.now());
-      const expires = nowSec + 30 * 86400;
+      const expires = nowSec + 15 * 60;
 
       context.repos.wallets.createMagicLink(code, pid, nowSec, expires);
       const restoreUrl = `https://tinyfrens.lol/web/#restore=${code}`;
@@ -576,7 +576,7 @@ export function registerWalletNftRoutes(app: FastifyInstance, context: AppContex
       const code = String(body.code || '').trim();
       const row = context.repos.wallets.getMagicLink(code);
 
-      if (!row || row.expires < Math.floor(context.now())) {
+      if (!row || row.expires <= Math.floor(context.now())) {
         return reply.status(404).send({ error: 'Magic restore link is invalid or expired.' });
       }
 
@@ -589,7 +589,10 @@ export function registerWalletNftRoutes(app: FastifyInstance, context: AppContex
       const newToken = crypto.randomBytes(32).toString('base64url');
       const tokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
 
-      context.db.prepare('UPDATE pets SET token=? WHERE id=?').run(tokenHash, pid);
+      context.db.transaction(() => {
+        context.db.prepare('UPDATE pets SET token=? WHERE id=?').run(tokenHash, pid);
+        context.repos.wallets.deleteMagicLink(code);
+      })();
 
       const { address: evmAddr } = frenVaultAddressAndKey(pid, context.config.FREN_VAULT_SEED);
 

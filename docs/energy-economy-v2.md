@@ -112,6 +112,11 @@ The target identity model is `account -> devices + verified identities + verifie
 links must become account-scoped and unique by `(chain_id, address)` rather than copied to every
 synced device.
 
+During migration, the account wallet is authoritative while the legacy device table is dual-written
+only for old deposit/indexer compatibility. Duplicate legacy claims from unrelated accounts are not
+silently shared: the earliest unambiguous account is retained and an unresolved conflict is exposed
+in admin counts until a fresh wallet proof joins the accounts.
+
 When two device accounts merge, purchased Energy is summed because it represents paid value, while
 rechargeable Energy uses the larger balance rather than the sum. This prevents farming multiple free
 account balances and then combining them. Both accounts must be settled before the merge is allowed.
@@ -121,6 +126,12 @@ wallet. TinyFrens verifies the recovered signer, finds the unique account wallet
 credential, and offers revocation of old devices. TinyFrens must not request or store a user's Bankr
 API key. Public social-profile resolution is useful corroboration but is not sufficient recovery
 proof.
+
+The existing Bankr connect-code flow can perform this recovery safely: the waiting device creates a
+short-lived pairing, Bankr returns a `personal_sign` signature, and the user explicitly accepts on
+the waiting device. If that signer is already an active account wallet, the new device joins that
+existing account instead of creating a duplicate wallet owner. Legacy bearer restore links are
+single-use, replace older links, and expire after 15 minutes; wallet-signature recovery is preferred.
 
 ## Delivery order
 

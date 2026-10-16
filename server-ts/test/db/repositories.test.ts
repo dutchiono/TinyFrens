@@ -126,6 +126,21 @@ describe('Database: Repositories', () => {
       repos.wallets.unlinkWallet('dev-1', w1);
       assert.deepStrictEqual(repos.wallets.getLinkedWallets('dev-1'), [w2]);
     });
+
+    test('enforces one active TinyFrens account per wallet', () => {
+      const wallet = '0x3333333333333333333333333333333333333333';
+      repos.wallets.linkAccountWallet('account-a', wallet, 'personal_sign', 100);
+      assert.deepEqual(repos.wallets.getAccountWallets('account-a'), [wallet]);
+      assert.throws(
+        () => repos.wallets.linkAccountWallet('account-b', wallet, 'personal_sign', 101),
+        /already linked/
+      );
+
+      assert.equal(repos.wallets.unlinkAccountWallet('account-a', wallet, 102), true);
+      repos.wallets.linkAccountWallet('account-b', wallet, 'personal_sign', 103);
+      assert.deepEqual(repos.wallets.getAccountWallets('account-a'), []);
+      assert.deepEqual(repos.wallets.getAccountWallets('account-b'), [wallet]);
+    });
   });
 
   describe('DeviceSyncRepository', () => {

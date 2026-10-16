@@ -67,6 +67,9 @@ export function getCounts(db: DatabaseConnection, nowSec: number): Record<string
     creditAccounts: one('SELECT COUNT(*) FROM credit_accounts'),
     credits: one('SELECT COALESCE(SUM(balance),0) FROM credit_accounts'),
     deposits: one('SELECT COUNT(*) FROM deposits'),
+    walletConflicts: one(
+      'SELECT COUNT(*) FROM account_wallet_conflicts WHERE resolved_at IS NULL'
+    ),
     careToday: one('SELECT COALESCE(SUM(used),0) FROM robot_care_daily WHERE day=?', [day]),
   };
 }

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { DatabaseConnection } from './connection.js';
 import { initSchema } from './schema.js';
 
@@ -83,10 +84,61 @@ export function migrateDeviceSyncTelegramSelection(db: DatabaseConnection): void
 }
 
 /**
+ * Promotes legacy device wallet links into the account identity boundary. The oldest link wins if
+ * the same address appears on unrelated accounts; the ambiguity is recorded for manual recovery.
+ */
+export function migrateAccountWallets(db: DatabaseConnection): void {
+  const links = db.prepare<{ pet_id: string; address: string; created: number }>(
+    'SELECT pet_id, address, created FROM wallet_links ORDER BY created, pet_id, address'
+  ).all();
+  const findMembership = db.prepare<{ account: string }>(
+    'SELECT account FROM device_sync_members WHERE device=?'
+  );
+  const insertMembership = db.prepare(
+    'INSERT INTO device_sync_members(device, account) VALUES(?, ?)'
+  );
+  const insertAccount = db.prepare(
+    "INSERT INTO device_sync_accounts(account, revision, selection, telegram_selection) VALUES(?, 0, '[]', '[]')"
+  );
+  const findOwner = db.prepare<{ account: string }>(
+    'SELECT account FROM account_wallets WHERE chain_id=8453 AND address=? COLLATE NOCASE AND revoked_at IS NULL'
+  );
+  const insertWallet = db.prepare(
+    `INSERT OR IGNORE INTO account_wallets(
+       account, chain_id, address, provider, role, verification_method, verified_at, created_at, revoked_at
+     ) VALUES(?, 8453, ?, 'external', 'owner', 'legacy_verified', ?, ?, NULL)`
+  );
+  const insertConflict = db.prepare(
+    `INSERT OR IGNORE INTO account_wallet_conflicts(
+       chain_id, address, chosen_account, conflicting_account, detected_at, resolved_at
+     ) VALUES(8453, ?, ?, ?, ?, NULL)`
+  );
+
+  db.transaction(() => {
+    for (const link of links) {
+      let account = findMembership.get(link.pet_id)?.account;
+      if (!account) {
+        account = crypto.randomBytes(18).toString('base64url');
+        insertAccount.run(account);
+        insertMembership.run(link.pet_id, account);
+      }
+
+      const owner = findOwner.get(link.address);
+      if (!owner || owner.account === account) {
+        insertWallet.run(account, link.address, link.created, link.created);
+      } else {
+        insertConflict.run(link.address, owner.account, account, link.created);
+      }
+    }
+  })();
+}
+
+/**
  * Applies all schema definitions and backward-compatible data migrations.
  */
 export function runMigrations(db: DatabaseConnection): void {
   initSchema(db);
   migrateWalletLinks(db);
   migrateDeviceSyncTelegramSelection(db);
+  migrateAccountWallets(db);
 }

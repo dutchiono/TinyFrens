@@ -19,7 +19,7 @@ export function getDeviceSyncSnapshot(context: AppContext, pid: string): DeviceS
   const selection = accountState ? JSON.parse(accountState.selection) : [];
   const telegramSelection = accountState ? JSON.parse(accountState.telegram_selection) : [];
   const devices = context.repos.deviceSync.getDevicesForAccount(aid);
-  const addresses = context.repos.wallets.getLinkedWallets(pid);
+  const addresses = context.repos.wallets.getAccountWallets(aid);
 
   return {
     account: aid,
@@ -133,7 +133,10 @@ export function acceptDeviceSync(
   const sourceDevices = context.repos.deviceSync.getDevicesForAccount(source);
   const targetDevices = context.repos.deviceSync.getDevicesForAccount(target);
   const members = Array.from(new Set([...sourceDevices, ...targetDevices]));
-  const addresses = Array.from(new Set(members.flatMap(d => context.repos.wallets.getLinkedWallets(d))));
+  const addresses = Array.from(new Set([
+    ...context.repos.wallets.getAccountWallets(source),
+    ...context.repos.wallets.getAccountWallets(target),
+  ]));
 
   const uniqueAddressesLower = new Set(addresses.map(a => a.toLowerCase()));
   if (members.length > 20 || uniqueAddressesLower.size > 10) {

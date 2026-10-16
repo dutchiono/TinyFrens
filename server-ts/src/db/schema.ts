@@ -27,6 +27,18 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     sql: 'CREATE TABLE IF NOT EXISTS wallet_link_challenges(pet_id TEXT PRIMARY KEY, address TEXT NOT NULL, message TEXT NOT NULL, expires INTEGER NOT NULL);',
   },
   {
+    table: 'account_wallets',
+    sql: "CREATE TABLE IF NOT EXISTS account_wallets(account TEXT NOT NULL, chain_id INTEGER NOT NULL, address TEXT COLLATE NOCASE NOT NULL, provider TEXT NOT NULL DEFAULT 'external', role TEXT NOT NULL DEFAULT 'owner', verification_method TEXT NOT NULL, verified_at INTEGER NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER, PRIMARY KEY(account, chain_id, address));",
+  },
+  {
+    table: 'account_wallet_challenges',
+    sql: 'CREATE TABLE IF NOT EXISTS account_wallet_challenges(account TEXT PRIMARY KEY, chain_id INTEGER NOT NULL, address TEXT COLLATE NOCASE NOT NULL, message TEXT NOT NULL, expires INTEGER NOT NULL);',
+  },
+  {
+    table: 'account_wallet_conflicts',
+    sql: 'CREATE TABLE IF NOT EXISTS account_wallet_conflicts(chain_id INTEGER NOT NULL, address TEXT COLLATE NOCASE NOT NULL, chosen_account TEXT NOT NULL, conflicting_account TEXT NOT NULL, detected_at INTEGER NOT NULL, resolved_at INTEGER, PRIMARY KEY(chain_id, address, conflicting_account));',
+  },
+  {
     table: 'magic_links',
     sql: 'CREATE TABLE IF NOT EXISTS magic_links(code TEXT PRIMARY KEY, pet_id TEXT, created INTEGER, expires INTEGER);',
   },
@@ -253,6 +265,8 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
 export const INDEX_STATEMENTS: string[] = [
   'CREATE INDEX IF NOT EXISTS credit_ledger_pet ON credit_ledger(pet_id, id);',
   'CREATE INDEX IF NOT EXISTS energy_ledger_account ON energy_ledger(account, id);',
+  'CREATE UNIQUE INDEX IF NOT EXISTS account_wallets_active_address ON account_wallets(chain_id, address COLLATE NOCASE) WHERE revoked_at IS NULL;',
+  'CREATE INDEX IF NOT EXISTS account_wallets_account ON account_wallets(account, chain_id, revoked_at);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_address ON deposit_sessions(address);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_pet ON deposit_sessions(pet_id, status);',
   'CREATE INDEX IF NOT EXISTS treasury_transfers_sender ON treasury_transfers(sender);',

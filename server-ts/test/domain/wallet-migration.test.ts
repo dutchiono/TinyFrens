@@ -1,10 +1,10 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDbConnection } from '../../src/db/connection.js';
-import { migrateWalletLinks } from '../../src/db/repositories/wallets.js';
+import { runMigrations } from '../../src/db/migrations.js';
 import { createAppContext } from '../../src/context.js';
 import { loadConfig } from '../../src/config.js';
-import { addWallet, linkedWallets } from '../../src/domain/wallet-link.js';
+import { addWallet, linkedWallets, removeWallet } from '../../src/domain/wallet-link.js';
 import { toChecksumAddress } from '../../src/crypto/signatures.js';
 
 describe('Wallet Migration (server/test_wallet_migration.py)', () => {
@@ -20,7 +20,7 @@ describe('Wallet Migration (server/test_wallet_migration.py)', () => {
     db.prepare('INSERT INTO wallet_links VALUES(?, ?, ?)').run('device', first, 1);
 
     // Run migration
-    migrateWalletLinks(db);
+    runMigrations(db);
     assert.strictEqual(
       db.prepare<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name='wallet_links_next'").get(),
       undefined
@@ -37,9 +37,9 @@ describe('Wallet Migration (server/test_wallet_migration.py)', () => {
     assert.strictEqual(linkedWallets(context, 'device').length, 2);
     assert.deepStrictEqual(linkedWallets(context, 'another-device'), []);
 
-    db.prepare('DELETE FROM wallet_links WHERE address=? COLLATE NOCASE').run(first);
+    removeWallet(context, 'device', first);
 
-    migrateWalletLinks(db);
+    runMigrations(db);
     assert.strictEqual(linkedWallets(context, 'device').length, 1);
 
     db.close();
