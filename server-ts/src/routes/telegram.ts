@@ -66,6 +66,7 @@ async function callTelegramApi(
 
 export function registerTelegramRoutes(app: FastifyInstance, context: AppContext): void {
   const chatHistory = new Map<string, TelegramChatEntry[]>();
+  const scrapCardPublications = new Map<string, Promise<boolean>>();
   const historyLimit = Math.max(1, Math.min(200, context.config.TELEGRAM_ISSUE_HISTORY));
   const miniapp = context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0];
   const deepLink = context.config.TELEGRAM_MINIAPP_DEEP_LINK || 'https://t.me/TinyFrensBot?startapp=party';
@@ -538,43 +539,79 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               );
           const [scrapText, scrapKeyboard] = renderScrapCard(started.state, now);
           const previousCardId = started.state.run.message_id;
-          let cardVisible = false;
-          if (!started.created && previousCardId && now <= started.state.run.join_until) {
-            const edited = await context.telegramApi.call('editMessageText', {
-              chat_id: chatId,
-              message_id: previousCardId,
-              text: scrapText,
-              parse_mode: 'HTML',
-              reply_markup: scrapKeyboard,
-            }, token);
-            const description = String(edited.data?.description || '');
-            cardVisible = (edited.status < 400 && edited.data?.ok === true) ||
-              /message is not modified/i.test(description);
-          }
-          if (!cardVisible) {
-            const sent = await context.telegramApi.call('sendMessage', {
-              chat_id: chatId,
-              text: scrapText,
-              parse_mode: 'HTML',
-              reply_markup: scrapKeyboard,
-              reply_to_message_id: messageId,
-            }, token);
-            const result = sent.data?.result;
-            const sentMessageId = result && typeof result === 'object'
-              ? Number((result as Record<string, unknown>).message_id)
-              : 0;
-            cardVisible = sent.status < 400 && sent.data?.ok === true && sentMessageId > 0;
-            if (cardVisible) {
-              setScrapMessageId(context.db, started.state.run.id, sentMessageId);
-              if (previousCardId && previousCardId !== sentMessageId) {
-                await context.telegramApi.call('deleteMessage', {
-                  chat_id: chatId,
-                  message_id: previousCardId,
-                }, token);
+          let publication = scrapCardPublications.get(started.state.run.id);
+          if (!publication) {
+            const task = (async () => {
+              let failure = 'Telegram API request failed';
+              try {
+                let visible = false;
+                if (!started.created && previousCardId && now <= started.state.run.join_until) {
+                  const edited = await context.telegramApi.call('editMessageText', {
+                    chat_id: chatId,
+                    message_id: previousCardId,
+                    text: scrapText,
+                    parse_mode: 'HTML',
+                    reply_markup: scrapKeyboard,
+                  }, token);
+                  const description = String(edited.data?.description || '');
+                  visible = (edited.status < 400 && edited.data?.ok === true) ||
+                    /message is not modified/i.test(description);
+                }
+                if (!visible) {
+                  const sent = await context.telegramApi.call('sendMessage', {
+                    chat_id: chatId,
+                    text: scrapText,
+                    parse_mode: 'HTML',
+                    reply_markup: scrapKeyboard,
+                  }, token);
+                  const result = sent.data?.result;
+                  const sentMessageId = result && typeof result === 'object'
+                    ? Number((result as Record<string, unknown>).message_id)
+                    : 0;
+                  visible = sent.status < 400 && sent.data?.ok === true && sentMessageId > 0;
+                  if (!visible) {
+                    failure = String(sent.data?.description || `Telegram returned HTTP ${sent.status}`);
+                    app.log.warn({
+                      telegramMethod: 'sendMessage',
+                      status: sent.status,
+                      description: String(sent.data?.description || ''),
+                    }, 'Telegram rejected a Scrap Run card');
+                  } else {
+                    setScrapMessageId(context.db, started.state.run.id, sentMessageId);
+                    if (previousCardId && previousCardId !== sentMessageId) {
+                      await context.telegramApi.call('deleteMessage', {
+                        chat_id: chatId,
+                        message_id: previousCardId,
+                      }, token);
+                    }
+                  }
+                }
+                if (!visible) {
+                  void context.operationalAlerts.report(
+                    'http:POST:/api/telegram/webhook',
+                    `/game could not publish its Scrap Run card in chat ${cid}`,
+                    `${failure}. Telegram will retry automatically.`
+                  );
+                }
+                return visible;
+              } catch (error) {
+                app.log.error({ err: error, runId: started.state.run.id }, 'Telegram Scrap Run delivery failed');
+                void context.operationalAlerts.report(
+                  'http:POST:/api/telegram/webhook',
+                  `/game could not publish its Scrap Run card in chat ${cid}`,
+                  `${error instanceof Error ? error.message : failure}. Telegram will retry automatically.`
+                );
+                return false;
               }
-            }
+            })();
+            publication = task.finally(() => scrapCardPublications.delete(started.state.run.id));
+            scrapCardPublications.set(started.state.run.id, publication);
           }
-          if (cardVisible && messageId) {
+          const cardVisible = await publication;
+          if (!cardVisible) {
+            return reply.status(502).send({ error: 'Telegram did not accept the Scrap Run card' });
+          }
+          if (messageId) {
             try {
               await context.telegramApi.call('deleteMessage', {
                 chat_id: chatId,

@@ -50,6 +50,7 @@ export class FetchTelegramBotApi implements TelegramBotApi {
       method: 'POST',
       headers,
       body,
+      signal: AbortSignal.timeout(8_000),
     });
     let data: Record<string, unknown> | null = null;
     try {

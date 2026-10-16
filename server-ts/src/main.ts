@@ -30,6 +30,11 @@ async function main(): Promise<void> {
     if (!config.DB_READ_ONLY) {
       workers = startWorkers(context, undefined, (worker, error) => {
         app.log.error({ err: error, worker }, 'Background worker poll failed');
+        void context.operationalAlerts.report(
+          `worker:${worker}`,
+          `${worker} background worker failed`,
+          error instanceof Error ? error.message : String(error)
+        );
       });
     }
     await app.listen({ host: config.HOST, port: config.PORT });
@@ -37,11 +42,23 @@ async function main(): Promise<void> {
     if (config.TELEGRAM_BOT_TOKEN) {
       await syncTelegramCommands(context.telegramApi, config.TELEGRAM_BOT_TOKEN).then(
         () => app.log.info('Telegram command menus synchronized'),
-        error => app.log.warn({ err: error }, 'Telegram command menu synchronization failed')
+        error => {
+          app.log.warn({ err: error }, 'Telegram command menu synchronization failed');
+          void context.operationalAlerts.report(
+            'telegram:command-sync',
+            'Telegram command menu synchronization failed',
+            error instanceof Error ? error.message : String(error)
+          );
+        }
       );
     }
   } catch (err) {
     app.log.error({ err }, 'Server startup failed');
+    await context.operationalAlerts.report(
+      'server:startup',
+      'Server startup failed',
+      err instanceof Error ? err.message : String(err)
+    );
     await workers?.stop().catch(stopError => app.log.error({ err: stopError }, 'Worker startup cleanup failed'));
     await app.close().catch(closeError => app.log.error({ err: closeError }, 'Startup cleanup failed'));
     process.exitCode = 1;
@@ -57,8 +74,13 @@ async function main(): Promise<void> {
     app.log.info({ signal }, 'Shutting down server');
     void shutdown().then(
       () => process.exit(0),
-      err => {
+      async err => {
         app.log.error({ err }, 'Error during shutdown');
+        await context.operationalAlerts.report(
+          'server:shutdown',
+          'Server shutdown failed',
+          err instanceof Error ? err.message : String(err)
+        );
         process.exit(1);
       }
     );

@@ -1,6 +1,6 @@
 import { DatabaseConnection } from '../db/connection.js';
 
-const LOBBY_SECONDS = 45;
+const LOBBY_SECONDS = 5 * 60;
 const MAX_CREW_SIZE = 4;
 export const STALE_RUN_SECONDS = 10 * 60;
 
@@ -217,7 +217,9 @@ export function renderScrapCard(
   }
 
   const seconds = Math.max(0, run.join_until - now);
-  const timer = seconds > 0 ? `${seconds}s left to join` : 'Lobby ready to resolve';
+  const timer = seconds > 0
+    ? (seconds >= 60 ? `${Math.ceil(seconds / 60)}m left to join` : `${seconds}s left to join`)
+    : 'Lobby ready to resolve';
   return [
     [
       '🛰 <b>SCRAP RUN</b>',

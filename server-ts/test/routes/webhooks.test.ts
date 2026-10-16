@@ -591,7 +591,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(command.statusCode, 200);
       assert.equal(calls[0].method, 'sendMessage');
       assert.match(String(calls[0].payload.text), /SCRAP RUN/);
-      assert.equal(calls[0].payload.reply_to_message_id, 700);
+      assert.equal(calls[0].payload.reply_to_message_id, undefined);
       assert.equal(calls[1].method, 'deleteMessage');
       assert.deepEqual(calls[1].payload, { chat_id: '-100-scrap', message_id: 700 });
 
@@ -621,7 +621,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         },
       });
-      sharedContext.now = () => 1700000061;
+      sharedContext.now = () => 1700000301;
       const resolved = await app.inject({
         method: 'POST',
         url: '/api/telegram/webhook',
@@ -642,7 +642,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         },
       });
-      sharedContext.now = () => 1700000062;
+      sharedContext.now = () => 1700000302;
       const replay = await app.inject({
         method: 'POST',
         url: '/api/telegram/webhook',
@@ -687,6 +687,100 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.deepEqual(petIds.map(row => sharedContext.economy.balance(row.pet_id)), [35, 35]);
     });
 
+    test('POST /api/telegram/webhook reports a failed Scrap Run delivery for retry', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const originalNow = sharedContext.now;
+      sharedContext.now = () => 1700020000;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          if (payload.chat_id === '969561894') {
+            return { data: { ok: true, result: { message_id: 751 } }, status: 200 };
+          }
+          return method === 'sendMessage'
+            ? { data: { ok: false, description: 'Too Many Requests' }, status: 429 }
+            : { data: { ok: true }, status: 200 };
+        },
+      };
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 250,
+          message: {
+            message_id: 750,
+            text: '/game',
+            chat: { id: '-100-failed-scrap', type: 'supergroup' },
+            from: { id: 'failed-starter', first_name: 'Ada' },
+          },
+        },
+      });
+      sharedContext.telegramApi = originalTelegramApi;
+      sharedContext.now = originalNow;
+
+      assert.equal(response.statusCode, 502, response.body);
+      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 2);
+      const alert = calls.find(call => call.payload.chat_id === '969561894');
+      assert.match(String(alert?.payload.text), /\/game could not publish/);
+      assert.equal(calls.filter(call => call.method === 'deleteMessage').length, 0);
+      const run = sharedContext.db.prepare<{ message_id: number | null }>(
+        'SELECT message_id FROM tg_scrap_runs WHERE chat_id=?'
+      ).get('-100-failed-scrap');
+      assert.equal(run?.message_id, null);
+    });
+
+    test('POST /api/telegram/webhook coalesces concurrent delivery of one Scrap Run', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const originalNow = sharedContext.now;
+      sharedContext.now = () => 1700030000;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          if (method === 'sendMessage') {
+            await new Promise(resolve => setTimeout(resolve, 20));
+            return { data: { ok: true, result: { message_id: 809 } }, status: 200 };
+          }
+          return { data: { ok: true }, status: 200 };
+        },
+      };
+      const webhook = (updateId: number, messageId: number) => app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: updateId,
+          message: {
+            message_id: messageId,
+            text: '/game',
+            chat: { id: '-100-concurrent-scrap', type: 'supergroup' },
+            from: { id: 'concurrent-starter', first_name: 'Ada' },
+          },
+        },
+      });
+
+      const responses = await Promise.all([webhook(260, 760), webhook(261, 761)]);
+      sharedContext.telegramApi = originalTelegramApi;
+      sharedContext.now = originalNow;
+
+      assert.deepEqual(
+        responses.map(response => response.statusCode),
+        [200, 200],
+        responses.map(response => response.body).join('\n')
+      );
+      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 1);
+      assert.equal(calls.filter(call => call.method === 'deleteMessage').length, 2);
+    });
+
     test('POST /api/telegram/webhook resurfaces an expired open scrap card', async () => {
       const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
       const originalTelegramApi = sharedContext.telegramApi;
@@ -720,7 +814,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
 
       sharedContext.now = () => 1700010000;
       assert.equal((await webhook(300, 800)).statusCode, 200);
-      sharedContext.now = () => 1700010100;
+      sharedContext.now = () => 1700010301;
       assert.equal((await webhook(301, 801)).statusCode, 200);
       sharedContext.telegramApi = originalTelegramApi;
       sharedContext.now = originalNow;

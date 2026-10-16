@@ -62,7 +62,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   // Error handling
-  registerErrorHandler(app);
+  registerErrorHandler(app, context);
+  app.addHook('onResponse', (request, reply, done) => {
+    if (reply.statusCode >= 500) {
+      const route = request.routeOptions.url || request.url.split('?', 1)[0];
+      void context.operationalAlerts.report(
+        `http:${request.method}:${route}`,
+        `HTTP ${reply.statusCode} from ${request.method} ${route}`
+      );
+    }
+    done();
+  });
 
   // Origin guard & CORS
   registerOriginGuard(app, context);

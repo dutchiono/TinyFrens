@@ -4,4 +4,5 @@ After=tinyfrens-server-ts.service
 
 [Service]
 Type=oneshot
+EnvironmentFile=/home/miono/tinyfrens-server/.env
 ExecStart=/home/miono/tinyfrens-ts-stage/current/scripts/server-healthcheck.sh

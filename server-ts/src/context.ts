@@ -20,6 +20,7 @@ import { TelegramModeration } from './domain/telegram-moderation.js';
 import { FetchTelegramBotApi, TelegramBotApi } from './integrations/telegram-api.js';
 import type { RealtimeHub } from './domain/realtime.js';
 import { GitHubAuth, GitHubTokenProvider } from './integrations/github-app.js';
+import { OperationalAlertSink, TelegramOperationalAlerts } from './domain/operational-alerts.js';
 
 export function getRobotCareSettings(config: Config): RobotCareSettings {
   return {
@@ -58,6 +59,7 @@ export interface AppContext {
   telegramApi: TelegramBotApi;
   telegramModeration: TelegramModeration;
   githubAuth: GitHubTokenProvider;
+  operationalAlerts: OperationalAlertSink;
   realtimeHub?: RealtimeHub;
 }
 
@@ -88,6 +90,7 @@ export function createAppContext(
     telegramApi: null as any,
     telegramModeration: null as any,
     githubAuth: null as any,
+    operationalAlerts: null as any,
     depositAllocator: overrides?.depositAllocator,
     ...overrides,
   };
@@ -123,6 +126,11 @@ export function createAppContext(
     }
   );
   ctx.githubAuth = overrides?.githubAuth ?? new GitHubAuth(config, { now: () => ctx.now() });
+  ctx.operationalAlerts = overrides?.operationalAlerts ?? new TelegramOperationalAlerts(
+    config,
+    () => ctx.telegramApi,
+    () => ctx.now()
+  );
   const careSettings = overrides?.robotCareSettings ?? (() => admin.effectiveSettings());
   ctx.robotCareSettings = careSettings;
   ctx.robotCare = overrides?.robotCare ?? new RobotCare(

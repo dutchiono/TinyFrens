@@ -41,26 +41,27 @@ describe('Telegram group scrap runs', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);
     const started = startScrapRun(db, '-200', '1', 'pet-1', 'Ada', 2_000, 0.1);
+    assert.equal(started.state.run.join_until, 2_300);
     joinScrapRun(db, started.state.run.id, '2', 'pet-2', 'Bob', 2_010);
     const balances = new Map<string, number>();
     const grant = (petId: string, credits: number) => {
       balances.set(petId, (balances.get(petId) || 0) + credits);
     };
 
-    const early = resolveScrapRun(db, started.state.run.id, '1', 2_044, 0.97, grant);
+    const early = resolveScrapRun(db, started.state.run.id, '1', 2_299, 0.97, grant);
     assert.deepEqual(early, { ok: false, reason: 'waiting', waitSeconds: 1 });
 
-    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_045, 0.97, grant);
+    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_300, 0.97, grant);
     assert.equal(resolved.ok, true);
     if (!resolved.ok) throw new Error('resolve failed');
     assert.equal(resolved.changed, true);
     assert.equal(resolved.state.run.loot_name, 'Plasma Core');
     assert.equal(resolved.state.run.reward_each, 260);
     assert.deepEqual(resolved.state.members.map(member => member.reward), [260, 260]);
-    const [, completedKeyboard] = renderScrapCard(resolved.state, 2_045);
+    const [, completedKeyboard] = renderScrapCard(resolved.state, 2_300);
     assert.equal(completedKeyboard.inline_keyboard[0][0].callback_data, 'game:new');
 
-    const replay = resolveScrapRun(db, started.state.run.id, '1', 2_046, 0.999, grant);
+    const replay = resolveScrapRun(db, started.state.run.id, '1', 2_301, 0.999, grant);
     assert.equal(replay.ok, true);
     if (!replay.ok) throw new Error('replay failed');
     assert.equal(replay.changed, false);
@@ -72,6 +73,7 @@ describe('Telegram group scrap runs', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);
     const started = startScrapRun(db, '-300', '1', 'pet-1', '<Ada>', 3_000, 0.1);
+    assert.match(renderScrapCard(started.state, 3_000)[0], /5m left to join/);
     joinScrapRun(db, started.state.run.id, '2', 'pet-2', 'Two', 3_001);
     joinScrapRun(db, started.state.run.id, '3', 'pet-3', 'Three', 3_002);
     joinScrapRun(db, started.state.run.id, '4', 'pet-4', 'Four', 3_003);
@@ -93,10 +95,10 @@ describe('Telegram group scrap runs', () => {
     initSchema(db);
     const started = startScrapRun(db, '-400', '1', 'pet-1', 'Ada', 4_000, 0.1);
 
-    assert.equal(expireStaleScrapRun(db, '-400', 4_645), false);
+    assert.equal(expireStaleScrapRun(db, '-400', 4_900), false);
     assert.equal(getOpenScrapRun(db, '-400')?.run.id, started.state.run.id);
 
-    assert.equal(expireStaleScrapRun(db, '-400', 4_646), true);
+    assert.equal(expireStaleScrapRun(db, '-400', 4_901), true);
     assert.equal(getOpenScrapRun(db, '-400'), undefined);
     assert.equal(getScrapState(db, started.state.run.id)?.run.status, 'expired');
     db.close();
