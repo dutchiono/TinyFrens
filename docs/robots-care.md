@@ -1,5 +1,9 @@
 # Robots v1 Care System — design plan
 
+> **Historical plan:** The FRENS-credit prices, daily allowance, game earn-back, and deposit UX
+> below describe the retired v1 economy. Account-scoped Energy now gates care and mini-games; see
+> [energy-economy-v2.md](energy-economy-v2.md) for the current design and implementation status.
+
 Status: **Building in phases.** P1 (mechanics), P2 (server care layer), P3 (admin), P4 (money —
 server core) and P4b (client wiring) ship in stacked branches; P5 follows. Live mainnet deposits are
 **not yet enabled** (§6.2, §9).

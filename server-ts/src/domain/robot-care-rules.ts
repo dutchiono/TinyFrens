@@ -14,6 +14,17 @@ export const CARE_ACTIONS = [
 
 export type CareAction = typeof CARE_ACTIONS[number];
 
+export const DEFAULT_ENERGY_COSTS: Record<CareAction, number> = {
+  feed: 4,
+  play: 5,
+  rest: 4,
+  adventure: 7,
+  clean: 4,
+  vitamin: 6,
+  scold: 4,
+  revive: 7,
+};
+
 export const FREE_ACTIONS = ['pet'] as const;
 export type FreeAction = typeof FREE_ACTIONS[number];
 

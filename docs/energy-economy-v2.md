@@ -1,7 +1,7 @@
 # Account Energy economy (v2 working design)
 
-Status: foundation only. This document records the agreed direction and the boundaries that must be
-resolved before live credits, deposits, staking, or fee routing are migrated.
+Status: account Energy and Robot-care integration implemented. Deposits, staking, holding/burn
+boosts, and fee routing remain design work and are not active.
 
 ## Vocabulary and ownership boundary
 
@@ -43,6 +43,11 @@ Spending uses rechargeable Energy first.
 At an action cost of 4–7 Energy, one Robot supports roughly one action-heavy session every six
 hours. The capacity scales with the rate, so larger holders can bank more play without an unrelated
 fixed hard cap.
+
+The initial configurable action costs are feed 4, play/mini-game 5, rest 4, adventure 7, clean 4,
+vitamin 6, scold 4, and revive 7 Energy. The rate, capacity, policy version, and individual costs are
+environment settings so testnet tuning does not require a schema change. Starting a mini-game pays
+the Play cost before the round begins.
 
 Rate and capacity settings are versioned inputs. Before a policy or entitlement changes, accrued
 Energy is settled at the old stored rate. A reduced capacity never deletes already-earned Energy;
@@ -135,10 +140,12 @@ single-use, replace older links, and expire after 15 minutes; wallet-signature r
 
 ## Delivery order
 
-1. Account Energy schema and deterministic math (this foundation).
-2. Account-scoped verified wallets and safe merge/recovery semantics.
+1. Account Energy schema and deterministic math. **Implemented.**
+2. Account-scoped verified wallets and safe merge/recovery semantics. **Implemented.**
 3. Ownership inventory that settles rate changes and fails closed when chain verification fails.
+   **Implemented at authenticated care/game access; transfer-event settlement is still required.**
 4. Adapt robot care/actions to account Energy and rename the companion stat to Stamina.
+   **Implemented for the shared web care UI and API.**
 5. Convert purchases to instant Energy with an explicit legacy-credit migration.
 6. Simulate and approve holding/staking/burn coefficients.
 7. Audit, verify, and test contracts on Base Sepolia before any production fee routing.

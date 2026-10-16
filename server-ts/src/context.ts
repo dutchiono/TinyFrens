@@ -11,6 +11,7 @@ import {
 } from './domain/companion-verifier.js';
 import { Robots } from './domain/robots-verifier.js';
 import { RobotCare, RobotCareSettings } from './domain/robot-care.js';
+import { PlayerEnergy } from './domain/player-energy.js';
 
 import { Economy, AddressPool } from './domain/economy.js';
 import { DepositRouterAllocator } from './integrations/deposit-allocator.js';
@@ -53,6 +54,7 @@ export interface AppContext {
   economy: Economy;
   depositAllocator?: any;
   robotCare: RobotCare;
+  playerEnergy: PlayerEnergy;
   robotCareSettings?: () => RobotCareSettings | null | undefined;
   admin: Admin;
   marketQuote: MarketQuote;
@@ -85,6 +87,7 @@ export function createAppContext(
     extraCompanionsVerifier: null as any,
     economy: null as any,
     robotCare: null as any,
+    playerEnergy: null as any,
     admin: null as any,
     marketQuote: null as any,
     telegramApi: null as any,
@@ -104,6 +107,7 @@ export function createAppContext(
     () => ctx.now()
   );
   ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
+  ctx.playerEnergy = overrides?.playerEnergy ?? new PlayerEnergy(db, () => ctx.now());
   const admin = overrides?.admin ?? new Admin(db, {
     token: config.ADMIN_TOKEN,
     now: () => ctx.now(),

@@ -47,19 +47,16 @@ const api = context.window.TinyFrensRobotCare;
   store.set('tinyfrens-companions', JSON.stringify([ROBOT]));
 
   // ---- formatting ----
-  assert.equal(api.fmtFrens(1500, 100), '15');
-  assert.equal(api.fmtFrens(1234, 100), '12.34');
-  assert.equal(api.fmtFrens(123456789, 100), '1,234,567.89');
-  assert.equal(api.fmtFrens(0, 100), '0');
-  assert.equal(api.fmtFrens(null, 100), null);
-  assert.equal(api.fmtFrens(500, 0), null);
-  assert.equal(api.frensLabel(1000, 100), '10 FRENS');
+  assert.equal(api.fmtEnergy(1500), '1.5');
+  assert.equal(api.fmtEnergy(1234), '1.23');
+  assert.equal(api.fmtEnergy(1234567890), '1,234,567.89');
+  assert.equal(api.fmtEnergy(0), '0');
+  assert.equal(api.fmtEnergy(null), null);
+  assert.equal(api.energyLabel(1000), '1 Energy');
 
   // ---- describe ----
-  assert.match(api.describe({free: true, charged: 0, allowance: {remaining: 7}}), /7 free actions left/);
-  assert.match(api.describe({free: true, charged: 0, allowance: {remaining: 1}}), /1 free action left/);
-  assert.match(api.describe({free: false, charged: 1500, creditsPerFrens: 100}), /Charged 15 FRENS/);
-  assert.match(api.describe({requiresPayment: true, priceFrens: 1000, balance: 200, creditsPerFrens: 100}), /costs 1,000 FRENS.*2 FRENS/s);
+  assert.match(api.describe({allowed: true, costMilli: 4000, energy: {totalMilli: 6000}}), /Used 4 Energy.*6 Energy remaining/);
+  assert.match(api.describe({allowed: false, insufficientEnergy: true, costMilli: 5000, energy: {totalMilli: 2000}}), /needs 5 Energy.*2 Energy/);
 
   // ---- server calls ----
   const body = i => JSON.stringify(calls[i].body);
@@ -79,18 +76,16 @@ const api = context.window.TinyFrensRobotCare;
   assert.equal(calls[2].path, '/api/robots/game');
   assert.equal(body(2), JSON.stringify({token: 'device', tokenId: 12, game: 'snack-catch'}));
 
-  // A rejected or unconfirmed paid action must never reach local care mutation.
+  // A rejected Energy spend must never reach local care mutation.
   store.set('tinyfrens-companions', JSON.stringify([ROBOT]));
-  context.window.confirm = () => true;
   context.window.TinyFrensTurtleAPI = async (base,path) => path.endsWith('/action')
-    ? {allowed:false,requiresPayment:true,priceFrens:1000}
-    : {allowance:{remaining:0},prices:{feed:1000}};
-  assert.equal(await api.before('feed'), false, 'insufficient balance blocks local action');
-  context.window.confirm = () => false;
-  assert.equal(await api.before('feed'), false, 'cancelled charge blocks local action');
+    ? {allowed:false,insufficientEnergy:true,costMilli:4000,energy:{totalMilli:2000}}
+    : {energy:{totalMilli:2000}};
+  assert.equal(await api.before('feed'), false, 'insufficient Energy blocks local action');
   context.window.TinyFrensTurtleAPI = async (base,path) => path.endsWith('/action')
-    ? {allowed:true,free:true} : {allowance:{remaining:1},prices:{feed:1000}};
-  assert.equal(await api.before('feed'), true, 'server-authorized free care proceeds');
+    ? {allowed:true,costMilli:4000,energy:{totalMilli:6000}} : {energy:{totalMilli:6000}};
+  assert.equal(await api.before('feed'), true, 'server-authorized Energy spend proceeds');
+  assert.equal(await api.beforeGame(), true, 'mini-game start pays the Play Energy cost');
 
   // ---- offline / unauthenticated never blocks ----
   context.window.TinyFrensTurtleAPI = async () => { throw new Error('relay down'); };
@@ -101,9 +96,9 @@ const api = context.window.TinyFrensRobotCare;
   store.delete('tinyfrens-device:https://relay.test');
   assert.equal((await api.act('feed', ROBOT)).offline, true);
 
-  // game-finished listener is registered (no throw when events fire)
+  // Public helpers remain available to the shared care screen.
   assert.equal(typeof api.after, 'function');
   assert.equal(typeof api.refresh, 'function');
 
-  console.log('Robot care tests passed: resolution, choice, FRENS formatting, paid prompts, endpoint wiring and offline safety.');
+  console.log('Robot care tests passed: resolution, choice, Energy formatting, gating, endpoint wiring and offline safety.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

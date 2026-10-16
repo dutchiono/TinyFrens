@@ -62,11 +62,11 @@ function render(s){
   const who=s.name||'Your fren';
   $('petName').textContent=who;
   const resting=s.activity==='resting';
-  $('mood').textContent=(s.feedback||s.mood||who+' is curious.')+(resting&&!s.feedback?' · Energy +'+Engine.RULES.restPerHour+'/hour':'');
+  $('mood').textContent=(s.feedback||s.mood||who+' is curious.')+(resting&&!s.feedback?' · Stamina +'+Engine.RULES.restPerHour+'/hour':'');
   $('rest').lastChild.textContent=resting?'Wake up':'Nap';
   $('rest').firstElementChild.textContent=resting?'☀':'☾';
   $('rest').setAttribute('aria-pressed',String(resting));
-  $('rest').title=resting?'Wake up and stop resting':'Recover '+Engine.RULES.restPerHour+' energy per hour while resting';
+  $('rest').title=resting?'Wake up and stop resting':'Recover '+Engine.RULES.restPerHour+' Stamina per hour while resting';
   $('age').textContent=`Day ${Number(s.day)||0}`;
   $('stage').classList.toggle('wandering',s.mode!=='bubble');
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===s.mode));
