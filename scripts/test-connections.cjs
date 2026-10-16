@@ -40,4 +40,13 @@ for (const kind of ['sync-device','connect-device']) {
 for (const bad of ['https://evil.test/web/?sync-device=ABCDEFGHJKLM','https://www.tinyfrens.lol/web/?sync-device=not-valid','javascript:alert(1)']) {
   assert.throws(()=>context.window.TinyFrensQR.parse(bad));
 }
-console.log('Connection checks passed: four providers, deduplication, QR encode/decode and URL validation');
+const navigation = fs.readFileSync(path.join(root, 'navigation.js'), 'utf8');
+assert.match(navigation, /const updatesUrl = 'https:\/\/tinyfrens\.lol\/updates\/'/);
+assert.doesNotMatch(navigation, /new URL\('\.\.\/updates\//, 'native builds must not resolve Updates against file assets');
+assert.match(navigation, /navigator\.onLine !== false/);
+const walletLink = fs.readFileSync(path.join(root, 'wallet-link.js'), 'utf8');
+const featuredTurtle = fs.readFileSync(path.join(root, 'featured-turtle.js'), 'utf8');
+assert.match(walletLink, /Show in Telegram/);
+assert.match(walletLink, /TinyFrensSetCompanionMovement/);
+assert.doesNotMatch(featuredTurtle, /Movement settings/, 'movement controls must not remain duplicated below the NFT cards');
+console.log('Connection checks passed: providers, QR validation, NFT card controls, and native-safe Updates navigation');

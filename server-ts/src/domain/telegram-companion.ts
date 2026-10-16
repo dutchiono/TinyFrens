@@ -20,11 +20,13 @@ export async function telegramCompanion(
   position = 1
 ): Promise<VerifiedTelegramCompanion> {
   const snapshot = getDeviceSyncSnapshot(context, petId);
-  if (snapshot.selection.length === 0) throw new Error('Choose an NFT to show in TinyFrens first');
-  if (position < 1 || position > snapshot.selection.length) {
-    throw new Error(`Choose a number from 1 to ${snapshot.selection.length}`);
+  if (snapshot.telegramSelection.length === 0) {
+    throw new Error('No Telegram slots are selected. Open TinyFrens and choose Show in Telegram first');
   }
-  const item = snapshot.selection[position - 1] as Record<string, unknown>;
+  const item = snapshot.telegramSelection.find(
+    value => Number((value as Record<string, unknown>).slot) === position
+  ) as Record<string, unknown> | undefined;
+  if (!item) throw new Error(`Telegram slot ${position} is empty. Choose it in TinyFrens first`);
   const collection = String(item.originalAddress || '').toLowerCase();
   const tokenId = Number(item.tokenId);
   const addresses = context.repos.wallets.getLinkedWallets(petId);

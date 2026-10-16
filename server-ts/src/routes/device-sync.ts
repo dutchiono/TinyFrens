@@ -8,7 +8,7 @@ import {
   leaveDeviceSync,
   requestSync,
   startDeviceSync,
-  updateDeviceSyncSelection,
+  updateDeviceSyncSelections,
 } from '../domain/device-sync.js';
 import { getClientIp } from '../rate-limit.js';
 
@@ -24,8 +24,14 @@ export function registerDeviceSyncRoutes(app: FastifyInstance, context: AppConte
       const pid = tokenPet(context, body.token);
       context.rateLimiter.limit(`device-sync:state:${pid}`, 120, 60, context.now());
 
-      if ('selection' in body) {
-        const result = updateDeviceSyncSelection(context, pid, body.selection, body.revision);
+      if ('selection' in body || 'telegramSelection' in body) {
+        const result = updateDeviceSyncSelections(
+          context,
+          pid,
+          'selection' in body ? body.selection : undefined,
+          'telegramSelection' in body ? body.telegramSelection : undefined,
+          body.revision
+        );
         if (result.conflict) {
           return reply
             .header('Cache-Control', 'no-store')

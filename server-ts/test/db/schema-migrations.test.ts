@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDbConnection } from '../../src/db/connection.js';
 import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
-import { migrateWalletLinks, runMigrations } from '../../src/db/migrations.js';
+import { migrateDeviceSyncTelegramSelection, migrateWalletLinks, runMigrations } from '../../src/db/migrations.js';
 
 describe('Database: Schema & Migrations', () => {
   test('initializes every permanent table and index on a fresh database', () => {
@@ -84,6 +84,28 @@ describe('Database: Schema & Migrations', () => {
     const pet = db.prepare<{ profile: string }>('SELECT profile FROM pets WHERE id=?').get('pet-1');
     assert.strictEqual(pet?.profile, '{}');
 
+    db.close();
+  });
+
+  test('migrates existing screen selections into independent Telegram slots once', () => {
+    const db = createDbConnection(':memory:');
+    db.exec('CREATE TABLE device_sync_accounts(account TEXT PRIMARY KEY, revision INTEGER NOT NULL, selection TEXT NOT NULL);');
+    db.prepare('INSERT INTO device_sync_accounts VALUES(?, ?, ?)').run('account-1', 4, JSON.stringify([
+      { chainId: 8453, originalAddress: '0x8d446c126d4873bfa3eb195b7f0094acc1187a75', tokenId: 7, motion: { mode: 'roam', speed: 60, size: 80 } },
+    ]));
+
+    migrateDeviceSyncTelegramSelection(db);
+    migrateDeviceSyncTelegramSelection(db);
+    const row = db.prepare<{ revision: number; telegram_selection: string }>(
+      'SELECT revision, telegram_selection FROM device_sync_accounts WHERE account=?'
+    ).get('account-1');
+    assert.equal(row?.revision, 4);
+    assert.deepEqual(JSON.parse(row?.telegram_selection || '[]'), [{
+      chainId: 8453,
+      originalAddress: '0x8d446c126d4873bfa3eb195b7f0094acc1187a75',
+      tokenId: 7,
+      slot: 1,
+    }]);
     db.close();
   });
 });

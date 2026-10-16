@@ -18,6 +18,29 @@ export interface CompanionSelectionItem {
   motion: CompanionMotion;
 }
 
+export interface TelegramSelectionItem {
+  chainId: number;
+  originalAddress: string;
+  tokenId: number;
+  slot: number;
+}
+
+function companionIdentity(item: Record<string, unknown>): Omit<TelegramSelectionItem, 'slot'> {
+  const chainId = Number(item.chainId);
+  const originalAddress = String(item.originalAddress ?? '').toLowerCase();
+  const tokenId = item.tokenId;
+  if (
+    !SUPPORTED_DEVICE_COLLECTIONS.has(`${chainId}:${originalAddress}`) ||
+    typeof tokenId !== 'number' ||
+    !Number.isInteger(tokenId) ||
+    tokenId < 1 ||
+    tokenId > 10000
+  ) {
+    throw new Error('Unsupported companion');
+  }
+  return { chainId, originalAddress, tokenId };
+}
+
 export function validateCompanionSelection(value: unknown): CompanionSelectionItem[] {
   if (!Array.isArray(value) || value.length > 5) {
     throw new Error('Choose up to five companions');
@@ -30,25 +53,12 @@ export function validateCompanionSelection(value: unknown): CompanionSelectionIt
       throw new Error('Invalid companion');
     }
 
-    const chain = Number(item.chainId);
-    const address = String(item.originalAddress ?? '').toLowerCase();
-    const token = item.tokenId;
+    const identity = companionIdentity(item as Record<string, unknown>);
 
     const motion = (item.motion && typeof item.motion === 'object' ? item.motion : {}) as Record<string, unknown>;
     const mode = motion.mode ?? 'roam';
     const speed = motion.speed ?? 60;
     const size = motion.size ?? 80;
-
-    const collectionKey = `${chain}:${address}`;
-    if (
-      !SUPPORTED_DEVICE_COLLECTIONS.has(collectionKey) ||
-      typeof token !== 'number' ||
-      !Number.isInteger(token) ||
-      token < 1 ||
-      token > 10000
-    ) {
-      throw new Error('Unsupported companion');
-    }
 
     if (
       (mode !== 'roam' && mode !== 'bubble') ||
@@ -65,17 +75,15 @@ export function validateCompanionSelection(value: unknown): CompanionSelectionIt
     }
 
     const cleanItem: CompanionSelectionItem = {
-      chainId: chain,
-      originalAddress: address,
-      tokenId: token,
+      ...identity,
       motion: { mode, speed, size },
     };
 
     const isDuplicate = result.some(
       existing =>
-        existing.chainId === chain &&
-        existing.originalAddress === address &&
-        existing.tokenId === token
+        existing.chainId === identity.chainId &&
+        existing.originalAddress === identity.originalAddress &&
+        existing.tokenId === identity.tokenId
     );
 
     if (isDuplicate) {
@@ -86,4 +94,22 @@ export function validateCompanionSelection(value: unknown): CompanionSelectionIt
   }
 
   return result;
+}
+
+export function validateTelegramSelection(value: unknown): TelegramSelectionItem[] {
+  if (!Array.isArray(value) || value.length > 5) throw new Error('Choose up to five Telegram slots');
+  const result = value.map(raw => {
+    if (!raw || typeof raw !== 'object') throw new Error('Invalid Telegram companion');
+    const identity = companionIdentity(raw as Record<string, unknown>);
+    const slot = (raw as Record<string, unknown>).slot;
+    if (typeof slot !== 'number' || !Number.isInteger(slot) || slot < 1 || slot > 5) {
+      throw new Error('Telegram slots must be numbered 1 through 5');
+    }
+    return { ...identity, slot };
+  });
+  const identities = new Set(result.map(item => `${item.chainId}:${item.originalAddress}:${item.tokenId}`));
+  const slots = new Set(result.map(item => item.slot));
+  if (identities.size !== result.length) throw new Error('Duplicate Telegram companion');
+  if (slots.size !== result.length) throw new Error('Duplicate Telegram slot');
+  return result.sort((a, b) => a.slot - b.slot);
 }

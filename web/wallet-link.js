@@ -190,7 +190,7 @@
             } catch (error) { scanStatus.textContent = error.message; }
             finally { link.disabled = false; link.checked = isShowing(); }
           };
-          const toggle = document.createElement('label'); toggle.className = 'nft-show-toggle'; toggle.append(link, document.createTextNode('Show'));
+          const toggle = document.createElement('label'); toggle.className = 'nft-show-toggle'; toggle.append(link, document.createTextNode('Screen'));
           const sizeLabel = document.createElement('label'); sizeLabel.className = 'nft-size'; sizeLabel.textContent = 'Size';
           const size = document.createElement('input'); size.type = 'range'; size.dataset.companionSize = window.TinyFrensCompanionKey(nft); size.min = '48'; size.max = '128'; size.step = '1'; size.setAttribute('aria-label', nft.name + ' size');
           size.value = window.TinyFrensCompanionSize?.(nft) || 80;
@@ -199,7 +199,52 @@
           const saveSize = async () => { try { await window.TinyFrensSetCompanionSize(nft, Number(size.value), isShowing()); } catch (error) { scanStatus.textContent = error.message; } };
           size.oninput = () => { sizeValue.value = size.value; clearTimeout(sizeTimer); sizeTimer = setTimeout(saveSize, 100); };
           size.onchange = () => { clearTimeout(sizeTimer); saveSize(); };
-          sizeLabel.append(size, sizeValue); info.append(sizeLabel); card.append(toggle);
+          sizeLabel.append(size, sizeValue);
+
+          let savedMotion = {};
+          try { savedMotion = JSON.parse(localStorage.getItem('tinyfrens-companion-motion') || '{}')[window.TinyFrensCompanionKey(nft)] || {}; } catch {}
+          const motion = window.TinyFrensCompanionMovement?.(nft) || savedMotion || {};
+          const movementLabel = document.createElement('label'); movementLabel.className = 'nft-setting'; movementLabel.textContent = 'Movement';
+          const movement = document.createElement('select'); movement.dataset.companionMovement = window.TinyFrensCompanionKey(nft);
+          for (const [value,text] of [['roam','Free roam'],['bubble','Stay put']]) {
+            const option = document.createElement('option'); option.value = value; option.textContent = text; movement.append(option);
+          }
+          movement.value = motion.mode || 'roam'; movementLabel.append(movement);
+          const speedLabel = document.createElement('label'); speedLabel.className = 'nft-size'; speedLabel.textContent = 'Speed';
+          const speed = document.createElement('input'); speed.type = 'range'; speed.min = '20'; speed.max = '140'; speed.step = '1'; speed.value = motion.speed || 60;
+          speed.dataset.companionSpeed = window.TinyFrensCompanionKey(nft); speed.disabled = movement.value === 'bubble';
+          const speedValue = document.createElement('output'); speedValue.value = speed.value; speedLabel.append(speed, speedValue);
+          const saveMovement = async () => {
+            movement.disabled = true; speed.disabled = true;
+            try {
+              await window.TinyFrensSetCompanionMovement(nft, {mode:movement.value, speed:Number(speed.value)}, isShowing());
+              scanStatus.textContent = `Saved ${nft.name} movement.`;
+            } catch (error) { scanStatus.textContent = error.message; }
+            finally { movement.disabled = false; speed.disabled = movement.value === 'bubble'; }
+          };
+          movement.onchange = saveMovement;
+          speed.oninput = () => { speedValue.value = speed.value; };
+          speed.onchange = saveMovement;
+
+          const telegramLabel = document.createElement('label'); telegramLabel.className = 'nft-setting'; telegramLabel.textContent = 'Show in Telegram';
+          const telegramSlot = document.createElement('select'); telegramSlot.dataset.telegramSlot = window.TinyFrensCompanionKey(nft);
+          for (let slot = 0; slot <= 5; slot += 1) {
+            const option = document.createElement('option'); option.value = String(slot); option.textContent = slot ? `Slot ${slot}` : 'Off'; telegramSlot.append(option);
+          }
+          telegramSlot.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
+          telegramSlot.onchange = async () => {
+            telegramSlot.disabled = true;
+            try {
+              const verified = await verify(nft);
+              if (!verified.active) throw Error('Ownership could not be verified. Refresh NFTs and try again.');
+              await window.TinyFrensTelegramSlots.setSlot(verified, Number(telegramSlot.value));
+            } catch (error) {
+              scanStatus.textContent = error.message;
+              telegramSlot.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
+            } finally { telegramSlot.disabled = false; }
+          };
+          telegramLabel.append(telegramSlot);
+          info.append(sizeLabel, movementLabel, speedLabel, telegramLabel); card.append(toggle);
         }
         matches.append(card);
       }
@@ -363,7 +408,23 @@
         input.value = motions[input.dataset.companionSize]?.size || items.find(n => window.TinyFrensCompanionKey(n) === input.dataset.companionSize)?.motion?.size || input.value;
         input.nextElementSibling.value = input.value;
       }
+      for (const select of matches.querySelectorAll('[data-companion-movement]')) {
+        if (document.activeElement === select) continue;
+        select.value = motions[select.dataset.companionMovement]?.mode || select.value;
+      }
+      for (const input of matches.querySelectorAll('[data-companion-speed]')) {
+        if (document.activeElement === input) continue;
+        input.value = motions[input.dataset.companionSpeed]?.speed || input.value;
+        input.nextElementSibling.value = input.value;
+        input.disabled = motions[input.dataset.companionSpeed]?.mode === 'bubble';
+      }
     } catch {}
+  });
+  window.addEventListener('tinyfrens-telegram-slots-changed', () => {
+    for (const select of matches.querySelectorAll('[data-telegram-slot]')) {
+      const nft = {chainId:Number(select.dataset.telegramSlot.split(':')[0]), originalAddress:select.dataset.telegramSlot.split(':')[1], tokenId:Number(select.dataset.telegramSlot.split(':')[2])};
+      select.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
+    }
   });
   initialLoad();
 })();

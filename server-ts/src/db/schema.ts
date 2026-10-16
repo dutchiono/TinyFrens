@@ -104,7 +104,7 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   },
   {
     table: 'device_sync_accounts',
-    sql: 'CREATE TABLE IF NOT EXISTS device_sync_accounts(account TEXT PRIMARY KEY, revision INTEGER NOT NULL, selection TEXT NOT NULL);',
+    sql: "CREATE TABLE IF NOT EXISTS device_sync_accounts(account TEXT PRIMARY KEY, revision INTEGER NOT NULL, selection TEXT NOT NULL, telegram_selection TEXT NOT NULL DEFAULT '[]');",
   },
   {
     table: 'device_sync_codes',

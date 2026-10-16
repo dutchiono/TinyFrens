@@ -102,7 +102,8 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.match(String(api.calls.at(-1)?.payload.text), /45-second window/);
 
     await webhook({ message: { message_id: 23, text: '/showhelp', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
-    assert.match(String(api.calls.at(-1)?.payload.text), /selected slot 1/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /Show in Telegram/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /exact Telegram slot/);
   });
 
   test('answers common help questions locally without asking the AI provider', async () => {

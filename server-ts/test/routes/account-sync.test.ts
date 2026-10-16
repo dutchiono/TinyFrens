@@ -353,6 +353,7 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
       const data = res.json();
       assert.strictEqual(data.revision, 0);
       assert.deepStrictEqual(data.selection, []);
+      assert.deepStrictEqual(data.telegramSelection, []);
       assert.strictEqual(data.devices, 1);
       assert.deepStrictEqual(data.addresses, []);
     });
@@ -497,7 +498,17 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
         method: 'POST',
         url: '/api/device-sync/state',
         headers: { origin: 'https://tinyfrens.lol' },
-        payload: { token: petA.token, revision: 0, selection: [validCompanion] },
+        payload: {
+          token: petA.token,
+          revision: 0,
+          selection: [validCompanion],
+          telegramSelection: [{
+            chainId: validCompanion.chainId,
+            originalAddress: validCompanion.originalAddress,
+            tokenId: validCompanion.tokenId,
+            slot: 2,
+          }],
+        },
       });
 
       const startRes = await app.inject({
@@ -545,6 +556,7 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
       const snapshotA = acceptRes.json();
       assert.strictEqual(snapshotA.devices, 2);
       assert.strictEqual(snapshotA.selection.length, 1);
+      assert.deepStrictEqual(snapshotA.telegramSelection.map((item: { slot: number }) => item.slot), [2]);
       assert.strictEqual(snapshotA.addresses.length, 2);
 
       // Device B state now matches Device A exactly
@@ -620,6 +632,7 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
       assert.strictEqual(soloB.devices, 1);
       assert.strictEqual(soloB.revision, 1);
       assert.strictEqual(soloB.selection.length, 1);
+      assert.deepStrictEqual(soloB.telegramSelection.map((item: { slot: number }) => item.slot), [2]);
 
       // Device A is now solo as well
       const stateA = await app.inject({

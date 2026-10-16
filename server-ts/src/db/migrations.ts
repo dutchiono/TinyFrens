@@ -47,10 +47,46 @@ export function migrateWalletLinks(db: DatabaseConnection): void {
   })();
 }
 
+/** Adds independent Telegram display slots while preserving the old /show order once. */
+export function migrateDeviceSyncTelegramSelection(db: DatabaseConnection): void {
+  const columns = db.prepare<TableColumnInfo>('PRAGMA table_info(device_sync_accounts)').all();
+  if (columns.some(column => column.name === 'telegram_selection')) return;
+
+  db.exec("ALTER TABLE device_sync_accounts ADD COLUMN telegram_selection TEXT NOT NULL DEFAULT '[]';");
+  const rows = db.prepare<{ account: string; selection: string }>(
+    'SELECT account, selection FROM device_sync_accounts'
+  ).all();
+  const update = db.prepare(
+    'UPDATE device_sync_accounts SET telegram_selection=? WHERE account=?'
+  );
+  db.transaction(() => {
+    for (const row of rows) {
+      let selection: Array<Record<string, unknown>> = [];
+      try {
+        const parsed = JSON.parse(row.selection);
+        if (Array.isArray(parsed)) selection = parsed;
+      } catch {
+        // Invalid legacy state remains unselected instead of blocking startup.
+      }
+      const telegramSelection = selection
+        .filter(item => item && typeof item === 'object')
+        .slice(0, 5)
+        .map((item, index) => ({
+          chainId: item.chainId,
+          originalAddress: item.originalAddress,
+          tokenId: item.tokenId,
+          slot: index + 1,
+        }));
+      update.run(JSON.stringify(telegramSelection), row.account);
+    }
+  })();
+}
+
 /**
  * Applies all schema definitions and backward-compatible data migrations.
  */
 export function runMigrations(db: DatabaseConnection): void {
   initSchema(db);
   migrateWalletLinks(db);
+  migrateDeviceSyncTelegramSelection(db);
 }
