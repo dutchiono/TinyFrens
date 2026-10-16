@@ -60,6 +60,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'INDEXER_ENABLED', classification: 'public', description: 'Run on-chain deposit indexer (auto/true/false)' },
   { key: 'INDEXER_LOOKBACK', classification: 'public', description: 'Block lookback distance on indexer startup' },
   { key: 'INDEXER_POLL_SECONDS', classification: 'public', description: 'Poll interval in seconds for on-chain indexer' },
+  { key: 'TESTNET_ENERGY_MILLI_PER_FRENS', classification: 'public', description: 'Testnet-only purchased Energy quote per FRENS in milli-Energy' },
 
   // Treasury
   { key: 'FRENS_TOKEN', classification: 'public', description: 'ERC-20 FRENS contract address' },
@@ -196,6 +197,9 @@ export const ConfigSchema = z.object({
   INDEXER_ENABLED: z.string().default('auto'),
   INDEXER_LOOKBACK: z.coerce.number().int().default(300),
   INDEXER_POLL_SECONDS: z.coerce.number().int().default(6),
+  TESTNET_ENERGY_MILLI_PER_FRENS: z.coerce.number().int().positive()
+    .max(Math.floor(Number.MAX_SAFE_INTEGER / 100))
+    .default(1000),
 
   // Treasury
   FRENS_TOKEN: z.string().optional(),

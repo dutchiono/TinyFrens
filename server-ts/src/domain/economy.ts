@@ -74,12 +74,32 @@ export interface DepositSession {
   token: string | null;
   expectedAmount: string;
   credits: number;
+  energyMilli: number;
+  purchaseKind: 'energy' | 'legacy_credit';
   status: string;
   chainId: number | null;
   txHash: string | null;
   created: number;
   expiresAt: number;
 }
+
+export interface DepositConfirmation {
+  status: 'confirmed' | 'duplicate';
+  sessionId: string;
+  credits: number;
+  energyMilli: number;
+  account: string | null;
+}
+
+export type EnergyPurchaseFulfiller = (purchase: {
+  petId: string;
+  energyMilli: number;
+  chainId: number;
+  txHash: string;
+  logIndex: number;
+  sessionId: string;
+  created: number;
+}) => string;
 
 export interface CreditLedgerEntry {
   delta: number;
@@ -104,7 +124,8 @@ export class Economy {
   constructor(
     db: DatabaseConnection,
     now: () => number = () => Date.now() / 1000,
-    creditsPerFrens: number = 100
+    creditsPerFrens: number = 100,
+    private readonly fulfillEnergyPurchase?: EnergyPurchaseFulfiller
   ) {
     this.db = db;
     this.now = now;
@@ -118,6 +139,8 @@ export class Economy {
         token TEXT,
         expected_amount TEXT NOT NULL,
         credits INTEGER NOT NULL,
+        energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0),
+        purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit',
         status TEXT NOT NULL,
         chain_id INTEGER,
         tx_hash TEXT,
@@ -129,11 +152,14 @@ export class Economy {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT NOT NULL,
         pet_id TEXT NOT NULL,
+        account TEXT,
         chain_id INTEGER NOT NULL,
         tx_hash TEXT NOT NULL,
         log_index INTEGER NOT NULL,
         amount TEXT NOT NULL,
         credits INTEGER NOT NULL,
+        energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0),
+        purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit',
         created INTEGER NOT NULL,
         UNIQUE(chain_id, tx_hash, log_index));
       CREATE TABLE IF NOT EXISTS credit_accounts(
@@ -167,6 +193,7 @@ export class Economy {
       chainId?: number | null;
       ttl?: number;
       sessionId?: string | null;
+      energyMilli?: number;
     } = {}
   ): DepositSession {
     if (typeof frens !== 'number' || frens <= 0) {
@@ -181,12 +208,17 @@ export class Economy {
 
     const sessionId = options.sessionId || crypto.randomBytes(16).toString('hex');
     const expectedAmount = String(weiFromFrens(frens));
-    const credits = frens * this.creditsPerFrens;
+    const energyMilli = options.energyMilli ?? 0;
+    if (!Number.isSafeInteger(energyMilli) || energyMilli < 0) {
+      throw new Error('energyMilli must be a non-negative safe integer');
+    }
+    const purchaseKind = energyMilli > 0 ? 'energy' : 'legacy_credit';
+    const credits = purchaseKind === 'energy' ? 0 : frens * this.creditsPerFrens;
 
     this.db.prepare(
       `INSERT INTO deposit_sessions
-       (id,pet_id,address,token,expected_amount,credits,status,chain_id,tx_hash,created,expires_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?)`
+       (id,pet_id,address,token,expected_amount,credits,energy_milli,purchase_kind,status,chain_id,tx_hash,created,expires_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       sessionId,
       petId,
@@ -194,6 +226,8 @@ export class Economy {
       options.token ?? null,
       expectedAmount,
       credits,
+      energyMilli,
+      purchaseKind,
       'open',
       options.chainId ?? null,
       null,
@@ -212,13 +246,15 @@ export class Economy {
       token: string | null;
       expected_amount: string;
       credits: number;
+      energy_milli: number;
+      purchase_kind: 'energy' | 'legacy_credit';
       status: string;
       chain_id: number | null;
       tx_hash: string | null;
       created: number;
       expires_at: number;
     }>(
-      `SELECT id,pet_id,address,token,expected_amount,credits,status,chain_id,tx_hash,created,expires_at
+      `SELECT id,pet_id,address,token,expected_amount,credits,energy_milli,purchase_kind,status,chain_id,tx_hash,created,expires_at
        FROM deposit_sessions WHERE id=?`
     ).get(sessionId);
 
@@ -233,6 +269,8 @@ export class Economy {
       token: row.token,
       expectedAmount: row.expected_amount,
       credits: row.credits,
+      energyMilli: row.energy_milli,
+      purchaseKind: row.purchase_kind,
       status: row.status,
       chainId: row.chain_id,
       txHash: row.tx_hash,
@@ -262,13 +300,15 @@ export class Economy {
       token: string | null;
       expected_amount: string;
       credits: number;
+      energy_milli: number;
+      purchase_kind: 'energy' | 'legacy_credit';
       status: string;
       chain_id: number | null;
       tx_hash: string | null;
       created: number;
       expires_at: number;
     }>(
-      `SELECT id,pet_id,address,token,expected_amount,credits,status,chain_id,tx_hash,created,expires_at
+      `SELECT id,pet_id,address,token,expected_amount,credits,energy_milli,purchase_kind,status,chain_id,tx_hash,created,expires_at
        FROM deposit_sessions WHERE address=? COLLATE NOCASE AND status='open' ORDER BY created DESC LIMIT 1`
     ).get(address);
 
@@ -280,6 +320,8 @@ export class Economy {
       token: row.token,
       expectedAmount: row.expected_amount,
       credits: row.credits,
+      energyMilli: row.energy_milli,
+      purchaseKind: row.purchase_kind,
       status: row.status,
       chainId: row.chain_id,
       txHash: row.tx_hash,
@@ -296,15 +338,30 @@ export class Economy {
     chainId: number,
     logIndex: number = 0,
     address?: string | null
-  ): { status: string; sessionId: string; credits: number } {
+  ): DepositConfirmation {
     const ts = Math.floor(this.now());
     const sess = this.session(sessionId);
+    const normalizedChainId = Number(chainId);
+    const normalizedTxHash = String(txHash).toLowerCase();
+    const normalizedLogIndex = Number(logIndex);
+    if (!Number.isSafeInteger(normalizedChainId) || normalizedChainId <= 0) {
+      throw new EconomyError('invalid deposit chain');
+    }
+    if (!Number.isSafeInteger(normalizedLogIndex) || normalizedLogIndex < 0) {
+      throw new EconomyError('invalid deposit log index');
+    }
+    if (!normalizedTxHash.trim()) {
+      throw new EconomyError('invalid deposit transaction hash');
+    }
+    if (sess.chainId !== null && normalizedChainId !== sess.chainId) {
+      throw new EconomyError('deposit chain does not match session');
+    }
 
     const existing = this.db.prepare<{ id: number }>(
       'SELECT id FROM deposits WHERE chain_id=? AND tx_hash=? AND log_index=?'
-    ).get(Number(chainId), String(txHash).toLowerCase(), Number(logIndex));
+    ).get(normalizedChainId, normalizedTxHash, normalizedLogIndex);
     if (existing) {
-      return { status: 'duplicate', sessionId, credits: 0 };
+      return { status: 'duplicate', sessionId, credits: 0, energyMilli: 0, account: null };
     }
 
     if (sess.status === 'open' && sess.expiresAt <= ts) {
@@ -321,33 +378,64 @@ export class Economy {
       throw new EconomyError('deposit amount below expected');
     }
 
+    if (sess.purchaseKind === 'energy' && !this.fulfillEnergyPurchase) {
+      throw new EconomyError('Energy purchase fulfillment unavailable');
+    }
+
     try {
-      this.db.prepare(
-        'INSERT INTO deposits(session_id,pet_id,chain_id,tx_hash,log_index,amount,credits,created) VALUES(?,?,?,?,?,?,?,?)'
-      ).run(
-        sessionId,
-        sess.petId,
-        Number(chainId),
-        String(txHash).toLowerCase(),
-        Number(logIndex),
-        String(amountWei),
-        sess.credits,
-        ts
-      );
+      return this.db.transaction(() => {
+        this.db.prepare(
+          `INSERT INTO deposits(
+             session_id,pet_id,account,chain_id,tx_hash,log_index,amount,credits,energy_milli,purchase_kind,created
+           ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`
+        ).run(
+          sessionId,
+          sess.petId,
+          null,
+          normalizedChainId,
+          normalizedTxHash,
+          normalizedLogIndex,
+          String(amountWei),
+          sess.credits,
+          sess.energyMilli,
+          sess.purchaseKind,
+          ts
+        );
+
+        this.db.prepare(
+          "UPDATE deposit_sessions SET status='confirmed', tx_hash=?, chain_id=? WHERE id=?"
+        ).run(normalizedTxHash, normalizedChainId, sessionId);
+
+        let account: string | null = null;
+        if (sess.purchaseKind === 'energy') {
+          account = this.fulfillEnergyPurchase!({
+            petId: sess.petId,
+            energyMilli: sess.energyMilli,
+            chainId: normalizedChainId,
+            txHash: normalizedTxHash,
+            logIndex: normalizedLogIndex,
+            sessionId,
+            created: ts,
+          });
+          this.db.prepare('UPDATE deposits SET account=? WHERE session_id=?').run(account, sessionId);
+        } else {
+          this._grant(sess.petId, sess.credits, 'deposit', 'deposit', sessionId);
+        }
+
+        return {
+          status: 'confirmed' as const,
+          sessionId,
+          credits: sess.credits,
+          energyMilli: sess.energyMilli,
+          account,
+        };
+      })();
     } catch (e: any) {
       if (String(e.message).includes('UNIQUE constraint failed')) {
-        return { status: 'duplicate', sessionId, credits: 0 };
+        return { status: 'duplicate', sessionId, credits: 0, energyMilli: 0, account: null };
       }
       throw e;
     }
-
-    this.db.prepare(
-      "UPDATE deposit_sessions SET status='confirmed', tx_hash=?, chain_id=? WHERE id=?"
-    ).run(String(txHash).toLowerCase(), Number(chainId), sessionId);
-
-    this._grant(sess.petId, sess.credits, 'deposit', 'deposit', sessionId);
-
-    return { status: 'confirmed', sessionId, credits: sess.credits };
   }
 
   // Treasury Transfers

@@ -106,8 +106,24 @@ export function createAppContext(
     config.ROBOTS_RPC_URL,
     () => ctx.now()
   );
-  ctx.economy = overrides?.economy ?? new Economy(db, () => ctx.now(), 100);
   ctx.playerEnergy = overrides?.playerEnergy ?? new PlayerEnergy(db, () => ctx.now());
+  ctx.economy = overrides?.economy ?? new Economy(
+    db,
+    () => ctx.now(),
+    100,
+    purchase => {
+      const account = ctx.repos.deviceSync.ensureAccount(purchase.petId);
+      ctx.playerEnergy.grantPurchased(
+        account,
+        purchase.energyMilli,
+        'purchase',
+        'deposit',
+        `${purchase.chainId}:${purchase.txHash}:${purchase.logIndex}`,
+        purchase.created
+      );
+      return account;
+    }
+  );
   const admin = overrides?.admin ?? new Admin(db, {
     token: config.ADMIN_TOKEN,
     now: () => ctx.now(),

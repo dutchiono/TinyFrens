@@ -7,6 +7,8 @@ export interface DepositSessionRow {
   token: string | null;
   expected_amount: string;
   credits: number;
+  energy_milli: number;
+  purchase_kind: 'energy' | 'legacy_credit';
   status: string;
   chain_id: number | null;
   tx_hash: string | null;
@@ -18,11 +20,14 @@ export interface DepositRow {
   id: number;
   session_id: string;
   pet_id: string;
+  account: string | null;
   chain_id: number;
   tx_hash: string;
   log_index: number;
   amount: string;
   credits: number;
+  energy_milli: number;
+  purchase_kind: 'energy' | 'legacy_credit';
   created: number;
 }
 
@@ -78,8 +83,8 @@ export class EconomyRepository {
   createDepositSession(session: DepositSessionRow): void {
     this.db.prepare(
       `INSERT INTO deposit_sessions(
-        id, pet_id, address, token, expected_amount, credits, status, chain_id, tx_hash, created, expires_at
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        id, pet_id, address, token, expected_amount, credits, energy_milli, purchase_kind, status, chain_id, tx_hash, created, expires_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       session.id,
       session.pet_id,
@@ -87,6 +92,8 @@ export class EconomyRepository {
       session.token,
       session.expected_amount,
       session.credits,
+      session.energy_milli,
+      session.purchase_kind,
       session.status,
       session.chain_id,
       session.tx_hash,
@@ -97,14 +104,14 @@ export class EconomyRepository {
 
   getDepositSession(id: string): DepositSessionRow | undefined {
     return this.db.prepare<DepositSessionRow>(
-      `SELECT id, pet_id, address, token, expected_amount, credits, status, chain_id, tx_hash, created, expires_at
+      `SELECT id, pet_id, address, token, expected_amount, credits, energy_milli, purchase_kind, status, chain_id, tx_hash, created, expires_at
        FROM deposit_sessions WHERE id=?`
     ).get(id);
   }
 
   getOpenSessionByAddress(address: string): DepositSessionRow | undefined {
     return this.db.prepare<DepositSessionRow>(
-      `SELECT id, pet_id, address, token, expected_amount, credits, status, chain_id, tx_hash, created, expires_at
+      `SELECT id, pet_id, address, token, expected_amount, credits, energy_milli, purchase_kind, status, chain_id, tx_hash, created, expires_at
        FROM deposit_sessions WHERE address=? COLLATE NOCASE AND status='open'`
     ).get(address);
   }
@@ -134,16 +141,19 @@ export class EconomyRepository {
   recordDeposit(deposit: Omit<DepositRow, 'id'>): number {
     const result = this.db.prepare(
       `INSERT INTO deposits(
-        session_id, pet_id, chain_id, tx_hash, log_index, amount, credits, created
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+        session_id, pet_id, account, chain_id, tx_hash, log_index, amount, credits, energy_milli, purchase_kind, created
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       deposit.session_id,
       deposit.pet_id,
+      deposit.account,
       deposit.chain_id,
       deposit.tx_hash,
       deposit.log_index,
       deposit.amount,
       deposit.credits,
+      deposit.energy_milli,
+      deposit.purchase_kind,
       deposit.created
     );
     return Number(result.lastInsertRowid);

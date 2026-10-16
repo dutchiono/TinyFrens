@@ -67,6 +67,9 @@ export function getCounts(db: DatabaseConnection, nowSec: number): Record<string
     creditAccounts: one('SELECT COUNT(*) FROM credit_accounts'),
     credits: one('SELECT COALESCE(SUM(balance),0) FROM credit_accounts'),
     deposits: one('SELECT COUNT(*) FROM deposits'),
+    energyAccounts: one('SELECT COUNT(*) FROM player_energy'),
+    purchasedEnergyMilli: one('SELECT COALESCE(SUM(purchased_milli),0) FROM player_energy'),
+    energyPurchases: one("SELECT COUNT(*) FROM deposits WHERE purchase_kind='energy'"),
     walletConflicts: one(
       'SELECT COUNT(*) FROM account_wallet_conflicts WHERE resolved_at IS NULL'
     ),
@@ -105,6 +108,8 @@ export function getEconomyView(context: AppContext): Record<string, unknown> {
     view.symbol = s.symbol;
     view.frensToken = s.frensToken;
     view.depositsEnabled = Boolean(s.depositsEnabled);
+    view.purchaseKind = s.purchaseKind;
+    view.energyMilliPerFrens = s.energyMilliPerFrens;
   } catch {
     // ignore
   }
@@ -298,6 +303,98 @@ export function registerAdminRoutes(app: FastifyInstance, context: AppContext): 
     }));
 
     return reply.status(200).send({ entries, top });
+  });
+
+  app.get('/api/admin/energy', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!guard(request, reply)) return;
+    const query = request.query as Record<string, string | undefined>;
+    let limit: number;
+    try {
+      limit = clampInt(query.limit ?? 50, 1, 200);
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
+
+    const entries = context.db.prepare<{
+      id: number;
+      account: string;
+      rechargeable_delta_milli: number;
+      purchased_delta_milli: number;
+      rechargeable_balance_milli: number;
+      purchased_balance_milli: number;
+      reason: string;
+      ref_type: string | null;
+      ref_id: string | null;
+      rate_version: number;
+      created: number;
+    }>(
+      `SELECT id, account, rechargeable_delta_milli, purchased_delta_milli,
+              rechargeable_balance_milli, purchased_balance_milli, reason,
+              ref_type, ref_id, rate_version, created
+       FROM energy_ledger ORDER BY id DESC LIMIT ?`
+    ).all(limit).map(row => ({
+      id: row.id,
+      account: row.account,
+      rechargeableDeltaMilli: row.rechargeable_delta_milli,
+      purchasedDeltaMilli: row.purchased_delta_milli,
+      rechargeableBalanceMilli: row.rechargeable_balance_milli,
+      purchasedBalanceMilli: row.purchased_balance_milli,
+      reason: row.reason,
+      refType: row.ref_type,
+      refId: row.ref_id,
+      rateVersion: row.rate_version,
+      created: row.created,
+    }));
+
+    const top = context.db.prepare<{
+      account: string;
+      rechargeable_milli: number;
+      purchased_milli: number;
+      rate_per_day_milli: number;
+      capacity_milli: number;
+      updated_at: number;
+    }>(
+      `SELECT account, rechargeable_milli, purchased_milli, rate_per_day_milli,
+              capacity_milli, updated_at
+       FROM player_energy
+       ORDER BY rechargeable_milli + purchased_milli DESC LIMIT ?`
+    ).all(limit).map(row => ({
+      account: row.account,
+      rechargeableMilli: row.rechargeable_milli,
+      purchasedMilli: row.purchased_milli,
+      totalMilli: row.rechargeable_milli + row.purchased_milli,
+      ratePerDayMilli: row.rate_per_day_milli,
+      capacityMilli: row.capacity_milli,
+      updatedAt: row.updated_at,
+    }));
+
+    const purchases = context.db.prepare<{
+      session_id: string;
+      pet_id: string;
+      account: string | null;
+      chain_id: number;
+      tx_hash: string;
+      log_index: number;
+      amount: string;
+      energy_milli: number;
+      created: number;
+    }>(
+      `SELECT session_id, pet_id, account, chain_id, tx_hash, log_index,
+              amount, energy_milli, created
+       FROM deposits WHERE purchase_kind='energy' ORDER BY id DESC LIMIT ?`
+    ).all(limit).map(row => ({
+      sessionId: row.session_id,
+      petId: row.pet_id,
+      account: row.account,
+      chainId: row.chain_id,
+      txHash: row.tx_hash,
+      logIndex: row.log_index,
+      amount: row.amount,
+      energyMilli: row.energy_milli,
+      created: row.created,
+    }));
+
+    return reply.status(200).send({ entries, top, purchases });
   });
 
   app.get('/api/admin/care', async (request: FastifyRequest, reply: FastifyReply) => {

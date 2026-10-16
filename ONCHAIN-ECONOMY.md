@@ -1,5 +1,10 @@
 # TinyFrens on-chain economy (design)
 
+> **Historical v1 design:** New testnet deposit sessions now purchase account-scoped Energy, not
+> device credits. Production deposits remain disabled. See
+> [`docs/energy-economy-v2.md`](docs/energy-economy-v2.md) for the current behavior; legacy credit
+> tables and direct treasury-transfer crediting are preserved without conversion.
+
 Status: **contracts + server ledger implemented and tested locally; no mainnet deployment from this doc.** Ship only after testnet + verified proxy deploy.
 
 ## Git while others are on the repo
@@ -132,17 +137,18 @@ Tie-break: use existing `pet_id` hash, not wallet address, so credits work befor
 | Endpoint | Notes |
 |----------|--------|
 | `GET /api/economy/status` | Token addresses, chain, feature flags. |
-| `POST /api/deposits/open` | ✅ Requires `token` + `package`; returns `{ depositId, address, token, chainId, amountWei, credits, expiresAt }`. 503 when economy disabled or no allocator configured. |
+| `POST /api/deposits/open` | ✅ Testnet only; requires `token` + `package` and a router-backed session; returns `{ depositId, address, token, chainId, amountWei, energyMilli, purchaseKind, expiresAt }`. |
 | `POST /api/deposits/status` | ✅ Requires `token` + `depositId`; returns session status. |
-| `POST /api/deposits/confirm` | ✅ Indexer callback; idempotent; optional `X-Indexer-Secret` guard. 409 on reuse/expiry, 404 unknown. |
+| `POST /api/deposits/confirm` | ✅ Indexer callback; idempotent. Energy purchases require the configured `X-Indexer-Secret`; legacy confirmations retain the optional guard. 409 on reuse/expiry, 404 unknown. |
 | `POST /api/credits/balance` | ✅ Requires `token`; returns `{ balance, history }`. |
 
 `Economy.attach()` wires these in `create_app` (`server/app.py`). Two allocator modes:
 
 - **Live on-chain (recommended)**: set `DEPOSIT_ROUTER_PROXY` + `GAME_CONTROLLER_PRIVATE_KEY` + `BASE_RPC_URL`; the server calls `DepositRouter.createSession` per open via `server/deposit_allocator.py` (`DepositRouterAllocator`, signed EIP-1559 tx, proven end-to-end against anvil in `server/test_deposit_allocator.py`).
-- **Static pool (fallback)**: comma-separated clones in `DEPOSIT_SESSION_ADDRESSES`, handed out by `AddressPool` when no live router is configured.
+- **Static pool (legacy credit only)**: `DEPOSIT_SESSION_ADDRESSES` is not accepted for new Energy purchases because it cannot bind a unique on-chain session id safely.
 
-Deposit packages: 10 / 50 / 100 FRENS → 100 credits/FRENS.
+Deposit packages: 10 / 50 / 100 FRENS. The testnet Energy quote defaults to 1 Energy/FRENS and is
+snapshotted when the session opens.
 
 Wallet tab UX: "Add credits" → pick package → show QR + copy + countdown → "Waiting for payment…" with auto-complete.
 

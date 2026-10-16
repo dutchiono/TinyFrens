@@ -20,6 +20,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ENERGY_CAPACITY_DAYS, 3);
     assert.equal(config.ROBOT_ENERGY_COST_PLAY, 5);
     assert.equal(config.ECONOMY_MODE, 'off');
+    assert.equal(config.TESTNET_ENERGY_MILLI_PER_FRENS, 1000);
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);
     assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, undefined);
     assert.equal(loadConfig({ TELEGRAM_DEPLOY_OWNER_ID: '' }).TELEGRAM_DEPLOY_OWNER_ID, undefined);
@@ -37,6 +38,7 @@ describe('Configuration Ledger & Parser', () => {
       ROBOT_ENERGY_COST_PLAY: '7',
       DB_READ_ONLY: 'true',
       TELEGRAM_DEPLOY_OWNER_ID: '969561894',
+      TESTNET_ENERGY_MILLI_PER_FRENS: '2500',
     });
 
     assert.equal(config.PORT, 9000);
@@ -48,6 +50,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ROBOT_ENERGY_COST_PLAY, 7);
     assert.equal(config.DB_READ_ONLY, true);
     assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, '969561894');
+    assert.equal(config.TESTNET_ENERGY_MILLI_PER_FRENS, 2500);
 
     const origins = getAllowedOrigins(config);
     assert.ok(origins.has('https://foo.com'));

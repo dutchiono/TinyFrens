@@ -126,11 +126,11 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   // Economy & deposits (server/economy.py)
   {
     table: 'deposit_sessions',
-    sql: 'CREATE TABLE IF NOT EXISTS deposit_sessions(id TEXT PRIMARY KEY, pet_id TEXT NOT NULL, address TEXT NOT NULL, token TEXT, expected_amount TEXT NOT NULL, credits INTEGER NOT NULL, status TEXT NOT NULL, chain_id INTEGER, tx_hash TEXT, created INTEGER NOT NULL, expires_at INTEGER NOT NULL);',
+    sql: "CREATE TABLE IF NOT EXISTS deposit_sessions(id TEXT PRIMARY KEY, pet_id TEXT NOT NULL, address TEXT NOT NULL, token TEXT, expected_amount TEXT NOT NULL, credits INTEGER NOT NULL, energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0), purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit', status TEXT NOT NULL, chain_id INTEGER, tx_hash TEXT, created INTEGER NOT NULL, expires_at INTEGER NOT NULL);",
   },
   {
     table: 'deposits',
-    sql: 'CREATE TABLE IF NOT EXISTS deposits(id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, pet_id TEXT NOT NULL, chain_id INTEGER NOT NULL, tx_hash TEXT NOT NULL, log_index INTEGER NOT NULL, amount TEXT NOT NULL, credits INTEGER NOT NULL, created INTEGER NOT NULL, UNIQUE(chain_id, tx_hash, log_index));',
+    sql: "CREATE TABLE IF NOT EXISTS deposits(id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, pet_id TEXT NOT NULL, account TEXT, chain_id INTEGER NOT NULL, tx_hash TEXT NOT NULL, log_index INTEGER NOT NULL, amount TEXT NOT NULL, credits INTEGER NOT NULL, energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0), purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit', created INTEGER NOT NULL, UNIQUE(chain_id, tx_hash, log_index));",
   },
   {
     table: 'credit_accounts',

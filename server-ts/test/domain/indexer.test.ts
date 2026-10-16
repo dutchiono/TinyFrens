@@ -125,6 +125,73 @@ describe('Domain: Indexer (Deposit & Treasury Transfer Indexers)', () => {
       ]);
     });
 
+    test('does not match an Energy session by reused address when the on-chain id differs', () => {
+      const db = createDbConnection(':memory:');
+      runMigrations(db);
+      const economy = new Economy(db, () => 1000, 100, () => 'account-1');
+      const depositAddr = '0x3333333333333333333333333333333333333333';
+      const session = economy.openSession('pet-target', depositAddr, 1, {
+        sessionId: '0x' + '11'.repeat(32),
+        token: '0x' + '22'.repeat(20),
+        chainId: 84532,
+        energyMilli: 1000,
+      });
+      const indexer = new DepositIndexer({
+        economy,
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+      });
+
+      assert.equal(
+        indexer.sessionForLog({ address: depositAddr, topics: [], transactionHash: '0x1', logIndex: 0 }, '0x' + '99'.repeat(32), depositAddr),
+        null
+      );
+      assert.equal(indexer.sessionForLog(
+        { address: depositAddr, topics: [], transactionHash: '0x1', logIndex: 0 },
+        session.id,
+        depositAddr
+      )?.id, session.id);
+    });
+
+    test('does not confirm an Energy session when the emitted token differs', async () => {
+      const db = createDbConnection(':memory:');
+      runMigrations(db);
+      let grants = 0;
+      const economy = new Economy(db, () => 1000, 100, () => {
+        grants++;
+        return 'account-1';
+      });
+      const depositAddr = '0x3333333333333333333333333333333333333333';
+      const session = economy.openSession('pet-target', depositAddr, 1, {
+        sessionId: '0x' + '11'.repeat(32),
+        token: '0x' + '22'.repeat(20),
+        chainId: 84532,
+        energyMilli: 1000,
+      });
+      const wrongTokenLog = {
+        address: depositAddr,
+        topics: [
+          DEPOSIT_TOPIC,
+          session.id,
+          '0x000000000000000000000000' + '44'.repeat(20),
+          '0x000000000000000000000000' + '99'.repeat(20),
+        ],
+        data: '0x' + (10n ** 18n).toString(16).padStart(64, '0'),
+        transactionHash: '0x' + 'aa'.repeat(32),
+        logIndex: 0,
+      };
+      const indexer = new DepositIndexer({
+        economy,
+        rpcUrl: 'http://127.0.0.1:8545',
+        chainId: 84532,
+        fetcher: async () => ({ json: async () => ({ result: [wrongTokenLog] }) }) as Response,
+      });
+
+      assert.equal(await indexer.scan(1, 1), 0);
+      assert.equal(economy.session(session.id).status, 'open');
+      assert.equal(grants, 0);
+    });
+
     test('scan credits deposit session and returns confirmed count', async () => {
       const db = createDbConnection(':memory:');
       runMigrations(db);
