@@ -25,6 +25,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'ALLOW_NATIVE_ORIGIN', classification: 'public', description: 'Allow Origin: null for native mobile/desktop apps' },
   { key: 'TRUST_PROXY', classification: 'public', description: 'Trust X-Forwarded-For headers when behind reverse proxy' },
   { key: 'LOG_LEVEL', classification: 'public', description: 'Fastify structured log level' },
+  { key: 'APP_REVISION', classification: 'public', description: 'Deployed Git revision reported by the health endpoint' },
 
   // AI
   { key: 'GEMINI_API_KEY', classification: 'secret', description: 'Google Gemini API key for conversational AI' },
@@ -142,6 +143,7 @@ export const ConfigSchema = z.object({
   ALLOW_NATIVE_ORIGIN: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   LOG_LEVEL: z.string().default('info'),
+  APP_REVISION: z.string().regex(/^[0-9a-f]{40}$/).optional(),
 
   // AI
   GEMINI_API_KEY: z.string().optional(),

@@ -1,0 +1,72 @@
+name: Deploy backend to server
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server-ts/**'
+      - 'scripts/deploy-server-release.sh'
+      - 'scripts/server-healthcheck.sh'
+      - 'scripts/check-server-deploy.mjs'
+      - 'scripts/verify-server-deploy.mjs'
+      - 'ops/systemd/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+  # Native auto-merges requested with GITHUB_TOKEN can suppress push workflows.
+  # Reconcile the deployed revision to main periodically as a second trigger.
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production-backend
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production-backend
+      url: https://tinyfrens.miono.live/health/revision
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check whether main needs deployment
+        id: needed
+        run: node scripts/check-server-deploy.mjs
+      - name: Package source revision
+        if: steps.needed.outputs.deploy == 'true'
+        run: git archive --format=tar.gz --output="$RUNNER_TEMP/server.tar.gz" "$GITHUB_SHA"
+      - name: Check that this is still the latest main revision
+        if: steps.needed.outputs.deploy == 'true'
+        id: current
+        run: |
+          latest=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            printf 'deploy=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'deploy=false\n' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy through restricted SSH command
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          DEPLOY_KEY: ${{ secrets.TF_SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.TF_SERVER_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/server-ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/server-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/server-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/server-ssh/key"
+          trap 'rm -f "$RUNNER_TEMP/server-ssh/key"' EXIT
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/server-ssh/known_hosts" \
+            -i "$RUNNER_TEMP/server-ssh/key" miono@198.71.54.203 \
+            "deploy $GITHUB_SHA" < "$RUNNER_TEMP/server.tar.gz"
+      - name: Verify exact public revision
+        if: steps.current.outputs.deploy == 'true'
+        run: node scripts/verify-server-deploy.mjs "$GITHUB_SHA"

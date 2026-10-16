@@ -50,6 +50,20 @@ describe('HTTP /health Route & Middleware Parity', () => {
     await app.close();
   });
 
+  test('GET /health/revision exposes the exact deployed revision', async () => {
+    const revision = 'a'.repeat(40);
+    const config = loadConfig({ APP_REVISION: revision });
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const app = await buildApp({ context: createAppContext(config, db) });
+
+    const response = await app.inject({ method: 'GET', url: '/health/revision' });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), { ok: true, revision });
+    await app.close();
+  });
+
   test('OPTIONS /health preflight returns 200 with CORS headers', async () => {
     const { app } = await setupTestApp();
 

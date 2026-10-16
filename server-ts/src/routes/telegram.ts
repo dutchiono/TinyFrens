@@ -39,6 +39,7 @@ import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
 import {
+  expireStaleScrapRun,
   getOpenScrapRun,
   joinScrapRun,
   renderScrapCard,
@@ -255,6 +256,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         } else if (data === 'game:new') {
           const senderUid = String(cqSender.id || '0');
           const now = Math.floor(context.now());
+          if (cqChatId) expireStaleScrapRun(context.db, String(cqChatId), now);
           const existing = cqChatId ? getOpenScrapRun(context.db, String(cqChatId)) : undefined;
           if (!cqChatId || !cqMsgId) {
             if (cqId) {
@@ -311,6 +313,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           const senderUid = String(cqSender.id || '');
           const senderName = String(cqSender.first_name || cqSender.username || 'Fren');
           const now = Math.floor(context.now());
+          if (cqChatId) expireStaleScrapRun(context.db, String(cqChatId), now);
           const result = action === 'join'
             ? joinScrapRun(
                 context.db,
@@ -520,6 +523,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           const uid = String(sender.id || '0');
           const senderPet = telegramPet(context, sender);
           const now = Math.floor(context.now());
+          expireStaleScrapRun(context.db, cid, now);
           const existing = getOpenScrapRun(context.db, cid);
           const started = existing
             ? { state: existing, created: false }

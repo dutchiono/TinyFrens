@@ -1,0 +1,7 @@
+[Unit]
+Description=Check and recover TinyFrens backend
+After=tinyfrens-server-ts.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/miono/tinyfrens-ts-stage/current/scripts/server-healthcheck.sh

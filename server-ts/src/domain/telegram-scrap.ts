@@ -2,6 +2,7 @@ import { DatabaseConnection } from '../db/connection.js';
 
 const LOBBY_SECONDS = 45;
 const MAX_CREW_SIZE = 4;
+export const STALE_RUN_SECONDS = 10 * 60;
 
 export interface ScrapRun {
   id: string;
@@ -9,7 +10,7 @@ export interface ScrapRun {
   message_id: number | null;
   starter_user_id: string;
   starter_name: string;
-  status: 'open' | 'resolved';
+  status: 'open' | 'resolved' | 'expired';
   created_at: number;
   join_until: number;
   resolved_at: number | null;
@@ -78,6 +79,19 @@ export function getOpenScrapRun(db: DatabaseConnection, chatId: string): ScrapSt
        FROM tg_scrap_runs WHERE chat_id=? AND status='open' LIMIT 1`
   ).get(chatId);
   return run ? { run, members: readMembers(db, run.id) } : undefined;
+}
+
+export function expireStaleScrapRun(
+  db: DatabaseConnection,
+  chatId: string,
+  now: number
+): boolean {
+  const result = db.prepare(
+    `UPDATE tg_scrap_runs
+        SET status='expired', resolved_at=?
+      WHERE chat_id=? AND status='open' AND join_until<?`
+  ).run(now, chatId, now - STALE_RUN_SECONDS);
+  return result.changes > 0;
 }
 
 export function startScrapRun(

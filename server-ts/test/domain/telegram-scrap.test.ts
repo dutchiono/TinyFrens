@@ -3,6 +3,9 @@ import { describe, test } from 'node:test';
 import { createDbConnection } from '../../src/db/connection.js';
 import { initSchema } from '../../src/db/schema.js';
 import {
+  expireStaleScrapRun,
+  getOpenScrapRun,
+  getScrapState,
   joinScrapRun,
   renderScrapCard,
   resolveScrapRun,
@@ -82,6 +85,20 @@ describe('Telegram group scrap runs', () => {
     assert.match(text, /&lt;Ada&gt;/);
     assert.doesNotMatch(text, /<Ada>/);
     assert.equal(keyboard.inline_keyboard[0][0].text, '🤝 Join crew (4/4)');
+    db.close();
+  });
+
+  test('expires abandoned runs after a recovery window', () => {
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const started = startScrapRun(db, '-400', '1', 'pet-1', 'Ada', 4_000, 0.1);
+
+    assert.equal(expireStaleScrapRun(db, '-400', 4_645), false);
+    assert.equal(getOpenScrapRun(db, '-400')?.run.id, started.state.run.id);
+
+    assert.equal(expireStaleScrapRun(db, '-400', 4_646), true);
+    assert.equal(getOpenScrapRun(db, '-400'), undefined);
+    assert.equal(getScrapState(db, started.state.run.id)?.run.status, 'expired');
     db.close();
   });
 });

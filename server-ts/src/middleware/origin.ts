@@ -5,6 +5,7 @@ import { AppContext } from '../context.js';
 export const PUBLIC_PATHS = new Set([
   '/',
   '/health',
+  '/health/revision',
   '/admin',
   '/admin/',
   '/admin.html',
