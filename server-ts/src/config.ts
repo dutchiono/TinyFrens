@@ -143,7 +143,10 @@ export const ConfigSchema = z.object({
   ALLOW_NATIVE_ORIGIN: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   LOG_LEVEL: z.string().default('info'),
-  APP_REVISION: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+  APP_REVISION: z.preprocess(
+    value => value === '' ? undefined : value,
+    z.string().regex(/^[0-9a-f]{40}$/).optional()
+  ),
 
   // AI
   GEMINI_API_KEY: z.string().optional(),
