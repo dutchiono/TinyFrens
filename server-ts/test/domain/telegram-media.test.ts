@@ -139,5 +139,6 @@ describe('Telegram companion GIF renderer', () => {
     assert.equal(animation.type, 'image/gif');
     assert.equal(Buffer.from(await animation.arrayBuffer()).toString('ascii'), 'GIF89a');
     assert.equal(captured?.headers, undefined);
+    assert.ok(captured?.signal instanceof AbortSignal);
   });
 });

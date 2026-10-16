@@ -14,6 +14,20 @@ archive="$base/.incoming-$revision.tar.gz"
 current="$base/current"
 revision_env="$base/current-revision.env"
 
+alert_deploy_failure() {
+  if ! systemctl --user start tinyfrens-deploy-failure-alert.service; then
+    echo 'Could not start the deployment failure alert.' >&2
+  fi
+}
+
+deploy_failed() {
+  local status=$?
+  trap - ERR
+  alert_deploy_failure
+  exit "$status"
+}
+trap deploy_failed ERR
+
 mkdir -p "$base"
 exec 9>"$base/deploy.lock"
 flock -x 9
@@ -49,6 +63,7 @@ mkdir "$stage"
 tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$stage"
 test -f "$stage/server-ts/package-lock.json"
 test -f "$stage/ops/systemd/tinyfrens-server-ts.service"
+test -f "$stage/ops/systemd/tinyfrens-deploy-failure-alert.service"
 
 export PATH="$base/toolchain/bin:$PATH"
 cd "$stage/server-ts"
@@ -82,6 +97,7 @@ rollback() {
   systemctl --user daemon-reload
   systemctl --user restart tinyfrens-server-ts.service || true
   rm -rf "$release"
+  alert_deploy_failure
   exit "$status"
 }
 trap rollback ERR
@@ -89,6 +105,7 @@ trap rollback ERR
 install -m 0644 "$release/ops/systemd/tinyfrens-server-ts.service" "$HOME/.config/systemd/user/tinyfrens-server-ts.service"
 install -m 0644 "$release/ops/systemd/tinyfrens-server-health.service" "$HOME/.config/systemd/user/tinyfrens-server-health.service"
 install -m 0644 "$release/ops/systemd/tinyfrens-server-health.timer" "$HOME/.config/systemd/user/tinyfrens-server-health.timer"
+install -m 0644 "$release/ops/systemd/tinyfrens-deploy-failure-alert.service" "$HOME/.config/systemd/user/tinyfrens-deploy-failure-alert.service"
 ln -sfn "$release" "$current"
 printf 'APP_REVISION=%s\n' "$revision" > "$revision_env"
 systemctl --user daemon-reload

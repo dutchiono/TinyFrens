@@ -1,6 +1,7 @@
 import { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { AppContext } from '../context.js';
 
-export function registerErrorHandler(app: FastifyInstance): void {
+export function registerErrorHandler(app: FastifyInstance, context: AppContext): void {
   app.setErrorHandler((error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply) => {
     let statusCode = (error as FastifyError).statusCode || 500;
     let message = error.message;
@@ -29,6 +30,15 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     message = redactSecrets(message);
+
+    if (statusCode >= 500) {
+      const route = request.routeOptions.url || request.url.split('?', 1)[0];
+      void context.operationalAlerts.report(
+        `http:${request.method}:${route}`,
+        `Unhandled HTTP ${statusCode} from ${request.method} ${route}`,
+        message
+      );
+    }
 
     reply.status(statusCode).send({ error: message });
   });

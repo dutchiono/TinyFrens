@@ -17,6 +17,21 @@ async function setup(environment: Record<string, string> = {}) {
   return app;
 }
 
+async function setupWithAlerts() {
+  const db = createDbConnection(':memory:');
+  runMigrations(db);
+  const alerts: Array<{ key: string; title: string; detail?: string }> = [];
+  const context = createAppContext(loadConfig({}), db, {
+    operationalAlerts: {
+      async report(key, title, detail) {
+        alerts.push({ key, title, detail });
+        return true;
+      },
+    },
+  });
+  return { app: await buildApp({ context }), alerts };
+}
+
 describe('application middleware parity', () => {
   test('allows Origin: null only when native origins are enabled', async () => {
     const enabled = await setup({ ALLOW_NATIVE_ORIGIN: 'true' });
@@ -83,7 +98,7 @@ describe('application middleware parity', () => {
   });
 
   test('redacts secrets from uncaught provider errors', async () => {
-    const app = await setup();
+    const { app, alerts } = await setupWithAlerts();
     app.get('/api/admin/test-redaction', async () => {
       throw new Error(`provider rejected ghp_${'a'.repeat(36)}`);
     });
@@ -91,6 +106,11 @@ describe('application middleware parity', () => {
     assert.equal(response.statusCode, 500);
     assert.deepEqual(JSON.parse(response.body), { error: 'provider rejected [REDACTED_TOKEN]' });
     assert.doesNotMatch(response.body, /ghp_/);
+    assert.equal(alerts.length, 2);
+    assert.equal(alerts[0].key, 'http:GET:/api/admin/test-redaction');
+    assert.match(alerts[0].title, /Unhandled HTTP 500/);
+    assert.doesNotMatch(alerts[0].detail || '', /ghp_/);
+    assert.match(alerts[1].title, /HTTP 500/);
     await app.close();
   });
 });
