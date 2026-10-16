@@ -133,6 +133,28 @@ export function migrateAccountWallets(db: DatabaseConnection): void {
   })();
 }
 
+/** Adds immutable purchase quotes without converting any historical credit deposits. */
+export function migrateEnergyPurchases(db: DatabaseConnection): void {
+  const sessionColumns = db.prepare<TableColumnInfo>('PRAGMA table_info(deposit_sessions)').all();
+  if (!sessionColumns.some(column => column.name === 'energy_milli')) {
+    db.exec('ALTER TABLE deposit_sessions ADD COLUMN energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0);');
+  }
+  if (!sessionColumns.some(column => column.name === 'purchase_kind')) {
+    db.exec("ALTER TABLE deposit_sessions ADD COLUMN purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit';");
+  }
+
+  const depositColumns = db.prepare<TableColumnInfo>('PRAGMA table_info(deposits)').all();
+  if (!depositColumns.some(column => column.name === 'account')) {
+    db.exec('ALTER TABLE deposits ADD COLUMN account TEXT;');
+  }
+  if (!depositColumns.some(column => column.name === 'energy_milli')) {
+    db.exec('ALTER TABLE deposits ADD COLUMN energy_milli INTEGER NOT NULL DEFAULT 0 CHECK(energy_milli >= 0);');
+  }
+  if (!depositColumns.some(column => column.name === 'purchase_kind')) {
+    db.exec("ALTER TABLE deposits ADD COLUMN purchase_kind TEXT NOT NULL DEFAULT 'legacy_credit';");
+  }
+}
+
 /**
  * Applies all schema definitions and backward-compatible data migrations.
  */
@@ -141,4 +163,5 @@ export function runMigrations(db: DatabaseConnection): void {
   migrateWalletLinks(db);
   migrateDeviceSyncTelegramSelection(db);
   migrateAccountWallets(db);
+  migrateEnergyPurchases(db);
 }

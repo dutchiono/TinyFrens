@@ -144,6 +144,15 @@ describe('Deposit Confirm Unit Tests (server/test_economy.py)', () => {
     assert.throws(() => e.confirm(s.id, '0xTX', 1n * 10n ** 18n, 84532), EconomyError);
   });
 
+  it('rejects a confirmation from a different chain than the session', () => {
+    const s = e.openSession('pet-1', ADDRESS, 10, { chainId: 84532 });
+    assert.throws(
+      () => e.confirm(s.id, '0xTX', 10n * 10n ** 18n, 8453),
+      /chain does not match/
+    );
+    assert.equal(e.session(s.id).status, 'open');
+  });
+
   it('test_expired_session_rejected', () => {
     const s = e.openSession('pet-1', ADDRESS, 10, { chainId: 84532, ttl: 900 });
     clock.advance(901);
@@ -159,6 +168,88 @@ describe('Deposit Confirm Unit Tests (server/test_economy.py)', () => {
     const s = e.openSession('pet-1', ADDRESS, 10, { chainId: 84532 });
     const result = e.confirm(s.id, '0xTX', 10n * 10n ** 18n, 84532, 0, null);
     assert.equal(result.status, 'confirmed');
+  });
+
+  it('fulfills an Energy purchase once without granting legacy credits', () => {
+    const grants: Array<{ petId: string; energyMilli: number; ref: string }> = [];
+    const energyEconomy = new Economy(db, clock.now, 100, purchase => {
+      grants.push({
+        petId: purchase.petId,
+        energyMilli: purchase.energyMilli,
+        ref: `${purchase.chainId}:${purchase.txHash}:${purchase.logIndex}`,
+      });
+      return 'account-1';
+    });
+    const session = energyEconomy.openSession('pet-1', ADDRESS, 10, {
+      chainId: 84532,
+      energyMilli: 25_000,
+    });
+
+    const result = energyEconomy.confirm(
+      session.id,
+      '0xENERGY',
+      10n * 10n ** 18n,
+      84532,
+      7
+    );
+    const duplicate = energyEconomy.confirm(
+      session.id,
+      '0xENERGY',
+      10n * 10n ** 18n,
+      84532,
+      7
+    );
+
+    assert.deepEqual(result, {
+      status: 'confirmed',
+      sessionId: session.id,
+      credits: 0,
+      energyMilli: 25_000,
+      account: 'account-1',
+    });
+    assert.equal(duplicate.status, 'duplicate');
+    assert.deepEqual(grants, [{ petId: 'pet-1', energyMilli: 25_000, ref: '84532:0xenergy:7' }]);
+    assert.equal(energyEconomy.balance('pet-1'), 0);
+    const deposit = db.prepare<{ account: string; energy_milli: number; purchase_kind: string }>(
+      'SELECT account, energy_milli, purchase_kind FROM deposits WHERE session_id=?'
+    ).get(session.id);
+    assert.deepEqual(deposit, {
+      account: 'account-1',
+      energy_milli: 25_000,
+      purchase_kind: 'energy',
+    });
+  });
+
+  it('rolls back the confirmation if Energy fulfillment fails', () => {
+    const energyEconomy = new Economy(db, clock.now, 100, () => {
+      throw new Error('grant failed');
+    });
+    const session = energyEconomy.openSession('pet-1', ADDRESS, 10, {
+      chainId: 84532,
+      energyMilli: 10_000,
+    });
+
+    assert.throws(
+      () => energyEconomy.confirm(session.id, '0xFAIL', 10n * 10n ** 18n, 84532),
+      /grant failed/
+    );
+    assert.equal(energyEconomy.session(session.id).status, 'open');
+    assert.equal(
+      db.prepare<{ count: number }>('SELECT COUNT(*) AS count FROM deposits').get()?.count,
+      0
+    );
+  });
+
+  it('does not confirm Energy purchases without a fulfiller', () => {
+    const session = e.openSession('pet-1', ADDRESS, 10, {
+      chainId: 84532,
+      energyMilli: 10_000,
+    });
+    assert.throws(
+      () => e.confirm(session.id, '0xFAIL', 10n * 10n ** 18n, 84532),
+      /fulfillment unavailable/
+    );
+    assert.equal(e.session(session.id).status, 'open');
   });
 });
 

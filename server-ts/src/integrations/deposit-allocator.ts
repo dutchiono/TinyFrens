@@ -102,7 +102,7 @@ export class DepositRouterAllocator {
     }
   }
 
-  async allocate(petId: string): Promise<[string, null, string]> {
+  async allocate(petId: string): Promise<[string, `0x${string}` | null, string]> {
     const token = this.token || '0x0000000000000000000000000000000000000000';
     const sid = sessionIdBytes(petId, token);
     const encodedParams = encodeAbiParameters(parseAbiParameters('bytes32, address'), [sid, token]);
@@ -146,7 +146,7 @@ export class DepositRouterAllocator {
     }
 
     const address = await this._readSessionAddress(sid);
-    return [address, null, sid];
+    return [address, this.token, sid];
   }
 
   async _waitReceipt(txHash: string): Promise<any> {

@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { createAppContext, AppContext } from '../../src/context.js';
 import { BetterSqliteConnection, DatabaseConnection } from '../../src/db/connection.js';
+import { initSchema } from '../../src/db/schema.js';
 import { loadConfig } from '../../src/config.js';
 import { Admin } from '../../src/domain/admin.js';
 import { MarketQuote } from '../../src/domain/market-quote.js';
@@ -149,6 +150,8 @@ describe('Admin Routes Integration Tests', () => {
     assert.deepEqual(data.overrides, {});
     assert.deepEqual(Object.keys(data.settings.prices).sort(), [...CARE_ACTIONS].sort());
     assert.equal(data.economy.treasury, '0x' + 'de'.repeat(20));
+    assert.equal(data.economy.purchaseKind, 'energy');
+    assert.equal(data.economy.energyMilliPerFrens, 1000);
     assert.equal(data.counts.registeredDevices, null); // absent table is not a fake zero
     assert.equal(data.counts.syncAccounts, null);
     assert.equal(data.audit[0].action, 'create_user');
@@ -305,6 +308,51 @@ describe('Admin Routes Integration Tests', () => {
       headers: AUTH_HEADER,
     });
     assert.equal(res.statusCode, 400);
+  });
+
+  it('reports account Energy and purchase activity', async () => {
+    initSchema(db);
+    context.playerEnergy.grantPurchased('account-1', 50_000, 'purchase', 'deposit', '84532:0xtx:0', 1000);
+    db.prepare(
+      `INSERT INTO deposits(
+         session_id, pet_id, account, chain_id, tx_hash, log_index,
+         amount, credits, energy_milli, purchase_kind, created
+       ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('session-1', 'pet-1', 'account-1', 84532, '0xtx', 0, '50000000000000000000', 0, 50_000, 'energy', 1000);
+
+    const state = await app.inject({
+      method: 'GET',
+      url: '/api/admin/state',
+      headers: AUTH_HEADER,
+    });
+    assert.equal(state.json().counts.energyAccounts, 1);
+    assert.equal(state.json().counts.purchasedEnergyMilli, 50_000);
+    assert.equal(state.json().counts.energyPurchases, 1);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/energy?limit=10',
+      headers: AUTH_HEADER,
+    });
+    assert.equal(res.statusCode, 200);
+    const data = res.json();
+    assert.equal(data.entries[0].account, 'account-1');
+    assert.equal(data.entries[0].purchasedDeltaMilli, 50_000);
+    assert.equal(data.top[0].totalMilli, 50_000);
+    assert.equal(data.purchases[0].sessionId, 'session-1');
+    assert.equal(data.purchases[0].energyMilli, 50_000);
+  });
+
+  it('guards Energy activity and validates its limit', async () => {
+    const unauthenticated = await app.inject({ method: 'GET', url: '/api/admin/energy' });
+    assert.equal(unauthenticated.statusCode, 401);
+
+    const invalid = await app.inject({
+      method: 'GET',
+      url: '/api/admin/energy?limit=0',
+      headers: AUTH_HEADER,
+    });
+    assert.equal(invalid.statusCode, 400);
   });
 
   it('care route validates day', async () => {

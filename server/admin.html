@@ -126,8 +126,8 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     <p class="section-note" id="economy"></p>
   </section>
   <section id="care-settings">
-  <h2>Care policy</h2>
-  <p class="section-note">One predictable curve controls paid care. Market data informs changes but never changes gameplay automatically.</p>
+  <h2>Legacy care policy</h2>
+  <p class="section-note">Historical per-device credit settings. Shared Robot gameplay now spends account Energy; these controls remain visible only for older surfaces.</p>
   <div class="panel">
     <div class="economy-model">
       <div><h3>Free-care rhythm</h3><p><span class="formula">4 core actions × daily care cycles</span>. Twelve free actions supports three full feed/play/rest/clean cycles; 24 supports six.</p></div>
@@ -148,8 +148,16 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   </div>
 
   </section><section id="activity">
+  <h2>Account Energy</h2>
+  <p class="section-note">Balances and immutable grants are stored in milli-Energy. Displayed values divide by 1,000.</p>
+  <div class="table-wrap"><table><thead><tr><th>Account</th><th>Δ purchased</th><th>Rechargeable</th><th>Purchased</th><th>Reason</th><th>When</th></tr></thead><tbody id="energyLedger"></tbody></table></div>
+
+  <h2>Testnet Energy purchases</h2>
+  <p class="section-note">Confirmed FRENS deposits only. Production purchases remain disabled.</p>
+  <div class="table-wrap"><table><thead><tr><th>Session</th><th>Account</th><th>Chain</th><th>FRENS amount (wei)</th><th>Energy</th><th>When</th></tr></thead><tbody id="energyPurchases"></tbody></table></div>
+
   <h2>FRENS ledger</h2>
-  <p class="section-note">Device balance entries, converted to FRENS.</p>
+  <p class="section-note">Historical device credit entries, converted to FRENS. These are not Energy.</p>
   <div class="table-wrap"><table><thead><tr><th>#</th><th>Device</th><th>Δ FRENS</th><th>Balance (FRENS)</th><th>Reason</th><th>When</th></tr></thead><tbody id="ledger"></tbody></table></div>
 
   <h2>Care usage today</h2>
@@ -395,15 +403,16 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
 
     var counts = state.counts || {}, e = state.economy || {};
     var stats = $('stats'); stats.textContent = '';
-    [['Registered devices', counts.registeredDevices], ['Sync accounts', counts.syncAccounts], ['Balance accounts', counts.creditAccounts], ['FRENS balance', counts.credits != null && e.creditsPerFrens > 0 ? Number(counts.credits / e.creditsPerFrens).toLocaleString(undefined,{maximumFractionDigits:2}) : null],
-     ['Deposits', counts.deposits], ['Care actions today', counts.careToday]].forEach(function(pair){
+    [['Registered devices', counts.registeredDevices], ['Sync accounts', counts.syncAccounts], ['Energy accounts', counts.energyAccounts], ['Purchased Energy', counts.purchasedEnergyMilli != null ? amount(counts.purchasedEnergyMilli / 1000, false) : null],
+     ['Energy purchases', counts.energyPurchases], ['Legacy deposits', counts.deposits], ['Legacy balance accounts', counts.creditAccounts], ['Legacy FRENS balance', counts.credits != null && e.creditsPerFrens > 0 ? Number(counts.credits / e.creditsPerFrens).toLocaleString(undefined,{maximumFractionDigits:2}) : null]].forEach(function(pair){
       var d = document.createElement('div'); d.className = 'status-item'; d.textContent = pair[0];
       var value = document.createElement('span'); value.textContent = pair[1] != null ? pair[1] : '—';
       d.appendChild(value); stats.appendChild(d);
     });
     $('economy').textContent = (e.enabled
       ? ('Economy: ' + (e.mode || '?') + ' · chain ' + (e.chainId || '?') + ' · ' + (e.symbol || 'FRENS') +
-         ' · deposits ' + (e.depositsEnabled ? 'on' : 'off'))
+         ' · Energy purchases ' + (e.depositsEnabled ? 'on' : 'off') +
+         (e.energyMilliPerFrens ? ' · ' + amount(e.energyMilliPerFrens / 1000, false) + ' Energy/FRENS' : ''))
       : 'Economy is not enabled on this relay.')
       + ' · treasury ' + (e.treasury || 'not set')
       + (e.maxCreditsPerTransfer && e.creditsPerFrens ? (' · cap ' + amount(e.maxCreditsPerTransfer / e.creditsPerFrens, false) + ' FRENS/transfer') : '');
@@ -438,6 +447,27 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     });
   }
 
+  function loadEnergy(){
+    return api('/api/admin/energy?limit=50').then(function(data){
+      var ledger = $('energyLedger'); ledger.textContent = '';
+      (data.entries || []).forEach(function(row){
+        var tr = document.createElement('tr');
+        [row.account, amount(row.purchasedDeltaMilli / 1000, false), amount(row.rechargeableBalanceMilli / 1000, false), amount(row.purchasedBalanceMilli / 1000, false), row.reason, when(row.created)].forEach(function(v){
+          var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        ledger.appendChild(tr);
+      });
+      var purchases = $('energyPurchases'); purchases.textContent = '';
+      (data.purchases || []).forEach(function(row){
+        var tr = document.createElement('tr');
+        [row.sessionId, row.account || 'unassigned', row.chainId, row.amount, amount(row.energyMilli / 1000, false), when(row.created)].forEach(function(v){
+          var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        purchases.appendChild(tr);
+      });
+    });
+  }
+
   function loadCare(){
     return api('/api/admin/care?limit=50').then(function(data){
       var body = $('care'); body.textContent = '';
@@ -460,7 +490,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       $('loadmsg').className = 'muted';
       showApp(state.currentUser || sessionStorage.getItem(USER_KEY));
       render();
-      return Promise.all([loadLedger(), loadCare(), loadMarket()]);
+      return Promise.all([loadEnergy(), loadLedger(), loadCare(), loadMarket()]);
     }).catch(function(err){
       if(!state) showLogin(err.message);
       else { $('loadmsg').textContent = err.message; $('loadmsg').className = 'err'; }

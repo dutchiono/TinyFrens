@@ -5,6 +5,7 @@ import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
 import {
   migrateAccountWallets,
   migrateDeviceSyncTelegramSelection,
+  migrateEnergyPurchases,
   migrateWalletLinks,
   runMigrations,
 } from '../../src/db/migrations.js';
@@ -138,6 +139,47 @@ describe('Database: Schema & Migrations', () => {
       'SELECT chosen_account, conflicting_account FROM account_wallet_conflicts WHERE address=?'
     ).all(shared);
     assert.deepEqual(conflicts, [{ chosen_account: 'account-a', conflicting_account: 'account-b' }]);
+    db.close();
+  });
+
+  test('adds Energy purchase metadata without converting historical credit deposits', () => {
+    const db = createDbConnection(':memory:');
+    db.exec(`
+      CREATE TABLE deposit_sessions(
+        id TEXT PRIMARY KEY, pet_id TEXT NOT NULL, address TEXT NOT NULL, token TEXT,
+        expected_amount TEXT NOT NULL, credits INTEGER NOT NULL, status TEXT NOT NULL,
+        chain_id INTEGER, tx_hash TEXT, created INTEGER NOT NULL, expires_at INTEGER NOT NULL
+      );
+      CREATE TABLE deposits(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, pet_id TEXT NOT NULL,
+        chain_id INTEGER NOT NULL, tx_hash TEXT NOT NULL, log_index INTEGER NOT NULL,
+        amount TEXT NOT NULL, credits INTEGER NOT NULL, created INTEGER NOT NULL,
+        UNIQUE(chain_id, tx_hash, log_index)
+      );
+    `);
+    db.prepare(
+      'INSERT INTO deposit_sessions VALUES(?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)'
+    ).run('session-1', 'pet-1', '0xabc', '10', 1000, 'confirmed', 84532, '0xtx', 100, 200);
+    db.prepare(
+      'INSERT INTO deposits(session_id, pet_id, chain_id, tx_hash, log_index, amount, credits, created) VALUES(?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run('session-1', 'pet-1', 84532, '0xtx', 0, '10', 1000, 100);
+
+    migrateEnergyPurchases(db);
+    migrateEnergyPurchases(db);
+
+    const session = db.prepare<{ credits: number; energy_milli: number; purchase_kind: string }>(
+      'SELECT credits, energy_milli, purchase_kind FROM deposit_sessions WHERE id=?'
+    ).get('session-1');
+    const deposit = db.prepare<{ credits: number; energy_milli: number; purchase_kind: string; account: string | null }>(
+      'SELECT credits, energy_milli, purchase_kind, account FROM deposits WHERE session_id=?'
+    ).get('session-1');
+    assert.deepEqual(session, { credits: 1000, energy_milli: 0, purchase_kind: 'legacy_credit' });
+    assert.deepEqual(deposit, {
+      credits: 1000,
+      energy_milli: 0,
+      purchase_kind: 'legacy_credit',
+      account: null,
+    });
     db.close();
   });
 });

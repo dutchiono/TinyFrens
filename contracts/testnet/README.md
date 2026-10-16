@@ -99,7 +99,8 @@ a fresh clone address. The clone forwards ETH to the Treasury on `receive` (ETH 
 or holds FRENS until anyone calls `sweep()` (ERC-20 session). `server/test_deposit_allocator.py` proves the
 full ERC-20 and ETH paths end-to-end against anvil.
 
-Fallback (no live router): pre-provision clones manually and list them in `DEPOSIT_SESSION_ADDRESSES`.
+`DEPOSIT_SESSION_ADDRESSES` remains a legacy-credit compatibility path. Instant-Energy purchases
+fail closed unless the allocator returns the router's unique on-chain session id.
 
 ### Upgrading
 

@@ -78,5 +78,17 @@ describe('DepositRouterAllocator Integration & Unit Tests', () => {
     assert.equal(address.toLowerCase(), cloneAddress.toLowerCase());
     assert.equal(token, null);
     assert.match(sid, /^0x[a-f0-9]{64}$/);
+
+    const configuredToken = '0x' + '11'.repeat(20);
+    const tokenAllocator = new DepositRouterAllocator(
+      ROUTER,
+      KEY,
+      84532,
+      'http://127.0.0.1:8545',
+      { token: configuredToken }
+    );
+    tokenAllocator._rpc = allocator._rpc;
+    const [, returnedToken] = await tokenAllocator.allocate('pet-token');
+    assert.equal(returnedToken?.toLowerCase(), configuredToken);
   });
 });

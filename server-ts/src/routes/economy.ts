@@ -113,6 +113,16 @@ export function getEconomySettings(context: AppContext): Record<string, unknown>
     decimals: block.decimals ?? 18,
     depositsEnabled,
     productionToken: cfg.production?.frensToken ?? null,
+    purchaseKind: rawMode === 'testnet' ? 'energy' : null,
+    energyMilliPerFrens: rawMode === 'testnet'
+      ? context.config.TESTNET_ENERGY_MILLI_PER_FRENS
+      : null,
+    packages: rawMode === 'testnet'
+      ? PACKAGES.map(frens => ({
+          frens,
+          energyMilli: frens * context.config.TESTNET_ENERGY_MILLI_PER_FRENS,
+        }))
+      : [],
   };
 
   if (rawMode === 'production' && !enabled) {
@@ -163,8 +173,8 @@ export function registerEconomyRoutes(app: FastifyInstance, context: AppContext)
   app.post('/api/deposits/open', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const s = getEconomySettings(context);
-      if (!s.enabled) {
-        throw new NotEnabled('economy is not enabled on this server');
+      if (!s.depositsEnabled || s.mode !== 'testnet') {
+        throw new NotEnabled('testnet Energy purchases are not enabled on this server');
       }
 
       const body = request.body as Record<string, unknown> | null;
@@ -189,11 +199,15 @@ export function registerEconomyRoutes(app: FastifyInstance, context: AppContext)
         }
         return reply.status(503).send({ error: 'Deposit allocator unavailable' });
       }
+      if (!alloc.sessionId) {
+        throw new NotEnabled('testnet Energy purchases require a router-backed deposit session');
+      }
 
       const session = context.economy.openSession(pid, alloc.address, rawPkg, {
         token: alloc.token,
         chainId: s.chainId as number,
         sessionId: alloc.sessionId,
+        energyMilli: rawPkg * context.config.TESTNET_ENERGY_MILLI_PER_FRENS,
       });
 
       return reply.status(200).send({
@@ -202,7 +216,8 @@ export function registerEconomyRoutes(app: FastifyInstance, context: AppContext)
         token: s.frensToken,
         chainId: s.chainId,
         amountWei: session.expectedAmount,
-        credits: session.credits,
+        energyMilli: session.energyMilli,
+        purchaseKind: session.purchaseKind,
         expiresAt: session.expiresAt,
       });
     } catch (e: any) {
@@ -232,7 +247,8 @@ export function registerEconomyRoutes(app: FastifyInstance, context: AppContext)
         status: session.status,
         address: session.address,
         amountWei: session.expectedAmount,
-        credits: session.credits,
+        energyMilli: session.energyMilli,
+        purchaseKind: session.purchaseKind,
         expiresAt: session.expiresAt,
         txHash: session.txHash,
       });
@@ -252,7 +268,11 @@ export function registerEconomyRoutes(app: FastifyInstance, context: AppContext)
         return reply.status(400).send({ error: 'Bad request' });
       }
 
+      const session = context.economy.session(String(body.depositId));
       const indexerSecret = context.config.ECONOMY_INDEXER_SECRET;
+      if (session.purchaseKind === 'energy' && !indexerSecret) {
+        return reply.status(503).send({ error: 'Energy confirmation callback is not configured' });
+      }
       if (indexerSecret && request.headers['x-indexer-secret'] !== indexerSecret) {
         return reply.status(403).send({ error: 'Forbidden' });
       }

@@ -146,19 +146,17 @@ export class DepositIndexer {
     sessionId: string,
     address: string
   ): DepositSession | null {
-    const best = this.economy.openSessionForAddress(address);
-    if (best && best.petId) {
-      return best;
-    }
     try {
       const cand = this.economy.session(sessionId);
       if (cand.address.toLowerCase() === address.toLowerCase()) {
         return cand;
       }
+      return null;
     } catch {
-      // not found
+      // Historical address-pool sessions did not have an on-chain session id.
     }
-    return null;
+    const legacy = this.economy.openSessionForAddress(address);
+    return legacy?.purchaseKind === 'legacy_credit' ? legacy : null;
   }
 
   async scan(fromBlock: number, toBlock: number): Promise<number> {
@@ -187,6 +185,9 @@ export class DepositIndexer {
 
       const session = this.sessionForLog(raw, decoded.sessionId, raw.address);
       if (!session || session.status !== 'open') {
+        continue;
+      }
+      if (session.token && decoded.token.toLowerCase() !== session.token.toLowerCase()) {
         continue;
       }
 

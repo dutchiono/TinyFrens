@@ -1,7 +1,7 @@
 # Account Energy economy (v2 working design)
 
-Status: account Energy and Robot-care integration implemented. Deposits, staking, holding/burn
-boosts, and fee routing remain design work and are not active.
+Status: account Energy, Robot-care integration, and testnet instant-Energy deposits are implemented.
+Production deposits, staking, holding/burn boosts, and fee routing remain inactive.
 
 ## Vocabulary and ownership boundary
 
@@ -80,9 +80,27 @@ Requirements before choosing coefficients:
 
 ## FRENS purchases
 
-The existing deposit purchase becomes an **instant Energy** purchase, not an exchange balance and
-not a path back to FRENS. A migration must be explicit and idempotent. Existing credit balances must
-not be silently converted until the conversion rule and customer communication are approved.
+New deposit sessions on testnet are **instant Energy** purchases, not an exchange balance and not a
+path back to FRENS. The initial quote is configurable with
+`TESTNET_ENERGY_MILLI_PER_FRENS` and defaults to 1,000 milli-Energy (1 Energy) per FRENS. The quote
+is copied into the session when it opens, so later configuration changes cannot reprice a pending
+purchase.
+
+Confirmation records the chain event and grants purchased Energy to the device's current account in
+one database transaction. The `(chain_id, tx_hash, log_index)` identity makes fulfillment
+idempotent. Account resolution happens at confirmation, so a safely recovered or merged account
+receives the purchase. If fulfillment fails, both the deposit record and session confirmation roll
+back. The confirmation chain must match the session chain. HTTP confirmation of an Energy purchase
+also requires `ECONOMY_INDEXER_SECRET`; without it, only the internal chain indexer can confirm the
+session. Opening an Energy purchase requires a router-backed session id; the reused address-pool
+fallback remains legacy-credit-only. The indexer requires that id and deposit token to match the
+open session, preventing a delayed event for a reused address from crediting a newer buyer.
+Purchased Energy is uncapped and separate from rechargeable Energy.
+
+Historical deposit sessions and balances remain `legacy_credit`; the migration labels them without
+converting or duplicating value. Direct treasury-transfer crediting also remains legacy behavior.
+Production deposit opening is disabled even if its feature flag is set. Admin state and
+`/api/admin/energy` expose the quote, totals, ledger entries, and confirmed testnet purchases.
 
 ## Staking rewards and creator fees
 
@@ -146,6 +164,6 @@ single-use, replace older links, and expire after 15 minutes; wallet-signature r
    **Implemented at authenticated care/game access; transfer-event settlement is still required.**
 4. Adapt robot care/actions to account Energy and rename the companion stat to Stamina.
    **Implemented for the shared web care UI and API.**
-5. Convert purchases to instant Energy with an explicit legacy-credit migration.
+5. Convert testnet purchases to instant Energy while preserving historical credits. **Implemented.**
 6. Simulate and approve holding/staking/burn coefficients.
 7. Audit, verify, and test contracts on Base Sepolia before any production fee routing.
