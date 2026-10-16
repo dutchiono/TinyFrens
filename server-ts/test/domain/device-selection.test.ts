@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCompanionSelection } from '../../src/domain/device-selection.js';
+import { validateCompanionSelection, validateTelegramSelection } from '../../src/domain/device-selection.js';
 
 describe('Domain: Device Companion Selection', () => {
   const validItem = {
@@ -53,6 +53,19 @@ describe('Domain: Device Companion Selection', () => {
           { ...validItem, motion: { mode: 'fly', speed: 60, size: 80 } },
         ]),
       /Invalid companion settings/
+    );
+  });
+
+  test('validates independent Telegram slots and rejects duplicate slots', () => {
+    const selection = validateTelegramSelection([
+      { ...validItem, slot: 3 },
+      { ...validItem, tokenId: 124, slot: 1 },
+    ]);
+    assert.deepEqual(selection.map(item => item.slot), [1, 3]);
+    assert.ok(!('motion' in selection[0]));
+    assert.throws(
+      () => validateTelegramSelection([{ ...validItem, slot: 1 }, { ...validItem, tokenId: 124, slot: 1 }]),
+      /Duplicate Telegram slot/
     );
   });
 });

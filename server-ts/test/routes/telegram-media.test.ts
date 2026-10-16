@@ -61,11 +61,16 @@ describe('Telegram /show media orchestration', () => {
     });
     const pet = telegramPet(context, { id: 42, first_name: 'Ada' });
     const account = context.repos.deviceSync.ensureAccount(pet.id);
-    context.repos.deviceSync.updateAccountSelection(account, JSON.stringify([{
+    context.repos.deviceSync.updateAccountSelections(account, JSON.stringify([{
       chainId: 8453,
       originalAddress: ROBOTS_CONTRACT,
       tokenId: 7,
       motion: { mode: 'roam', speed: 60, size: 80 },
+    }]), JSON.stringify([{
+      chainId: 8453,
+      originalAddress: ROBOTS_CONTRACT,
+      tokenId: 7,
+      slot: 1,
     }]), 0);
     context.repos.wallets.linkWallet(pet.id, '0x0000000000000000000000000000000000000001', 1000);
     app = await buildApp({ context });
@@ -77,7 +82,7 @@ describe('Telegram /show media orchestration', () => {
     await app.close();
   });
 
-  async function show() {
+  async function show(text = '/show', userId = 42) {
     return app.inject({
       method: 'POST',
       url: '/api/telegram/webhook',
@@ -88,9 +93,9 @@ describe('Telegram /show media orchestration', () => {
       payload: {
         message: {
           message_id: api.calls.length + 1,
-          text: '/show',
+          text,
           chat: { id: -100, type: 'group' },
-          from: { id: 42, first_name: 'Ada' },
+          from: { id: userId, first_name: 'Ada' },
         },
       },
     });
@@ -111,6 +116,36 @@ describe('Telegram /show media orchestration', () => {
     assert.equal(animationCalls[1].files, undefined);
   });
 
+  test('uses exact Telegram slots after reordering', async () => {
+    const pet = telegramPet(context, { id: 42, first_name: 'Ada' });
+    const account = context.repos.deviceSync.ensureAccount(pet.id);
+    const revision = context.repos.deviceSync.getAccountState(account)?.revision ?? -1;
+    assert.equal(context.repos.deviceSync.updateAccountSelections(account, null, JSON.stringify([{
+      chainId: 8453,
+      originalAddress: ROBOTS_CONTRACT,
+      tokenId: 7,
+      slot: 2,
+    }]), revision), true);
+
+    assert.equal((await show()).statusCode, 200);
+    assert.match(String(api.calls.at(-1)?.payload.text), /slot 1 is empty/);
+    assert.equal((await show('/show 2')).statusCode, 200);
+    assert.equal(api.calls.at(-1)?.method, 'sendAnimation');
+  });
+
+  test('explains when a selected Telegram slot has no linked wallet', async () => {
+    const pet = telegramPet(context, { id: 44, first_name: 'No Wallet' });
+    const account = context.repos.deviceSync.ensureAccount(pet.id);
+    assert.equal(context.repos.deviceSync.updateAccountSelections(account, null, JSON.stringify([{
+      chainId: 8453,
+      originalAddress: ROBOTS_CONTRACT,
+      tokenId: 7,
+      slot: 1,
+    }]), 0), true);
+    assert.equal((await show('/show', 44)).statusCode, 200);
+    assert.match(String(api.calls.at(-1)?.payload.text), /Link a wallet first/);
+  });
+
   test('explains when the Telegram account has no selected companion', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -129,7 +164,7 @@ describe('Telegram /show media orchestration', () => {
       },
     });
     assert.equal(response.statusCode, 200);
-    assert.match(String(api.calls.at(-1)?.payload.text), /Choose an NFT/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /No Telegram slots/);
     const markup = api.calls.at(-1)?.payload.reply_markup as any;
     assert.equal(markup.inline_keyboard[0][0].web_app.url, 'https://tinyfrens.lol/web/#pet');
   });

@@ -289,12 +289,14 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     return [
       '🖼 <b>Showing your NFT frens</b>',
       '',
-      '/show — Post selected slot 1.',
-      '/show 2 through /show 5 — Post another selected slot.',
+      '/show — Post Telegram slot 1.',
+      '/show 2 through /show 5 — Post that exact Telegram slot.',
       '',
-      'Telegram uses the TinyFrens account linked to your Telegram user. In TinyFrens Settings, create a sync code; then DM @TinyFrensBot with <code>/link CODE</code> and approve the request on the original device.',
+      'On each verified NFT card, use <b>Show in Telegram</b> to choose slot 1–5. This is separate from <b>Screen</b>, which controls the floating Fren on your device.',
       '',
-      'If a slot is empty or stale, open TinyFrens and refresh your account selection before trying again.',
+      'Telegram uses the TinyFrens account linked to your Telegram user. In TinyFrens Account, create a sync code; then DM @TinyFrensBot with <code>/link CODE</code> and approve the request on the original device.',
+      '',
+      'Each change is saved immediately. /show verifies current wallet ownership before posting; an empty slot or unlinked wallet returns a specific error.',
     ].join('\n');
   }
   return [
@@ -305,8 +307,8 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     '/gamehelp — Rules and timing.',
     '',
     '<b>🖼 NFT Frens</b>',
-    '/show — Post selected slot 1.',
-    '/show 2 through /show 5 — Post another selected slot.',
+    '/show — Post Telegram slot 1.',
+    '/show 2 through /show 5 — Post that exact Telegram slot.',
     '/showhelp — Account linking and slot help.',
     '/link CODE — Link an existing TinyFrens account (DM).',
     '',

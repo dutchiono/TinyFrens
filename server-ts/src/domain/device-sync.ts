@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import { AppContext } from '../context.js';
 import { normalizeCode, PAIRING_ALPHABET } from './codes.js';
-import { validateCompanionSelection } from './device-selection.js';
+import { validateCompanionSelection, validateTelegramSelection } from './device-selection.js';
 
 export interface DeviceSyncSnapshot {
   account: string;
   revision: number;
   selection: unknown[];
+  telegramSelection: unknown[];
   devices: number;
   addresses: string[];
 }
@@ -16,6 +17,7 @@ export function getDeviceSyncSnapshot(context: AppContext, pid: string): DeviceS
   const accountState = context.repos.deviceSync.getAccountState(aid);
   const revision = accountState?.revision ?? 0;
   const selection = accountState ? JSON.parse(accountState.selection) : [];
+  const telegramSelection = accountState ? JSON.parse(accountState.telegram_selection) : [];
   const devices = context.repos.deviceSync.getDevicesForAccount(aid);
   const addresses = context.repos.wallets.getLinkedWallets(pid);
 
@@ -23,6 +25,7 @@ export function getDeviceSyncSnapshot(context: AppContext, pid: string): DeviceS
     account: aid,
     revision,
     selection,
+    telegramSelection,
     devices: devices.length,
     addresses,
   };
@@ -190,8 +193,8 @@ export function leaveDeviceSync(context: AppContext, pid: string): DeviceSyncSna
 
   context.db.transaction(() => {
     context.db.prepare(
-      'UPDATE device_sync_accounts SET selection=?, revision=1 WHERE account=?'
-    ).run(JSON.stringify(old.selection), aid);
+      'UPDATE device_sync_accounts SET selection=?, telegram_selection=?, revision=1 WHERE account=?'
+    ).run(JSON.stringify(old.selection), JSON.stringify(old.telegramSelection), aid);
   })();
 
   return getDeviceSyncSnapshot(context, pid);
@@ -203,11 +206,30 @@ export function updateDeviceSyncSelection(
   selectionInput: unknown,
   revisionInput: unknown
 ): { conflict: boolean; snapshot: DeviceSyncSnapshot } {
+  return updateDeviceSyncSelections(context, pid, selectionInput, undefined, revisionInput);
+}
+
+export function updateDeviceSyncSelections(
+  context: AppContext,
+  pid: string,
+  selectionInput: unknown | undefined,
+  telegramSelectionInput: unknown | undefined,
+  revisionInput: unknown
+): { conflict: boolean; snapshot: DeviceSyncSnapshot } {
   const aid = context.repos.deviceSync.ensureAccount(pid);
-  const items = validateCompanionSelection(selectionInput);
-  const changed = context.repos.deviceSync.updateAccountSelection(
+  if (selectionInput === undefined && telegramSelectionInput === undefined) {
+    throw new Error('No device sync settings supplied');
+  }
+  const selectionJson = selectionInput === undefined
+    ? null
+    : JSON.stringify(validateCompanionSelection(selectionInput));
+  const telegramSelectionJson = telegramSelectionInput === undefined
+    ? null
+    : JSON.stringify(validateTelegramSelection(telegramSelectionInput));
+  const changed = context.repos.deviceSync.updateAccountSelections(
     aid,
-    JSON.stringify(items),
+    selectionJson,
+    telegramSelectionJson,
     Number(revisionInput)
   );
 

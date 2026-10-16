@@ -5,6 +5,7 @@ export interface DeviceSyncAccountRow {
   account: string;
   revision: number;
   selection: string;
+  telegram_selection: string;
 }
 
 export interface DeviceSyncCodeRow {
@@ -58,15 +59,15 @@ export class DeviceSyncRepository {
         newAccountId
       );
       this.db.prepare(
-        'INSERT INTO device_sync_accounts(account, revision, selection) VALUES(?, 0, ?)'
-      ).run(newAccountId, '[]');
+        'INSERT INTO device_sync_accounts(account, revision, selection, telegram_selection) VALUES(?, 0, ?, ?)'
+      ).run(newAccountId, '[]', '[]');
     })();
     return newAccountId;
   }
 
   getAccountState(account: string): DeviceSyncAccountRow | undefined {
     return this.db.prepare<DeviceSyncAccountRow>(
-      'SELECT account, revision, selection FROM device_sync_accounts WHERE account=?'
+      'SELECT account, revision, selection, telegram_selection FROM device_sync_accounts WHERE account=?'
     ).get(account);
   }
 
@@ -75,9 +76,20 @@ export class DeviceSyncRepository {
     selectionJson: string,
     expectedRevision: number
   ): boolean {
+    return this.updateAccountSelections(account, selectionJson, null, expectedRevision);
+  }
+
+  updateAccountSelections(
+    account: string,
+    selectionJson: string | null,
+    telegramSelectionJson: string | null,
+    expectedRevision: number
+  ): boolean {
     const result = this.db.prepare(
-      'UPDATE device_sync_accounts SET selection=?, revision=revision+1 WHERE account=? AND revision=?'
-    ).run(selectionJson, account, expectedRevision);
+      `UPDATE device_sync_accounts
+       SET selection=COALESCE(?, selection), telegram_selection=COALESCE(?, telegram_selection), revision=revision+1
+       WHERE account=? AND revision=?`
+    ).run(selectionJson, telegramSelectionJson, account, expectedRevision);
     return result.changes > 0;
   }
 

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfig } from './config.js';
 import { createDbConnection } from './db/connection.js';
-import { initSchema } from './db/schema.js';
+import { runMigrations } from './db/migrations.js';
 import { createAppContext } from './context.js';
 import { buildApp } from './app.js';
 import { startWorkers, Workers } from './workers.js';
@@ -13,7 +13,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const db = createDbConnection(config.DB_PATH, { readonly: config.DB_READ_ONLY });
 
-  if (!config.DB_READ_ONLY) initSchema(db);
+  if (!config.DB_READ_ONLY) runMigrations(db);
 
   const context = createAppContext(config, db);
   const app = await buildApp({
