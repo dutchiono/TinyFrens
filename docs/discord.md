@@ -69,7 +69,7 @@ not a separate game implementation.
 - Interactions Endpoint URL: `https://tinyfrens.miono.live/api/discord/interactions`
 - Terms of Service URL: `https://tinyfrens.lol/terms/`
 - Privacy Policy URL: `https://tinyfrens.lol/privacy/`
-- Linked Roles Verification URL: leave blank until linked-role metadata is implemented.
+- Linked Roles Verification URL: `https://tinyfrens.lol/discord/linked-role/`.
 
 ### Installation
 
@@ -115,7 +115,9 @@ the flow in a system browser and receive a one-time TinyFrens handoff from this 
 callback; the Discord client secret must never ship in a browser, APK, or desktop build.
 
 The account-link flow should use the Authorization Code Grant with `state` and request
-only `identify` initially. Add `guilds` only when TinyFrens actually needs to show or
-choose the user's servers, and add `guilds.members.read` only when it needs that user's
-membership or roles in a selected server. Do not request `email`, `connections`,
-`guilds.join`, or broad RPC scopes for the current feature set.
+only `identify` initially. Linked-role verification additionally requests
+`role_connections.write` so TinyFrens can publish the user's verified role metadata.
+Add `guilds` only when TinyFrens actually needs to show or choose the user's servers,
+and add `guilds.members.read` only when it needs that user's membership or roles in a
+selected server. Do not request `email`, `connections`, `guilds.join`, or broad RPC
+scopes for the current feature set.

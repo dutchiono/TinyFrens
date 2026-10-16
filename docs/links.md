@@ -7,6 +7,7 @@ This page lists key public links for TinyFrens. See also [links.md in repo root]
 - Docs: [https://tinyfrens.lol/docs/](https://tinyfrens.lol/docs/)
 - Privacy Policy: [https://tinyfrens.lol/privacy/](https://tinyfrens.lol/privacy/)
 - Terms of Service: [https://tinyfrens.lol/terms/](https://tinyfrens.lol/terms/)
+- Discord Linked Role Verification: [https://tinyfrens.lol/discord/linked-role/](https://tinyfrens.lol/discord/linked-role/)
 - GitHub: [https://github.com/dutchiono/TinyFrens](https://github.com/dutchiono/TinyFrens)
 
 ## Social
