@@ -34,6 +34,9 @@ flock -x 9
 
 if [[ -L $current ]] && [[ $(readlink -f "$current") == "$release" ]]; then
   systemctl --user restart tinyfrens-server-ts.service
+  if [[ -f $current/server-ts/dist/discord-main.js ]]; then
+    systemctl --user restart tinyfrens-discord.service
+  fi
   for _ in {1..15}; do
     if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then
       exit 0
@@ -63,6 +66,7 @@ mkdir "$stage"
 tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$stage"
 test -f "$stage/server-ts/package-lock.json"
 test -f "$stage/ops/systemd/tinyfrens-server-ts.service"
+test -f "$stage/ops/systemd/tinyfrens-discord.service"
 test -f "$stage/ops/systemd/tinyfrens-deploy-failure-alert.service"
 
 export PATH="$base/toolchain/bin:$PATH"
@@ -96,6 +100,11 @@ rollback() {
   fi
   systemctl --user daemon-reload
   systemctl --user restart tinyfrens-server-ts.service || true
+  if [[ -f $current/server-ts/dist/discord-main.js ]]; then
+    systemctl --user restart tinyfrens-discord.service || true
+  else
+    systemctl --user disable --now tinyfrens-discord.service || true
+  fi
   rm -rf "$release"
   alert_deploy_failure
   exit "$status"
@@ -103,14 +112,16 @@ rollback() {
 trap rollback ERR
 
 install -m 0644 "$release/ops/systemd/tinyfrens-server-ts.service" "$HOME/.config/systemd/user/tinyfrens-server-ts.service"
+install -m 0644 "$release/ops/systemd/tinyfrens-discord.service" "$HOME/.config/systemd/user/tinyfrens-discord.service"
 install -m 0644 "$release/ops/systemd/tinyfrens-server-health.service" "$HOME/.config/systemd/user/tinyfrens-server-health.service"
 install -m 0644 "$release/ops/systemd/tinyfrens-server-health.timer" "$HOME/.config/systemd/user/tinyfrens-server-health.timer"
 install -m 0644 "$release/ops/systemd/tinyfrens-deploy-failure-alert.service" "$HOME/.config/systemd/user/tinyfrens-deploy-failure-alert.service"
 ln -sfn "$release" "$current"
 printf 'APP_REVISION=%s\n' "$revision" > "$revision_env"
 systemctl --user daemon-reload
-systemctl --user enable --now tinyfrens-server-ts.service tinyfrens-server-health.timer
+systemctl --user enable --now tinyfrens-server-ts.service tinyfrens-discord.service tinyfrens-server-health.timer
 systemctl --user restart tinyfrens-server-ts.service
+systemctl --user restart tinyfrens-discord.service
 
 for _ in {1..15}; do
   if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then

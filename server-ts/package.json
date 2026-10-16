@@ -15,6 +15,7 @@
     "smoke": "node test/startup-smoke.mjs",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "discord": "node dist/discord-main.js",
     "indexer": "node dist/indexer-cli.js"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@fastify/websocket": "^11.3.4",
     "@xmldom/xmldom": "^0.9.12",
     "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.27.0",
     "fastify": "^5.12.7",
     "fastify-raw-body": "^6.0.2",
     "pngjs": "^7.0.0",

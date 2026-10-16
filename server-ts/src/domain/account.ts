@@ -114,6 +114,57 @@ export function telegramIdentity(
   return account;
 }
 
+export function discordIdentity(
+  context: AppContext,
+  pid: string,
+  user: Record<string, unknown>
+): string {
+  const account = context.repos.deviceSync.ensureAccount(pid);
+  const subject = String(user.id || '');
+  if (!subject) throw new Error('Discord user is missing');
+  const handle = String(user.username || '').slice(0, 32);
+  const displayName = cleanName(user.global_name || user.display_name || handle || 'Fren');
+  context.repos.accounts.upsertIdentity(
+    account,
+    'discord',
+    subject,
+    handle,
+    displayName,
+    true,
+    Math.floor(context.now())
+  );
+  return account;
+}
+
+export function discordPet(
+  context: AppContext,
+  user: Record<string, unknown>
+): { id: string; code: string } {
+  const userId = String(user.id || '');
+  if (!userId) throw new Error('No Discord user in request');
+  const existingPetId = context.repos.telegram.getPetIdForDcUser(userId);
+  const existing = existingPetId ? context.repos.pets.findById(existingPetId) : undefined;
+  let pid: string;
+  let code: string;
+  if (existingPetId && existing) {
+    pid = existingPetId;
+    code = existing.code || '';
+  } else {
+    const displayName = cleanName(user.global_name || user.display_name || user.username || 'Fren');
+    const minted = mintPet(context.db, {
+      platform: 'discord',
+      userId,
+      username: String(user.username || ''),
+      displayName,
+    });
+    pid = minted.id;
+    code = minted.code;
+    context.repos.telegram.linkDcUser(userId, pid, Math.floor(context.now()));
+  }
+  discordIdentity(context, pid, user);
+  return { id: pid, code };
+}
+
 export function readAccountProfile(
   context: AppContext,
   pid: string

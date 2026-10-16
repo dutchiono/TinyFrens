@@ -112,8 +112,11 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   // Discord
   { key: 'DISCORD_CLIENT_ID', classification: 'public', description: 'Discord application client ID' },
   { key: 'DISCORD_CLIENT_SECRET', classification: 'secret', description: 'Discord application client secret' },
+  { key: 'DISCORD_BOT_TOKEN', classification: 'secret', description: 'Discord Gateway and Bot API authentication token' },
+  { key: 'DISCORD_ALERT_USER_ID', classification: 'public', description: 'Discord user ID receiving operational failure DMs' },
   { key: 'DISCORD_REDIRECT_URI', classification: 'public', description: 'Discord OAuth redirect URI' },
   { key: 'DISCORD_PUBLIC_KEY', classification: 'secret', description: 'Discord Ed25519 interactions public key' },
+  { key: 'DISCORD_MODERATION', classification: 'public', description: 'Enable Discord message moderation and filters' },
 
   // Push
   { key: 'VAPID_PUBLIC_KEY', classification: 'public', description: 'VAPID public key for Web Push' },
@@ -236,8 +239,14 @@ export const ConfigSchema = z.object({
   // Discord
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
+  DISCORD_BOT_TOKEN: z.string().optional(),
+  DISCORD_ALERT_USER_ID: z.preprocess(
+    value => value === '' ? undefined : value,
+    z.string().regex(/^[1-9][0-9]*$/).optional()
+  ),
   DISCORD_REDIRECT_URI: z.string().optional(),
   DISCORD_PUBLIC_KEY: z.string().optional(),
+  DISCORD_MODERATION: z.enum(['true', 'false']).default('true').transform(value => value === 'true'),
 
   // Push
   VAPID_PUBLIC_KEY: z.string().optional(),

@@ -1,75 +1,350 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { REST, Routes } from 'discord.js';
 import { AppContext } from '../context.js';
 import { verifyDiscordInteraction } from '../crypto/signatures.js';
+import { discordPet } from '../domain/account.js';
+import { renderDiscordScrap } from '../domain/discord-scrap.js';
+import {
+  expireStaleScrapRun,
+  getOpenScrapRun,
+  joinScrapRun,
+  resolveScrapRun,
+  startScrapRun,
+} from '../domain/telegram-scrap.js';
+import {
+  createDiscordRest,
+  DISCORD_ADMINISTRATOR,
+  DISCORD_BAN_MEMBERS,
+  DISCORD_MANAGE_MESSAGES,
+  DISCORD_MODERATE_MEMBERS,
+  discordBanMember,
+  discordDeleteMessage,
+  discordTimeoutMember,
+  setupDiscordGuild,
+} from '../integrations/discord-api.js';
 import { exchangeDiscordCode } from '../integrations/discord.js';
+
+type DiscordObject = Record<string, unknown>;
+
+function interactionUser(data: DiscordObject): DiscordObject {
+  const member = data.member as DiscordObject | undefined;
+  return (member?.user as DiscordObject | undefined) || (data.user as DiscordObject | undefined) || {};
+}
+
+function commandOption(command: DiscordObject, name: string): unknown {
+  const options = Array.isArray(command.options) ? command.options as DiscordObject[] : [];
+  return options.find(option => option.name === name)?.value;
+}
+
+function resolvedUser(command: DiscordObject, userId: string): DiscordObject {
+  const resolved = command.resolved as DiscordObject | undefined;
+  const users = resolved?.users as DiscordObject | undefined;
+  return users?.[userId] as DiscordObject | undefined || { id: userId };
+}
+
+function resolvedMember(command: DiscordObject, userId: string): DiscordObject {
+  const resolved = command.resolved as DiscordObject | undefined;
+  const members = resolved?.members as DiscordObject | undefined;
+  return members?.[userId] as DiscordObject | undefined || {};
+}
+
+function hasPermission(value: unknown, permission: bigint): boolean {
+  try {
+    const permissions = BigInt(String(value || '0'));
+    return (permissions & DISCORD_ADMINISTRATOR) !== 0n || (permissions & permission) !== 0n;
+  } catch {
+    return false;
+  }
+}
+
+function message(content: string, options: { ephemeral?: boolean; users?: string[]; components?: unknown[] } = {}) {
+  return {
+    type: 4,
+    data: {
+      content,
+      flags: options.ephemeral ? 64 : undefined,
+      components: options.components,
+      allowed_mentions: { parse: [], users: options.users || [] },
+    },
+  };
+}
+
+function updateMessage(content: string, components: unknown[]) {
+  return { type: 7, data: { content, components, allowed_mentions: { parse: [] } } };
+}
+
+function chatKey(guildId: string, channelId: string): string {
+  return `dc:${guildId}:${channelId}`;
+}
+
+async function applyDiscordWarning(
+  context: AppContext,
+  rest: REST,
+  interaction: DiscordObject,
+  targetId: string,
+  reason: string,
+  sourceMessageId?: string
+): Promise<{ content: string; users: string[] }> {
+  const guildId = String(interaction.guild_id || '');
+  const channelId = String(interaction.channel_id || '');
+  const command = interaction.data as DiscordObject;
+  const invoker = interactionUser(interaction);
+  const target = resolvedUser(command, targetId);
+  const targetMember = resolvedMember(command, targetId);
+  if (!guildId || !channelId) throw new Error('Warnings can only be used inside a server.');
+  if (!hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MODERATE_MEMBERS)) {
+    throw new Error('You need Timeout Members to use this command.');
+  }
+  if (target.bot === true) throw new Error('The warning ladder is for members, not bots.');
+  if (targetId === String(invoker.id || '')) throw new Error('You cannot warn yourself.');
+  if (hasPermission(targetMember.permissions, DISCORD_ADMINISTRATOR)) throw new Error('TinyFrens will not warn a server administrator.');
+
+  if (sourceMessageId) await discordDeleteMessage(rest, channelId, sourceMessageId);
+  const key = `dc:${guildId}`;
+  const previous = context.repos.telegram.getModerationWarnings(key, targetId);
+  const count = Math.min(3, (previous?.warnings ?? 0) + 1);
+  const now = Math.floor(context.now());
+  let mutedUntil = previous?.muted_until ?? null;
+  let content: string;
+  if (count === 1) {
+    content = `⚠️ <@${targetId}> warning 1/3. Please keep it civil.`;
+  } else if (count === 2) {
+    mutedUntil = now + 10 * 60;
+    await discordTimeoutMember(rest, guildId, targetId, new Date(mutedUntil * 1000), reason || 'TinyFrens warning 2/3');
+    content = `🔇 <@${targetId}> warning 2/3. Muted for 10 minutes.`;
+  } else {
+    await discordBanMember(rest, guildId, targetId, reason || 'TinyFrens warning 3/3');
+    content = `🚫 <@${targetId}> warning 3/3. Banned from the server.`;
+  }
+  if (reason) content += `\nReason: ${reason}`;
+  context.repos.telegram.recordModerationWarning({
+    chat_id: key,
+    user_id: targetId,
+    warnings: count,
+    last_reason: reason,
+    warned_by: String(invoker.id || ''),
+    muted_until: mutedUntil,
+    source_message_id: null,
+    updated_at: now,
+  });
+  return { content, users: [targetId] };
+}
+
+async function handleDiscordCommand(
+  context: AppContext,
+  rest: REST,
+  interaction: DiscordObject
+): Promise<Record<string, unknown>> {
+  const command = interaction.data as DiscordObject;
+  const name = String(command.name || '').toLowerCase();
+  const guildId = String(interaction.guild_id || '');
+  const channelId = String(interaction.channel_id || '');
+  const user = interactionUser(interaction);
+
+  if (command.type === 3 && name === 'warn message') {
+    const targetMessageId = String(command.target_id || '');
+    const messages = (command.resolved as DiscordObject | undefined)?.messages as DiscordObject | undefined;
+    const targetMessage = messages?.[targetMessageId] as DiscordObject | undefined;
+    const author = targetMessage?.author as DiscordObject | undefined;
+    const targetId = String(author?.id || '');
+    if (!targetId) return message('Could not identify that message author.', { ephemeral: true });
+    try {
+      const result = await applyDiscordWarning(context, rest, interaction, targetId, '', targetMessageId);
+      return message(result.content, { users: result.users });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'The warning failed.', { ephemeral: true });
+    }
+  }
+
+  if (name === 'game') {
+    if (!guildId || !channelId) return message('Run `/game` in a server channel.', { ephemeral: true });
+    const key = chatKey(guildId, channelId);
+    const now = Math.floor(context.now());
+    expireStaleScrapRun(context.db, key, now);
+    const existing = getOpenScrapRun(context.db, key);
+    const pet = discordPet(context, user);
+    const state = existing || startScrapRun(
+      context.db, key, String(user.id || ''), pet.id,
+      String(user.global_name || user.username || 'Fren'), now, context.random()
+    ).state;
+    const card = renderDiscordScrap(state);
+    return message(card.content, { components: card.components });
+  }
+
+  if (name === 'warn') {
+    const targetId = String(commandOption(command, 'member') || '');
+    const reason = String(commandOption(command, 'reason') || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    try {
+      const result = await applyDiscordWarning(context, rest, interaction, targetId, reason);
+      return message(result.content, { users: result.users });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'The warning failed.', { ephemeral: true });
+    }
+  }
+
+  if (name === 'unwarn') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MODERATE_MEMBERS)) {
+      return message('You need Timeout Members to clear warnings.', { ephemeral: true });
+    }
+    const targetId = String(commandOption(command, 'member') || '');
+    const removed = context.repos.telegram.clearModerationWarnings(`dc:${guildId}`, targetId);
+    return message(removed ? `✅ Cleared all warnings for <@${targetId}>.` : `<@${targetId}> has no TinyFrens warnings.`, { users: [targetId] });
+  }
+
+  if (name === 'ban') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_BAN_MEMBERS)) {
+      return message('You need Ban Members to use this command.', { ephemeral: true });
+    }
+    const targetId = String(commandOption(command, 'member') || '');
+    const reason = String(commandOption(command, 'reason') || 'TinyFrens moderator ban').replace(/\s+/g, ' ').trim().slice(0, 200);
+    try {
+      await discordBanMember(rest, guildId, targetId, reason);
+      return message(`🚫 Banned <@${targetId}>.\nReason: ${reason}`, { users: [targetId] });
+    } catch (error) {
+      return message(`Could not ban that member: ${error instanceof Error ? error.message : 'Discord rejected the action.'}`, { ephemeral: true });
+    }
+  }
+
+  if (name === 'bot') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MANAGE_MESSAGES)) {
+      return message('You need Manage Messages to flag suspected bots.', { ephemeral: true });
+    }
+    const targetId = String(commandOption(command, 'member') || '');
+    const target = resolvedUser(command, targetId);
+    context.repos.telegram.markSuspectedBot({
+      chat_id: `dc:${guildId}`,
+      user_id: targetId,
+      username: String(target.username || '').slice(0, 32),
+      display_name: String(target.global_name || target.username || '').slice(0, 80),
+      flagged_by: String(user.id || ''),
+      source_message_id: null,
+      flagged_at: Math.floor(context.now()),
+    });
+    return message(`⚠️ <@${targetId}> was marked as a suspected bot for moderator review.`, { users: [targetId] });
+  }
+
+  if (name === 'setup') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_ADMINISTRATOR)) {
+      return message('Only a server administrator can run setup.', { ephemeral: true });
+    }
+    const applicationId = context.config.DISCORD_CLIENT_ID || '';
+    const interactionToken = String(interaction.token || '');
+    void setupDiscordGuild(rest, guildId, applicationId).then(async created => {
+      const content = created.length
+        ? `✅ TinyFrens server setup complete. Created ${created.join(', ')}.`
+        : '✅ TinyFrens server setup is already complete; nothing was duplicated.';
+      await rest.patch(Routes.webhookMessage(applicationId, interactionToken, '@original'), { body: { content } });
+    }).catch(async error => {
+      void context.operationalAlerts.report('discord:setup', 'Discord server setup failed', error instanceof Error ? error.message : String(error));
+      await rest.patch(Routes.webhookMessage(applicationId, interactionToken, '@original'), {
+        body: { content: `Setup failed: ${error instanceof Error ? error.message : 'Discord rejected the action.'}` },
+      }).catch(() => undefined);
+    });
+    return { type: 5, data: { flags: 64 } };
+  }
+
+  if (name === 'status') {
+    const uptime = Math.max(0, Math.floor(context.now() - context.startTime));
+    return message(`✅ TinyFrens backend online\n✅ Discord interactions verified\n${context.config.DISCORD_BOT_TOKEN ? '✅' : '❌'} Discord Gateway configured\nUptime: ${Math.floor(uptime / 60)}m`);
+  }
+
+  return message('TinyFrens is online. Use `/game` for the shared Scrap Run or `/setup` to build the server.', { ephemeral: true });
+}
+
+async function handleDiscordComponent(context: AppContext, interaction: DiscordObject): Promise<Record<string, unknown>> {
+  const data = interaction.data as DiscordObject;
+  const customId = String(data.custom_id || '');
+  const guildId = String(interaction.guild_id || '');
+  const channelId = String(interaction.channel_id || '');
+  const user = interactionUser(interaction);
+  if (!guildId || !channelId || !customId.startsWith('game:')) {
+    return message('That action is no longer available.', { ephemeral: true });
+  }
+  if (customId === 'game:new') {
+    const key = chatKey(guildId, channelId);
+    const now = Math.floor(context.now());
+    expireStaleScrapRun(context.db, key, now);
+    const existing = getOpenScrapRun(context.db, key);
+    const pet = discordPet(context, user);
+    const state = existing || startScrapRun(
+      context.db, key, String(user.id || ''), pet.id,
+      String(user.global_name || user.username || 'Fren'), now, context.random()
+    ).state;
+    const card = renderDiscordScrap(state);
+    return updateMessage(card.content, card.components);
+  }
+  const [, runId, action] = customId.split(':');
+  const now = Math.floor(context.now());
+  const result = action === 'join'
+    ? joinScrapRun(
+        context.db, runId, String(user.id || ''), discordPet(context, user).id,
+        String(user.global_name || user.username || 'Fren'), now
+      )
+    : action === 'resolve'
+      ? resolveScrapRun(
+          context.db, runId, String(user.id || ''), now, context.random(),
+          (petId, credits, scrapRunId) => context.economy.grant(petId, credits, 'discord-scrap', 'scrap-run', scrapRunId)
+        )
+      : { ok: false as const, reason: 'missing' as const };
+  if (!result.ok) {
+    const errors = {
+      missing: 'That Scrap Run is no longer available.',
+      closed: 'That Scrap Run is closed.',
+      full: 'The crew is full or its join window has closed.',
+      'not-member': 'Join the crew before searching.',
+      waiting: `The crew is still open for ${result.waitSeconds || 1}s.`,
+    };
+    return message(errors[result.reason], { ephemeral: true });
+  }
+  const card = renderDiscordScrap(result.state);
+  return updateMessage(card.content, card.components);
+}
 
 export function registerDiscordRoutes(app: FastifyInstance, context: AppContext): void {
   app.post('/api/discord/token', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const clientId = context.config.DISCORD_CLIENT_ID;
       const clientSecret = context.config.DISCORD_CLIENT_SECRET;
-      if (!clientId || !clientSecret) {
-        return reply.status(503).send({ error: 'Discord app is not configured' });
-      }
-
+      if (!clientId || !clientSecret) return reply.status(503).send({ error: 'Discord app is not configured' });
       const body = (request.body || {}) as Record<string, unknown>;
       const code = String(body.code || '');
-      if (!code) {
-        return reply.status(400).send({ error: 'Missing authorization code' });
-      }
-
-      const redirectUri = context.config.DISCORD_REDIRECT_URI || '';
-      const [data, status] = await exchangeDiscordCode(code, clientId, clientSecret, redirectUri);
-
-      if (status >= 400) {
-        const errorMsg = (data.error_description as string) || 'Discord token exchange failed';
-        return reply.status(status).send({ error: errorMsg });
-      }
-
+      if (!code) return reply.status(400).send({ error: 'Missing authorization code' });
+      const [data, status] = await exchangeDiscordCode(code, clientId, clientSecret, context.config.DISCORD_REDIRECT_URI || '');
+      if (status >= 400) return reply.status(status).send({ error: (data.error_description as string) || 'Discord token exchange failed' });
       return reply.status(200).send(data);
-    } catch (e) {
-      return reply.status(400).send({ error: (e as Error).message || 'Discord sign-in failed' });
+    } catch (error) {
+      return reply.status(400).send({ error: (error as Error).message || 'Discord sign-in failed' });
     }
   });
 
-  app.post(
-    '/api/discord/interactions',
-    { config: { rawBody: true } },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const publicKey = context.config.DISCORD_PUBLIC_KEY;
-        if (!publicKey) {
-          return reply.status(503).send({ error: 'Discord app is not configured' });
-        }
-
-        const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody || Buffer.from('');
-        const signature = (request.headers['x-signature-ed25519'] as string) || '';
-        const timestamp = (request.headers['x-signature-timestamp'] as string) || '';
-
-        const verified = verifyDiscordInteraction(signature, timestamp, rawBody, publicKey);
-        if (!verified) {
-          reply.header('Content-Type', 'text/plain; charset=utf-8');
-          return reply.status(401).send('invalid request signature');
-        }
-
-        let data: Record<string, unknown>;
-        try {
-          data = JSON.parse(rawBody.toString('utf-8'));
-        } catch {
-          return reply.status(400).send({ error: 'bad body' });
-        }
-
-        if (data.type === 1) {
-          return reply.status(200).send({ type: 1 });
-        }
-
-        return reply.status(200).send({
-          type: 4,
-          data: { content: 'TinyFrens is launching soon in Discord! 🐾' },
-        });
-      } catch (e) {
-        return reply.status(400).send({ error: (e as Error).message });
+  app.post('/api/discord/interactions', { config: { rawBody: true } }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const publicKey = context.config.DISCORD_PUBLIC_KEY;
+      if (!publicKey) return reply.status(503).send({ error: 'Discord app is not configured' });
+      const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody || Buffer.from('');
+      const signature = String(request.headers['x-signature-ed25519'] || '');
+      const timestamp = String(request.headers['x-signature-timestamp'] || '');
+      if (!verifyDiscordInteraction(signature, timestamp, rawBody, publicKey)) {
+        reply.header('Content-Type', 'text/plain; charset=utf-8');
+        return reply.status(401).send('invalid request signature');
       }
+      let interaction: DiscordObject;
+      try {
+        interaction = JSON.parse(rawBody.toString('utf-8')) as DiscordObject;
+      } catch {
+        return reply.status(400).send({ error: 'bad body' });
+      }
+      if (interaction.type === 1) return reply.status(200).send({ type: 1 });
+      const token = context.config.DISCORD_BOT_TOKEN;
+      if (!token) return reply.status(200).send(message('Discord bot actions are not configured yet.', { ephemeral: true }));
+      const rest = createDiscordRest(token);
+      if (interaction.type === 2) return reply.status(200).send(await handleDiscordCommand(context, rest, interaction));
+      if (interaction.type === 3) return reply.status(200).send(await handleDiscordComponent(context, interaction));
+      return reply.status(200).send(message('That Discord action is not supported.', { ephemeral: true }));
+    } catch (error) {
+      app.log.error({ err: error }, 'Discord interaction failed');
+      void context.operationalAlerts.report('discord:interaction', 'Discord interaction failed', error instanceof Error ? error.message : String(error));
+      return reply.status(200).send(message('TinyFrens hit an error while handling that action.', { ephemeral: true }));
     }
-  );
+  });
 }

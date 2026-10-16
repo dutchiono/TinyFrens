@@ -4,6 +4,7 @@ set -euo pipefail
 base=/home/miono/tinyfrens-ts-stage
 alert_state="$base/backend-health-alerted"
 recovery_alert_state="$base/backend-health-recovery-alerted"
+discord_alert_state="$base/discord-health-alerted"
 exec 9>"$base/deploy.lock"
 if ! flock -n 9; then exit 0; fi
 
@@ -21,12 +22,37 @@ notify_owner() {
   fi
 }
 
+ensure_discord() {
+  if [[ -z ${DISCORD_BOT_TOKEN:-} ]]; then return 0; fi
+  if systemctl --user is-active --quiet tinyfrens-discord.service; then
+    if [[ -f $discord_alert_state ]]; then
+      notify_owner $'✅ TinyFrens Discord bot recovered\n\nThe independent health monitor can see the Gateway worker again.'
+      rm -f "$discord_alert_state"
+    fi
+    return 0
+  fi
+
+  systemctl --user restart tinyfrens-discord.service
+  sleep 2
+  if systemctl --user is-active --quiet tinyfrens-discord.service; then
+    notify_owner $'⚠️ TinyFrens Discord bot auto-recovered\n\nThe Gateway worker stopped, so the independent monitor restarted it.'
+    rm -f "$discord_alert_state"
+    return 0
+  fi
+  if [[ ! -f $discord_alert_state ]]; then
+    notify_owner $'🚨 TinyFrens Discord bot is down\n\nThe independent monitor restarted the Gateway worker, but it still fails. Manual attention is required.'
+    touch "$discord_alert_state"
+  fi
+  return 1
+}
+
 if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health >/dev/null; then
   if [[ -f $alert_state ]]; then
     notify_owner $'✅ TinyFrens backend recovered\n\nThe independent health monitor can reach the service again.'
     rm -f "$alert_state"
   fi
-  exit 0
+  ensure_discord
+  exit $?
 fi
 
 systemctl --user restart tinyfrens-server-ts.service
@@ -42,7 +68,8 @@ if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health >/dev/null; th
     touch "$recovery_alert_state"
   fi
   rm -f "$alert_state"
-  exit 0
+  ensure_discord
+  exit $?
 fi
 
 if [[ ! -f $alert_state ]]; then

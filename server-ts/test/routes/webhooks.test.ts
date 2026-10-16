@@ -55,6 +55,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       DEPLOY_NOTIFY_SECRET: 'deploy-secret',
       DISCORD_CLIENT_ID: 'discord-client-id-123',
       DISCORD_CLIENT_SECRET: 'discord-client-secret-456',
+      DISCORD_BOT_TOKEN: 'discord-bot-token-test',
       DISCORD_PUBLIC_KEY: discordPublicKeyHex,
       DISCORD_REDIRECT_URI: 'https://tinyfrens.lol/discord/callback',
       NEYNAR_API_KEY: 'test-neynar-key',
@@ -313,9 +314,15 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.deepStrictEqual(res.json(), { type: 1 });
     });
 
-    test('POST /api/discord/interactions answers slash command interaction (type 2) with launch message', async () => {
+    test('POST /api/discord/interactions answers /game with the shared Scrap Run', async () => {
       const ts = '1700000001';
-      const body = JSON.stringify({ type: 2, data: { name: 'fren' } });
+      const body = JSON.stringify({
+        type: 2,
+        guild_id: '2001',
+        channel_id: '3001',
+        member: { user: { id: '4001', username: 'testfren', global_name: 'Test Fren' }, permissions: '0' },
+        data: { name: 'game' },
+      });
       const dataToSign = Buffer.concat([Buffer.from(ts, 'utf-8'), Buffer.from(body, 'utf-8')]);
       const sig = crypto.sign(null, dataToSign, discordKeyPair.privateKey).toString('hex');
 
@@ -333,7 +340,9 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(res.statusCode, 200);
       const json = res.json();
       assert.strictEqual(json.type, 4);
-      assert.ok(json.data.content.includes('TinyFrens is launching soon in Discord!'));
+      assert.ok(json.data.content.includes('SCRAP RUN'));
+      assert.ok(json.data.content.includes('Test Fren'));
+      assert.strictEqual(json.data.components[0].components[0].label, 'Join crew (1/4)');
     });
   });
 
@@ -588,7 +597,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         },
       });
-      assert.equal(command.statusCode, 200);
+      assert.equal(command.statusCode, 200, command.body);
       assert.equal(calls[0].method, 'sendMessage');
       assert.match(String(calls[0].payload.text), /SCRAP RUN/);
       assert.equal(calls[0].payload.reply_to_message_id, undefined);

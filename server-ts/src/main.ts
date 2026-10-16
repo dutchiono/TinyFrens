@@ -8,6 +8,7 @@ import { buildApp } from './app.js';
 import { startWorkers, Workers } from './workers.js';
 import { createGracefulShutdown } from './lifecycle.js';
 import { syncTelegramCommands } from './integrations/telegram-commands.js';
+import { syncDiscordCommands } from './integrations/discord-api.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -47,6 +48,19 @@ async function main(): Promise<void> {
           void context.operationalAlerts.report(
             'telegram:command-sync',
             'Telegram command menu synchronization failed',
+            error instanceof Error ? error.message : String(error)
+          );
+        }
+      );
+    }
+    if (config.DISCORD_BOT_TOKEN && config.DISCORD_CLIENT_ID) {
+      await syncDiscordCommands(config.DISCORD_BOT_TOKEN, config.DISCORD_CLIENT_ID).then(
+        () => app.log.info('Discord command menus synchronized'),
+        error => {
+          app.log.warn({ err: error }, 'Discord command menu synchronization failed');
+          void context.operationalAlerts.report(
+            'discord:command-sync',
+            'Discord command menu synchronization failed',
             error instanceof Error ? error.message : String(error)
           );
         }
