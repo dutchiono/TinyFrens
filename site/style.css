@@ -32,3 +32,6 @@ h1 em,.setup-link{color:#c9a5ff}.hero p,.aside,.hero .aside,.download-list p,.co
 .download-list .button,.download-list .button.quiet{background:#a474f1;color:#17142a;border:1px solid #a474f1}.download-list .button:hover{background:#b58af5;border-color:#b58af5}
 
 .frens-contract{margin:40px 0;padding:24px;border:1px solid #47365f;border-radius:16px}.frens-contract h2{margin-top:0}.frens-contract>a{display:block;overflow-wrap:anywhere;font-family:monospace;margin:16px 0;color:#c9a5ff}.frens-contract button{cursor:pointer}.frens-contract [role=status]{min-height:1.5em}
+
+/* Public policy pages. */
+.legal-page{max-width:780px;padding-top:48px;padding-bottom:80px}.legal-page h1{font-size:clamp(40px,6vw,64px)}.legal-page h2{font-size:24px;margin-top:42px}.legal-page p,.legal-page li{color:var(--muted)}.legal-page strong{color:var(--ink)}.legal-page a{color:#c9a5ff}.legal-page .effective{font-size:14px}.legal-page ul{padding-left:22px}

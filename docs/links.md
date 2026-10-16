@@ -5,6 +5,8 @@ This page lists key public links for TinyFrens. See also [links.md in repo root]
 ## Public sites
 - Website: [https://tinyfrens.lol](https://tinyfrens.lol)
 - Docs: [https://tinyfrens.lol/docs/](https://tinyfrens.lol/docs/)
+- Privacy Policy: [https://tinyfrens.lol/privacy/](https://tinyfrens.lol/privacy/)
+- Terms of Service: [https://tinyfrens.lol/terms/](https://tinyfrens.lol/terms/)
 - GitHub: [https://github.com/dutchiono/TinyFrens](https://github.com/dutchiono/TinyFrens)
 
 ## Social
