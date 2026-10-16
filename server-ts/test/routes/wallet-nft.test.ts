@@ -448,6 +448,7 @@ describe('Wallet, Minting & NFT Operations (Phase 6 Slice 6E)', () => {
       assert.ok(linkData.code);
       assert.ok(linkData.restoreUrl.includes('#restore=' + linkData.code));
       assert.ok(linkData.expires > Math.floor(context.now()));
+      assert.ok(linkData.expires <= Math.floor(context.now()) + 15 * 60);
 
       // Restore pet with the code
       const restoreRes = await app.inject({
@@ -485,6 +486,15 @@ describe('Wallet, Minting & NFT Operations (Phase 6 Slice 6E)', () => {
         payload: { token: restoreData.token },
       });
       assert.equal(newTokenRes.statusCode, 200);
+
+      // Bearer recovery links are single-use.
+      const replayRes = await app.inject({
+        method: 'POST',
+        url: '/api/wallet/restore',
+        headers: { Origin: ORIGIN },
+        payload: { code: linkData.code },
+      });
+      assert.equal(replayRes.statusCode, 404);
     });
 
     test('restore rejects invalid or expired code with 404', async () => {

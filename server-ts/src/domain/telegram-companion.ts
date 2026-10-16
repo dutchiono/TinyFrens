@@ -1,4 +1,5 @@
 import { AppContext } from '../context.js';
+import { linkedWallets } from './wallet-link.js';
 import { EXTRA_COLLECTIONS, ROBOTS_CONTRACT } from './companion-verifier.js';
 import { getDeviceSyncSnapshot } from './device-sync.js';
 import { HOOD_TURTLE_COLLECTION } from './turtle-ownership.js';
@@ -29,7 +30,7 @@ export async function telegramCompanion(
   if (!item) throw new Error(`Telegram slot ${position} is empty. Choose it in TinyFrens first`);
   const collection = String(item.originalAddress || '').toLowerCase();
   const tokenId = Number(item.tokenId);
-  const addresses = context.repos.wallets.getLinkedWallets(petId);
+  const addresses = linkedWallets(context, petId);
   if (addresses.length === 0) throw new Error('Link a wallet first');
   const isRobot = collection === ROBOTS_CONTRACT;
   const isExtra = Object.hasOwn(EXTRA_COLLECTIONS, collection);

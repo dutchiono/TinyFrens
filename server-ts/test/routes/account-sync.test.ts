@@ -263,7 +263,13 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
 
       // Link wallet to pet with bankr-verified profile
       const walletAddress = '0x1234567890123456789012345678901234567890';
-      sharedContext.repos.wallets.linkWallet(pet.id, walletAddress, currentTime);
+      sharedContext.repos.wallets.linkAccountWallet(
+        account,
+        walletAddress,
+        'bankr_verified',
+        currentTime,
+        'bankr'
+      );
       sharedContext.repos.wallets.upsertSocialProfile(
         walletAddress,
         'bankr_handle',
@@ -490,8 +496,18 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
 
     test('accept approves pairing, merges accounts and wallets, and consumes sync code', async () => {
       // Give each device a wallet link with distinct timestamps
-      sharedContext.repos.wallets.linkWallet(petA.id, '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 100);
-      sharedContext.repos.wallets.linkWallet(petB.id, '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 200);
+      sharedContext.repos.wallets.linkAccountWallet(
+        sharedContext.repos.deviceSync.ensureAccount(petA.id),
+        '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'personal_sign',
+        100
+      );
+      sharedContext.repos.wallets.linkAccountWallet(
+        sharedContext.repos.deviceSync.ensureAccount(petB.id),
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        'personal_sign',
+        200
+      );
 
       // Set companion selection on Device A
       await app.inject({

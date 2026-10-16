@@ -4,6 +4,7 @@ import { tokenPet } from '../domain/account.js';
 import { validateRobotTokenId } from '../domain/robot-care-rules.js';
 import { UnknownAction, NotLinked } from '../domain/robot-care.js';
 import { getTreasurySettings } from './economy.js';
+import { linkedWallets } from '../domain/wallet-link.js';
 
 interface CareRequestBody {
   token?: string;
@@ -27,7 +28,7 @@ export function registerRobotCareRoutes(app: FastifyInstance, context: AppContex
   }
 
   async function checkRobotOwnership(pid: string, tid: number): Promise<string> {
-    const addresses = context.repos.wallets.getLinkedWallets(pid);
+    const addresses = linkedWallets(context, pid);
     if (!addresses || addresses.length === 0) {
       throw new NotLinked('Link your wallet first');
     }

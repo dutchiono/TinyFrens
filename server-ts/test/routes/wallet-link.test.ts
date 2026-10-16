@@ -154,6 +154,9 @@ describe('Turtle Connect & EVM Wallet Linking (server/test_turtle_connect.py)', 
     rpcState.burned = false;
     rpcState.owner = account.address;
     context.rateLimiter.clear();
+    context.db.prepare('DELETE FROM account_wallet_challenges').run();
+    context.db.prepare('DELETE FROM account_wallet_conflicts').run();
+    context.db.prepare('DELETE FROM account_wallets').run();
   });
 
   async function registerPhone() {
@@ -584,6 +587,9 @@ describe('Turtle Connect & EVM Wallet Linking (server/test_turtle_connect.py)', 
     await postTurtle('accept', { code: pairing.code }, phone);
 
     // Target device starts pairing
+    const sourceAccount = context.repos.deviceSync.getAccountForDevice(phone.id);
+    const targetAccount = context.repos.deviceSync.getAccountForDevice(otherPhone.id);
+    assert.notEqual(sourceAccount, targetAccount);
     const target = (await postTurtle('start', {}, otherPhone)).json();
     const req = { code: target.code, address: account.address };
 
@@ -612,6 +618,61 @@ describe('Turtle Connect & EVM Wallet Linking (server/test_turtle_connect.py)', 
     const acceptRes = await postTurtle('accept', { code: target.code }, otherPhone);
     assert.strictEqual(acceptRes.statusCode, 200);
     assert.strictEqual(acceptRes.json().address.toLowerCase(), account.address.toLowerCase());
+    assert.equal(context.repos.deviceSync.getAccountForDevice(otherPhone.id), sourceAccount);
+    assert.equal(
+      context.db.prepare<{ count: number }>(
+        'SELECT COUNT(*) AS count FROM account_wallets WHERE address=? AND revoked_at IS NULL'
+      ).get(account.address)?.count,
+      1
+    );
+  });
+
+  test('a fresh Bankr-style wallet signature recovers the existing player account', async () => {
+    const existingPhone = await registerPhone();
+    const firstPairing = (await postTurtle('start', {}, existingPhone)).json();
+    const firstChallenge = (
+      await postTurtle('challenge', { code: firstPairing.code, address: account.address }, undefined, true)
+    ).json();
+    const firstSignature = await account.signMessage({ message: firstChallenge.message });
+    await postTurtle(
+      'confirm',
+      { code: firstPairing.code, challengeId: firstChallenge.challengeId, signature: firstSignature },
+      undefined,
+      true
+    );
+    await postTurtle('accept', { code: firstPairing.code }, existingPhone);
+    const existingAccount = context.repos.deviceSync.getAccountForDevice(existingPhone.id);
+
+    const recoveryPhone = await registerPhone();
+    const recoveryPairing = (await postTurtle('start', {}, recoveryPhone)).json();
+    const recoveryChallenge = (
+      await postTurtle('challenge', { code: recoveryPairing.code, address: account.address }, undefined, true)
+    ).json();
+    const recoverySignature = await account.signMessage({ message: recoveryChallenge.message });
+    await postTurtle(
+      'confirm',
+      {
+        code: recoveryPairing.code,
+        challengeId: recoveryChallenge.challengeId,
+        signature: recoverySignature,
+      },
+      undefined,
+      true
+    );
+    const accepted = await postTurtle('accept', { code: recoveryPairing.code }, recoveryPhone);
+    assert.equal(accepted.statusCode, 200);
+    assert.equal(context.repos.deviceSync.getAccountForDevice(recoveryPhone.id), existingAccount);
+
+    for (const phone of [existingPhone, recoveryPhone]) {
+      const status = await app.inject({
+        method: 'POST',
+        url: '/api/wallet-link/status',
+        headers: { Origin: ORIGIN },
+        payload: { token: phone.token },
+      });
+      assert.equal(status.statusCode, 200);
+      assert.equal(status.json().address.toLowerCase(), account.address.toLowerCase());
+    }
   });
 
   test('partial scan reports missing collections in wallet-link/nfts', async () => {

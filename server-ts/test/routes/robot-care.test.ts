@@ -58,7 +58,12 @@ describe('Routes: Robot Care API', () => {
     );
 
     if (options?.linkWallet !== false) {
-      context.repos.wallets.linkWallet(PET_ID, WALLET, Math.floor(Date.now() / 1000));
+      context.repos.wallets.linkAccountWallet(
+        context.repos.deviceSync.ensureAccount(PET_ID),
+        WALLET,
+        'personal_sign',
+        Math.floor(Date.now() / 1000)
+      );
     }
 
     if (options?.initialCredits) {

@@ -185,7 +185,7 @@ export function readAccountProfile(
   let source: string | null = xIdentity ? 'verified-identity' : null;
 
   if (!xIdentity) {
-    const wallets = context.repos.wallets.getLinkedWallets(pid);
+    const wallets = context.repos.wallets.getAccountWallets(account);
     for (const wallet of wallets) {
       const social = context.repos.wallets.getSocialProfile(wallet);
       if (social?.x_handle && social.source === 'bankr-verified') {

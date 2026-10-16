@@ -72,7 +72,12 @@ describe('Telegram /show media orchestration', () => {
       tokenId: 7,
       slot: 1,
     }]), 0);
-    context.repos.wallets.linkWallet(pet.id, '0x0000000000000000000000000000000000000001', 1000);
+    context.repos.wallets.linkAccountWallet(
+      account,
+      '0x0000000000000000000000000000000000000001',
+      'personal_sign',
+      1000
+    );
     app = await buildApp({ context });
     await app.ready();
   });

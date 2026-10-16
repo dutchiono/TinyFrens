@@ -12,7 +12,8 @@ import { verifyHandle } from '../integrations/bankr.js';
 import { TurtlePairingRow } from '../db/repositories/device-sync.js';
 
 export function linkedWallets(context: AppContext, pid: string): string[] {
-  return context.repos.wallets.getLinkedWallets(pid);
+  const account = context.repos.deviceSync.ensureAccount(pid);
+  return context.repos.wallets.getAccountWallets(account);
 }
 
 export function walletDevices(context: AppContext, pid: string): string[] {
@@ -27,7 +28,13 @@ export function walletDevices(context: AppContext, pid: string): string[] {
   return devices.length > 0 ? devices : [pid];
 }
 
-export function addWallet(context: AppContext, pid: string, address: string): void {
+export function addWallet(
+  context: AppContext,
+  pid: string,
+  address: string,
+  verificationMethod = 'personal_sign',
+  provider = 'external'
+): void {
   const addresses = linkedWallets(context, pid);
   if (!addresses.some(a => a.toLowerCase() === address.toLowerCase()) && addresses.length >= 10) {
     throw new Error('Up to 10 wallets can be linked. Remove one first.');
@@ -36,16 +43,41 @@ export function addWallet(context: AppContext, pid: string, address: string): vo
   const checksum = toChecksumAddress(address);
   const now = Math.floor(context.now());
   const devices = walletDevices(context, pid);
+  const account = context.repos.deviceSync.ensureAccount(pid);
 
   context.db.transaction(() => {
+    context.repos.wallets.linkAccountWallet(
+      account,
+      checksum,
+      verificationMethod,
+      now,
+      provider
+    );
     for (const device of devices) {
       context.repos.wallets.linkWallet(device, checksum, now);
     }
   })();
 }
 
+function joinExistingWalletAccount(context: AppContext, pid: string, address: string): void {
+  const existing = context.repos.wallets.getActiveAccountWallet(address);
+  if (!existing) return;
+  const target = context.repos.deviceSync.ensureAccount(pid);
+  if (existing.account === target) return;
+
+  const now = Math.floor(context.now());
+  context.db.transaction(() => {
+    context.repos.accounts.mergeAccounts(existing.account, target, now);
+    context.repos.deviceSync.transferDeviceMemberships(existing.account, target);
+    context.repos.deviceSync.deleteAccount(target);
+    context.repos.wallets.resolveAccountWalletConflict(address, target, now);
+  })();
+}
+
 export function removeWallet(context: AppContext, pid: string, address?: string | null): void {
   const devices = walletDevices(context, pid);
+  const account = context.repos.deviceSync.ensureAccount(pid);
+  const now = Math.floor(context.now());
   const hasPairings = Boolean(
     context.db.prepare<{ 1: number }>("SELECT 1 FROM sqlite_master WHERE name='turtle_pairings'").get()
   );
@@ -57,6 +89,11 @@ export function removeWallet(context: AppContext, pid: string, address?: string 
   );
 
   context.db.transaction(() => {
+    if (!address) {
+      context.repos.wallets.unlinkAllAccountWallets(account, now);
+    } else {
+      context.repos.wallets.unlinkAccountWallet(account, toChecksumAddress(address), now);
+    }
     for (const device of devices) {
       if (!address) {
         context.repos.wallets.unlinkAllWallets(device);
@@ -73,6 +110,7 @@ export function removeWallet(context: AppContext, pid: string, address?: string 
         context.repos.deviceSync.deleteCodesForDevice(device);
       }
     }
+    context.repos.wallets.deleteAccountChallenge(account);
   })();
 }
 
@@ -275,7 +313,14 @@ export function acceptTurtlePairing(
   const tokenId = row.token_id;
 
   context.db.transaction(() => {
-    addWallet(context, pid, address);
+    joinExistingWalletAccount(context, pid, address);
+    addWallet(
+      context,
+      pid,
+      address,
+      row.challenge_id ? 'personal_sign' : 'linked_device_approval',
+      (row.message ?? '').includes('(Bankr verified)') ? 'bankr' : 'external'
+    );
 
     const socialMatch = (row.message ?? '').match(/^X handle: @([A-Za-z0-9_]{1,15}) \((Bankr verified|wallet assertion)\)$/m);
     if (socialMatch) {
@@ -315,6 +360,7 @@ export function challengeWalletLink(
   addressRaw: unknown
 ): { message: string; expires: number } {
   const pid = tokenPet(context, token);
+  const account = context.repos.deviceSync.ensureAccount(pid);
   const addressStr = String(addressRaw ?? '');
   if (!/^0x[0-9a-fA-F]{40}$/.test(addressStr)) {
     throw new Error('Valid Ethereum wallet address required');
@@ -329,14 +375,14 @@ export function challengeWalletLink(
     `TinyFrens read-only wallet link\n` +
     `Domain: tinyfrens.lol\n` +
     `Wallet: ${address}\n` +
-    `Fren: ${pid}\n` +
+    `Account: ${account}\n` +
     `Nonce: ${nonce}\n` +
     `Issued: ${issued}\n` +
     `Expires: ${expires}\n\n` +
     `This signature only links your public address for supported NFT discovery. ` +
     `It does not authorize transactions, transfers, approvals, or spending.`;
 
-  context.repos.wallets.setChallenge(pid, address, message, expires);
+  context.repos.wallets.setAccountChallenge(account, address, message, expires);
   return { message, expires };
 }
 
@@ -346,12 +392,13 @@ export async function confirmWalletLink(
   signature: unknown
 ): Promise<{ linked: boolean; address: string; addresses: string[] }> {
   const pid = tokenPet(context, token);
+  const account = context.repos.deviceSync.ensureAccount(pid);
   if (typeof signature !== 'string' || !/^0x[a-fA-F0-9]{130}$/.test(signature)) {
     throw new Error('Valid wallet signature required');
   }
 
-  const row = context.repos.wallets.getChallenge(pid);
-  if (!row || row.expires < context.now()) {
+  const row = context.repos.wallets.getAccountChallenge(account);
+  if (!row || row.expires <= context.now()) {
     throw new Error('Link request expired. Start again.');
   }
 
@@ -370,9 +417,10 @@ export async function confirmWalletLink(
   }
 
   context.db.transaction(() => {
-    addWallet(context, pid, row.address);
+    joinExistingWalletAccount(context, pid, row.address);
+    addWallet(context, pid, row.address, 'personal_sign');
     context.repos.deviceSync.deleteTurtlePairingForPet(pid);
-    context.repos.wallets.deleteChallenge(pid);
+    context.repos.wallets.deleteAccountChallenge(account);
   })();
 
   return {

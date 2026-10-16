@@ -75,9 +75,53 @@ export class AccountRepository {
         sourceAccount,
         targetAccount
       );
+      this.mergeWallets(sourceAccount, targetAccount, nowSeconds);
       this.mergeEnergy(sourceAccount, targetAccount, nowSeconds);
       this.deleteProfile(targetAccount);
     })();
+  }
+
+  private mergeWallets(sourceAccount: string, targetAccount: string, nowSeconds: number): void {
+    const targetWallets = this.db.prepare<{
+      chain_id: number;
+      address: string;
+      provider: string;
+      role: string;
+      verification_method: string;
+      verified_at: number;
+      created_at: number;
+    }>(
+      `SELECT chain_id, address, provider, role, verification_method, verified_at, created_at
+       FROM account_wallets WHERE account=? AND revoked_at IS NULL`
+    ).all(targetAccount);
+
+    for (const wallet of targetWallets) {
+      this.db.prepare(
+        `UPDATE account_wallets SET revoked_at=?
+         WHERE account=? AND chain_id=? AND address=? COLLATE NOCASE AND revoked_at IS NULL`
+      ).run(nowSeconds, targetAccount, wallet.chain_id, wallet.address);
+      this.db.prepare(
+        `INSERT INTO account_wallets(
+           account, chain_id, address, provider, role, verification_method,
+           verified_at, created_at, revoked_at
+         ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(account, chain_id, address) DO UPDATE SET
+           provider=excluded.provider, role=excluded.role,
+           verification_method=excluded.verification_method,
+           verified_at=MAX(account_wallets.verified_at, excluded.verified_at),
+           created_at=MIN(account_wallets.created_at, excluded.created_at), revoked_at=NULL`
+      ).run(
+        sourceAccount,
+        wallet.chain_id,
+        wallet.address,
+        wallet.provider,
+        wallet.role,
+        wallet.verification_method,
+        wallet.verified_at,
+        wallet.created_at
+      );
+    }
+    this.db.prepare('DELETE FROM account_wallet_challenges WHERE account=?').run(targetAccount);
   }
 
   private mergeEnergy(sourceAccount: string, targetAccount: string, nowSeconds: number): void {

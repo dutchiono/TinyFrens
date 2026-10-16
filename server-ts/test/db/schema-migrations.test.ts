@@ -2,7 +2,12 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDbConnection } from '../../src/db/connection.js';
 import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
-import { migrateDeviceSyncTelegramSelection, migrateWalletLinks, runMigrations } from '../../src/db/migrations.js';
+import {
+  migrateAccountWallets,
+  migrateDeviceSyncTelegramSelection,
+  migrateWalletLinks,
+  runMigrations,
+} from '../../src/db/migrations.js';
 
 describe('Database: Schema & Migrations', () => {
   test('initializes every permanent table and index on a fresh database', () => {
@@ -106,6 +111,33 @@ describe('Database: Schema & Migrations', () => {
       tokenId: 7,
       slot: 1,
     }]);
+    db.close();
+  });
+
+  test('migrates legacy device wallets once per account and records cross-account conflicts', () => {
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    const shared = '0x1111111111111111111111111111111111111111';
+    db.prepare('INSERT INTO device_sync_accounts VALUES(?, 0, ?, ?)').run('account-a', '[]', '[]');
+    db.prepare('INSERT INTO device_sync_accounts VALUES(?, 0, ?, ?)').run('account-b', '[]', '[]');
+    db.prepare('INSERT INTO device_sync_members VALUES(?, ?)').run('device-a1', 'account-a');
+    db.prepare('INSERT INTO device_sync_members VALUES(?, ?)').run('device-a2', 'account-a');
+    db.prepare('INSERT INTO device_sync_members VALUES(?, ?)').run('device-b', 'account-b');
+    db.prepare('INSERT INTO wallet_links VALUES(?, ?, ?)').run('device-a1', shared, 100);
+    db.prepare('INSERT INTO wallet_links VALUES(?, ?, ?)').run('device-a2', shared, 110);
+    db.prepare('INSERT INTO wallet_links VALUES(?, ?, ?)').run('device-b', shared, 120);
+
+    migrateAccountWallets(db);
+    migrateAccountWallets(db);
+
+    const wallets = db.prepare<{ account: string }>(
+      'SELECT account FROM account_wallets WHERE address=? AND revoked_at IS NULL'
+    ).all(shared);
+    assert.deepEqual(wallets, [{ account: 'account-a' }]);
+    const conflicts = db.prepare<{ chosen_account: string; conflicting_account: string }>(
+      'SELECT chosen_account, conflicting_account FROM account_wallet_conflicts WHERE address=?'
+    ).all(shared);
+    assert.deepEqual(conflicts, [{ chosen_account: 'account-a', conflicting_account: 'account-b' }]);
     db.close();
   });
 });

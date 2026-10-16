@@ -24,6 +24,18 @@ export interface WalletLinkChallengeRow {
   expires: number;
 }
 
+export interface AccountWalletRow {
+  account: string;
+  chain_id: number;
+  address: string;
+  provider: string;
+  role: string;
+  verification_method: string;
+  verified_at: number;
+  created_at: number;
+  revoked_at: number | null;
+}
+
 export interface WalletSocialProfileRow {
   address: string;
   x_handle: string;
@@ -77,6 +89,77 @@ export class WalletRepository {
   }
 
   // Linked External Wallets
+  getAccountWallets(account: string, chainId = 8453): string[] {
+    const rows = this.db.prepare<{ address: string }>(
+      `SELECT address FROM account_wallets
+       WHERE account=? AND chain_id=? AND revoked_at IS NULL
+       ORDER BY created_at, address`
+    ).all(account, chainId);
+    return rows.map(row => row.address);
+  }
+
+  getActiveAccountWallet(address: string, chainId = 8453): AccountWalletRow | undefined {
+    return this.db.prepare<AccountWalletRow>(
+      `SELECT account, chain_id, address, provider, role, verification_method,
+              verified_at, created_at, revoked_at
+       FROM account_wallets
+       WHERE chain_id=? AND address=? COLLATE NOCASE AND revoked_at IS NULL`
+    ).get(chainId, address);
+  }
+
+  linkAccountWallet(
+    account: string,
+    address: string,
+    verificationMethod: string,
+    verifiedAt: number,
+    provider = 'external',
+    role = 'owner',
+    chainId = 8453
+  ): void {
+    const active = this.getActiveAccountWallet(address, chainId);
+    if (active && active.account !== account) {
+      throw new Error('This wallet is already linked to another TinyFrens account');
+    }
+    this.db.prepare(
+      `INSERT INTO account_wallets(
+         account, chain_id, address, provider, role, verification_method,
+         verified_at, created_at, revoked_at
+       ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, NULL)
+       ON CONFLICT(account, chain_id, address) DO UPDATE SET
+         provider=excluded.provider, role=excluded.role,
+         verification_method=excluded.verification_method,
+         verified_at=excluded.verified_at, revoked_at=NULL`
+    ).run(account, chainId, address, provider, role, verificationMethod, verifiedAt, verifiedAt);
+  }
+
+  unlinkAccountWallet(account: string, address: string, revokedAt: number, chainId = 8453): boolean {
+    const result = this.db.prepare(
+      `UPDATE account_wallets SET revoked_at=?
+       WHERE account=? AND chain_id=? AND address=? COLLATE NOCASE AND revoked_at IS NULL`
+    ).run(revokedAt, account, chainId, address);
+    return result.changes > 0;
+  }
+
+  unlinkAllAccountWallets(account: string, revokedAt: number, chainId = 8453): number {
+    const result = this.db.prepare(
+      'UPDATE account_wallets SET revoked_at=? WHERE account=? AND chain_id=? AND revoked_at IS NULL'
+    ).run(revokedAt, account, chainId);
+    return result.changes;
+  }
+
+  resolveAccountWalletConflict(
+    address: string,
+    conflictingAccount: string,
+    resolvedAt: number,
+    chainId = 8453
+  ): void {
+    this.db.prepare(
+      `UPDATE account_wallet_conflicts SET resolved_at=?
+       WHERE chain_id=? AND address=? COLLATE NOCASE
+         AND conflicting_account=? AND resolved_at IS NULL`
+    ).run(resolvedAt, chainId, address, conflictingAccount);
+  }
+
   getLinkedWallets(petId: string): string[] {
     const rows = this.db.prepare<{ address: string }>(
       'SELECT address FROM wallet_links WHERE pet_id=? ORDER BY created, address'
@@ -130,6 +213,30 @@ export class WalletRepository {
     this.db.prepare('DELETE FROM wallet_link_challenges WHERE expires<=?').run(nowSeconds);
   }
 
+  getAccountChallenge(account: string): WalletLinkChallengeRow | undefined {
+    return this.db.prepare<WalletLinkChallengeRow>(
+      `SELECT account AS pet_id, address, message, expires
+       FROM account_wallet_challenges WHERE account=?`
+    ).get(account);
+  }
+
+  setAccountChallenge(
+    account: string,
+    address: string,
+    message: string,
+    expires: number,
+    chainId = 8453
+  ): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO account_wallet_challenges(account, chain_id, address, message, expires)
+       VALUES(?, ?, ?, ?, ?)`
+    ).run(account, chainId, address, message, expires);
+  }
+
+  deleteAccountChallenge(account: string): void {
+    this.db.prepare('DELETE FROM account_wallet_challenges WHERE account=?').run(account);
+  }
+
   // Social Profiles associated with wallets
   getSocialProfile(address: string): WalletSocialProfileRow | undefined {
     return this.db.prepare<WalletSocialProfileRow>(
@@ -145,9 +252,12 @@ export class WalletRepository {
 
   // Magic links
   createMagicLink(code: string, petId: string, created: number, expires: number): void {
-    this.db.prepare(
-      'INSERT OR REPLACE INTO magic_links(code, pet_id, created, expires) VALUES(?, ?, ?, ?)'
-    ).run(code, petId, created, expires);
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM magic_links WHERE pet_id=?').run(petId);
+      this.db.prepare(
+        'INSERT INTO magic_links(code, pet_id, created, expires) VALUES(?, ?, ?, ?)'
+      ).run(code, petId, created, expires);
+    })();
   }
 
   getMagicLink(code: string): MagicLinkRow | undefined {
