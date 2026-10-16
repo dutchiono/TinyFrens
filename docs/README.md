@@ -15,6 +15,7 @@ Welcome to the technical docs for TinyFrens. Start here.
 | Party rooms &amp; visits | [Party rooms &amp; visits](party-rooms.md) |
 | See every way to bring a fren home (Android, desktop, web, iOS) | [README](../README.md) |
 | On-chain economy &amp; FRENS | [On-chain economy](../ONCHAIN-ECONOMY.md) |
+| Review the account Energy redesign | [Account Energy economy v2](energy-economy-v2.md) |
 
 ## Technical Docs
 
