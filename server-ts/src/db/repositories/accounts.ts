@@ -75,7 +75,64 @@ export class AccountRepository {
         sourceAccount,
         targetAccount
       );
+      this.mergeEnergy(sourceAccount, targetAccount, nowSeconds);
       this.deleteProfile(targetAccount);
     })();
+  }
+
+  private mergeEnergy(sourceAccount: string, targetAccount: string, nowSeconds: number): void {
+    const source = this.db.prepare<{
+      rechargeable_milli: number;
+      purchased_milli: number;
+      rate_version: number;
+    }>('SELECT rechargeable_milli, purchased_milli, rate_version FROM player_energy WHERE account=?')
+      .get(sourceAccount);
+    const target = this.db.prepare<{
+      rechargeable_milli: number;
+      purchased_milli: number;
+    }>('SELECT rechargeable_milli, purchased_milli FROM player_energy WHERE account=?')
+      .get(targetAccount);
+
+    this.db.prepare('UPDATE energy_ledger SET account=? WHERE account=?').run(
+      sourceAccount,
+      targetAccount
+    );
+    if (!target) return;
+
+    if (!source) {
+      this.db.prepare('UPDATE player_energy SET account=?, updated_at=? WHERE account=?').run(
+        sourceAccount,
+        nowSeconds,
+        targetAccount
+      );
+      return;
+    }
+
+    const rechargeable = Math.max(source.rechargeable_milli, target.rechargeable_milli);
+    const purchased = source.purchased_milli + target.purchased_milli;
+    if (!Number.isSafeInteger(purchased)) {
+      throw new Error('Merged purchased Energy exceeds safe integer range');
+    }
+
+    this.db.prepare(
+      'UPDATE player_energy SET rechargeable_milli=?, purchased_milli=?, updated_at=? WHERE account=?'
+    ).run(rechargeable, purchased, nowSeconds, sourceAccount);
+    this.db.prepare('DELETE FROM player_energy WHERE account=?').run(targetAccount);
+    this.db.prepare(
+      `INSERT INTO energy_ledger(
+         account, rechargeable_delta_milli, purchased_delta_milli,
+         rechargeable_balance_milli, purchased_balance_milli,
+         reason, ref_type, ref_id, rate_version, created
+       ) VALUES(?, ?, ?, ?, ?, 'account_merge', 'account', ?, ?, ?)`
+    ).run(
+      sourceAccount,
+      rechargeable - source.rechargeable_milli,
+      target.purchased_milli,
+      rechargeable,
+      purchased,
+      targetAccount,
+      source.rate_version,
+      nowSeconds
+    );
   }
 }

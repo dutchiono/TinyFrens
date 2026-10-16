@@ -8,6 +8,7 @@ import { VoteRepository } from './votes.js';
 import { AdminRepository } from './admin.js';
 import { RobotRepository } from './robots.js';
 import { TelegramRepository } from './telegram.js';
+import { EnergyRepository } from './energy.js';
 
 export * from './pets.js';
 export * from './accounts.js';
@@ -18,6 +19,7 @@ export * from './votes.js';
 export * from './admin.js';
 export * from './robots.js';
 export * from './telegram.js';
+export * from './energy.js';
 
 export interface Repositories {
   pets: PetRepository;
@@ -29,6 +31,7 @@ export interface Repositories {
   admin: AdminRepository;
   robots: RobotRepository;
   telegram: TelegramRepository;
+  energy: EnergyRepository;
 }
 
 export function createRepositories(db: DatabaseConnection): Repositories {
@@ -42,5 +45,6 @@ export function createRepositories(db: DatabaseConnection): Repositories {
     admin: new AdminRepository(db),
     robots: new RobotRepository(db),
     telegram: new TelegramRepository(db),
+    energy: new EnergyRepository(db),
   };
 }

@@ -129,6 +129,14 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     sql: 'CREATE TABLE IF NOT EXISTS credit_ledger(id INTEGER PRIMARY KEY AUTOINCREMENT, pet_id TEXT NOT NULL, delta INTEGER NOT NULL, balance INTEGER NOT NULL, reason TEXT NOT NULL, ref_type TEXT, ref_id TEXT, created INTEGER NOT NULL);',
   },
   {
+    table: 'player_energy',
+    sql: 'CREATE TABLE IF NOT EXISTS player_energy(account TEXT PRIMARY KEY, rechargeable_milli INTEGER NOT NULL DEFAULT 0 CHECK(rechargeable_milli >= 0), purchased_milli INTEGER NOT NULL DEFAULT 0 CHECK(purchased_milli >= 0), accrued_through INTEGER NOT NULL, accrual_remainder INTEGER NOT NULL DEFAULT 0 CHECK(accrual_remainder >= 0 AND accrual_remainder < 86400), rate_per_day_milli INTEGER NOT NULL DEFAULT 0 CHECK(rate_per_day_milli >= 0), capacity_milli INTEGER NOT NULL DEFAULT 0 CHECK(capacity_milli >= 0), rate_version INTEGER NOT NULL, updated_at INTEGER NOT NULL);',
+  },
+  {
+    table: 'energy_ledger',
+    sql: "CREATE TABLE IF NOT EXISTS energy_ledger(id INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT NOT NULL, rechargeable_delta_milli INTEGER NOT NULL DEFAULT 0, purchased_delta_milli INTEGER NOT NULL DEFAULT 0, rechargeable_balance_milli INTEGER NOT NULL CHECK(rechargeable_balance_milli >= 0), purchased_balance_milli INTEGER NOT NULL CHECK(purchased_balance_milli >= 0), reason TEXT NOT NULL, ref_type TEXT, ref_id TEXT, rate_version INTEGER NOT NULL, created INTEGER NOT NULL);",
+  },
+  {
     table: 'treasury_transfers',
     sql: 'CREATE TABLE IF NOT EXISTS treasury_transfers(id INTEGER PRIMARY KEY AUTOINCREMENT, chain_id INTEGER NOT NULL, tx_hash TEXT NOT NULL, log_index INTEGER NOT NULL, sender TEXT NOT NULL, token TEXT, amount TEXT NOT NULL, pet_id TEXT, credits INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, created INTEGER NOT NULL, UNIQUE(chain_id, tx_hash, log_index));',
   },
@@ -244,6 +252,7 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
 
 export const INDEX_STATEMENTS: string[] = [
   'CREATE INDEX IF NOT EXISTS credit_ledger_pet ON credit_ledger(pet_id, id);',
+  'CREATE INDEX IF NOT EXISTS energy_ledger_account ON energy_ledger(account, id);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_address ON deposit_sessions(address);',
   'CREATE INDEX IF NOT EXISTS deposit_sessions_pet ON deposit_sessions(pet_id, status);',
   'CREATE INDEX IF NOT EXISTS treasury_transfers_sender ON treasury_transfers(sender);',

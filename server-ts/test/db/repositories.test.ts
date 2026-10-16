@@ -85,6 +85,28 @@ describe('Database: Repositories', () => {
       assert.strictEqual(identities.length, 1);
       assert.strictEqual(identities[0].subject, '12345');
     });
+
+    test('merges purchased Energy without multiplying rechargeable Energy', () => {
+      db.prepare(
+        `INSERT INTO player_energy VALUES
+         (?, ?, ?, ?, 0, ?, ?, 1, ?),
+         (?, ?, ?, ?, 0, ?, ?, 1, ?)`
+      ).run(
+        'acc-source', 10_000, 2_000, 100, 24_000, 72_000, 100,
+        'acc-target', 15_000, 3_000, 100, 24_000, 72_000, 100
+      );
+
+      repos.accounts.mergeAccounts('acc-source', 'acc-target', 200);
+
+      const merged = repos.energy.get('acc-source');
+      assert.equal(merged?.rechargeable_milli, 15_000);
+      assert.equal(merged?.purchased_milli, 5_000);
+      assert.equal(repos.energy.get('acc-target'), undefined);
+      const mergeEntry = repos.energy.history('acc-source')[0];
+      assert.equal(mergeEntry.reason, 'account_merge');
+      assert.equal(mergeEntry.rechargeable_delta_milli, 5_000);
+      assert.equal(mergeEntry.purchased_delta_milli, 3_000);
+    });
   });
 
   describe('WalletRepository', () => {
