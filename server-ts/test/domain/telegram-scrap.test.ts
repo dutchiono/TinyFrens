@@ -37,6 +37,15 @@ describe('Telegram group scrap runs', () => {
     db.close();
   });
 
+  test('does not collide when two platforms start a run in the same second', () => {
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const telegram = startScrapRun(db, '-100', '1', 'pet-1', 'Ada', 1_000, 0.42);
+    const discord = startScrapRun(db, 'dc:guild:channel', '2', 'pet-2', 'Bob', 1_000, 0.42);
+    assert.notEqual(discord.state.run.id, telegram.state.run.id);
+    db.close();
+  });
+
   test('waits for the lobby, resolves once, and rewards every robot', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);

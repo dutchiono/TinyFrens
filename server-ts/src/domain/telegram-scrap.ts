@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { DatabaseConnection } from '../db/connection.js';
 
 const LOBBY_SECONDS = 5 * 60;
@@ -45,11 +46,12 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function runId(now: number, random: number): string {
+function runId(chatId: string, now: number, random: number): string {
   const suffix = Math.floor(Math.max(0, Math.min(0.999999999, random)) * 0xfffffff)
     .toString(36)
     .padStart(5, '0');
-  return `${now.toString(36)}${suffix}`;
+  const chat = createHash('sha256').update(chatId).digest('base64url').slice(0, 6);
+  return `${now.toString(36)}${suffix}${chat}`;
 }
 
 function readRun(db: DatabaseConnection, id: string): ScrapRun | undefined {
@@ -106,7 +108,7 @@ export function startScrapRun(
   const existing = getOpenScrapRun(db, chatId);
   if (existing) return { state: existing, created: false };
 
-  const id = runId(now, random);
+  const id = runId(chatId, now, random);
   const name = cleanName(displayName);
   db.transaction(() => {
     db.prepare(
