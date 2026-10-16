@@ -533,15 +533,21 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.random()
               );
           const [scrapText, scrapKeyboard] = renderScrapCard(started.state, now);
-          if (!started.created && started.state.run.message_id) {
-            await context.telegramApi.call('editMessageText', {
+          const previousCardId = started.state.run.message_id;
+          let cardVisible = false;
+          if (!started.created && previousCardId && now <= started.state.run.join_until) {
+            const edited = await context.telegramApi.call('editMessageText', {
               chat_id: chatId,
-              message_id: started.state.run.message_id,
+              message_id: previousCardId,
               text: scrapText,
               parse_mode: 'HTML',
               reply_markup: scrapKeyboard,
             }, token);
-          } else {
+            const description = String(edited.data?.description || '');
+            cardVisible = (edited.status < 400 && edited.data?.ok === true) ||
+              /message is not modified/i.test(description);
+          }
+          if (!cardVisible) {
             const sent = await context.telegramApi.call('sendMessage', {
               chat_id: chatId,
               text: scrapText,
@@ -553,9 +559,18 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             const sentMessageId = result && typeof result === 'object'
               ? Number((result as Record<string, unknown>).message_id)
               : 0;
-            if (sentMessageId > 0) setScrapMessageId(context.db, started.state.run.id, sentMessageId);
+            cardVisible = sent.status < 400 && sent.data?.ok === true && sentMessageId > 0;
+            if (cardVisible) {
+              setScrapMessageId(context.db, started.state.run.id, sentMessageId);
+              if (previousCardId && previousCardId !== sentMessageId) {
+                await context.telegramApi.call('deleteMessage', {
+                  chat_id: chatId,
+                  message_id: previousCardId,
+                }, token);
+              }
+            }
           }
-          if (messageId) {
+          if (cardVisible && messageId) {
             try {
               await context.telegramApi.call('deleteMessage', {
                 chat_id: chatId,

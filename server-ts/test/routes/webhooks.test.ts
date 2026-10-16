@@ -687,6 +687,56 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.deepEqual(petIds.map(row => sharedContext.economy.balance(row.pet_id)), [35, 35]);
     });
 
+    test('POST /api/telegram/webhook resurfaces an expired open scrap card', async () => {
+      const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+      const originalTelegramApi = sharedContext.telegramApi;
+      const originalNow = sharedContext.now;
+      let nextMessageId = 900;
+      sharedContext.telegramApi = {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return method === 'sendMessage'
+            ? { data: { ok: true, result: { message_id: nextMessageId++ } }, status: 200 }
+            : { data: { ok: true }, status: 200 };
+        },
+      };
+      const webhook = (updateId: number, messageId: number) => app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: updateId,
+          message: {
+            message_id: messageId,
+            text: '/game',
+            chat: { id: '-100-stale-scrap', type: 'supergroup' },
+            from: { id: 'starter-stale', first_name: 'Ada' },
+          },
+        },
+      });
+
+      sharedContext.now = () => 1700010000;
+      assert.equal((await webhook(300, 800)).statusCode, 200);
+      sharedContext.now = () => 1700010100;
+      assert.equal((await webhook(301, 801)).statusCode, 200);
+      sharedContext.telegramApi = originalTelegramApi;
+      sharedContext.now = originalNow;
+
+      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 2);
+      assert.equal(calls.filter(call => call.method === 'editMessageText').length, 0);
+      const deletedIds = calls
+        .filter(call => call.method === 'deleteMessage')
+        .map(call => call.payload.message_id);
+      assert.deepEqual(deletedIds, [800, 900, 801]);
+      const run = sharedContext.db.prepare<{ message_id: number }>(
+        'SELECT message_id FROM tg_scrap_runs WHERE chat_id=?'
+      ).get('-100-stale-scrap');
+      assert.equal(run?.message_id, 901);
+    });
+
     test('POST /api/telegram/webhook addresses update briefings to the requested user with verified progress', async () => {
       const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
       const originalTelegramApi = sharedContext.telegramApi;
