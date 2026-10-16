@@ -17,7 +17,11 @@
 
 ## Server deployment
 
-- **Server**: `server/` (aiohttp). See [server/README.md](../server/README.md) for setup/env/Bankr/Telegram.
+- **Production server**: `server-ts/` (Node.js/TypeScript). The historical Python server is not a production entrypoint.
+- **Delivery**: `.github/workflows/deploy-backend.yml` reconciles production to the exact `main` revision on pushes, manual dispatches, and every five minutes.
+- **Safety**: Releases install side-by-side, run build/startup checks, switch atomically, and roll back the active release when health verification fails.
+- **Recovery**: systemd restarts the process, login lingering keeps the user service manager alive without SSH, and a local timer checks `/health` every minute.
+- **Verification**: `/health/revision` reports the live Git revision; deployment is not successful until the public endpoint matches it.
 - **Integrations**: Telegram bot, Discord (partial), relay for party/visits.
 
 ## Mobile/desktop builds

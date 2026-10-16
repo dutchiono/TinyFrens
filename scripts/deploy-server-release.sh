@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+base=/home/miono/tinyfrens-ts-stage
+command=${SSH_ORIGINAL_COMMAND:-}
+if [[ ! $command =~ ^deploy\ ([0-9a-f]{40})$ ]]; then
+  echo 'Only deploy <full-git-sha> is permitted.' >&2
+  exit 64
+fi
+revision=${BASH_REMATCH[1]}
+release="$base/runtime-${revision:0:12}"
+stage="$base/.incoming-$revision"
+archive="$base/.incoming-$revision.tar.gz"
+current="$base/current"
+revision_env="$base/current-revision.env"
+
+mkdir -p "$base"
+exec 9>"$base/deploy.lock"
+flock -x 9
+
+if [[ -L $current ]] && [[ $(readlink -f "$current") == "$release" ]]; then
+  systemctl --user restart tinyfrens-server-ts.service
+  for _ in {1..15}; do
+    if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then
+      exit 0
+    fi
+    sleep 2
+  done
+  echo 'The active release could not be recovered.' >&2
+  exit 67
+fi
+
+rm -f "$archive"
+rm -rf "$stage"
+cleanup() {
+  trap - EXIT
+  rm -f "$archive"
+  rm -rf "$stage"
+}
+trap cleanup EXIT
+
+umask 077
+dd of="$archive" status=none
+if tar -tzf "$archive" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+  echo 'Archive contains an unsafe path.' >&2
+  exit 65
+fi
+mkdir "$stage"
+tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$stage"
+test -f "$stage/server-ts/package-lock.json"
+test -f "$stage/ops/systemd/tinyfrens-server-ts.service"
+
+export PATH="$base/toolchain/bin:$PATH"
+cd "$stage/server-ts"
+npm ci
+npm run build
+"$base/toolchain/bin/node" test/startup-smoke.mjs
+
+if [[ -e $release ]]; then
+  echo "Release already exists but is not active: $release" >&2
+  exit 66
+fi
+mv "$stage" "$release"
+
+previous_target=''
+previous_revision=''
+if [[ -L $current ]]; then previous_target=$(readlink "$current"); fi
+if [[ -f $revision_env ]]; then previous_revision=$(cat "$revision_env"); fi
+
+rollback() {
+  local status=$?
+  trap - ERR
+  if [[ -n $previous_target ]]; then
+    ln -sfn "$previous_target" "$current"
+  else
+    rm -f "$current"
+  fi
+  if [[ -n $previous_revision ]]; then
+    printf '%s\n' "$previous_revision" > "$revision_env"
+  else
+    rm -f "$revision_env"
+  fi
+  systemctl --user daemon-reload
+  systemctl --user restart tinyfrens-server-ts.service || true
+  exit "$status"
+}
+trap rollback ERR
+
+install -m 0644 "$release/ops/systemd/tinyfrens-server-ts.service" "$HOME/.config/systemd/user/tinyfrens-server-ts.service"
+install -m 0644 "$release/ops/systemd/tinyfrens-server-health.service" "$HOME/.config/systemd/user/tinyfrens-server-health.service"
+install -m 0644 "$release/ops/systemd/tinyfrens-server-health.timer" "$HOME/.config/systemd/user/tinyfrens-server-health.timer"
+ln -sfn "$release" "$current"
+printf 'APP_REVISION=%s\n' "$revision" > "$revision_env"
+systemctl --user daemon-reload
+systemctl --user enable --now tinyfrens-server-ts.service tinyfrens-server-health.timer
+systemctl --user restart tinyfrens-server-ts.service
+
+for _ in {1..15}; do
+  if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then
+    trap - ERR
+    exit 0
+  fi
+  sleep 2
+done
+false

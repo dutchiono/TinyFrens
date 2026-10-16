@@ -1,0 +1,11 @@
+[Unit]
+Description=Check TinyFrens backend every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=tinyfrens-server-health.service
+
+[Install]
+WantedBy=timers.target
