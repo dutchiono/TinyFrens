@@ -57,8 +57,7 @@ npm run build
 "$base/toolchain/bin/node" test/startup-smoke.mjs
 
 if [[ -e $release ]]; then
-  echo "Release already exists but is not active: $release" >&2
-  exit 66
+  rm -rf "$release"
 fi
 mv "$stage" "$release"
 
@@ -82,6 +81,7 @@ rollback() {
   fi
   systemctl --user daemon-reload
   systemctl --user restart tinyfrens-server-ts.service || true
+  rm -rf "$release"
   exit "$status"
 }
 trap rollback ERR
