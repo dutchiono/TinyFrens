@@ -80,6 +80,18 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'ROBOT_CARE_PRICE_VITAMIN', classification: 'public', description: 'Price in FRENS for vitamin action' },
   { key: 'ROBOT_CARE_PRICE_SCOLD', classification: 'public', description: 'Price in FRENS for scold action' },
   { key: 'ROBOT_CARE_PRICE_REVIVE', classification: 'public', description: 'Price in FRENS for revive action' },
+  { key: 'ENERGY_POLICY_VERSION', classification: 'public', description: 'Version applied to account Energy rate calculations' },
+  { key: 'ENERGY_BASE_PER_DAY', classification: 'public', description: 'Base daily Energy for accounts holding a Robot' },
+  { key: 'ENERGY_PER_ROBOT_PER_DAY', classification: 'public', description: 'Additional daily Energy per eligible Robot' },
+  { key: 'ENERGY_CAPACITY_DAYS', classification: 'public', description: 'Rechargeable Energy capacity measured in days' },
+  { key: 'ROBOT_ENERGY_COST_FEED', classification: 'public', description: 'Energy cost for feeding a Robot' },
+  { key: 'ROBOT_ENERGY_COST_PLAY', classification: 'public', description: 'Energy cost for playing with a Robot or starting a mini-game' },
+  { key: 'ROBOT_ENERGY_COST_REST', classification: 'public', description: 'Energy cost for changing Robot rest state' },
+  { key: 'ROBOT_ENERGY_COST_ADVENTURE', classification: 'public', description: 'Energy cost for sending a Robot on an adventure' },
+  { key: 'ROBOT_ENERGY_COST_CLEAN', classification: 'public', description: 'Energy cost for cleaning a Robot' },
+  { key: 'ROBOT_ENERGY_COST_VITAMIN', classification: 'public', description: 'Energy cost for giving a Robot a vitamin' },
+  { key: 'ROBOT_ENERGY_COST_SCOLD', classification: 'public', description: 'Energy cost for scolding a Robot' },
+  { key: 'ROBOT_ENERGY_COST_REVIVE', classification: 'public', description: 'Energy cost for reviving a Robot' },
 
   // Farcaster/Neynar
   { key: 'NEYNAR_API_KEY', classification: 'secret', description: 'Neynar API key' },
@@ -204,6 +216,20 @@ export const ConfigSchema = z.object({
   ROBOT_CARE_PRICE_VITAMIN: z.coerce.number().int().default(5000),
   ROBOT_CARE_PRICE_SCOLD: z.coerce.number().int().default(250),
   ROBOT_CARE_PRICE_REVIVE: z.coerce.number().int().default(100000),
+
+  // Account Energy
+  ENERGY_POLICY_VERSION: z.coerce.number().int().positive().default(1),
+  ENERGY_BASE_PER_DAY: z.coerce.number().int().nonnegative().default(18),
+  ENERGY_PER_ROBOT_PER_DAY: z.coerce.number().int().nonnegative().default(6),
+  ENERGY_CAPACITY_DAYS: z.coerce.number().int().positive().default(3),
+  ROBOT_ENERGY_COST_FEED: z.coerce.number().int().positive().default(4),
+  ROBOT_ENERGY_COST_PLAY: z.coerce.number().int().positive().default(5),
+  ROBOT_ENERGY_COST_REST: z.coerce.number().int().positive().default(4),
+  ROBOT_ENERGY_COST_ADVENTURE: z.coerce.number().int().positive().default(7),
+  ROBOT_ENERGY_COST_CLEAN: z.coerce.number().int().positive().default(4),
+  ROBOT_ENERGY_COST_VITAMIN: z.coerce.number().int().positive().default(6),
+  ROBOT_ENERGY_COST_SCOLD: z.coerce.number().int().positive().default(4),
+  ROBOT_ENERGY_COST_REVIVE: z.coerce.number().int().positive().default(7),
 
   // Farcaster/Neynar
   NEYNAR_API_KEY: z.string().optional(),

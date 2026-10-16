@@ -370,11 +370,11 @@ else if (name === 'play') {
       if (s.bored) { s.bored = false; if (s.happiness < r.happy) s.happiness = r.happy; }
       else if (lvl(s.happiness) <= r.threshold) s.happiness = r.threshold + 1; // a good play session always cheers a sad fren out of the sad band
       add('energy', -r.play.energy); add('hunger', -r.play.food); add('weight', -r.weight.play);
-      feedback = 'Joy +' + gain('happiness') + ' · Energy −' + r.play.energy + ' · Food −' + r.play.food;
+      feedback = 'Joy +' + gain('happiness') + ' · Stamina −' + r.play.energy + ' · Food −' + r.play.food;
     }
     else if (name === 'rest') {
       if (s.activity === 'resting') { s.activity = 'idle'; feedback = (s.name || 'Your fren') + ' woke up.'; }
-      else { s.activity = 'resting'; feedback = 'Resting… Energy +' + r.restPerHour + '/hour.'; }
+      else { s.activity = 'resting'; feedback = 'Resting… Stamina +' + r.restPerHour + '/hour.'; }
     }
     else if (name === 'adventure') {
       if (s.activity === 'adventuring') { s.activity = 'idle'; feedback = (s.name || 'Your fren') + ' came home.'; }

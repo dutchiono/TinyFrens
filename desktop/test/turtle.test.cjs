@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {TurtleStore, SERVER} = require('../turtle.cjs');
 
-test('account profile and FRENS balance use the trusted relay bridge', async t => {
+test('account profile, balances, and Robot Energy use the trusted relay bridge', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinyfrens-account-'));
   t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
   const store = new TurtleStore(path.join(dir, 'pets.json'), async (url, options) => {
@@ -14,7 +14,7 @@ test('account profile and FRENS balance use the trusted relay bridge', async t =
     assert.equal(options.redirect, 'error');
     return {ok:true, text:async () => JSON.stringify({path:new URL(url).pathname})};
   });
-  for (const route of ['/api/account/profile', '/api/credits/balance']) {
+  for (const route of ['/api/account/profile', '/api/credits/balance', '/api/robots/care', '/api/robots/care/action', '/api/robots/game']) {
     assert.equal((await store.request(SERVER, route, {token:'device'})).path, route);
     await assert.rejects(store.request('https://other.test', route, {token:'device'}), /Unsupported/);
   }

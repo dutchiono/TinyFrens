@@ -50,6 +50,9 @@
       const nft = await players().prepare(chosen); if (generation !== current || screen.hidden) return;
       const permission = window.TinyFrensGameCare.canPlay();
       if (permission.blocked) throw Error(permission.feedback);
+      if (!window.TinyFrensRobotCare || !(await window.TinyFrensRobotCare.beforeGame())) {
+        throw Error('A verified Robot and enough account Energy are required to start a game.');
+      }
       const sprite = players().sprite(nft);
       const back = el('button', {type:'button', className:'secondary game-back', textContent:'← Games'}); back.onclick = showPicker;
       const stage = el('div', {className:'game-stage'});

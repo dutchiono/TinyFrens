@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const companionKey = nft => `${nft.chainId || 4663}:${String(nft.originalAddress || '0xca28587b61eac19a87dfcfd9420870867a916675').toLowerCase()}:${nft.tokenId}`;
 const SERVER = 'https://tinyfrens.miono.live';
 const PATHS = new Set(['/api/register', '/api/wallet-link/status', '/api/wallet-link/challenge',
-  '/api/account/profile', '/api/credits/balance',
+  '/api/account/profile', '/api/credits/balance', '/api/robots/care', '/api/robots/care/action', '/api/robots/game',
   '/api/wallet-link/confirm', '/api/wallet-link/disconnect', '/api/wallet-link/nfts', '/api/featured/hood-turtle', '/api/featured/companion',
   "/api/device-sync/state", "/api/device-sync/start", "/api/device-sync/request", "/api/device-sync/status", "/api/device-sync/accept", "/api/device-sync/leave", '/api/turtle-connect/start', '/api/turtle-connect/status', '/api/turtle-connect/accept', '/api/turtle-connect/from-device']);
 

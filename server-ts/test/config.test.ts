@@ -15,6 +15,10 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.TRUST_PROXY, false);
     assert.equal(config.ROBOT_CARE_DAILY_ALLOWANCE, 24);
     assert.equal(config.ROBOT_CARE_PRICE_FEED, 1000);
+    assert.equal(config.ENERGY_BASE_PER_DAY, 18);
+    assert.equal(config.ENERGY_PER_ROBOT_PER_DAY, 6);
+    assert.equal(config.ENERGY_CAPACITY_DAYS, 3);
+    assert.equal(config.ROBOT_ENERGY_COST_PLAY, 5);
     assert.equal(config.ECONOMY_MODE, 'off');
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);
     assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, undefined);
@@ -29,6 +33,8 @@ describe('Configuration Ledger & Parser', () => {
       CHAIN_ID: '8453',
       ALLOWED_ORIGINS: 'https://foo.com, https://bar.com',
       ROBOT_CARE_DAILY_ALLOWANCE: '48',
+      ENERGY_BASE_PER_DAY: '20',
+      ROBOT_ENERGY_COST_PLAY: '7',
       DB_READ_ONLY: 'true',
       TELEGRAM_DEPLOY_OWNER_ID: '969561894',
     });
@@ -38,6 +44,8 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.TRUST_PROXY, true);
     assert.equal(config.CHAIN_ID, 8453);
     assert.equal(config.ROBOT_CARE_DAILY_ALLOWANCE, 48);
+    assert.equal(config.ENERGY_BASE_PER_DAY, 20);
+    assert.equal(config.ROBOT_ENERGY_COST_PLAY, 7);
     assert.equal(config.DB_READ_ONLY, true);
     assert.equal(config.TELEGRAM_DEPLOY_OWNER_ID, '969561894');
 
