@@ -12,7 +12,7 @@ export const PRIVATE_TELEGRAM_COMMANDS: TelegramCommand[] = [
   { command: 'show', description: 'Post one of your NFT frens' },
   { command: 'showhelp', description: 'How NFT slots and account sync work' },
   { command: 'link', description: 'Link an existing TinyFrens account' },
-  { command: 'progress', description: 'Latest website, Telegram, and backend work' },
+  { command: 'progress', description: 'Website, Telegram, Discord, backend work' },
   { command: 'status', description: 'Check the TinyFrens server' },
   { command: 'myid', description: 'Show your Telegram user ID' },
 ];
@@ -22,7 +22,7 @@ export const GROUP_TELEGRAM_COMMANDS: TelegramCommand[] = [
   { command: 'gamehelp', description: 'How the group Scrap Run works' },
   { command: 'show', description: 'Post one of your NFT frens' },
   { command: 'showhelp', description: 'How NFT slots and account sync work' },
-  { command: 'progress', description: 'Latest website, Telegram, and backend work' },
+  { command: 'progress', description: 'Website, Telegram, Discord, backend work' },
   { command: 'status', description: 'Check the TinyFrens server' },
   { command: 'issue', description: 'Open a GitHub issue from chat' },
   { command: 'help', description: 'See every command' },

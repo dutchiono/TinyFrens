@@ -313,7 +313,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     '/link CODE — Link an existing TinyFrens account (DM).',
     '',
     '<b>🛠 Information</b>',
-    '/progress — Website, Telegram, and backend updates.',
+    '/progress — Website, Telegram, Discord, and backend updates.',
     '/status — Server status.',
     '/issue — Open a GitHub issue from group chat.',
     '/myid — Your Telegram numeric user ID (DM only).',
@@ -358,6 +358,7 @@ export function renderGithubProgress(
   const sections: Array<[GithubUpdateArea, string]> = [
     ['website', '🌐 <b>Website</b>'],
     ['telegram', '🤖 <b>Telegram</b>'],
+    ['discord', '💬 <b>Discord</b>'],
     ['backend', '⚙️ <b>Backend</b>'],
   ];
   for (const [area, label] of sections) {
@@ -409,7 +410,7 @@ export function renderGithubProgress(
   return [lines.join('\n'), keyboard];
 }
 
-export type GithubUpdateArea = 'website' | 'telegram' | 'backend' | 'other';
+export type GithubUpdateArea = 'website' | 'telegram' | 'discord' | 'backend' | 'other';
 
 export interface GithubProgressCommit {
   msg: string;
@@ -444,8 +445,11 @@ function updateAreas(files: string[], message: string): GithubUpdateArea[] {
   if (fileMatches(/telegram|tg_scrap|tg_fren/i) || /\b(?:telegram|tg|bot)\b/i.test(messageText)) {
     areas.push('telegram');
   }
+  if (fileMatches(/discord/i) || /\bdiscord\b/i.test(messageText)) {
+    areas.push('discord');
+  }
   if (
-    fileMatches(/^(?:server-ts|server)\/(?!.*telegram)|^(?:db|domain|integrations|routes)\//i) ||
+    fileMatches(/^(?:server-ts|server)\/(?!.*(?:telegram|discord))|^(?:db|domain|integrations|routes)\//i) ||
     /\b(?:backend|server|api|database)\b/i.test(messageText)
   ) {
     areas.push('backend');
@@ -471,6 +475,12 @@ function fileSummary(commit: GithubProgressCommit, area: GithubUpdateArea): stri
       if (/routes\/telegram/i.test(file)) return ['bot commands'];
       if (/integrations\/telegram/i.test(file)) return ['update awareness'];
       return ['Telegram bot'];
+    }
+    if (area === 'discord') {
+      if (/discord-scrap/i.test(file)) return ['Scrap Run presentation'];
+      if (/discord-api/i.test(file)) return ['bot commands'];
+      if (/routes\/discord/i.test(file)) return ['Discord interactions'];
+      return ['Discord bot'];
     }
     if (area === 'backend') {
       if (/db\/schema/i.test(file)) return ['database'];
@@ -617,6 +627,7 @@ export function renderTelegramUpdateBriefing(
   const sections: Array<[GithubUpdateArea, string]> = [
     ['website', '🌐 Website'],
     ['telegram', '🤖 Telegram'],
+    ['discord', '💬 Discord'],
     ['backend', '⚙️ Backend'],
   ];
   for (const [area, label] of sections) {
