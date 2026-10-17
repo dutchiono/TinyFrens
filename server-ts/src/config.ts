@@ -271,7 +271,7 @@ export const ConfigSchema = z.object({
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
-  DISCORD_UPDATES_CHANNEL_ID: z.string().regex(/^\d{15,22}$/).optional(),
+  DISCORD_UPDATES_CHANNEL_ID: z.string().regex(/^\d{15,22}$/).optional().or(z.literal('')),
   DISCORD_ALERT_USER_ID: z.preprocess(
     value => value === '' ? undefined : value,
     z.string().regex(/^[1-9][0-9]*$/).optional()
