@@ -713,7 +713,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               remember(chatId, entry);
             }
           }
-          const inlineDescription = text.replace(/^\\/issue(?:@\\w+)?\\s*/i, '').trim();
+          const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
           await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
           return reply.status(200).send({ ok: true });
         }
