@@ -82,7 +82,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
   const fileIssueFromChat = async (
     chatId: unknown,
     chat: Record<string, unknown> | null,
-    token: string
+    token: string,
+    explicitDescription = ''
   ) => {
     const say = async (text: string) => {
       try {
@@ -93,11 +94,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     };
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
-      const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
-      if (!apiKey) {
-        await say("I have no AI key set, so I can't summarise the chat yet. (Set GEMINI_API_KEY.)");
-        return;
-      }
       if (!context.config.GITHUB_REPO) {
         await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
         return;
@@ -109,13 +105,27 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         return;
       }
       const messages = chatHistory.get(String(chatId)) || [];
-      const lines = transcript(messages, historyLimit);
+      const lines = explicitDescription.trim() || transcript(messages, historyLimit);
       if (!lines) {
-        await say("I haven't seen enough of this conversation yet to write an issue. Say a bit about what's happening, then ask me again.");
+        await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it. I cannot read messages from before the bot started.');
         return;
       }
-      await say(`📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`);
-      const draft = await draftIssue(lines, apiKey, String(chat?.title || ''), context.config.GEMINI_MODEL);
+      const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
+      // Issue reporting must not depend on the chat model being available.
+      // If AI drafting fails, preserve the user's actual report without inventing facts.
+      const fallback = {
+        title: ('Report: ' + lines.replace(/\s+/g, ' ').slice(0, 80)).slice(0, 90),
+        labels: [] as string[],
+        body: '## What happened\n\n' + lines + '\n\n## Suggested next steps\n\n- Reproduce and investigate the reported behavior.',
+      };
+      let draft = fallback;
+      if (apiKey) {
+        try {
+          draft = await draftIssue(lines, apiKey, String(chat?.title || ''), context.config.GEMINI_MODEL);
+        } catch (error) {
+          console.warn('Telegram issue AI drafting failed; using verbatim report:', error instanceof Error ? error.message : 'unknown error');
+        }
+      }
       const available = await listLabels(owner, repo, githubToken);
       const labels = filterLabels([...labelsFromEnv(context.config.GITHUB_ISSUE_LABELS), ...draft.labels], available);
       const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
@@ -703,7 +713,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               remember(chatId, entry);
             }
           }
-          await fileIssueFromChat(chatId, chat, token);
+          const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
+          await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
           return reply.status(200).send({ ok: true });
         }
 
@@ -738,7 +749,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
                 context.config.GEMINI_MODEL
               );
-            } catch {
+            } catch (error) {
+              console.error('TinyFrens Telegram AI chat failed', { reason: error instanceof Error ? error.message : 'unknown error' });
               answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
             }
           }
