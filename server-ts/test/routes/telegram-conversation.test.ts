@@ -99,7 +99,7 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.equal(api.calls.at(-1)?.payload.reply_to_message_id, 2);
 
     await webhook({ message: { message_id: 22, text: '/gamehelp', chat: { id: -10, type: 'group' }, from: { id: 5 } } });
-    assert.match(String(api.calls.at(-1)?.payload.text), /45-second window/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /five-minute window/);
 
     await webhook({ message: { message_id: 23, text: '/showhelp', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
     assert.match(String(api.calls.at(-1)?.payload.text), /Show in Telegram/);

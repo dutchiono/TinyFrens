@@ -3,6 +3,7 @@ import { REST, Routes } from 'discord.js';
 import { AppContext } from '../context.js';
 import { verifyDiscordInteraction } from '../crypto/signatures.js';
 import { discordPet } from '../domain/account.js';
+import { discordGameHelpText, discordHelpText } from '../domain/community-help.js';
 import { renderDiscordScrap } from '../domain/discord-scrap.js';
 import {
   expireStaleScrapRun,
@@ -140,6 +141,9 @@ async function handleDiscordCommand(
   const guildId = String(interaction.guild_id || '');
   const channelId = String(interaction.channel_id || '');
   const user = interactionUser(interaction);
+
+  if (name === 'help') return message(discordHelpText(), { ephemeral: true });
+  if (name === 'gamehelp') return message(discordGameHelpText(), { ephemeral: true });
 
   if (command.type === 3 && name === 'warn message') {
     const targetMessageId = String(command.target_id || '');

@@ -278,7 +278,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
       '🎮 <b>Group Scrap Run</b>',
       '',
       '1. Send /game in a group. The starter joins automatically.',
-      '2. Up to four people tap <b>Join crew</b> during the 45-second window.',
+      '2. Up to four people tap <b>Join crew</b> during the five-minute window.',
       '3. A crew member taps <b>Search together</b> after the window closes.',
       '4. Everyone in the crew gets the same result and their own credit reward.',
       '',
