@@ -14,7 +14,7 @@ exec 9>"$lock"
 flock -x 9
 test -f "$env_file" || { echo 'Production .env missing' >&2; exit 66; }
 value=$(cat)
-if [[ -z "$value" || "$value" == *$'\n'* || "$value" == *$'\r'* || "$value" == *$'\0'* ]]; then
+if [[ -z "$value" || "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
   echo 'Value must be nonempty and single-line' >&2; exit 65
 fi
 if [[ "$key" == DISCORD_UPDATES_CHANNEL_ID && ! "$value" =~ ^[0-9]{15,22}$ ]]; then
