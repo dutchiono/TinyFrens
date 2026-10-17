@@ -5,6 +5,7 @@ base=/home/miono/tinyfrens-ts-stage
 alert_state="$base/backend-health-alerted"
 recovery_alert_state="$base/backend-health-recovery-alerted"
 discord_alert_state="$base/discord-health-alerted"
+revision_env="$base/current-revision.env"
 exec 9>"$base/deploy.lock"
 if ! flock -n 9; then exit 0; fi
 
@@ -24,7 +25,18 @@ notify_owner() {
 
 ensure_discord() {
   if [[ -z ${DISCORD_BOT_TOKEN:-} ]]; then return 0; fi
+  local expected_revision='' running_revision='' pid=''
+  if [[ -f $revision_env ]]; then
+    expected_revision=$(sed -n 's/^APP_REVISION=//p' "$revision_env")
+  fi
   if systemctl --user is-active --quiet tinyfrens-discord.service; then
+    pid=$(systemctl --user show --property MainPID --value tinyfrens-discord.service)
+    if [[ $pid =~ ^[1-9][0-9]*$ ]]; then
+      running_revision=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | sed -n 's/^APP_REVISION=//p' || true)
+    fi
+  fi
+  if systemctl --user is-active --quiet tinyfrens-discord.service &&
+    { [[ -z $expected_revision ]] || [[ $running_revision == "$expected_revision" ]]; }; then
     if [[ -f $discord_alert_state ]]; then
       notify_owner $'✅ TinyFrens Discord bot recovered\n\nThe independent health monitor can see the Gateway worker again.'
       rm -f "$discord_alert_state"
@@ -32,10 +44,22 @@ ensure_discord() {
     return 0
   fi
 
+  local recovery_reason='stopped'
+  if [[ -n $expected_revision && $running_revision != "$expected_revision" ]]; then
+    recovery_reason='was running stale code'
+  fi
   systemctl --user restart tinyfrens-discord.service
   sleep 2
-  if systemctl --user is-active --quiet tinyfrens-discord.service; then
-    notify_owner $'⚠️ TinyFrens Discord bot auto-recovered\n\nThe Gateway worker stopped, so the independent monitor restarted it.'
+  pid=$(systemctl --user show --property MainPID --value tinyfrens-discord.service)
+  running_revision=''
+  if [[ $pid =~ ^[1-9][0-9]*$ ]]; then
+    running_revision=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | sed -n 's/^APP_REVISION=//p' || true)
+  fi
+  if systemctl --user is-active --quiet tinyfrens-discord.service &&
+    { [[ -z $expected_revision ]] || [[ $running_revision == "$expected_revision" ]]; }; then
+    notify_owner "⚠️ TinyFrens Discord bot auto-recovered
+
+The Gateway worker $recovery_reason, so the independent monitor restarted it at revision ${running_revision:-unknown}."
     rm -f "$discord_alert_state"
     return 0
   fi

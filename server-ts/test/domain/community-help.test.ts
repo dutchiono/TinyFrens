@@ -15,7 +15,8 @@ describe('community command help parity', () => {
 
   test('describes the shared five-minute Scrap engine consistently', () => {
     assert.match(discordGameHelpText(), /five-minute window/);
-    assert.match(discordGameHelpText(), /same Scrap rules, persistence, and account economy/);
+    assert.match(discordGameHelpText(), /same Scrap engine, reward rules, and database/);
+    assert.match(discordGameHelpText(), /identit(?:y|ies).*separate until.*linked/i);
     assert.match(telegramHelpText('game'), /five-minute window/);
     assert.doesNotMatch(telegramHelpText('game'), /45-second/);
   });
