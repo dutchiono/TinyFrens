@@ -244,7 +244,7 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   },
   {
     table: 'deploy_notification_chats',
-    sql: "CREATE TABLE IF NOT EXISTS deploy_notification_chats(chat_id TEXT PRIMARY KEY, username TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, last_revision TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL);",
+    sql: "CREATE TABLE IF NOT EXISTS deploy_notification_chats(chat_id TEXT PRIMARY KEY, username TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, last_revision TEXT NOT NULL DEFAULT '', message_id INTEGER, updated INTEGER NOT NULL);",
   },
 
   // Turtle connect & wallets (server/turtle_connect.py)

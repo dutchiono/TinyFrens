@@ -155,6 +155,13 @@ export function migrateEnergyPurchases(db: DatabaseConnection): void {
   }
 }
 
+/** Keeps one editable deployment card per subscribed Telegram chat. */
+export function migrateDeployNotificationCards(db: DatabaseConnection): void {
+  const columns = db.prepare<TableColumnInfo>('PRAGMA table_info(deploy_notification_chats)').all();
+  if (columns.some(column => column.name === 'message_id')) return;
+  db.exec('ALTER TABLE deploy_notification_chats ADD COLUMN message_id INTEGER;');
+}
+
 /**
  * Applies all schema definitions and backward-compatible data migrations.
  */
@@ -164,4 +171,5 @@ export function runMigrations(db: DatabaseConnection): void {
   migrateDeviceSyncTelegramSelection(db);
   migrateAccountWallets(db);
   migrateEnergyPurchases(db);
+  migrateDeployNotificationCards(db);
 }

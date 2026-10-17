@@ -65,6 +65,7 @@ export interface DeployNotificationChatRow {
   username: string;
   enabled: number;
   last_revision: string;
+  message_id: number | null;
   updated: number;
 }
 
@@ -101,8 +102,8 @@ export class TelegramRepository {
 
   subscribeDeployNotifications(chatId: string, username: string, updated: number): void {
     this.db.prepare(
-      `INSERT INTO deploy_notification_chats(chat_id, username, enabled, last_revision, updated)
-       VALUES(?, ?, 1, '', ?)
+      `INSERT INTO deploy_notification_chats(chat_id, username, enabled, last_revision, message_id, updated)
+       VALUES(?, ?, 1, '', NULL, ?)
        ON CONFLICT(chat_id) DO UPDATE SET username=excluded.username, enabled=1, updated=excluded.updated`
     ).run(chatId, username.toLowerCase().replace(/^@/, ''), updated);
   }
@@ -115,15 +116,15 @@ export class TelegramRepository {
 
   listDeployNotificationChats(): DeployNotificationChatRow[] {
     return this.db.prepare<DeployNotificationChatRow>(
-      `SELECT chat_id, username, enabled, last_revision, updated
+      `SELECT chat_id, username, enabled, last_revision, message_id, updated
        FROM deploy_notification_chats WHERE enabled=1 ORDER BY chat_id`
     ).all();
   }
 
-  markDeployNotificationSent(chatId: string, revision: string, updated: number): void {
+  markDeployNotificationSent(chatId: string, revision: string, messageId: number, updated: number): void {
     this.db.prepare(
-      'UPDATE deploy_notification_chats SET last_revision=?, updated=? WHERE chat_id=?'
-    ).run(revision, updated, chatId);
+      'UPDATE deploy_notification_chats SET last_revision=?, message_id=?, updated=? WHERE chat_id=?'
+    ).run(revision, messageId, updated, chatId);
   }
 
   // TG Media Cache

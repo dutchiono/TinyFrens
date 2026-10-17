@@ -183,9 +183,7 @@ export function createDiscordRest(token: string): REST {
 
 export async function syncDiscordCommands(token: string, applicationId: string): Promise<void> {
   const rest = createDiscordRest(token);
-  for (const command of DISCORD_COMMANDS) {
-    await rest.post(Routes.applicationCommands(applicationId), { body: command });
-  }
+  await rest.put(Routes.applicationCommands(applicationId), { body: DISCORD_COMMANDS });
 }
 
 export async function discordDeleteMessage(rest: REST, channelId: string, messageId: string): Promise<void> {
