@@ -749,7 +749,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
                 context.config.GEMINI_MODEL
               );
-            } catch {
+            } catch (error) {
+              console.error('TinyFrens Telegram AI chat failed', { reason: error instanceof Error ? error.message : 'unknown error' });
               answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
             }
           }
