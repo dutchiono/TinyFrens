@@ -17,6 +17,18 @@ export interface DiscordCommandDefinition {
 
 export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   {
+    name: 'help',
+    description: 'Show every available TinyFrens Discord command',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'gamehelp',
+    description: 'Explain the shared group Scrap Run',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
     name: 'game',
     description: 'Start or open the group Scrap Run',
     contexts: [0],

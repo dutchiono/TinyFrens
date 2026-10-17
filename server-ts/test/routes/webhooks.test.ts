@@ -344,6 +344,35 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.ok(json.data.content.includes('Test Fren'));
       assert.strictEqual(json.data.components[0].components[0].label, 'Join crew (1/4)');
     });
+
+    test('POST /api/discord/interactions answers /help without AI or network access', async () => {
+      const ts = '1700000002';
+      const body = JSON.stringify({
+        type: 2,
+        guild_id: '2001',
+        channel_id: '3001',
+        member: { user: { id: '4001', username: 'testfren' }, permissions: '0' },
+        data: { name: 'help' },
+      });
+      const dataToSign = Buffer.concat([Buffer.from(ts, 'utf-8'), Buffer.from(body, 'utf-8')]);
+      const sig = crypto.sign(null, dataToSign, discordKeyPair.privateKey).toString('hex');
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/discord/interactions',
+        headers: {
+          'content-type': 'application/json',
+          'x-signature-ed25519': sig,
+          'x-signature-timestamp': ts,
+        },
+        payload: body,
+      });
+      const json = res.json();
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(json.type, 4);
+      assert.strictEqual(json.data.flags, 64);
+      assert.match(json.data.content, /TinyFrens commands/);
+      assert.match(json.data.content, /`\/game`/);
+    });
   });
 
   describe('Telegram Auth & Webhooks (POST /api/telegram/*)', () => {
