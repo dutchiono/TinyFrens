@@ -106,7 +106,7 @@ export async function deliverDeploymentNotification(
   let failures = 0;
 
   for (const chat of chats) {
-    if (chat.last_revision === revision) {
+    if (chat.last_revision === revision && chat.message_id) {
       alreadyNotified += 1;
       continue;
     }
