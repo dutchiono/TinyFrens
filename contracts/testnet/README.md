@@ -74,6 +74,8 @@ forge script contracts/testnet/script/DeployEconomy.s.sol:DeployEconomy `
 
 Logs print `treasuryImpl`, `treasuryProxy`, `vaultImpl`, `vaultProxy`, `sessionImpl`, `routerImpl`, `routerProxy`. Verify the **implementations** (the proxies are thin ERC1967 forwarders); `forge`'s `--verify` may need the impl addresses passed explicitly.
 
+The addresses and provider-specific verification results for the existing Base Sepolia rehearsal are recorded in [`../config/testnet-economy.json`](../config/testnet-economy.json). Run `npm run audit:testnet-contracts` from `server-ts/` to recheck the deployed bytecode, EIP-1967 implementation slots, control addresses, pause state, router wiring, and renderer relationships. The config file is an audit record, not a deployment input. Do not enable deposits merely because an address appears there.
+
 Then in `server/.env`:
 
 ```env

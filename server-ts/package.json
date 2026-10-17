@@ -12,6 +12,7 @@
     "shadow:compare": "node scripts/shadow-compare.mjs",
     "shadow:prepare": "node scripts/prepare-shadow-databases.mjs",
     "shadow:validate": "node scripts/validate-shadow-config.mjs",
+    "audit:testnet-contracts": "node scripts/audit-testnet-contracts.mjs",
     "smoke": "node test/startup-smoke.mjs",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",

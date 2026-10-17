@@ -12,7 +12,7 @@
     "chainId": 84532,
     "chainName": "base-sepolia",
     "explorer": "https://sepolia.basescan.org",
-    "frensToken": null,
+    "frensToken": "0x18Fe8FCde8D2046D80741549e25B16023fBBBAB6",
     "name": "TinyFrens Test FRENS",
     "symbol": "tfFRENS",
     "decimals": 18,

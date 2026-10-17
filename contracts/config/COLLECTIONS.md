@@ -25,4 +25,6 @@ TinyFrens is the app and umbrella brand. Each NFT collection is a distinct serie
 
 `testnet-nft.json` records the already-deployed robot rehearsal at `0x091FB40292925E822849BA415599939eec078b62` on Base Sepolia (84532). Its actual on-chain name is `TinyFrens`, symbol `FREN`, and default token names are `TinyFren #<id>`. The live testnet gallery is a snapshot of that deployment, not the Robots v1 preview. Preserve those facts; source edits cannot rename or replace its immutable renderer.
 
+The collection, art renderer, and sprite renderer are regular immutable deployments, not upgradeable proxies. The verification record also pins the art renderer's on-chain `spriteRenderer()` relationship so a verified renderer cannot silently be documented with the wrong companion address.
+
 For each future release, record the series/edition, network/chain, NFT address, renderer addresses, source commit, deployment transaction and verification results before marking it live. No mainnet Robots v1 deployment is recorded yet.
