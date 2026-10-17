@@ -3,6 +3,9 @@ set -euo pipefail
 
 base=/home/miono/tinyfrens-ts-stage
 command=${SSH_ORIGINAL_COMMAND:-}
+if [[ $command =~ ^config-update\ (DISCORD_UPDATES_CHANNEL_ID|DISCORD_BOT_TOKEN|GEMINI_API_KEY|TELEGRAM_BOT_TOKEN|GITHUB_WEBHOOK_SECRET)$ ]]; then
+  exec /home/miono/tinyfrens-ts-stage/current/scripts/update-server-env.sh "${BASH_REMATCH[1]}"
+fi
 if [[ ! $command =~ ^deploy\ ([0-9a-f]{40})$ ]]; then
   echo 'Only deploy <full-git-sha> is permitted.' >&2
   exit 64
