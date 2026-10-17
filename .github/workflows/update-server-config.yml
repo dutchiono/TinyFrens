@@ -1,0 +1,56 @@
+name: Update production server configuration
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: 'Allowlisted production environment key to update'
+        required: true
+        type: choice
+        options:
+          - DISCORD_UPDATES_CHANNEL_ID
+          - DISCORD_BOT_TOKEN
+          - GEMINI_API_KEY
+          - TELEGRAM_BOT_TOKEN
+          - GITHUB_WEBHOOK_SECRET
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production-backend
+  cancel-in-progress: false
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-backend
+    steps:
+      - name: Apply approved configuration key
+        shell: bash
+        env:
+          KEY: ${{ inputs.key }}
+          DEPLOY_KEY: ${{ secrets.TF_SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.TF_SERVER_KNOWN_HOSTS }}
+          DISCORD_UPDATES_CHANNEL_ID: ${{ vars.DISCORD_UPDATES_CHANNEL_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          case "$KEY" in
+            DISCORD_UPDATES_CHANNEL_ID|DISCORD_BOT_TOKEN|GEMINI_API_KEY|TELEGRAM_BOT_TOKEN|GITHUB_WEBHOOK_SECRET) ;;
+            *) exit 64 ;;
+          esac
+          value="${!KEY}"
+          test -n "$value" || { echo 'Selected secret or variable is missing'; exit 65; }
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/server-ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/server-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/server-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/server-ssh/key"
+          trap 'rm -f "$RUNNER_TEMP/server-ssh/key"' EXIT
+          printf '%s' "$value" | ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/server-ssh/known_hosts" \
+            -i "$RUNNER_TEMP/server-ssh/key" miono@198.71.54.203 \
+            "config-update $KEY"

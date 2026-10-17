@@ -5,6 +5,7 @@ on:
     paths:
       - 'server-ts/**'
       - 'scripts/deploy-server-release.sh'
+      - 'scripts/update-server-env.sh'
       - 'scripts/server-healthcheck.sh'
       - 'scripts/check-server-deploy.mjs'
       - 'scripts/verify-server-deploy.mjs'
