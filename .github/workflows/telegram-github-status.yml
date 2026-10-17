@@ -1,0 +1,49 @@
+name: Notify Telegram of GitHub results
+on:
+  workflow_run:
+    workflows:
+      - TinyFrens quality gate
+      - Android APK
+      - Deploy backend to server
+      - Publish website to server
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: production-backend
+    steps:
+      - name: Report completed GitHub workflow to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.TELEGRAM_GITHUB_CHAT_ID }}
+          EVENT_JSON: ${{ toJSON(github.event.workflow_run) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BOT_TOKEN" || -z "$CHAT_ID" ]]; then
+            echo 'Configure TELEGRAM_BOT_TOKEN secret and TELEGRAM_GITHUB_CHAT_ID variable in production-backend environment' >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          event=json.loads(os.environ['EVENT_JSON'])
+          name=event.get('name','Workflow')
+          result=event.get('conclusion') or 'unknown'
+          branch=event.get('head_branch','unknown')
+          sha=(event.get('head_sha') or '')[:8]
+          url=event.get('html_url','')
+          label={'success':'✅ SUCCESS','failure':'❌ FAILED','cancelled':'⚪ CANCELLED','timed_out':'⏱ TIMEOUT'}.get(result,'ℹ '+result.upper())
+          message=f"{label} — {name}\nBranch: {branch}\nCommit: {sha}\n{url}"
+          body=json.dumps({'chat_id':os.environ['CHAT_ID'],'text':message,'disable_web_page_preview':True}).encode()
+          req=urllib.request.Request('https://api.telegram.org/bot'+os.environ['BOT_TOKEN']+'/sendMessage',data=body,headers={'Content-Type':'application/json'})
+          try:
+              with urllib.request.urlopen(req,timeout=15) as resp:
+                  data=json.load(resp)
+              if not data.get('ok'): raise RuntimeError('Telegram rejected message')
+              print('Telegram notification delivered')
+          except (urllib.error.HTTPError,urllib.error.URLError) as exc:
+              raise SystemExit(f'Telegram delivery failed: {type(exc).__name__} (HTTP status: {getattr(exc,"code","n/a")})')
+          PY
