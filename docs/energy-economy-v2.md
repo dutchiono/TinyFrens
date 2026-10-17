@@ -57,9 +57,47 @@ a stale Robot count.
 
 ## FRENS holding, staking, and burning
 
-These inputs are intentionally not active in the first implementation. A raw linear token formula
-would make token whales effectively unlimited and a permanent burn bonus is irreversible, so both
-need real distribution data and simulations first.
+These inputs remain inactive in gameplay. The draft simulator lives in
+`server-ts/src/domain/energy-economy-simulator.ts`; its editable inputs and example accounts are in
+`docs/energy-economy-scenarios.json`. Run it from `server-ts/` with:
+
+```text
+npm run simulate:energy
+```
+
+The starting candidate uses a capped logarithmic curve rather than raw linear token ownership:
+
+```text
+component boost bps = min(component cap, bps-per-doubling * log2(1 + FRENS / 1,000))
+daily Energy = (18 + 6 * Robots) * (1 + sum(component boost bps) / 10,000)
+capacity = capacity days * daily Energy
+```
+
+| Component | Boost per doubling | Component cap | Maximum multiplier contribution |
+| --- | ---: | ---: | ---: |
+| Liquid holding | 5% | 75% | +0.75x |
+| Staked | 10% | 150% | +1.50x |
+| Permanently burned | 15% | 225% | +2.25x |
+
+At all three caps the total multiplier is 5.5x. The capacity remains three days of the boosted
+rate, so it expands with account entitlement instead of imposing an unrelated fixed ceiling.
+Staked FRENS is not counted as liquid FRENS. With zero eligible Robots every token boost is zero and
+gameplay remains locked.
+
+The draft examples produce:
+
+| Scenario | Robots | Liquid / staked / burned FRENS | Energy/day | Energy/6h | Avg-cost actions/6h |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Starter | 1 | 0 / 0 / 0 | 24.00 | 6.00 | 1.1 |
+| Collector | 5 | 50k / 0 / 0 | 61.61 | 15.40 | 2.8 |
+| Staker | 5 | 10k / 100k / 0 | 88.26 | 22.07 | 4.0 |
+| Burner | 5 | 10k / 100k / 25k | 122.11 | 30.53 | 5.6 |
+| Whale | 25 | 1m / 1m / 500k | 645.18 | 161.30 | 29.3 |
+| Super whale | 50 | 10m / 3m / 5m | 1,482.74 | 370.69 | 67.4 |
+
+These are tuning candidates, not approved production coefficients. A permanent burn bonus is
+irreversible, and actual holder/staker distribution data may show that the proposed curve or caps
+are still too generous.
 
 The eventual rate has separate, auditable components:
 
@@ -77,6 +115,8 @@ Requirements before choosing coefficients:
 5. Settle the old rate before every indexed holding, stake, unstake, or burn entitlement change.
 6. Keep rare in-game FRENS discoveries separate from ordinary Energy rewards and cap their total
    emission budget.
+7. Run the simulator against a real holder snapshot and record median, p90, p99, and largest
+   non-project account session capacity before activating any boost.
 
 ## FRENS purchases
 
@@ -129,6 +169,11 @@ distributed without looping over stakers. Behavior when there are zero stakers m
 the safe default is to retain the staker half as pending rewards, not redirect it into treasury.
 No production fee recipient changes or contract deployments are part of this foundation.
 
+The simulator also models this 50/50 fee split. For example, 100,000 FRENS of weekly fees and
+5,000,000 total FRENS staked produces a 50,000 FRENS weekly staker pool. A 100,000 FRENS position
+owns 2% of the pool and receives 1,000 FRENS/week. The displayed annual percentage is a simple
+projection, not a promised yield; it changes directly with actual fees and total stake.
+
 ## Account wallets and recovery
 
 The target identity model is `account -> devices + verified identities + verified wallets`. Wallet
@@ -165,5 +210,6 @@ single-use, replace older links, and expire after 15 minutes; wallet-signature r
 4. Adapt robot care/actions to account Energy and rename the companion stat to Stamina.
    **Implemented for the shared web care UI and API.**
 5. Convert testnet purchases to instant Energy while preserving historical credits. **Implemented.**
-6. Simulate and approve holding/staking/burn coefficients.
+6. Simulate and approve holding/staking/burn coefficients. **Draft simulator implemented;
+   coefficients still require real distribution data and approval.**
 7. Audit, verify, and test contracts on Base Sepolia before any production fee routing.

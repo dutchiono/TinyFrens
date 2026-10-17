@@ -1,0 +1,25 @@
+{
+  "policy": {
+    "accountBasePerDay": 18,
+    "perRobotPerDay": 6,
+    "capacityDays": 3,
+    "sessionHours": 6,
+    "averageActionCost": 5.5,
+    "minimumActionCost": 4,
+    "maximumActionCost": 7,
+    "liquid": { "thresholdFrens": 1000, "boostBpsPerDoubling": 500, "maxBoostBps": 7500 },
+    "staked": { "thresholdFrens": 1000, "boostBpsPerDoubling": 1000, "maxBoostBps": 15000 },
+    "burned": { "thresholdFrens": 1000, "boostBpsPerDoubling": 1500, "maxBoostBps": 22500 }
+  },
+  "weeklyFeesFrens": 100000,
+  "stakerShareBps": 5000,
+  "totalStakedFrens": 5000000,
+  "scenarios": [
+    { "label": "Starter", "robots": 1, "liquidFrens": 0, "stakedFrens": 0, "burnedFrens": 0 },
+    { "label": "Collector", "robots": 5, "liquidFrens": 50000, "stakedFrens": 0, "burnedFrens": 0 },
+    { "label": "Staker", "robots": 5, "liquidFrens": 10000, "stakedFrens": 100000, "burnedFrens": 0 },
+    { "label": "Burner", "robots": 5, "liquidFrens": 10000, "stakedFrens": 100000, "burnedFrens": 25000 },
+    { "label": "Whale", "robots": 25, "liquidFrens": 1000000, "stakedFrens": 1000000, "burnedFrens": 500000 },
+    { "label": "Super whale", "robots": 50, "liquidFrens": 10000000, "stakedFrens": 3000000, "burnedFrens": 5000000 }
+  ]
+}
