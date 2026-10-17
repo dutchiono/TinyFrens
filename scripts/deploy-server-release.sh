@@ -14,6 +14,16 @@ archive="$base/.incoming-$revision.tar.gz"
 current="$base/current"
 revision_env="$base/current-revision.env"
 
+discord_matches_revision() {
+  [[ -f $current/server-ts/dist/discord-main.js ]] || return 0
+  systemctl --user is-active --quiet tinyfrens-discord.service || return 1
+  local pid running_revision
+  pid=$(systemctl --user show --property MainPID --value tinyfrens-discord.service)
+  [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
+  running_revision=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | sed -n 's/^APP_REVISION=//p' || true)
+  [[ $running_revision == "$revision" ]]
+}
+
 alert_deploy_failure() {
   if ! systemctl --user start tinyfrens-deploy-failure-alert.service; then
     echo 'Could not start the deployment failure alert.' >&2
@@ -38,7 +48,8 @@ if [[ -L $current ]] && [[ $(readlink -f "$current") == "$release" ]]; then
     systemctl --user restart tinyfrens-discord.service
   fi
   for _ in {1..15}; do
-    if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then
+    if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision" &&
+      discord_matches_revision; then
       exit 0
     fi
     sleep 2
@@ -124,7 +135,8 @@ systemctl --user restart tinyfrens-server-ts.service
 systemctl --user restart tinyfrens-discord.service
 
 for _ in {1..15}; do
-  if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision"; then
+  if curl --fail --silent --max-time 5 http://127.0.0.1:8790/health/revision | grep -Fq "$revision" &&
+    discord_matches_revision; then
     trap - ERR
     exit 0
   fi

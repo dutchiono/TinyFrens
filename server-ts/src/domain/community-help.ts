@@ -6,7 +6,8 @@ export function discordGameHelpText(): string {
     '3. A crew member presses **Search scrap** after the window closes.',
     '4. Everyone in the crew gets the same find and an individual account reward.',
     '',
-    'Discord and Telegram use the same Scrap rules, persistence, and account economy. Each group/channel keeps its own lobby so unrelated communities do not overwrite each other.',
+    'Discord and Telegram use the same Scrap engine, reward rules, and database. Each group/channel keeps its own lobby so unrelated communities do not overwrite each other.',
+    'A Discord identity and a Telegram identity are separate until both are linked to the same TinyFrens account; cross-platform account linking is not finished in Discord yet.',
     '',
     'The TinyFrens app also has short solo arcade modes. Those are separate game modes—not another implementation of the group Scrap Run—but they use the same account Energy system.',
   ].join('\n');
