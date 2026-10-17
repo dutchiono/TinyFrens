@@ -592,7 +592,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       sharedContext.telegramApi = {
         async call(_method, payload) {
           telegramCalls.push(payload);
-          return { data: { ok: true }, status: 200 };
+          return { data: { ok: true, result: { message_id: telegramCalls.length } }, status: 200 };
         },
       };
       const revision = 'd'.repeat(40);
@@ -610,7 +610,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(first.json().sent, 2);
       assert.equal(second.statusCode, 200);
       assert.equal(second.json().alreadyNotified, 2);
-      assert.equal(telegramCalls.length, 2);
+      assert.equal(telegramCalls.length, 3);
     });
 
     test('POST /api/telegram/webhook retires old care-card buttons', async () => {

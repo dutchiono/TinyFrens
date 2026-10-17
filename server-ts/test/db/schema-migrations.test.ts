@@ -5,6 +5,7 @@ import { getAllTableNames, SCHEMA_STATEMENTS } from '../../src/db/schema.js';
 import {
   migrateAccountWallets,
   migrateDeviceSyncTelegramSelection,
+  migrateDeployNotificationCards,
   migrateEnergyPurchases,
   migrateWalletLinks,
   runMigrations,
@@ -180,6 +181,25 @@ describe('Database: Schema & Migrations', () => {
       purchase_kind: 'legacy_credit',
       account: null,
     });
+    db.close();
+  });
+
+  test('adds persistent Telegram deployment cards without losing subscriptions', () => {
+    const db = createDbConnection(':memory:');
+    db.exec(`CREATE TABLE deploy_notification_chats(
+      chat_id TEXT PRIMARY KEY, username TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+      last_revision TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL
+    );`);
+    db.prepare('INSERT INTO deploy_notification_chats VALUES(?, ?, 1, ?, ?)')
+      .run('-100123', 'owner', 'a'.repeat(40), 123);
+
+    migrateDeployNotificationCards(db);
+    migrateDeployNotificationCards(db);
+
+    const row = db.prepare<{ last_revision: string; message_id: number | null }>(
+      'SELECT last_revision, message_id FROM deploy_notification_chats WHERE chat_id=?'
+    ).get('-100123');
+    assert.deepEqual(row, { last_revision: 'a'.repeat(40), message_id: null });
     db.close();
   });
 });
