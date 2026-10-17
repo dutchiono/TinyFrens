@@ -92,4 +92,28 @@ describe('deployment notifications', () => {
     assert.equal(context.repos.telegram.listDeployNotificationChats()[0].message_id, 91);
     db.close();
   });
+
+  test('initializes a card when the legacy sender already recorded the revision', async () => {
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    const methods: string[] = [];
+    const context = createAppContext(loadConfig({ TELEGRAM_BOT_TOKEN: 'bot-token' }), db, {
+      telegramApi: {
+        async call(method) {
+          methods.push(method);
+          return { data: { ok: true, result: { message_id: 101 } }, status: 200 };
+        },
+      },
+    });
+    const revision = 'f'.repeat(40);
+    context.repos.telegram.subscribeDeployNotifications('-100456', 'owner', 1);
+    db.prepare('UPDATE deploy_notification_chats SET last_revision=? WHERE chat_id=?')
+      .run(revision, '-100456');
+
+    await deliverDeploymentNotification(context, revision, async () => new Response(null, { status: 404 }));
+
+    assert.deepEqual(methods, ['sendMessage', 'pinChatMessage']);
+    assert.equal(context.repos.telegram.listDeployNotificationChats()[0].message_id, 101);
+    db.close();
+  });
 });
