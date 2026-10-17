@@ -72,7 +72,7 @@ export function requestSync(
   const targetAccount = context.repos.deviceSync.ensureAccount(row.device);
 
   if (requesterAccount === targetAccount) {
-    throw new Error('Telegram is already linked to this TinyFrens account');
+    throw new Error('This identity is already linked to that TinyFrens account');
   }
 
   if (row.requester) {

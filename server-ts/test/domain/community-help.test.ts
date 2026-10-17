@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { discordGameHelpText, discordHelpText } from '../../src/domain/community-help.js';
+import { discordGameHelpText, discordHelpText, discordShowHelpText } from '../../src/domain/community-help.js';
 import { telegramHelpText } from '../../src/integrations/telegram.js';
 import { DISCORD_COMMANDS } from '../../src/integrations/discord-api.js';
+import {
+  ADMIN_TELEGRAM_COMMANDS,
+  GROUP_TELEGRAM_COMMANDS,
+  PRIVATE_TELEGRAM_COMMANDS,
+} from '../../src/integrations/telegram-commands.js';
 
 describe('community command help parity', () => {
   test('registers and documents Discord help commands', () => {
@@ -11,6 +16,16 @@ describe('community command help parity', () => {
     assert.ok(commands.has('gamehelp'));
     assert.match(discordHelpText(), /`\/game`/);
     assert.match(discordHelpText(), /Warn message/);
+    assert.match(discordShowHelpText(), /`\/link/);
+  });
+
+  test('gives Discord an adapter for every Telegram command', () => {
+    const telegram = new Set(
+      [...PRIVATE_TELEGRAM_COMMANDS, ...GROUP_TELEGRAM_COMMANDS, ...ADMIN_TELEGRAM_COMMANDS]
+        .map(command => command.command)
+    );
+    const discord = new Set(DISCORD_COMMANDS.filter(command => !command.type || command.type === 1).map(command => command.name));
+    assert.deepEqual([...telegram].filter(command => !discord.has(command)), []);
   });
 
   test('describes the shared five-minute Scrap engine consistently', () => {

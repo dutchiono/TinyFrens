@@ -90,6 +90,14 @@ describe('Telegram interactive parity', () => {
           files: ['server-ts/src/routes/telegram.ts', 'server-ts/src/db/schema.ts'],
           areas: ['telegram', 'backend'],
         },
+        {
+          sha: 'dc12345',
+          msg: 'Add Discord command parity',
+          author: 'dutch',
+          timestamp: 99_100,
+          files: ['server-ts/src/routes/discord.ts'],
+          areas: ['discord'],
+        },
         { sha: 'old1234', msg: 'Old change', author: 'dutch', timestamp: 1_000 },
       ],
       prs: [{ num: 98, title: 'Quiet Telegram scrap runs', state: 'open', merged: false, timestamp: 99_500 }],
@@ -99,6 +107,8 @@ describe('Telegram interactive parity', () => {
     assert.match(text, /🌐 Website/);
     assert.match(text, /No verified code changes/);
     assert.match(text, /🤖 Telegram/);
+    assert.match(text, /💬 Discord/);
+    assert.match(text, /Add Discord command parity/);
     assert.match(text, /⚙️ Backend/);
     assert.match(text, /PR #98/);
     assert.match(text, /Add group scrap runs/);

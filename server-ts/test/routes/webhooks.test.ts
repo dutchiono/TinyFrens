@@ -7,6 +7,8 @@ import { createDbConnection } from '../../src/db/connection.js';
 import { runMigrations } from '../../src/db/migrations.js';
 import { createAppContext } from '../../src/context.js';
 import { Config, loadConfig } from '../../src/config.js';
+import { mintPet } from '../../src/domain/account.js';
+import { startDeviceSync } from '../../src/domain/device-sync.js';
 
 function signInitData(botToken: string, fields: Record<string, string>): string {
   const pairs = Object.entries(fields)
@@ -372,6 +374,61 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(json.data.flags, 64);
       assert.match(json.data.content, /TinyFrens commands/);
       assert.match(json.data.content, /`\/game`/);
+    });
+
+    test('POST /api/discord/interactions serves shared Discord identity and moderation commands', async () => {
+      const interact = async (timestamp: string, data: Record<string, unknown>, permissions = '0') => {
+        const body = JSON.stringify({
+          type: 2,
+          guild_id: 'parity-guild',
+          channel_id: 'parity-channel',
+          member: { user: { id: 'parity-user', username: 'parityfren' }, permissions },
+          data,
+        });
+        const signed = Buffer.concat([Buffer.from(timestamp, 'utf-8'), Buffer.from(body, 'utf-8')]);
+        const signature = crypto.sign(null, signed, discordKeyPair.privateKey).toString('hex');
+        return app.inject({
+          method: 'POST',
+          url: '/api/discord/interactions',
+          headers: {
+            'content-type': 'application/json',
+            'x-signature-ed25519': signature,
+            'x-signature-timestamp': timestamp,
+          },
+          payload: body,
+        });
+      };
+
+      const id = await interact('1700000003', { name: 'myid' });
+      assert.match(id.json().data.content, /parity-user/);
+      assert.strictEqual(id.json().data.flags, 64);
+
+      const setFilter = await interact('1700000004', {
+        name: 'filter',
+        options: [
+          { name: 'action', value: 'set' },
+          { name: 'trigger', value: 'rules' },
+          { name: 'response', value: 'Be excellent to each other.' },
+        ],
+      }, '8192');
+      assert.match(setFilter.json().data.content, /Saved filter/);
+
+      const filters = await interact('1700000005', {
+        name: 'filter',
+        options: [{ name: 'action', value: 'list' }],
+      }, '8192');
+      assert.match(filters.json().data.content, /Be excellent/);
+
+      const showHelp = await interact('1700000006', { name: 'showhelp' });
+      assert.match(showHelp.json().data.content, /NFT slots and account linking/);
+
+      const existing = mintPet(sharedContext.db, { name: 'Existing account' });
+      const sync = startDeviceSync(sharedContext, existing.id);
+      const link = await interact('1700000007', {
+        name: 'link',
+        options: [{ name: 'code', value: sync.code }],
+      });
+      assert.match(link.json().data.content, /Link requested/);
     });
   });
 

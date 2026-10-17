@@ -15,7 +15,7 @@ export interface VerifiedTelegramCompanion {
   companion: TelegramCompanionRig;
 }
 
-export async function telegramCompanion(
+export async function communityCompanion(
   context: AppContext,
   petId: string,
   position = 1
@@ -48,6 +48,8 @@ export async function telegramCompanion(
   return data as VerifiedTelegramCompanion;
 }
 
+export const telegramCompanion = communityCompanion;
+
 export async function sendTelegramCompanion(
   context: AppContext,
   chatId: unknown,
@@ -56,7 +58,7 @@ export async function sendTelegramCompanion(
   token: string,
   isPrivate: boolean
 ): Promise<void> {
-  const data = await telegramCompanion(context, petId, position);
+  const data = await communityCompanion(context, petId, position);
   const collection = data.originalAddress.toLowerCase();
   const cached = context.repos.telegram.getCachedMediaFileId(data.chainId, collection, data.tokenId);
   const miniapp = context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0];

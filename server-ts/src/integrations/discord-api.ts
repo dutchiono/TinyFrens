@@ -17,6 +17,12 @@ export interface DiscordCommandDefinition {
 
 export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   {
+    name: 'start',
+    description: 'Open the TinyFrens command guide',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
     name: 'help',
     description: 'Show every available TinyFrens Discord command',
     contexts: [0],
@@ -31,6 +37,48 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   {
     name: 'game',
     description: 'Start or open the group Scrap Run',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'show',
+    description: 'Post a verified NFT from one of your TinyFrens slots',
+    contexts: [0],
+    integration_types: [0],
+    options: [{ type: 4, name: 'slot', description: 'TinyFrens slot 1-5', required: false, min_value: 1, max_value: 5 }],
+  },
+  {
+    name: 'showhelp',
+    description: 'Explain NFT slots and cross-platform account linking',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'link',
+    description: 'Link this Discord identity to an existing TinyFrens account',
+    contexts: [0],
+    integration_types: [0],
+    options: [{ type: 3, name: 'code', description: 'The 12-character sync code from TinyFrens Settings', required: true, min_length: 12, max_length: 16 }],
+  },
+  {
+    name: 'progress',
+    description: 'Show verified website, community, and backend work',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'issue',
+    description: 'Open a GitHub issue for TinyFrens',
+    contexts: [0],
+    integration_types: [0],
+    options: [
+      { type: 3, name: 'title', description: 'Short issue title', required: true, min_length: 3, max_length: 90 },
+      { type: 3, name: 'details', description: 'What happened or what should change', required: true, min_length: 3, max_length: 1800 },
+    ],
+  },
+  {
+    name: 'myid',
+    description: 'Show your Discord user ID privately',
     contexts: [0],
     integration_types: [0],
   },
@@ -71,6 +119,41 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
     contexts: [0],
     integration_types: [0],
     options: [{ type: 6, name: 'member', description: 'Member to flag', required: true }],
+  },
+  {
+    name: 'unbot',
+    description: 'Clear a suspected-bot mark from a member',
+    default_member_permissions: DISCORD_MANAGE_MESSAGES.toString(),
+    contexts: [0],
+    integration_types: [0],
+    options: [{ type: 6, name: 'member', description: 'Member to clear', required: true }],
+  },
+  {
+    name: 'filter',
+    description: 'List, add, or remove an automatic server reply',
+    default_member_permissions: DISCORD_MANAGE_MESSAGES.toString(),
+    contexts: [0],
+    integration_types: [0],
+    options: [
+      { type: 3, name: 'action', description: 'What to do', required: true, choices: [
+        { name: 'list', value: 'list' }, { name: 'set', value: 'set' }, { name: 'remove', value: 'remove' },
+      ] },
+      { type: 3, name: 'trigger', description: 'One word that triggers the reply', required: false, max_length: 64 },
+      { type: 3, name: 'response', description: 'Reply text for set', required: false, max_length: 2000 },
+    ],
+  },
+  {
+    name: 'blocklist',
+    description: 'List, add, or remove blocked message text',
+    default_member_permissions: DISCORD_MANAGE_MESSAGES.toString(),
+    contexts: [0],
+    integration_types: [0],
+    options: [
+      { type: 3, name: 'action', description: 'What to do', required: true, choices: [
+        { name: 'list', value: 'list' }, { name: 'add', value: 'add' }, { name: 'remove', value: 'remove' },
+      ] },
+      { type: 3, name: 'pattern', description: 'Text pattern to add or remove', required: false, max_length: 128 },
+    ],
   },
   {
     name: 'setup',

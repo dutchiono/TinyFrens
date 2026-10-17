@@ -3,8 +3,14 @@ import { REST, Routes } from 'discord.js';
 import { AppContext } from '../context.js';
 import { verifyDiscordInteraction } from '../crypto/signatures.js';
 import { discordPet } from '../domain/account.js';
-import { discordGameHelpText, discordHelpText } from '../domain/community-help.js';
+import { discordGameHelpText, discordHelpText, discordShowHelpText } from '../domain/community-help.js';
+import { requestSync } from '../domain/device-sync.js';
+import { communityCompanion } from '../domain/telegram-companion.js';
 import { renderDiscordScrap } from '../domain/discord-scrap.js';
+import { addBlocklist, addFilter } from '../domain/telegram-moderation.js';
+import { companionGif } from '../media/telegram-gif.js';
+import { createIssue, issueBody, parseRepo, responseSummary } from '../integrations/github.js';
+import { fetchGithubProgress, renderTelegramUpdateBriefing } from '../integrations/telegram.js';
 import {
   expireStaleScrapRun,
   getOpenScrapRun,
@@ -72,6 +78,24 @@ function message(content: string, options: { ephemeral?: boolean; users?: string
 
 function updateMessage(content: string, components: unknown[]) {
   return { type: 7, data: { content, components, allowed_mentions: { parse: [] } } };
+}
+
+function deferred(ephemeral = false) {
+  return { type: 5, data: { flags: ephemeral ? 64 : undefined } };
+}
+
+async function editOriginal(
+  rest: REST,
+  interaction: DiscordObject,
+  content: string,
+  files?: Array<{ data: Buffer; name: string }>
+): Promise<void> {
+  const applicationId = String(interaction.application_id || '');
+  const token = String(interaction.token || '');
+  await rest.patch(Routes.webhookMessage(applicationId, token, '@original'), {
+    body: { content: content.slice(0, 2_000), allowed_mentions: { parse: [] } },
+    files,
+  });
 }
 
 function chatKey(guildId: string, channelId: string): string {
@@ -142,8 +166,73 @@ async function handleDiscordCommand(
   const channelId = String(interaction.channel_id || '');
   const user = interactionUser(interaction);
 
-  if (name === 'help') return message(discordHelpText(), { ephemeral: true });
+  if (name === 'start' || name === 'help') return message(discordHelpText(), { ephemeral: true });
   if (name === 'gamehelp') return message(discordGameHelpText(), { ephemeral: true });
+  if (name === 'showhelp') return message(discordShowHelpText(), { ephemeral: true });
+  if (name === 'myid') return message(`Your Discord user ID: \`${String(user.id || '')}\``, { ephemeral: true });
+
+  if (name === 'link') {
+    try {
+      const pet = discordPet(context, user);
+      const code = String(commandOption(command, 'code') || '');
+      requestSync(context, pet.id, code, `Discord @${String(user.username || user.id || 'member')}`);
+      return message('Link requested. Approve it on the TinyFrens device that created the code.', { ephemeral: true });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'TinyFrens could not request that link.', { ephemeral: true });
+    }
+  }
+
+  if (name === 'show') {
+    const slot = Number(commandOption(command, 'slot') || 1);
+    void (async () => {
+      try {
+        const pet = discordPet(context, user);
+        const companion = await communityCompanion(context, pet.id, slot);
+        await editOriginal(rest, interaction, `🐾 **${String(companion.name).slice(0, 100)}** · slot ${slot}`, [{
+          data: companionGif(companion.companion),
+          name: `tinyfren-slot-${slot}.gif`,
+        }]);
+      } catch (error) {
+        await editOriginal(rest, interaction, error instanceof Error ? error.message : 'TinyFrens could not verify that NFT right now.');
+      }
+    })().catch(error => void context.operationalAlerts.report('discord:show', 'Discord NFT post failed', error instanceof Error ? error.message : String(error)));
+    return deferred();
+  }
+
+  if (name === 'progress') {
+    void (async () => {
+      const repoValue = context.config.GITHUB_REPO || 'dutchiono/TinyFrens';
+      const [owner, repo] = parseRepo(repoValue);
+      const progress = await fetchGithubProgress(owner, repo, await context.githubAuth.token(owner, repo));
+      await editOriginal(rest, interaction, renderTelegramUpdateBriefing(progress, null, repo));
+    })().catch(async error => {
+      void context.operationalAlerts.report('discord:progress', 'Discord progress lookup failed', error instanceof Error ? error.message : String(error));
+      await editOriginal(rest, interaction, 'I could not verify the latest TinyFrens updates right now.').catch(() => undefined);
+    });
+    return deferred();
+  }
+
+  if (name === 'issue') {
+    void (async () => {
+      context.rateLimiter.limit(`dc-issue:${String(user.id || '')}`, 5, 3600, context.now());
+      const [owner, repo] = parseRepo(context.config.GITHUB_REPO || 'dutchiono/TinyFrens');
+      const githubToken = await context.githubAuth.token(owner, repo);
+      if (!githubToken) throw new Error('GitHub issue filing is not configured.');
+      const title = String(commandOption(command, 'title') || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+      const details = String(commandOption(command, 'details') || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 1_800);
+      const footer = `_Filed from Discord channel \`${channelId}\` by <@${String(user.id || '')}> through TinyFrens._`;
+      const created = await createIssue(owner, repo, githubToken, title, issueBody({ title, labels: [], body: details }, footer));
+      const result = responseSummary(created.data, created.status, owner, repo);
+      if (!result.ok) throw new Error(result.error);
+      context.repos.telegram.linkChatToIssue(result.repo, result.number, chatKey(guildId, channelId));
+      await editOriginal(rest, interaction, `✅ Opened issue #${result.number}: ${result.title}\n${result.url}`);
+    })().catch(async error => {
+      const detail = error instanceof Error ? error.message : 'Unknown failure';
+      void context.operationalAlerts.report('discord:issue', 'Discord issue filing failed', detail);
+      await editOriginal(rest, interaction, `I could not open that issue: ${detail.slice(0, 300)}`).catch(() => undefined);
+    });
+    return deferred();
+  }
 
   if (command.type === 3 && name === 'warn message') {
     const targetMessageId = String(command.target_id || '');
@@ -225,6 +314,60 @@ async function handleDiscordCommand(
       flagged_at: Math.floor(context.now()),
     });
     return message(`⚠️ <@${targetId}> was marked as a suspected bot for moderator review.`, { users: [targetId] });
+  }
+
+  if (name === 'unbot') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MANAGE_MESSAGES)) {
+      return message('You need Manage Messages to clear suspected bots.', { ephemeral: true });
+    }
+    const targetId = String(commandOption(command, 'member') || '');
+    const removed = context.repos.telegram.clearSuspectedBot(`dc:${guildId}`, targetId);
+    return message(removed ? `✅ Cleared the suspected-bot mark from <@${targetId}>.` : `<@${targetId}> was not marked as a suspected bot.`, { users: [targetId] });
+  }
+
+  if (name === 'filter') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MANAGE_MESSAGES)) {
+      return message('You need Manage Messages to configure filters.', { ephemeral: true });
+    }
+    const key = `dc:${guildId}`;
+    const action = String(commandOption(command, 'action') || 'list');
+    const trigger = String(commandOption(command, 'trigger') || '');
+    try {
+      if (action === 'set') {
+        const saved = addFilter(context.repos.telegram, key, trigger, commandOption(command, 'response'), String(user.id || ''), Math.floor(context.now()));
+        return message(`✅ Saved filter \`${saved}\`.`);
+      }
+      if (action === 'remove') {
+        if (!trigger) throw new Error('Provide a trigger to remove.');
+        const removed = context.repos.telegram.deleteFilter(key, trigger.toLowerCase().replace(/^\//, ''));
+        return message(removed ? `✅ Removed filter \`${trigger}\`.` : `Filter \`${trigger}\` was not found.`);
+      }
+      const filters = context.repos.telegram.listFilters(key);
+      return message(filters.length ? `**Active filters**\n${filters.map(item => `• \`${item.trigger}\` → ${item.response}`).join('\n').slice(0, 1_850)}` : 'No filters are configured.', { ephemeral: true });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'Could not update that filter.', { ephemeral: true });
+    }
+  }
+
+  if (name === 'blocklist') {
+    if (!guildId || !hasPermission((interaction.member as DiscordObject | undefined)?.permissions, DISCORD_MANAGE_MESSAGES)) {
+      return message('You need Manage Messages to configure the blocklist.', { ephemeral: true });
+    }
+    const key = `dc:${guildId}`;
+    const action = String(commandOption(command, 'action') || 'list');
+    const pattern = String(commandOption(command, 'pattern') || '').trim().toLowerCase();
+    try {
+      if (action === 'add') return message(`✅ Added \`${addBlocklist(context.repos.telegram, key, pattern, String(user.id || ''), Math.floor(context.now()))}\` to the blocklist.`);
+      if (action === 'remove') {
+        if (!pattern) throw new Error('Provide a pattern to remove.');
+        const removed = context.repos.telegram.deleteBlocklistPattern(key, pattern);
+        return message(removed ? `✅ Removed \`${pattern}\` from the blocklist.` : `\`${pattern}\` was not in the blocklist.`);
+      }
+      const patterns = context.repos.telegram.listBlocklist(key);
+      return message(patterns.length ? `**Blocklisted text**\n${patterns.map(value => `• \`${value}\``).join('\n').slice(0, 1_850)}` : 'The blocklist is empty.', { ephemeral: true });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'Could not update the blocklist.', { ephemeral: true });
+    }
   }
 
   if (name === 'setup') {
