@@ -1,5 +1,7 @@
 import { DatabaseConnection } from '../connection.js';
 
+const TELEGRAM_MEDIA_CACHE_VERSION = 'gif-v2';
+
 export interface TgUserRow {
   tg_id: string;
   pet_id: string;
@@ -142,7 +144,8 @@ export class TelegramRepository {
     const row = this.db.prepare<{ file_id: string }>(
       'SELECT file_id FROM tg_media_cache WHERE chain=? AND collection=? COLLATE NOCASE AND token_id=?'
     ).get(chainId, collection, tokenId);
-    return row?.file_id;
+    const prefix = `${TELEGRAM_MEDIA_CACHE_VERSION}:`;
+    return row?.file_id.startsWith(prefix) ? row.file_id.slice(prefix.length) : undefined;
   }
 
   setCachedMediaFileId(
@@ -154,7 +157,7 @@ export class TelegramRepository {
   ): void {
     this.db.prepare(
       'INSERT OR REPLACE INTO tg_media_cache(chain, collection, token_id, file_id, updated) VALUES(?, ?, ?, ?, ?)'
-    ).run(chainId, collection, tokenId, fileId, updated);
+    ).run(chainId, collection, tokenId, `${TELEGRAM_MEDIA_CACHE_VERSION}:${fileId}`, updated);
   }
 
   // TG Interactive Fren Game

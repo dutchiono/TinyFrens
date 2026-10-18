@@ -75,6 +75,79 @@ function inspectGif(buffer: Buffer): { width: number; height: number; frames: nu
   return { width, height, frames, delays };
 }
 
+function firstFrameIndexes(buffer: Buffer): Uint8Array {
+  let offset = 13 + 3 * (2 ** ((buffer[10] & 7) + 1));
+  const skipBlocks = () => {
+    while (true) {
+      const length = buffer[offset++];
+      if (length === 0) return;
+      offset += length;
+    }
+  };
+  while (buffer[offset] === 0x21) {
+    offset += 2;
+    const fixed = buffer[offset++];
+    offset += fixed;
+    skipBlocks();
+  }
+  assert.equal(buffer[offset], 0x2c);
+  const width = buffer.readUInt16LE(offset + 5);
+  const height = buffer.readUInt16LE(offset + 7);
+  const packed = buffer[offset + 9];
+  offset += 10;
+  if (packed & 0x80) offset += 3 * (2 ** ((packed & 7) + 1));
+  const minimumCodeSize = buffer[offset++];
+  const chunks: Buffer[] = [];
+  while (true) {
+    const length = buffer[offset++];
+    if (length === 0) break;
+    chunks.push(buffer.subarray(offset, offset + length));
+    offset += length;
+  }
+  const compressed = Buffer.concat(chunks);
+  const clearCode = 1 << minimumCodeSize;
+  const endCode = clearCode + 1;
+  let bitOffset = 0;
+  let codeSize = minimumCodeSize + 1;
+  let dictionary: number[][] = [];
+  let previous: number[] | undefined;
+  const output: number[] = [];
+  const reset = () => {
+    dictionary = Array.from({ length: clearCode }, (_, value) => [value]);
+    dictionary[clearCode] = [];
+    dictionary[endCode] = [];
+    codeSize = minimumCodeSize + 1;
+    previous = undefined;
+  };
+  const readCode = () => {
+    let code = 0;
+    for (let bit = 0; bit < codeSize; bit += 1) {
+      code |= ((compressed[(bitOffset + bit) >> 3] >> ((bitOffset + bit) & 7)) & 1) << bit;
+    }
+    bitOffset += codeSize;
+    return code;
+  };
+  reset();
+  while (bitOffset + codeSize <= compressed.length * 8) {
+    const code = readCode();
+    if (code === clearCode) {
+      reset();
+      continue;
+    }
+    if (code === endCode) break;
+    const entry = dictionary[code] || (code === dictionary.length && previous ? [...previous, previous[0]] : undefined);
+    assert.ok(entry, `Invalid GIF LZW code ${code}`);
+    output.push(...entry);
+    if (previous) {
+      dictionary.push([...previous, entry[0]]);
+      if (dictionary.length === (1 << codeSize) && codeSize < 12) codeSize += 1;
+    }
+    previous = entry;
+  }
+  assert.equal(output.length, width * height);
+  return Uint8Array.from(output);
+}
+
 describe('Telegram companion GIF renderer', () => {
   test('renders real robot and turtle companion rigs', () => {
     const robotSource = readFileSync(new URL('../../../server/fixtures/robots-v1/1.svg', import.meta.url));
@@ -90,6 +163,7 @@ describe('Telegram companion GIF renderer', () => {
       assert.equal(inspected.width, 128);
       assert.equal(inspected.height, 128);
       assert.equal(inspected.frames, rig.frames.length);
+      assert.ok(firstFrameIndexes(gif).some(index => index !== 0), `${rig.adapter} GIF should contain visible pixels`);
     }
   });
 
@@ -102,6 +176,7 @@ describe('Telegram companion GIF renderer', () => {
     });
     assert.ok(gif.length < 10_000_000);
     assert.deepEqual(inspectGif(gif), { width: 128, height: 128, frames: 2, delays: [16, 16] });
+    assert.ok(firstFrameIndexes(gif).some(index => index !== 0));
   });
 
   test('renders and centers PNG frames', () => {
