@@ -4,13 +4,19 @@ on:
     workflows:
       - TinyFrens quality gate
       - Android APK
+      - Desktop floating pet
+      - iOS build
+      - Friends relay checks
       - Deploy backend to server
       - Publish website to server
+      - Enable owner PR auto-merge
+      - Update production server configuration
     types: [completed]
 permissions:
   contents: read
 jobs:
   notify:
+    if: github.event.workflow_run.conclusion != 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     environment: production-backend
@@ -27,23 +33,22 @@ jobs:
             echo 'Configure TELEGRAM_BOT_TOKEN secret and TELEGRAM_GITHUB_CHAT_ID variable in production-backend environment' >&2
             exit 1
           fi
-          python3 - <<'PY'
-          import json, os, urllib.request, urllib.error
-          event=json.loads(os.environ['EVENT_JSON'])
-          name=event.get('name','Workflow')
-          result=event.get('conclusion') or 'unknown'
-          branch=event.get('head_branch','unknown')
-          sha=(event.get('head_sha') or '')[:8]
-          url=event.get('html_url','')
-          label={'success':'✅ SUCCESS','failure':'❌ FAILED','cancelled':'⚪ CANCELLED','timed_out':'⏱ TIMEOUT'}.get(result,'ℹ '+result.upper())
-          message=f"{label} — {name}\nBranch: {branch}\nCommit: {sha}\n{url}"
-          body=json.dumps({'chat_id':os.environ['CHAT_ID'],'text':message,'disable_web_page_preview':True}).encode()
-          req=urllib.request.Request('https://api.telegram.org/bot'+os.environ['BOT_TOKEN']+'/sendMessage',data=body,headers={'Content-Type':'application/json'})
-          try:
-              with urllib.request.urlopen(req,timeout=15) as resp:
-                  data=json.load(resp)
-              if not data.get('ok'): raise RuntimeError('Telegram rejected message')
-              print('Telegram notification delivered')
-          except (urllib.error.HTTPError,urllib.error.URLError) as exc:
-              raise SystemExit(f'Telegram delivery failed: {type(exc).__name__} (HTTP status: {getattr(exc,"code","n/a")})')
-          PY
+          name=$(jq -r '.name // "Workflow"' <<<"$EVENT_JSON")
+          result=$(jq -r '.conclusion // "unknown"' <<<"$EVENT_JSON")
+          branch=$(jq -r '.head_branch // "unknown"' <<<"$EVENT_JSON")
+          sha=$(jq -r '(.head_sha // "")[0:8]' <<<"$EVENT_JSON")
+          url=$(jq -r '.html_url // ""' <<<"$EVENT_JSON")
+          case "$result" in
+            failure) label='❌ FAILED' ;;
+            cancelled) label='⚪ CANCELLED' ;;
+            timed_out) label='⏱ TIMEOUT' ;;
+            *) label="⚠️ ${result^^}" ;;
+          esac
+          printf -v message '%s — %s\nBranch: %s\nCommit: %s\n%s' \
+            "$label" "$name" "$branch" "$sha" "$url"
+          curl --fail-with-body --silent --show-error --max-time 15 \
+            --request POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=$CHAT_ID" \
+            --data-urlencode "text=$message" \
+            --data-urlencode 'disable_web_page_preview=true' >/dev/null
+          echo 'Telegram failure alert delivered'
