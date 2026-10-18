@@ -69,6 +69,16 @@ export interface DeployNotificationChatRow {
   updated: number;
 }
 
+export interface CommunityChatMessageRow {
+  platform: string;
+  room_id: string;
+  message_id: string;
+  user_id: string;
+  display_name: string;
+  content: string;
+  created_at: number;
+}
+
 export class TelegramRepository {
   constructor(private db: DatabaseConnection) {}
 
@@ -401,6 +411,43 @@ export class TelegramRepository {
     this.db.prepare(
       'INSERT OR REPLACE INTO github_issue_chats(repo, issue_number, chat_id) VALUES(?, ?, ?)'
     ).run(repo, issueNumber, chatId);
+  }
+
+  rememberCommunityMessage(row: CommunityChatMessageRow, limit = 25): void {
+    const safeLimit = Math.max(1, Math.min(200, Math.trunc(limit)));
+    this.db.transaction(() => {
+      this.db.prepare(
+        `INSERT OR REPLACE INTO community_chat_messages(
+          platform, room_id, message_id, user_id, display_name, content, created_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        row.platform,
+        row.room_id,
+        row.message_id,
+        row.user_id,
+        row.display_name.replace(/\s+/g, ' ').trim().slice(0, 80) || 'someone',
+        row.content.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 2_000),
+        row.created_at
+      );
+      this.db.prepare(
+        `DELETE FROM community_chat_messages
+          WHERE platform=? AND room_id=? AND message_id NOT IN (
+            SELECT message_id FROM community_chat_messages
+             WHERE platform=? AND room_id=?
+             ORDER BY created_at DESC, message_id DESC LIMIT ?
+          )`
+      ).run(row.platform, row.room_id, row.platform, row.room_id, safeLimit);
+    })();
+  }
+
+  listCommunityMessages(platform: string, roomId: string, limit = 25): CommunityChatMessageRow[] {
+    const safeLimit = Math.max(1, Math.min(200, Math.trunc(limit)));
+    return this.db.prepare<CommunityChatMessageRow>(
+      `SELECT platform, room_id, message_id, user_id, display_name, content, created_at
+         FROM community_chat_messages
+        WHERE platform=? AND room_id=?
+        ORDER BY created_at DESC, message_id DESC LIMIT ?`
+    ).all(platform, roomId, safeLimit).reverse();
   }
 
   // Indexer State

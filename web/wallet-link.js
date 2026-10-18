@@ -226,7 +226,7 @@
           speed.oninput = () => { speedValue.value = speed.value; };
           speed.onchange = saveMovement;
 
-          const telegramLabel = document.createElement('label'); telegramLabel.className = 'nft-setting'; telegramLabel.textContent = 'Show in Telegram';
+          const telegramLabel = document.createElement('label'); telegramLabel.className = 'nft-setting'; telegramLabel.textContent = 'Show in community bots';
           const telegramSlot = document.createElement('select'); telegramSlot.dataset.telegramSlot = window.TinyFrensCompanionKey(nft);
           for (let slot = 0; slot <= 5; slot += 1) {
             const option = document.createElement('option'); option.value = String(slot); option.textContent = slot ? `Slot ${slot}` : 'Off'; telegramSlot.append(option);

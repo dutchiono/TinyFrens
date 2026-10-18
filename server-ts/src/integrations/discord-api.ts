@@ -68,12 +68,12 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   },
   {
     name: 'issue',
-    description: 'Open a GitHub issue for TinyFrens',
+    description: 'Summarize recent channel context into a GitHub issue',
     contexts: [0],
     integration_types: [0],
     options: [
-      { type: 3, name: 'title', description: 'Short issue title', required: true, min_length: 3, max_length: 90 },
-      { type: 3, name: 'details', description: 'What happened or what should change', required: true, min_length: 3, max_length: 1800 },
+      { type: 3, name: 'title', description: 'Optional focus for the AI draft', required: false, min_length: 3, max_length: 90 },
+      { type: 3, name: 'details', description: 'Optional context to add to recent messages', required: false, min_length: 3, max_length: 1800 },
     ],
   },
   {
@@ -257,6 +257,7 @@ export async function setupDiscordGuild(
     { name: 'tinyfrens', topic: 'TinyFrens community chat, bot commands, and companion updates.' },
     { name: 'scrap-yard', topic: 'Start the shared five-minute Scrap Run with /game.' },
     { name: 'updates', topic: 'TinyFrens website, Telegram, Discord, game, and backend updates.' },
+    { name: 'github-updates', topic: 'Automated GitHub pull requests, CI, releases and deployment status.' },
   ];
   for (const spec of channelSpecs) {
     if (channels.some(channel => channel.type === 0 && channel.name === spec.name)) continue;

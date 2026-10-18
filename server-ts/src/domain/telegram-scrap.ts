@@ -100,7 +100,6 @@ export function startScrapRun(
   db: DatabaseConnection,
   chatId: string,
   userId: string,
-  petId: string,
   displayName: string,
   now: number,
   random: number
@@ -110,16 +109,11 @@ export function startScrapRun(
 
   const id = runId(chatId, now, random);
   const name = cleanName(displayName);
-  db.transaction(() => {
-    db.prepare(
-      `INSERT INTO tg_scrap_runs(
-        id, chat_id, message_id, starter_user_id, starter_name, status, created_at, join_until
-      ) VALUES(?, ?, NULL, ?, ?, 'open', ?, ?)`
-    ).run(id, chatId, userId, name, now, now + LOBBY_SECONDS);
-    db.prepare(
-      'INSERT INTO tg_scrap_members(run_id, user_id, pet_id, display_name, reward, joined_at) VALUES(?, ?, ?, ?, 0, ?)'
-    ).run(id, userId, petId, name, now);
-  })();
+  db.prepare(
+    `INSERT INTO tg_scrap_runs(
+      id, chat_id, message_id, starter_user_id, starter_name, status, created_at, join_until
+    ) VALUES(?, ?, NULL, ?, ?, 'open', ?, ?)`
+  ).run(id, chatId, userId, name, now, now + LOBBY_SECONDS);
   return { state: getScrapState(db, id)!, created: true };
 }
 
@@ -200,7 +194,7 @@ export function renderScrapCard(
   now: number
 ): [string, { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }] {
   const { run, members } = state;
-  const names = members.map(member => `• ${escapeHtml(member.display_name)}`).join('\n');
+  const names = members.map(member => `• ${escapeHtml(member.display_name)}`).join('\n') || '• No one yet — press Join crew.';
   if (run.status === 'resolved') {
     const bonus = Math.max(0, members.length - 1) * 10;
     return [

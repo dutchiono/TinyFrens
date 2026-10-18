@@ -23,18 +23,8 @@ import {
   TG_API,
   TelegramChatEntry,
 } from '../integrations/telegram.js';
-import {
-  createIssue,
-  draftIssue,
-  filterLabels,
-  issueBody,
-  labelsFromEnv,
-  listLabels,
-  parseRepo,
-  responseSummary,
-  transcript,
-} from '../integrations/github.js';
 import { readAccountProfile, telegramPet } from '../domain/account.js';
+import { fileCommunityIssue } from '../domain/community-issues.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
@@ -65,18 +55,32 @@ async function callTelegramApi(
 }
 
 export function registerTelegramRoutes(app: FastifyInstance, context: AppContext): void {
-  const chatHistory = new Map<string, TelegramChatEntry[]>();
   const scrapCardPublications = new Map<string, Promise<boolean>>();
   const historyLimit = Math.max(1, Math.min(200, context.config.TELEGRAM_ISSUE_HISTORY));
   const miniapp = context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0];
   const deepLink = context.config.TELEGRAM_MINIAPP_DEEP_LINK || 'https://t.me/TinyFrensBot?startapp=party';
 
-  const remember = (chatId: unknown, entry: TelegramChatEntry) => {
-    const key = String(chatId);
-    const history = chatHistory.get(key) || [];
-    history.push(entry);
-    if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
-    chatHistory.set(key, history);
+  const history = (chatId: unknown): TelegramChatEntry[] =>
+    context.repos.telegram.listCommunityMessages('telegram', String(chatId), historyLimit)
+      .map(row => ({ name: row.display_name, text: row.content, date: row.created_at }));
+
+  const remember = (chatId: unknown, telegramMessage: Record<string, unknown>) => {
+    const entry = chatMessage({ message: telegramMessage });
+    if (!entry) return;
+    const sender = telegramMessage.from && typeof telegramMessage.from === 'object'
+      ? telegramMessage.from as Record<string, unknown>
+      : {};
+    const messageId = String(telegramMessage.message_id || '');
+    if (!messageId) return;
+    context.repos.telegram.rememberCommunityMessage({
+      platform: 'telegram',
+      room_id: String(chatId),
+      message_id: messageId,
+      user_id: String(sender.id || ''),
+      display_name: entry.name,
+      content: entry.text,
+      created_at: Number(telegramMessage.date) || Math.floor(context.now()),
+    }, historyLimit);
   };
 
   const fileIssueFromChat = async (
@@ -94,54 +98,30 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     };
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
-      if (!context.config.GITHUB_REPO) {
-        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
+      const messages = history(chatId);
+      if (messages.length === 0 && !explicitDescription.trim()) {
+        await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it.');
         return;
       }
-      const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
-      const githubToken = await context.githubAuth.token(owner, repo);
-      if (!githubToken) {
-        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
-        return;
-      }
-      const messages = chatHistory.get(String(chatId)) || [];
-      const lines = explicitDescription.trim() || transcript(messages, historyLimit);
-      if (!lines) {
-        await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it. I cannot read messages from before the bot started.');
-        return;
-      }
-      const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
-      // Issue reporting must not depend on the chat model being available.
-      // If AI drafting fails, preserve the user's actual report without inventing facts.
-      const fallback = {
-        title: ('Report: ' + lines.replace(/\s+/g, ' ').slice(0, 80)).slice(0, 90),
-        labels: [] as string[],
-        body: '## What happened\n\n' + lines + '\n\n## Suggested next steps\n\n- Reproduce and investigate the reported behavior.',
-      };
-      let draft = fallback;
-      if (apiKey) {
-        try {
-          draft = await draftIssue(lines, apiKey, String(chat?.title || ''), context.config.GEMINI_MODEL);
-        } catch (error) {
-          console.warn('Telegram issue AI drafting failed; using verbatim report:', error instanceof Error ? error.message : 'unknown error');
-        }
-      }
-      const available = await listLabels(owner, repo, githubToken);
-      const labels = filterLabels([...labelsFromEnv(context.config.GITHUB_ISSUE_LABELS), ...draft.labels], available);
+      await say(messages.length > 0
+        ? `📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`
+        : '📝 Drafting an issue from your report…');
       const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
-      const created = await createIssue(owner, repo, githubToken, draft.title, issueBody(draft, footer), labels);
-      const result = responseSummary(created.data, created.status, owner, repo);
-      if (!result.ok) {
-        await say(`I couldn't open the issue: ${result.error}`);
-        return;
-      }
-      context.repos.telegram.linkChatToIssue(result.repo, result.number, String(chatId));
+      const result = await fileCommunityIssue(context, {
+        messages,
+        description: explicitDescription,
+        chatTitle: String(chat?.title || 'Telegram chat'),
+        linkTarget: String(chatId),
+        footer,
+      });
       await say(`✅ Opened issue #${result.number}: ${result.title}\n${result.url}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       const safeError = message === 'Please wait before trying again' ||
         message.startsWith('GITHUB_REPO ') ||
         message.startsWith('The model ') ||
+        message === 'GitHub issue filing is not configured.' ||
+        message === 'I have not seen enough conversation context to draft an issue yet.' ||
         message === 'No issue to file from this conversation' ||
         message === 'No recent conversation to summarise';
       if (safeError) {
@@ -289,14 +269,12 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             }
             return reply.status(200).send({ ok: true });
           }
-          const senderPet = telegramPet(context, cqSender);
           const started = existing
             ? { state: existing, created: false }
             : startScrapRun(
                 context.db,
                 String(cqChatId),
                 senderUid,
-                senderPet.id,
                 String(cqSender.first_name || cqSender.username || 'Fren'),
                 now,
                 context.random()
@@ -532,7 +510,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           }
           const cid = String(chatId);
           const uid = String(sender.id || '0');
-          const senderPet = telegramPet(context, sender);
           const now = Math.floor(context.now());
           expireStaleScrapRun(context.db, cid, now);
           const existing = getOpenScrapRun(context.db, cid);
@@ -542,7 +519,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.db,
                 cid,
                 uid,
-                senderPet.id,
                 String(sender.first_name || sender.username || 'Fren'),
                 now,
                 context.random()
@@ -686,8 +662,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         }
 
         if ((kind === 'message' || kind === 'mention') && chatId !== null && chatId !== undefined) {
-          const entry = chatMessage(update);
-          if (entry) remember(chatId, entry);
+          remember(chatId, telegramMessage);
         }
 
         if (kind === 'start' && chatId !== null && chatId !== undefined) {
@@ -706,14 +681,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
 
         if (kind === 'issue' && chatId !== null && chatId !== undefined) {
           const replied = telegramMessage.reply_to_message;
-          const entry = chatMessage({ message: replied });
-          if (entry) {
-            const history = chatHistory.get(String(chatId));
-            if (!history || history.at(-1)?.name !== entry.name || history.at(-1)?.text !== entry.text) {
-              remember(chatId, entry);
-            }
-          }
+          if (replied && typeof replied === 'object') remember(chatId, replied as Record<string, unknown>);
           const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
+          const entry = chatMessage({ message: replied });
           await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
           return reply.status(200).send({ ok: true });
         }
@@ -745,7 +715,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           } else {
             try {
               answer = await generateTelegramReply(
-                chatHistory.get(String(chatId)) || [],
+                history(chatId),
                 context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
                 context.config.GEMINI_MODEL
               );

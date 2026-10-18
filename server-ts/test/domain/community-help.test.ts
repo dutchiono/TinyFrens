@@ -17,6 +17,9 @@ describe('community command help parity', () => {
     assert.match(discordHelpText(), /`\/game`/);
     assert.match(discordHelpText(), /Warn message/);
     assert.match(discordShowHelpText(), /`\/link/);
+    const issue = DISCORD_COMMANDS.find(command => command.name === 'issue');
+    assert.ok(issue?.options?.every(option => option.required === false));
+    assert.match(String(issue?.description), /context/i);
   });
 
   test('gives Discord an adapter for every Telegram command', () => {
@@ -30,6 +33,7 @@ describe('community command help parity', () => {
 
   test('describes the shared five-minute Scrap engine consistently', () => {
     assert.match(discordGameHelpText(), /five-minute window/);
+    assert.match(discordGameHelpText(), /does not join you/);
     assert.match(discordGameHelpText(), /same Scrap engine, reward rules, and database/);
     assert.match(discordGameHelpText(), /identit(?:y|ies).*separate until.*linked/i);
     assert.match(telegramHelpText('game'), /five-minute window/);

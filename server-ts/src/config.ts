@@ -126,6 +126,7 @@ export const CONFIG_INVENTORY: ConfigKeyMeta[] = [
   { key: 'DISCORD_CLIENT_ID', classification: 'public', description: 'Discord application client ID' },
   { key: 'DISCORD_CLIENT_SECRET', classification: 'secret', description: 'Discord application client secret' },
   { key: 'DISCORD_BOT_TOKEN', classification: 'secret', description: 'Discord Gateway and Bot API authentication token' },
+  { key: 'DISCORD_UPDATES_CHANNEL_ID', classification: 'public', description: 'Discord channel for automatic GitHub event announcements' },
   { key: 'DISCORD_ALERT_USER_ID', classification: 'public', description: 'Discord user ID receiving operational failure DMs' },
   { key: 'DISCORD_REDIRECT_URI', classification: 'public', description: 'Discord OAuth redirect URI' },
   { key: 'DISCORD_PUBLIC_KEY', classification: 'secret', description: 'Discord Ed25519 interactions public key' },
@@ -270,6 +271,7 @@ export const ConfigSchema = z.object({
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
+  DISCORD_UPDATES_CHANNEL_ID: z.string().regex(/^\d{15,22}$/).optional().or(z.literal('')),
   DISCORD_ALERT_USER_ID: z.preprocess(
     value => value === '' ? undefined : value,
     z.string().regex(/^[1-9][0-9]*$/).optional()
