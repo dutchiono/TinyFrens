@@ -174,6 +174,53 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.ok(String(interceptedTelegramPayload.text).includes('dutchiono commented on issue #42'));
     });
 
+    test('relays comments on Discord-filed issues back to the Discord channel', async () => {
+      let request: { url: string; body: Record<string, unknown>; authorization: string } | null = null;
+      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+        if (String(url).includes('/channels/discord-channel/messages')) {
+          request = {
+            url: String(url),
+            body: JSON.parse(String(init?.body || '{}')),
+            authorization: String((init?.headers as Record<string, string>)?.Authorization || ''),
+          };
+          return new Response(JSON.stringify({ id: 'message-1' }), { status: 200 });
+        }
+        return new Response('Not Found', { status: 404 });
+      };
+      sharedContext.repos.telegram.linkChatToIssue(
+        'dutchiono/TinyFrens',
+        43,
+        'dc:discord-guild:discord-channel'
+      );
+      const rawPayload = JSON.stringify({
+        action: 'created',
+        issue: {
+          number: 43,
+          title: 'Discord context issue',
+          html_url: 'https://github.com/dutchiono/TinyFrens/issues/43',
+        },
+        comment: { body: 'This is fixed on Discord.' },
+        repository: { full_name: 'dutchiono/TinyFrens' },
+        sender: { login: 'dutchiono' },
+      });
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/github/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-github-event': 'issue_comment',
+          'x-hub-signature-256': signGithub('test-gh-secret', rawPayload),
+        },
+        payload: rawPayload,
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.ok(request);
+      assert.match(request.url, /discord-channel\/messages$/);
+      assert.match(String(request.body.content), /commented on issue #43/);
+      assert.equal(request.authorization, 'Bot discord-bot-token-test');
+    });
+
     test('ignores unmapped issue without error and returns 200', async () => {
       const rawPayload = JSON.stringify({
         action: 'created',
@@ -344,7 +391,24 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(json.type, 4);
       assert.ok(json.data.content.includes('SCRAP RUN'));
       assert.ok(json.data.content.includes('Test Fren'));
-      assert.strictEqual(json.data.components[0].components[0].label, 'Join crew (1/4)');
+      assert.ok(json.data.content.includes('No one yet'));
+      assert.strictEqual(json.data.components[0].components[0].label, 'Join crew (0/4)');
+
+      const secondTs = '1700000002';
+      const secondData = Buffer.concat([Buffer.from(secondTs, 'utf-8'), Buffer.from(body, 'utf-8')]);
+      const secondSig = crypto.sign(null, secondData, discordKeyPair.privateKey).toString('hex');
+      const second = await app.inject({
+        method: 'POST',
+        url: '/api/discord/interactions',
+        headers: {
+          'content-type': 'application/json',
+          'x-signature-ed25519': secondSig,
+          'x-signature-timestamp': secondTs,
+        },
+        payload: body,
+      });
+      assert.equal(second.json().data.flags, 64);
+      assert.match(second.json().data.content, /already open/);
     });
 
     test('POST /api/discord/interactions answers /help without AI or network access', async () => {
@@ -716,6 +780,26 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           },
         },
       });
+      const starterJoined = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 204,
+          callback_query: {
+            id: 'cq_scrap_starter_join',
+            data: `game:${run.id}:join`,
+            from: { id: 'starter', first_name: 'Ada' },
+            message: {
+              message_id: 808,
+              chat: { id: '-100-scrap', type: 'supergroup' },
+            },
+          },
+        },
+      });
       sharedContext.now = () => 1700000301;
       const resolved = await app.inject({
         method: 'POST',
@@ -762,17 +846,19 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       sharedContext.now = originalNow;
 
       assert.equal(joined.statusCode, 200);
+      assert.equal(starterJoined.statusCode, 200);
       assert.equal(resolved.statusCode, 200);
       assert.equal(replay.statusCode, 200);
       const edits = calls.filter(call => call.method === 'editMessageText');
-      assert.equal(edits.length, 3);
+      assert.equal(edits.length, 4);
       assert.equal(edits[0].payload.message_id, 808);
       assert.match(String(edits[0].payload.text), /Ada/);
       assert.match(String(edits[0].payload.text), /Bob/);
-      assert.match(String(edits[1].payload.text), /COMPLETE/);
-      assert.match(String(edits[1].payload.text), /credits/);
-      assert.match(String(edits[2].payload.text), /SCRAP RUN/);
-      assert.match(String(edits[2].payload.text), /Bob/);
+      assert.match(String(edits[1].payload.text), /Ada/);
+      assert.match(String(edits[2].payload.text), /COMPLETE/);
+      assert.match(String(edits[2].payload.text), /credits/);
+      assert.match(String(edits[3].payload.text), /SCRAP RUN/);
+      assert.match(String(edits[3].payload.text), /No one yet/);
       assert.equal(calls.filter(call => call.method === 'sendMessage').length, 1);
       assert.equal(calls.at(-1)?.method, 'answerCallbackQuery');
       const petIds = sharedContext.db.prepare<{ pet_id: string }>(

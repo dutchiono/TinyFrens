@@ -57,17 +57,37 @@ export function registerGithubRoutes(app: FastifyInstance, context: AppContext):
         const chatId = context.repos.telegram.getChatForIssue(details.repo, details.number);
         const botToken = context.config.TELEGRAM_BOT_TOKEN;
 
-        if (chatId && botToken) {
+        if (chatId) {
           const text = issueEventMessage(details);
           if (text) {
             try {
-              await fetch(`${TG_API}/bot${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: chatId, text }),
-              });
-            } catch {
-              // Best-effort relay, ignore network/API errors
+              if (chatId.startsWith('dc:') && context.config.DISCORD_BOT_TOKEN) {
+                const [, , channelId] = chatId.split(':', 3);
+                const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bot ${context.config.DISCORD_BOT_TOKEN}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }),
+                  signal: AbortSignal.timeout(8_000),
+                });
+                if (!response.ok) throw new Error(`Discord returned HTTP ${response.status}`);
+              } else if (botToken) {
+                const response = await fetch(`${TG_API}/bot${botToken}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: chatId, text }),
+                  signal: AbortSignal.timeout(8_000),
+                });
+                if (!response.ok) throw new Error(`Telegram returned HTTP ${response.status}`);
+              }
+            } catch (error) {
+              void context.operationalAlerts.report(
+                'github:issue-relay',
+                `GitHub issue update could not reach ${chatId.startsWith('dc:') ? 'Discord' : 'Telegram'}`,
+                error instanceof Error ? error.message : String(error)
+              );
             }
           }
         }

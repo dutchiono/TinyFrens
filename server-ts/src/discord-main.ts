@@ -13,6 +13,15 @@ import { createAppContext } from './context.js';
 import { createDbConnection } from './db/connection.js';
 import { runMigrations } from './db/migrations.js';
 import { matchBlocklist, matchFilter, recordStrike } from './domain/telegram-moderation.js';
+import {
+  fetchGithubProgress,
+  generateTelegramReply,
+  renderTelegramUpdateBriefing,
+  telegramHelpText,
+  telegramHelpTopicRequest,
+  telegramUpdateBriefingRequest,
+} from './integrations/telegram.js';
+import { parseRepo } from './integrations/github.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -30,6 +39,8 @@ async function main(): Promise<void> {
     ],
   });
   let alertUserId = config.DISCORD_ALERT_USER_ID;
+  let heartbeat: NodeJS.Timeout | undefined;
+  const historyLimit = Math.max(1, Math.min(200, config.TELEGRAM_ISSUE_HISTORY));
 
   const reportFailure = async (key: string, title: string, error: unknown): Promise<void> => {
     const detail = error instanceof Error ? error.message : String(error);
@@ -45,40 +56,82 @@ async function main(): Promise<void> {
   };
 
   const handleMessage = async (message: Message): Promise<void> => {
-    if (!config.DISCORD_MODERATION || !message.inGuild() || message.author.bot || !message.content.trim()) return;
-    if (message.member?.permissions.has(PermissionFlagsBits.Administrator)) return;
+    if (!message.inGuild() || message.author.bot || !message.content.trim()) return;
+    context.repos.telegram.rememberCommunityMessage({
+      platform: 'discord',
+      room_id: `dc:${message.guildId}:${message.channelId}`,
+      message_id: message.id,
+      user_id: message.author.id,
+      display_name: message.member?.displayName || message.author.globalName || message.author.username,
+      content: message.content,
+      created_at: Math.floor(message.createdTimestamp / 1_000),
+    }, historyLimit);
     const key = `dc:${message.guildId}`;
-    const violation = matchBlocklist(context.repos.telegram, key, message.content);
-    if (violation) {
-      await message.delete();
-      const strikes = recordStrike(
-        context.repos.telegram,
-        key,
-        message.author.id,
-        violation,
-        Math.floor(context.now())
-      );
-      if (strikes === 1) {
-        await message.channel.send({
-          content: `⚠️ <@${message.author.id}>, that message was removed for blocklisted content. Warning 1/2; repeating it results in a ban.`,
-          allowedMentions: { users: [message.author.id] },
-        });
-      } else {
-        await message.guild.members.ban(message.author.id, {
-          reason: `Repeated TinyFrens blocklist violation: ${violation}`,
-        });
-        await message.channel.send({
-          content: `🚫 <@${message.author.id}> was banned for repeated blocklist violations.`,
-          allowedMentions: { users: [message.author.id] },
-        });
+    if (config.DISCORD_MODERATION && !message.member?.permissions.has(PermissionFlagsBits.Administrator)) {
+      const violation = matchBlocklist(context.repos.telegram, key, message.content);
+      if (violation) {
+        await message.delete();
+        const strikes = recordStrike(
+          context.repos.telegram,
+          key,
+          message.author.id,
+          violation,
+          Math.floor(context.now())
+        );
+        if (strikes === 1) {
+          await message.channel.send({
+            content: `⚠️ <@${message.author.id}>, that message was removed for blocklisted content. Warning 1/2; repeating it results in a ban.`,
+            allowedMentions: { users: [message.author.id] },
+          });
+        } else {
+          await message.guild.members.ban(message.author.id, {
+            reason: `Repeated TinyFrens blocklist violation: ${violation}`,
+          });
+          await message.channel.send({
+            content: `🚫 <@${message.author.id}> was banned for repeated blocklist violations.`,
+            allowedMentions: { users: [message.author.id] },
+          });
+        }
+        return;
       }
-      return;
+
+      const response = matchFilter(context.repos.telegram, key, message.content);
+      if (response) {
+        await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+        return;
+      }
     }
 
-    const response = matchFilter(context.repos.telegram, key, message.content);
-    if (response) {
-      await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+    const botId = client.user?.id;
+    if (!botId || !message.mentions.users.has(botId)) return;
+    context.rateLimiter.limit(`dc-mention:${message.channelId}`, 30, 3600, context.now());
+    let normalized = message.content.replace(new RegExp(`<@!?${botId}>`, 'g'), '@TinyFrensBot');
+    for (const [id, mentioned] of message.mentions.users) {
+      if (id !== botId) normalized = normalized.replace(new RegExp(`<@!?${id}>`, 'g'), `@${mentioned.username}`);
     }
+    const helpTopic = telegramHelpTopicRequest(normalized, 'TinyFrensBot');
+    const briefing = telegramUpdateBriefingRequest(normalized, 'TinyFrensBot');
+    let answer: string;
+    if (helpTopic) {
+      answer = telegramHelpText(helpTopic).replace(/<[^>]+>/g, '');
+    } else if (briefing) {
+      const [owner, repo] = parseRepo(config.GITHUB_REPO || 'dutchiono/TinyFrens');
+      const progress = await fetchGithubProgress(owner, repo, await context.githubAuth.token(owner, repo), fetch, context.now);
+      answer = renderTelegramUpdateBriefing(progress, briefing.target, repo, briefing.hours, Math.floor(context.now()));
+    } else {
+      const conversation = context.repos.telegram.listCommunityMessages('discord', key, historyLimit)
+        .map(row => ({ name: row.display_name, text: row.content, date: row.created_at }));
+      try {
+        answer = await generateTelegramReply(
+          conversation,
+          config.GEMINI_API_KEY || config.GOOGLE_API_KEY,
+          config.GEMINI_MODEL
+        );
+      } catch {
+        answer = 'AI chat is unavailable right now. `/help`, `/game`, `/show`, and `/status` still work.';
+      }
+    }
+    await message.reply({ content: answer.slice(0, 2_000), allowedMentions: { repliedUser: false, parse: [] } });
   };
 
   const handleJoin = async (member: GuildMember): Promise<void> => {
@@ -96,6 +149,13 @@ async function main(): Promise<void> {
 
   client.once(Events.ClientReady, async readyClient => {
     console.log(`TinyFrens Discord Gateway ready as ${readyClient.user.tag}`);
+    const markReady = () => {
+      context.repos.telegram.setIndexerState('discord_gateway_heartbeat', String(Math.floor(context.now())));
+      context.repos.telegram.setIndexerState('discord_gateway_revision', config.APP_REVISION || 'unknown');
+    };
+    markReady();
+    heartbeat = setInterval(markReady, 30_000);
+    heartbeat.unref();
     if (!alertUserId) {
       try {
         const application = await readyClient.application.fetch();
@@ -121,6 +181,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     console.log(`Stopping Discord Gateway after ${signal}`);
+    if (heartbeat) clearInterval(heartbeat);
     client.destroy();
     db.close();
     process.exit(0);

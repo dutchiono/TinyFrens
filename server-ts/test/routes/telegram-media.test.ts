@@ -169,7 +169,7 @@ describe('Telegram /show media orchestration', () => {
       },
     });
     assert.equal(response.statusCode, 200);
-    assert.match(String(api.calls.at(-1)?.payload.text), /No Telegram slots/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /No community-bot slots/);
     const markup = api.calls.at(-1)?.payload.reply_markup as any;
     assert.equal(markup.inline_keyboard[0][0].web_app.url, 'https://tinyfrens.lol/web/#pet');
   });

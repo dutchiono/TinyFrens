@@ -70,6 +70,10 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     table: 'github_issue_chats',
     sql: 'CREATE TABLE IF NOT EXISTS github_issue_chats(repo TEXT, issue_number INTEGER, chat_id TEXT, PRIMARY KEY(repo,issue_number));',
   },
+  {
+    table: 'community_chat_messages',
+    sql: 'CREATE TABLE IF NOT EXISTS community_chat_messages(platform TEXT NOT NULL, room_id TEXT NOT NULL, message_id TEXT NOT NULL, user_id TEXT NOT NULL, display_name TEXT NOT NULL, content TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(platform, room_id, message_id));',
+  },
 
   // Account profile (server/account_profile.py)
   {
@@ -273,6 +277,7 @@ export const INDEX_STATEMENTS: string[] = [
   'CREATE INDEX IF NOT EXISTS treasury_transfers_pet ON treasury_transfers(pet_id, id);',
   'CREATE INDEX IF NOT EXISTS collection_votes_collection ON collection_votes(collection_id);',
   'CREATE INDEX IF NOT EXISTS collection_votes_pet ON collection_votes(pet_id);',
+  'CREATE INDEX IF NOT EXISTS community_chat_messages_recent ON community_chat_messages(platform, room_id, created_at DESC);',
   "CREATE UNIQUE INDEX IF NOT EXISTS tg_scrap_one_open_run_per_chat ON tg_scrap_runs(chat_id) WHERE status='open';",
   'CREATE INDEX IF NOT EXISTS tg_scrap_members_run ON tg_scrap_members(run_id, joined_at);',
 ];
