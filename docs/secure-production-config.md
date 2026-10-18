@@ -10,7 +10,7 @@ The deployment archive includes `scripts/update-server-env.sh` at `/home/miono/t
 
 ## Configure
 
-In repository Settings → Environments → `production-backend`, add secrets `DISCORD_BOT_TOKEN`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `GITHUB_WEBHOOK_SECRET` as needed, and variable `DISCORD_UPDATES_CHANNEL_ID` with the numeric channel ID. Existing `TF_SERVER_SSH_KEY` and `TF_SERVER_KNOWN_HOSTS` must remain available to the workflow.
+In repository Settings → Environments → `production-backend`, add secrets `DISCORD_BOT_TOKEN`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, and `TF_GITHUB_WEBHOOK_SECRET` as needed, plus variable `DISCORD_UPDATES_CHANNEL_ID` with the numeric channel ID. GitHub reserves the `GITHUB_` secret prefix, so the workflow maps `TF_GITHUB_WEBHOOK_SECRET` to the server's `GITHUB_WEBHOOK_SECRET` setting. Existing `TF_SERVER_SSH_KEY` and `TF_SERVER_KNOWN_HOSTS` must remain available to the workflow.
 
 Run Actions → **Update production server configuration** → Run workflow (main) → select one key. Only approved keys are accepted. The workflow uses the same production deployment concurrency group and environment protections.
 

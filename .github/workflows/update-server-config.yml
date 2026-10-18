@@ -34,7 +34,8 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+          # GitHub reserves the GITHUB_ prefix for Actions-provided values.
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.TF_GITHUB_WEBHOOK_SECRET }}
         run: |
           set -euo pipefail
           case "$KEY" in
