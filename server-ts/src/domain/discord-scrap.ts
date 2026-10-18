@@ -7,7 +7,7 @@ export function renderDiscordScrap(state: ScrapState): {
   components: Array<Record<string, unknown>>;
 } {
   const { run, members } = state;
-  const crew = members.map(member => `• ${member.display_name}`).join('\n');
+  const crew = members.map(member => `• ${member.display_name}`).join('\n') || '• No one yet — press **Join crew**.';
   if (run.status === 'resolved') {
     const bonus = Math.max(0, members.length - 1) * 10;
     return {

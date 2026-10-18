@@ -23,18 +23,8 @@ import {
   TG_API,
   TelegramChatEntry,
 } from '../integrations/telegram.js';
-import {
-  createIssue,
-  draftIssue,
-  filterLabels,
-  issueBody,
-  labelsFromEnv,
-  listLabels,
-  parseRepo,
-  responseSummary,
-  transcript,
-} from '../integrations/github.js';
 import { readAccountProfile, telegramPet } from '../domain/account.js';
+import { fileCommunityIssue } from '../domain/community-issues.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
@@ -65,18 +55,32 @@ async function callTelegramApi(
 }
 
 export function registerTelegramRoutes(app: FastifyInstance, context: AppContext): void {
-  const chatHistory = new Map<string, TelegramChatEntry[]>();
   const scrapCardPublications = new Map<string, Promise<boolean>>();
   const historyLimit = Math.max(1, Math.min(200, context.config.TELEGRAM_ISSUE_HISTORY));
   const miniapp = context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0];
   const deepLink = context.config.TELEGRAM_MINIAPP_DEEP_LINK || 'https://t.me/TinyFrensBot?startapp=party';
 
-  const remember = (chatId: unknown, entry: TelegramChatEntry) => {
-    const key = String(chatId);
-    const history = chatHistory.get(key) || [];
-    history.push(entry);
-    if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
-    chatHistory.set(key, history);
+  const history = (chatId: unknown): TelegramChatEntry[] =>
+    context.repos.telegram.listCommunityMessages('telegram', String(chatId), historyLimit)
+      .map(row => ({ name: row.display_name, text: row.content, date: row.created_at }));
+
+  const remember = (chatId: unknown, telegramMessage: Record<string, unknown>) => {
+    const entry = chatMessage({ message: telegramMessage });
+    if (!entry) return;
+    const sender = telegramMessage.from && typeof telegramMessage.from === 'object'
+      ? telegramMessage.from as Record<string, unknown>
+      : {};
+    const messageId = String(telegramMessage.message_id || '');
+    if (!messageId) return;
+    context.repos.telegram.rememberCommunityMessage({
+      platform: 'telegram',
+      room_id: String(chatId),
+      message_id: messageId,
+      user_id: String(sender.id || ''),
+      display_name: entry.name,
+      content: entry.text,
+      created_at: Number(telegramMessage.date) || Math.floor(context.now()),
+    }, historyLimit);
   };
 
   const fileIssueFromChat = async (
@@ -93,39 +97,19 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     };
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
-      const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
-      if (!apiKey) {
-        await say("I have no AI key set, so I can't summarise the chat yet. (Set GEMINI_API_KEY.)");
-        return;
-      }
-      if (!context.config.GITHUB_REPO) {
-        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
-        return;
-      }
-      const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
-      const githubToken = await context.githubAuth.token(owner, repo);
-      if (!githubToken) {
-        await say("Issue filing isn't set up yet — the server needs GITHUB_TOKEN or a GitHub App, and GITHUB_REPO.");
-        return;
-      }
-      const messages = chatHistory.get(String(chatId)) || [];
-      const lines = transcript(messages, historyLimit);
-      if (!lines) {
+      const messages = history(chatId);
+      if (messages.length === 0) {
         await say("I haven't seen enough of this conversation yet to write an issue. Say a bit about what's happening, then ask me again.");
         return;
       }
       await say(`📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`);
-      const draft = await draftIssue(lines, apiKey, String(chat?.title || ''), context.config.GEMINI_MODEL);
-      const available = await listLabels(owner, repo, githubToken);
-      const labels = filterLabels([...labelsFromEnv(context.config.GITHUB_ISSUE_LABELS), ...draft.labels], available);
       const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
-      const created = await createIssue(owner, repo, githubToken, draft.title, issueBody(draft, footer), labels);
-      const result = responseSummary(created.data, created.status, owner, repo);
-      if (!result.ok) {
-        await say(`I couldn't open the issue: ${result.error}`);
-        return;
-      }
-      context.repos.telegram.linkChatToIssue(result.repo, result.number, String(chatId));
+      const result = await fileCommunityIssue(context, {
+        messages,
+        chatTitle: String(chat?.title || 'Telegram chat'),
+        linkTarget: String(chatId),
+        footer,
+      });
       await say(`✅ Opened issue #${result.number}: ${result.title}\n${result.url}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -279,14 +263,12 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             }
             return reply.status(200).send({ ok: true });
           }
-          const senderPet = telegramPet(context, cqSender);
           const started = existing
             ? { state: existing, created: false }
             : startScrapRun(
                 context.db,
                 String(cqChatId),
                 senderUid,
-                senderPet.id,
                 String(cqSender.first_name || cqSender.username || 'Fren'),
                 now,
                 context.random()
@@ -522,7 +504,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           }
           const cid = String(chatId);
           const uid = String(sender.id || '0');
-          const senderPet = telegramPet(context, sender);
           const now = Math.floor(context.now());
           expireStaleScrapRun(context.db, cid, now);
           const existing = getOpenScrapRun(context.db, cid);
@@ -532,7 +513,6 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.db,
                 cid,
                 uid,
-                senderPet.id,
                 String(sender.first_name || sender.username || 'Fren'),
                 now,
                 context.random()
@@ -676,8 +656,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         }
 
         if ((kind === 'message' || kind === 'mention') && chatId !== null && chatId !== undefined) {
-          const entry = chatMessage(update);
-          if (entry) remember(chatId, entry);
+          remember(chatId, telegramMessage);
         }
 
         if (kind === 'start' && chatId !== null && chatId !== undefined) {
@@ -696,13 +675,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
 
         if (kind === 'issue' && chatId !== null && chatId !== undefined) {
           const replied = telegramMessage.reply_to_message;
-          const entry = chatMessage({ message: replied });
-          if (entry) {
-            const history = chatHistory.get(String(chatId));
-            if (!history || history.at(-1)?.name !== entry.name || history.at(-1)?.text !== entry.text) {
-              remember(chatId, entry);
-            }
-          }
+          if (replied && typeof replied === 'object') remember(chatId, replied as Record<string, unknown>);
           await fileIssueFromChat(chatId, chat, token);
           return reply.status(200).send({ ok: true });
         }
@@ -734,7 +707,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           } else {
             try {
               answer = await generateTelegramReply(
-                chatHistory.get(String(chatId)) || [],
+                history(chatId),
                 context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
                 context.config.GEMINI_MODEL
               );

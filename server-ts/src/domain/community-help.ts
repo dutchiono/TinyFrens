@@ -1,8 +1,8 @@
 export function discordGameHelpText(): string {
   return [
     '## 🎮 Group Scrap Run',
-    '1. Run `/game` in a server channel. The starter joins automatically.',
-    '2. Up to four people can press **Join crew** during the five-minute window.',
+    '1. Run `/game` in a server channel to open the lobby. Starting it does not join you.',
+    '2. Up to four people—including the starter—can press **Join crew** during the five-minute window.',
     '3. A crew member presses **Search scrap** after the window closes.',
     '4. Everyone in the crew gets the same find and an individual account reward.',
     '',
@@ -27,7 +27,7 @@ export function discordHelpText(): string {
     '**Information**',
     '`/status` — Check the backend and Discord connection.',
     '`/progress` — Verified website, community, and backend changes.',
-    '`/issue` — Open a GitHub issue with a title and details.',
+    '`/issue` — Ask AI to summarize recent channel context into a GitHub issue.',
     '`/myid` — Show your Discord ID privately.',
     '`/help` — Show this command guide.',
     '',
@@ -53,7 +53,7 @@ export function discordShowHelpText(): string {
     '## 🐾 NFT slots and account linking',
     '1. In TinyFrens Settings, create a sync code.',
     '2. Run `/link code:<your code>` here, then approve the request on the device that created it.',
-    '3. In TinyFrens, assign verified NFTs to community-bot slots 1–5 (currently labelled **Show in Telegram**).',
+    '3. In TinyFrens, assign verified NFTs to community-bot slots 1–5.',
     '4. Run `/show` or `/show slot:2` to post one. Ownership is verified each time.',
   ].join('\n');
 }

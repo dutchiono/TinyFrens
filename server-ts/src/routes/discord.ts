@@ -7,9 +7,10 @@ import { discordGameHelpText, discordHelpText, discordShowHelpText } from '../do
 import { requestSync } from '../domain/device-sync.js';
 import { communityCompanion } from '../domain/telegram-companion.js';
 import { renderDiscordScrap } from '../domain/discord-scrap.js';
+import { fileCommunityIssue } from '../domain/community-issues.js';
 import { addBlocklist, addFilter } from '../domain/telegram-moderation.js';
 import { companionGif } from '../media/telegram-gif.js';
-import { createIssue, issueBody, parseRepo, responseSummary } from '../integrations/github.js';
+import { parseRepo } from '../integrations/github.js';
 import { fetchGithubProgress, renderTelegramUpdateBriefing } from '../integrations/telegram.js';
 import {
   expireStaleScrapRun,
@@ -215,16 +216,29 @@ async function handleDiscordCommand(
   if (name === 'issue') {
     void (async () => {
       context.rateLimiter.limit(`dc-issue:${String(user.id || '')}`, 5, 3600, context.now());
-      const [owner, repo] = parseRepo(context.config.GITHUB_REPO || 'dutchiono/TinyFrens');
-      const githubToken = await context.githubAuth.token(owner, repo);
-      if (!githubToken) throw new Error('GitHub issue filing is not configured.');
       const title = String(commandOption(command, 'title') || '').replace(/\s+/g, ' ').trim().slice(0, 90);
       const details = String(commandOption(command, 'details') || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 1_800);
-      const footer = `_Filed from Discord channel \`${channelId}\` by <@${String(user.id || '')}> through TinyFrens._`;
-      const created = await createIssue(owner, repo, githubToken, title, issueBody({ title, labels: [], body: details }, footer));
-      const result = responseSummary(created.data, created.status, owner, repo);
-      if (!result.ok) throw new Error(result.error);
-      context.repos.telegram.linkChatToIssue(result.repo, result.number, chatKey(guildId, channelId));
+      const stored = context.repos.telegram.listCommunityMessages(
+        'discord',
+        chatKey(guildId, channelId),
+        context.config.TELEGRAM_ISSUE_HISTORY
+      );
+      const messages = stored.map(row => ({ name: row.display_name, text: row.content }));
+      if (title || details) {
+        messages.push({
+          name: String(user.global_name || user.username || 'requester'),
+          text: ['Issue request', title && `Focus: ${title}`, details && `Extra context: ${details}`]
+            .filter(Boolean)
+            .join('. '),
+        });
+      }
+      const footer = `_Filed from Discord channel \`${channelId}\` by <@${String(user.id || '')}> through TinyFrens, summarising ${stored.length} recent message(s). Please edit if the summary missed something._`;
+      const result = await fileCommunityIssue(context, {
+        messages,
+        chatTitle: `Discord channel ${channelId}`,
+        linkTarget: chatKey(guildId, channelId),
+        footer,
+      });
       await editOriginal(rest, interaction, `✅ Opened issue #${result.number}: ${result.title}\n${result.url}`);
     })().catch(async error => {
       const detail = error instanceof Error ? error.message : 'Unknown failure';
@@ -255,9 +269,11 @@ async function handleDiscordCommand(
     const now = Math.floor(context.now());
     expireStaleScrapRun(context.db, key, now);
     const existing = getOpenScrapRun(context.db, key);
-    const pet = discordPet(context, user);
-    const state = existing || startScrapRun(
-      context.db, key, String(user.id || ''), pet.id,
+    if (existing) {
+      return message('A Scrap Run is already open in this channel. Use the existing card so the group stays in one place.', { ephemeral: true });
+    }
+    const state = startScrapRun(
+      context.db, key, String(user.id || ''),
       String(user.global_name || user.username || 'Fren'), now, context.random()
     ).state;
     const card = renderDiscordScrap(state);
@@ -392,7 +408,18 @@ async function handleDiscordCommand(
 
   if (name === 'status') {
     const uptime = Math.max(0, Math.floor(context.now() - context.startTime));
-    return message(`✅ TinyFrens backend online\n✅ Discord interactions verified\n${context.config.DISCORD_BOT_TOKEN ? '✅' : '❌'} Discord Gateway configured\nUptime: ${Math.floor(uptime / 60)}m`);
+    const gatewayHeartbeat = Number(context.repos.telegram.getIndexerState('discord_gateway_heartbeat') || 0);
+    const gatewayRevision = context.repos.telegram.getIndexerState('discord_gateway_revision') || 'unknown';
+    const gatewayOnline = gatewayHeartbeat > 0 && context.now() - gatewayHeartbeat <= 90;
+    const revisionMatches = Boolean(context.config.APP_REVISION && gatewayRevision === context.config.APP_REVISION);
+    return message([
+      '✅ TinyFrens backend online',
+      '✅ Discord interactions verified',
+      `${gatewayOnline ? '✅' : '❌'} Discord Gateway ${gatewayOnline ? 'online' : 'not reporting'}`,
+      `${revisionMatches ? '✅' : '⚠️'} Gateway revision ${gatewayRevision.slice(0, 7)}`,
+      `Backend revision ${(context.config.APP_REVISION || 'unknown').slice(0, 7)}`,
+      `Uptime: ${Math.floor(uptime / 60)}m`,
+    ].join('\n'));
   }
 
   return message('TinyFrens is online. Use `/game` for the shared Scrap Run or `/setup` to build the server.', { ephemeral: true });
@@ -412,9 +439,8 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
     const now = Math.floor(context.now());
     expireStaleScrapRun(context.db, key, now);
     const existing = getOpenScrapRun(context.db, key);
-    const pet = discordPet(context, user);
     const state = existing || startScrapRun(
-      context.db, key, String(user.id || ''), pet.id,
+      context.db, key, String(user.id || ''),
       String(user.global_name || user.username || 'Fren'), now, context.random()
     ).state;
     const card = renderDiscordScrap(state);

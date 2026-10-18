@@ -68,12 +68,12 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   },
   {
     name: 'issue',
-    description: 'Open a GitHub issue for TinyFrens',
+    description: 'Summarize recent channel context into a GitHub issue',
     contexts: [0],
     integration_types: [0],
     options: [
-      { type: 3, name: 'title', description: 'Short issue title', required: true, min_length: 3, max_length: 90 },
-      { type: 3, name: 'details', description: 'What happened or what should change', required: true, min_length: 3, max_length: 1800 },
+      { type: 3, name: 'title', description: 'Optional focus for the AI draft', required: false, min_length: 3, max_length: 90 },
+      { type: 3, name: 'details', description: 'Optional context to add to recent messages', required: false, min_length: 3, max_length: 1800 },
     ],
   },
   {
