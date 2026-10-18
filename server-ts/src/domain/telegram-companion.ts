@@ -22,7 +22,7 @@ export async function communityCompanion(
 ): Promise<VerifiedTelegramCompanion> {
   const snapshot = getDeviceSyncSnapshot(context, petId);
   if (snapshot.telegramSelection.length === 0) {
-    throw new Error('No Telegram slots are selected. Open TinyFrens and choose Show in Telegram first');
+    throw new Error('No community-bot slots are selected. Open TinyFrens and choose Show in community bots first');
   }
   const item = snapshot.telegramSelection.find(
     value => Number((value as Record<string, unknown>).slot) === position

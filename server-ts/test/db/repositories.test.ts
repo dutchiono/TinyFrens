@@ -271,5 +271,22 @@ describe('Database: Repositories', () => {
       assert.strictEqual(strikes.strikes, 1);
       assert.strictEqual(strikes.lastViolation, 'bad word');
     });
+
+    test('keeps bounded persistent conversation context for either community platform', () => {
+      for (let index = 1; index <= 4; index += 1) {
+        repos.telegram.rememberCommunityMessage({
+          platform: 'discord',
+          room_id: 'dc:guild:channel',
+          message_id: String(index),
+          user_id: 'user-1',
+          display_name: '  Test   Fren  ',
+          content: `message ${index}`,
+          created_at: index,
+        }, 3);
+      }
+      const messages = repos.telegram.listCommunityMessages('discord', 'dc:guild:channel', 25);
+      assert.deepEqual(messages.map(message => message.content), ['message 2', 'message 3', 'message 4']);
+      assert.ok(messages.every(message => message.display_name === 'Test Fren'));
+    });
   });
 });
