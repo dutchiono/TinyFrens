@@ -107,12 +107,21 @@ describe('Telegram /show media orchestration', () => {
   }
 
   test('uploads the GIF once and reuses Telegram file_id afterward', async () => {
+    context.db.prepare(
+      'INSERT INTO tg_media_cache(chain, collection, token_id, file_id, updated) VALUES(?, ?, ?, ?, ?)'
+    ).run(8453, ROBOTS_CONTRACT, 7, 'legacy-blank-file-id', 999);
+    assert.equal(context.repos.telegram.getCachedMediaFileId(8453, ROBOTS_CONTRACT, 7), undefined);
+
     assert.equal((await show()).statusCode, 200);
     const first = api.calls.find(call => call.method === 'sendAnimation');
     assert.equal(first?.payload.animation, 'attach://animation');
     assert.equal(first?.files?.animation.contentType, 'image/gif');
     assert.equal(Buffer.from(first?.files?.animation.data || []).toString('ascii', 0, 6), 'GIF89a');
     assert.equal(context.repos.telegram.getCachedMediaFileId(8453, ROBOTS_CONTRACT, 7), 'telegram-file-id');
+    const stored = context.db.prepare<{ file_id: string }>(
+      'SELECT file_id FROM tg_media_cache WHERE chain=? AND collection=? AND token_id=?'
+    ).get(8453, ROBOTS_CONTRACT, 7);
+    assert.equal(stored?.file_id, 'gif-v2:telegram-file-id');
 
     assert.equal((await show()).statusCode, 200);
     const animationCalls = api.calls.filter(call => call.method === 'sendAnimation');

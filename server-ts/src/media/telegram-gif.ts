@@ -15,6 +15,7 @@ interface RasterFrame {
 type Point = [number, number];
 
 function numberValue(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined || value === '') return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -313,47 +314,28 @@ function globalPalette(): Buffer {
 function lzwEncode(values: Uint8Array): Buffer {
   const clearCode = 256;
   const endCode = 257;
-  let dictionary = new Map<string, number>();
-  let nextCode = 258;
-  let codeSize = 9;
   let currentByte = 0;
   let currentBits = 0;
   const output: number[] = [];
   const emit = (code: number) => {
     currentByte |= code << currentBits;
-    currentBits += codeSize;
+    currentBits += 9;
     while (currentBits >= 8) {
       output.push(currentByte & 255);
       currentByte >>>= 8;
       currentBits -= 8;
     }
   };
-  const reset = () => {
-    dictionary = new Map();
-    nextCode = 258;
-    codeSize = 9;
-  };
-  emit(clearCode);
-  let prefix = values[0];
-  for (let index = 1; index < values.length; index += 1) {
-    const value = values[index];
-    const key = `${prefix}:${value}`;
-    const found = dictionary.get(key);
-    if (found !== undefined) {
-      prefix = found;
-      continue;
-    }
-    emit(prefix);
-    if (nextCode < 4096) {
-      dictionary.set(key, nextCode++);
-      if (nextCode === (1 << codeSize) && codeSize < 12) codeSize += 1;
-    } else {
-      emit(clearCode);
-      reset();
-    }
-    prefix = value;
+
+  // Keep the stream at the minimum nine-bit code width. Clearing before the
+  // decoder's dictionary reaches 512 entries is a little larger than adaptive
+  // compression, but remains small for 128px companion frames and avoids
+  // code-width transitions that some Telegram decoders reject as blank media.
+  for (let offset = 0; offset < values.length; offset += 250) {
+    emit(clearCode);
+    const end = Math.min(values.length, offset + 250);
+    for (let index = offset; index < end; index += 1) emit(values[index]);
   }
-  emit(prefix);
   emit(endCode);
   if (currentBits > 0) output.push(currentByte & 255);
   return Buffer.from(output);
