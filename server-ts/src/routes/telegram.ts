@@ -86,7 +86,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
   const fileIssueFromChat = async (
     chatId: unknown,
     chat: Record<string, unknown> | null,
-    token: string
+    token: string,
+    explicitDescription = ''
   ) => {
     const say = async (text: string) => {
       try {
@@ -98,14 +99,17 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
       const messages = history(chatId);
-      if (messages.length === 0) {
-        await say("I haven't seen enough of this conversation yet to write an issue. Say a bit about what's happening, then ask me again.");
+      if (messages.length === 0 && !explicitDescription.trim()) {
+        await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it.');
         return;
       }
-      await say(`📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`);
+      await say(messages.length > 0
+        ? `📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`
+        : '📝 Drafting an issue from your report…');
       const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
       const result = await fileCommunityIssue(context, {
         messages,
+        description: explicitDescription,
         chatTitle: String(chat?.title || 'Telegram chat'),
         linkTarget: String(chatId),
         footer,
@@ -116,6 +120,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
       const safeError = message === 'Please wait before trying again' ||
         message.startsWith('GITHUB_REPO ') ||
         message.startsWith('The model ') ||
+        message === 'GitHub issue filing is not configured.' ||
+        message === 'I have not seen enough conversation context to draft an issue yet.' ||
         message === 'No issue to file from this conversation' ||
         message === 'No recent conversation to summarise';
       if (safeError) {
@@ -676,7 +682,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         if (kind === 'issue' && chatId !== null && chatId !== undefined) {
           const replied = telegramMessage.reply_to_message;
           if (replied && typeof replied === 'object') remember(chatId, replied as Record<string, unknown>);
-          await fileIssueFromChat(chatId, chat, token);
+          const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
+          const entry = chatMessage({ message: replied });
+          await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
           return reply.status(200).send({ ok: true });
         }
 
@@ -711,7 +719,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY,
                 context.config.GEMINI_MODEL
               );
-            } catch {
+            } catch (error) {
+              console.error('TinyFrens Telegram AI chat failed', { reason: error instanceof Error ? error.message : 'unknown error' });
               answer = 'AI chat is unavailable right now. /help, /game, /show, and /status still work.';
             }
           }

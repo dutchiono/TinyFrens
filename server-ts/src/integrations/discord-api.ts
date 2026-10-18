@@ -257,6 +257,7 @@ export async function setupDiscordGuild(
     { name: 'tinyfrens', topic: 'TinyFrens community chat, bot commands, and companion updates.' },
     { name: 'scrap-yard', topic: 'Start the shared five-minute Scrap Run with /game.' },
     { name: 'updates', topic: 'TinyFrens website, Telegram, Discord, game, and backend updates.' },
+    { name: 'github-updates', topic: 'Automated GitHub pull requests, CI, releases and deployment status.' },
   ];
   for (const spec of channelSpecs) {
     if (channels.some(channel => channel.type === 0 && channel.name === spec.name)) continue;

@@ -19,6 +19,7 @@ export interface CommunityIssueMessage {
 
 export interface CommunityIssueRequest {
   messages: CommunityIssueMessage[];
+  description?: string;
   chatTitle: string;
   linkTarget: string;
   footer: string;
@@ -29,15 +30,26 @@ export async function fileCommunityIssue(
   request: CommunityIssueRequest,
   fetcher: typeof fetch = fetch
 ): Promise<CreatedIssueSummary> {
-  const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
-  if (!apiKey) throw new Error('AI issue drafting is not configured.');
   if (!context.config.GITHUB_REPO) throw new Error('GitHub issue filing is not configured.');
   const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
   const githubToken = await context.githubAuth.token(owner, repo);
   if (!githubToken) throw new Error('GitHub issue filing is not configured.');
-  const lines = transcript(request.messages, context.config.TELEGRAM_ISSUE_HISTORY + 1);
+  const lines = request.description?.trim() || transcript(request.messages, context.config.TELEGRAM_ISSUE_HISTORY + 1);
   if (!lines) throw new Error('I have not seen enough conversation context to draft an issue yet.');
-  const draft = await draftIssue(lines, apiKey, request.chatTitle, context.config.GEMINI_MODEL, fetcher);
+  const fallback = {
+    title: (`Report: ${lines.replace(/\s+/g, ' ').slice(0, 80)}`).slice(0, 90),
+    labels: [] as string[],
+    body: `## What happened\n\n${lines}\n\n## Suggested next steps\n\n- Reproduce and investigate the reported behavior.`,
+  };
+  const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
+  let draft = fallback;
+  if (apiKey) {
+    try {
+      draft = await draftIssue(lines, apiKey, request.chatTitle, context.config.GEMINI_MODEL, fetcher);
+    } catch (error) {
+      console.warn('Community issue AI drafting failed; using verbatim report:', error instanceof Error ? error.message : 'unknown error');
+    }
+  }
   const available = await listLabels(owner, repo, githubToken, fetcher);
   const labels = filterLabels([...labelsFromEnv(context.config.GITHUB_ISSUE_LABELS), ...draft.labels], available);
   const created = await createIssue(owner, repo, githubToken, draft.title, issueBody(draft, request.footer), labels, fetcher);

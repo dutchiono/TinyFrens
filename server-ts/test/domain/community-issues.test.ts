@@ -60,4 +60,40 @@ describe('shared community issue filing', () => {
     assert.equal(context.repos.telegram.getChatForIssue('dutchiono/TinyFrens', 122), 'dc:guild:channel');
     db.close();
   });
+
+  test('files a verbatim report when AI is unavailable', async () => {
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    let issuePayload: Record<string, unknown> | null = null;
+    const context = createAppContext(loadConfig({
+      GITHUB_REPO: 'dutchiono/TinyFrens',
+    }), db);
+    context.githubAuth.token = async () => 'github-test';
+    const fetcher = async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/labels?per_page=100')) return new Response('[]', { status: 200 });
+      if (url.endsWith('/issues') && init?.method === 'POST') {
+        issuePayload = JSON.parse(String(init.body));
+        return new Response(JSON.stringify({
+          number: 123,
+          html_url: 'https://github.com/dutchiono/TinyFrens/issues/123',
+          title: 'Report: /game did not respond',
+          labels: [],
+        }), { status: 201 });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    };
+
+    await fileCommunityIssue(context, {
+      messages: [],
+      description: '/game did not respond',
+      chatTitle: 'Telegram group',
+      linkTarget: '-1001',
+      footer: '_Filed from Telegram._',
+    }, fetcher);
+
+    assert.equal(issuePayload?.title, 'Report: /game did not respond');
+    assert.match(String(issuePayload?.body), /\/game did not respond/);
+    db.close();
+  });
 });

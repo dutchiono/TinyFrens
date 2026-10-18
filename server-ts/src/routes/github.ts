@@ -3,6 +3,7 @@ import { AppContext } from '../context.js';
 import { verifyGithubWebhookSignature } from '../crypto/signatures.js';
 import { issueEvent, issueEventMessage } from '../integrations/github.js';
 import { TG_API } from '../integrations/telegram.js';
+import { githubAnnouncement, sendGithubDiscordUpdate } from '../integrations/github-announcements.js';
 
 export function registerGithubRoutes(app: FastifyInstance, context: AppContext): void {
   app.post(
@@ -36,6 +37,16 @@ export function registerGithubRoutes(app: FastifyInstance, context: AppContext):
         const eventHeader = request.headers['x-github-event'] as string | undefined;
         if (eventHeader) {
           payload.event = eventHeader;
+        }
+
+        const announcement = githubAnnouncement(eventHeader || '', payload);
+        if (announcement && context.config.DISCORD_UPDATES_CHANNEL_ID && context.config.DISCORD_BOT_TOKEN) {
+          try {
+            await sendGithubDiscordUpdate(context.config.DISCORD_UPDATES_CHANNEL_ID, context.config.DISCORD_BOT_TOKEN, announcement);
+          } catch (error) {
+            request.log.error({ error }, 'GitHub Discord announcement failed');
+            return reply.status(502).send({ error: 'Discord announcement failed; GitHub may retry delivery' });
+          }
         }
 
         const details = issueEvent(payload);
