@@ -11,7 +11,7 @@ A box may be checked only when the TypeScript implementation has been compared w
 - [ ] Same accepted inputs, normalization, defaults, limits, and validation errors.
 - [x] Same HTTP status, response body, content type, cache headers, and CORS behavior (verified for GET /health and origin guard).
 - [ ] Same authentication, authorization, signature verification, and rate limits.
-- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified through cutover; 50 permanent tables after deploy notifications, while `wallet_links_next` is migration scratch state and is never retained).
+- [x] Same SQLite schema, values, ordering, transaction boundaries, idempotency, and restart behavior (verified through cutover; 51 permanent tables after one-tap community links, while `wallet_links_next` is migration scratch state and is never retained).
 - [ ] Same external requests, timeouts, retry behavior, and fail-closed/fail-open behavior.
 - [ ] Same WebSocket frames, close codes, ordering, expiry, and reconnect behavior where applicable.
 - [ ] Same background work, cancellation, cleanup, and graceful shutdown behavior.

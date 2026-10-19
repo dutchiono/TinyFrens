@@ -89,7 +89,7 @@ describe('Telegram conversation and issue orchestration', () => {
   test('serves start, group-added, and help messages', async () => {
     await webhook({ message: { message_id: 1, text: '/start link', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
     const startMarkup = api.calls.at(-1)?.payload.reply_markup as any;
-    assert.equal(startMarkup.inline_keyboard[0][0].web_app.url, 'https://tinyfrens.lol/web/#settings');
+    assert.match(startMarkup.inline_keyboard[0][0].url, /^https:\/\/tinyfrens\.lol\/web\/\?community-link=/);
 
     await webhook({ my_chat_member: { chat: { id: -10, type: 'group', title: 'Tiny Crew' }, new_chat_member: { status: 'member' } } });
     assert.match(String(api.calls.at(-1)?.payload.text), /Tiny Crew/);

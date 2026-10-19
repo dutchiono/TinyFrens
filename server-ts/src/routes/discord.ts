@@ -2,9 +2,9 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { REST, Routes } from 'discord.js';
 import { AppContext } from '../context.js';
 import { verifyDiscordInteraction } from '../crypto/signatures.js';
-import { discordPet } from '../domain/account.js';
+import { AccountLinkRequiredError, discordPet } from '../domain/account.js';
 import { discordGameHelpText, discordHelpText, discordShowHelpText } from '../domain/community-help.js';
-import { requestSync } from '../domain/device-sync.js';
+import { requestSync, startCommunityLink } from '../domain/device-sync.js';
 import { communityCompanion } from '../domain/telegram-companion.js';
 import { renderDiscordScrap } from '../domain/discord-scrap.js';
 import { fileCommunityIssue } from '../domain/community-issues.js';
@@ -174,10 +174,28 @@ async function handleDiscordCommand(
 
   if (name === 'link') {
     try {
-      const pet = discordPet(context, user, true);
       const code = String(commandOption(command, 'code') || '');
-      requestSync(context, pet.id, code, `Discord @${String(user.username || user.id || 'member')}`);
-      return message('Link requested. Approve it on the TinyFrens device that created the code.', { ephemeral: true });
+      if (code) {
+        const pet = discordPet(context, user, true);
+        requestSync(context, pet.id, code, `Discord @${String(user.username || user.id || 'member')}`);
+        return message('Link requested. Approve it on the TinyFrens device that created the code.', { ephemeral: true });
+      }
+      try {
+        discordPet(context, user);
+        return message('Discord is already linked to your TinyFrens account.', { ephemeral: true });
+      } catch (error) {
+        if (!(error instanceof AccountLinkRequiredError)) throw error;
+      }
+      const pet = discordPet(context, user, true);
+      const label = `Discord @${String(user.username || user.id || 'member')}`;
+      const link = startCommunityLink(context, pet.id, 'discord', label);
+      const url = new URL(context.config.TELEGRAM_MINIAPP_URL.split('#', 1)[0]);
+      url.searchParams.set('community-link', link.token);
+      url.hash = 'account';
+      return message('Open this on the device where you already use TinyFrens, then confirm the link. It expires in 10 minutes.', {
+        ephemeral: true,
+        components: [{ type: 1, components: [{ type: 2, style: 5, label: 'Link my TinyFrens account', url: url.toString() }] }],
+      });
     } catch (error) {
       return message(error instanceof Error ? error.message : 'TinyFrens could not request that link.', { ephemeral: true });
     }

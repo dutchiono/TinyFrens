@@ -85,6 +85,112 @@ export function requestSync(
   return { waiting: true, requestId: rid };
 }
 
+function communityLinkToken(rawToken: unknown): string {
+  const token = String(rawToken || '');
+  if (!/^[A-Za-z0-9_-]{32}$/.test(token)) throw new Error('This account link is invalid or expired');
+  return token;
+}
+
+export function startCommunityLink(
+  context: AppContext,
+  device: string,
+  platform: 'telegram' | 'discord',
+  label: string
+): { token: string; expires: number } {
+  context.repos.deviceSync.ensureAccount(device);
+  const token = crypto.randomBytes(24).toString('base64url');
+  const expires = context.now() + 600;
+  context.repos.deviceSync.createCommunityLinkRequest(
+    token,
+    device,
+    platform,
+    label,
+    expires,
+    context.now()
+  );
+  return { token, expires };
+}
+
+export function getCommunityLinkStatus(
+  context: AppContext,
+  pid: string,
+  rawToken: unknown
+): { platform: string; label: string; expires: number; alreadyLinked: boolean } {
+  const row = context.repos.deviceSync.getCommunityLinkRequest(communityLinkToken(rawToken));
+  if (!row || row.expires <= context.now()) throw new Error('This account link is invalid or expired');
+  return {
+    platform: row.platform,
+    label: row.label,
+    expires: row.expires,
+    alreadyLinked: context.repos.deviceSync.ensureAccount(pid) === context.repos.deviceSync.ensureAccount(row.device),
+  };
+}
+
+function mergeDeviceAccounts(context: AppContext, sourceDevice: string, targetDevice: string): DeviceSyncSnapshot {
+  const source = context.repos.deviceSync.ensureAccount(sourceDevice);
+  const target = context.repos.deviceSync.ensureAccount(targetDevice);
+  if (source === target) return getDeviceSyncSnapshot(context, sourceDevice);
+
+  const sourceDevices = context.repos.deviceSync.getDevicesForAccount(source);
+  const targetDevices = context.repos.deviceSync.getDevicesForAccount(target);
+  const members = Array.from(new Set([...sourceDevices, ...targetDevices]));
+  const addresses = Array.from(new Set([
+    ...context.repos.wallets.getAccountWallets(source),
+    ...context.repos.wallets.getAccountWallets(target),
+  ]));
+  if (members.length > 20 || new Set(addresses.map(a => a.toLowerCase())).size > 10) {
+    throw new Error('Sync supports up to 20 devices and 10 wallets');
+  }
+
+  const linkedAt: Record<string, number> = {};
+  for (const device of members) {
+    const rows = context.db.prepare<{ address: string; created: number }>(
+      'SELECT address, created FROM wallet_links WHERE pet_id=?'
+    ).all(device);
+    for (const row of rows) {
+      const key = row.address.toLowerCase();
+      if (linkedAt[key] === undefined || row.created < linkedAt[key]) linkedAt[key] = row.created;
+    }
+  }
+
+  const now = Math.floor(context.now());
+  context.db.transaction(() => {
+    context.repos.accounts.mergeAccounts(source, target, now);
+    context.db.prepare('UPDATE device_sync_members SET account=? WHERE account=?').run(source, target);
+    context.db.prepare('DELETE FROM device_sync_accounts WHERE account=?').run(target);
+    for (const device of members) {
+      for (const address of addresses) {
+        context.db.prepare('INSERT OR IGNORE INTO wallet_links VALUES(?, ?, ?)').run(
+          device,
+          address,
+          linkedAt[address.toLowerCase()] ?? now
+        );
+      }
+      context.db.prepare('DELETE FROM turtle_pairings WHERE pet_id=?').run(device);
+      context.db.prepare('DELETE FROM wallet_link_challenges WHERE pet_id=?').run(device);
+    }
+    context.db.prepare('UPDATE device_sync_accounts SET revision=revision+1 WHERE account=?').run(source);
+    context.db.prepare(
+      'DELETE FROM device_sync_codes WHERE device IN (SELECT device FROM device_sync_members WHERE account=?)'
+    ).run(source);
+    context.repos.deviceSync.deleteCommunityLinkRequestsForDevices(members);
+  })();
+  return getDeviceSyncSnapshot(context, sourceDevice);
+}
+
+export function acceptCommunityLink(
+  context: AppContext,
+  pid: string,
+  rawToken: unknown
+): DeviceSyncSnapshot {
+  const token = communityLinkToken(rawToken);
+  const row = context.repos.deviceSync.getCommunityLinkRequest(token);
+  if (!row || row.expires <= context.now()) throw new Error('This account link is invalid or expired');
+  const snapshot = mergeDeviceAccounts(context, pid, row.device);
+  context.repos.deviceSync.deleteCommunityLinkRequestsForDevices([row.device]);
+  return snapshot;
+}
+
 export function getDeviceSyncStatus(
   context: AppContext,
   pid: string,
@@ -128,60 +234,7 @@ export function acceptDeviceSync(
     throw new Error('This device has no matching request to approve');
   }
 
-  const source = context.repos.deviceSync.ensureAccount(pid);
-  const target = context.repos.deviceSync.ensureAccount(row.requester);
-  const sourceDevices = context.repos.deviceSync.getDevicesForAccount(source);
-  const targetDevices = context.repos.deviceSync.getDevicesForAccount(target);
-  const members = Array.from(new Set([...sourceDevices, ...targetDevices]));
-  const addresses = Array.from(new Set([
-    ...context.repos.wallets.getAccountWallets(source),
-    ...context.repos.wallets.getAccountWallets(target),
-  ]));
-
-  const uniqueAddressesLower = new Set(addresses.map(a => a.toLowerCase()));
-  if (members.length > 20 || uniqueAddressesLower.size > 10) {
-    throw new Error('Sync supports up to 20 devices and 10 wallets');
-  }
-
-  const linkedAt: Record<string, number> = {};
-  for (const device of members) {
-    const rows = context.db.prepare<{ address: string; created: number }>(
-      'SELECT address, created FROM wallet_links WHERE pet_id=?'
-    ).all(device);
-    for (const r of rows) {
-      const key = r.address.toLowerCase();
-      if (linkedAt[key] === undefined || r.created < linkedAt[key]) {
-        linkedAt[key] = r.created;
-      }
-    }
-  }
-
-  const fallback = Math.floor(now);
-
-  context.db.transaction(() => {
-    context.repos.accounts.mergeAccounts(source, target, fallback);
-    context.db.prepare('UPDATE device_sync_members SET account=? WHERE account=?').run(source, target);
-    context.db.prepare('DELETE FROM device_sync_accounts WHERE account=?').run(target);
-
-    for (const device of members) {
-      for (const address of addresses) {
-        context.db.prepare('INSERT OR IGNORE INTO wallet_links VALUES(?, ?, ?)').run(
-          device,
-          address,
-          linkedAt[address.toLowerCase()] ?? fallback
-        );
-      }
-      context.db.prepare('DELETE FROM turtle_pairings WHERE pet_id=?').run(device);
-      context.db.prepare('DELETE FROM wallet_link_challenges WHERE pet_id=?').run(device);
-    }
-
-    context.db.prepare('UPDATE device_sync_accounts SET revision=revision+1 WHERE account=?').run(source);
-    context.db.prepare(
-      'DELETE FROM device_sync_codes WHERE device IN (SELECT device FROM device_sync_members WHERE account=?)'
-    ).run(source);
-  })();
-
-  return getDeviceSyncSnapshot(context, pid);
+  return mergeDeviceAccounts(context, pid, row.requester);
 }
 
 export function leaveDeviceSync(context: AppContext, pid: string): DeviceSyncSnapshot {

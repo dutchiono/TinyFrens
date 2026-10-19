@@ -521,6 +521,12 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
         options: [{ name: 'code', value: sync.code }],
       });
       assert.match(link.json().data.content, /Link requested/);
+
+      const directLink = await interact('1700000008', { name: 'link' });
+      assert.match(directLink.json().data.content, /expires in 10 minutes/);
+      assert.strictEqual(directLink.json().data.flags, 64);
+      const directUrl = directLink.json().data.components[0].components[0].url;
+      assert.match(directUrl, /community-link=/);
     });
   });
 

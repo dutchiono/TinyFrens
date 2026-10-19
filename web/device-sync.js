@@ -6,10 +6,12 @@
     <div class="sync-code-row"><button id="syncCode" class="sync-code-display" type="button" title="Copy this code">Connecting…</button><button id="createSyncCode" type="button" class="secondary">Get code / retry</button></div><div id="syncQR" class="connection-qr"></div><p id="syncExpiry" class="small"></p>
     <label for="enterSyncCode">Enter a code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
     <button id="scanSyncQR" type="button" class="secondary">Scan QR code</button><p class="small">You can also scan with your phone’s Camera app. Choose “Open this connection in the Android app” on the page it opens to link your installed app.</p><p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
-    <dialog id="syncApproval" class="update-modal"><h2>Sync this device?</h2><p id="syncApprovalText"></p><p>Approve only if you just entered this code on your other device. This device’s NFT choices and settings will be used on both.</p><div class="actions"><button id="approveSync" type="button">Approve sync</button><button id="denySync" type="button" class="secondary">Cancel</button></div></dialog>`;
+    <dialog id="syncApproval" class="update-modal"><h2>Sync this device?</h2><p id="syncApprovalText"></p><p>Approve only if you just entered this code on your other device. This device’s NFT choices and settings will be used on both.</p><div class="actions"><button id="approveSync" type="button">Approve sync</button><button id="denySync" type="button" class="secondary">Cancel</button></div></dialog>
+    <dialog id="communityLinkApproval" class="update-modal"><h2>Link this chat account?</h2><p id="communityLinkText"></p><p id="communityLinkWarning" class="small"></p><a id="openCommunityLinkApp" class="button" hidden>Open in the TinyFrens app</a><div class="actions"><button id="approveCommunityLink" type="button">Link account</button><button id="cancelCommunityLink" type="button" class="secondary">Cancel</button></div></dialog>`;
   document.getElementById('accountControls').append(panel);
   const $ = id => document.getElementById(id), key = window.TinyFrensCompanionKey;
   document.body.append($('syncApproval'));
+  document.body.append($('communityLinkApproval'));
   const storage = 'tinyfrens-companions', motionStorage = 'tinyfrens-companion-motion';
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   const native = window.PetAndroid || window.TinyFrensDesktop;
@@ -88,6 +90,50 @@
       $('enterSyncCode').closest('.sync-code-row').after(open);
     }
   }
+  let incomingCommunityLink = new URLSearchParams(location.search).get('community-link');
+  function clearCommunityLinkUrl() {
+    const url = new URL(location.href); url.searchParams.delete('community-link');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    incomingCommunityLink = null;
+  }
+  async function openCommunityLink(linkToken) {
+    if (!/^[A-Za-z0-9_-]{32}$/.test(linkToken || '')) return;
+    incomingCommunityLink = linkToken;
+    window.showScreen?.('account');
+    try {
+      const [link, state] = await Promise.all([
+        post('community-link/status', {linkToken}),
+        post('state'),
+      ]);
+      const established = state.devices > 1 || state.addresses.length > 0 || state.selection.length > 0;
+      $('communityLinkText').textContent = `${link.label} wants to use this TinyFrens account and its community slots.`;
+      $('communityLinkWarning').textContent = established
+        ? 'Only continue if this is the TinyFrens account you already use.'
+        : 'This looks like a new browser. Open the link in your installed TinyFrens app or in the browser where your wallet and frens already appear.';
+      $('approveCommunityLink').disabled = !established && !link.alreadyLinked;
+      const appLink = $('openCommunityLinkApp');
+      appLink.href = 'tinyfrens://connect?community-link=' + encodeURIComponent(linkToken);
+      appLink.hidden = Boolean(window.PetAndroid || window.PetIOS || window.TinyFrensDesktop);
+      if (!$('communityLinkApproval').open) $('communityLinkApproval').showModal();
+    } catch (error) {
+      $('syncStatus').textContent = error.message;
+      clearCommunityLinkUrl();
+    }
+  }
+  window.TinyFrensCommunityLink = {open:openCommunityLink};
+  $('approveCommunityLink').onclick = async () => {
+    $('approveCommunityLink').disabled = true;
+    try {
+      if (!incomingCommunityLink) throw Error('This account link expired. Run /link again.');
+      await post('community-link/accept', {linkToken:incomingCommunityLink});
+      clearCommunityLinkUrl(); $('communityLinkApproval').close();
+      revision = null; baseline = null; await tick();
+      $('syncStatus').textContent = 'Chat account linked. /show now uses your saved community slots.';
+      window.dispatchEvent(new Event('tinyfrens-account-synced'));
+    } catch (error) { $('communityLinkWarning').textContent = error.message; }
+    finally { $('approveCommunityLink').disabled = false; }
+  };
+  $('cancelCommunityLink').onclick = () => { clearCommunityLinkUrl(); $('communityLinkApproval').close(); };
   $('scanSyncQR').onclick = async () => {
     try {
       const result = await window.TinyFrensQR.scan();
@@ -216,8 +262,10 @@
   $('syncApproval').addEventListener('cancel', event => { event.preventDefault(); deny(); });
   $('leaveSync').onclick = async () => { try { await post('leave'); pending = null; await tick(); } catch (error) { $('syncStatus').textContent = error.message; } };
   window.addEventListener('tinyfrens-identity-ready', tick);
+  window.addEventListener('tinyfrens-identity-ready', () => { if (incomingCommunityLink) openCommunityLink(incomingCommunityLink); });
   window.addEventListener('online', tick);
   window.addEventListener('online', prepareCode);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
   setInterval(tick, 3000); tick();
+  if (incomingCommunityLink && identity()?.token) setTimeout(() => openCommunityLink(incomingCommunityLink), 500);
 })();
