@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17142a">
+  <meta name="description" content="How FRENS and Energy work in TinyFrens, including what is live and what remains planned.">
+  <title>Tokenomics · TinyFrens</title>
+  <link rel="icon" href="../web/icons/icon.svg">
+  <link rel="stylesheet" href="../site/style.css">
+  <link rel="stylesheet" href="../web/navigation.css?v=header-frens-3">
+  <link rel="stylesheet" href="tokenomics.css">
+</head>
+<body class="tf-navigation-page tokenomics-page">
+  <header id="mainNavigation" data-page="tokenomics"></header>
+  <main>
+    <section class="tokenomics-hero">
+      <span>FRENS + ENERGY</span>
+      <h1>The TinyFrens economy,<br><em>without the fog.</em></h1>
+      <p>FRENS is the on-chain utility token. Energy is the off-chain meter used to play and care for eligible Robots v1. They are related, but they are not the same asset.</p>
+      <div class="status-row" aria-label="Economy status">
+        <span class="status live">Live</span><strong>Robot ownership, Energy recharge, and Energy action costs</strong>
+        <span class="status testing">Testing</span><strong>FRENS-to-Energy deposits on Base Sepolia</strong>
+        <span class="status planned">Planned</span><strong>Production deposits, staking, holding boosts, and burn boosts</strong>
+      </div>
+    </section>
+
+    <section class="economy-block" aria-labelledby="frensHeading">
+      <div class="economy-heading"><span>01 / ON-CHAIN</span><h2 id="frensHeading">FRENS</h2></div>
+      <div class="economy-copy">
+        <p>FRENS is an ERC-20 utility token on Base. TinyFrens is designed to use it for optional economy features such as purchasing additional Energy and, later, staking rewards and capped gameplay boosts.</p>
+        <p><strong>Those future systems are not promises of profit.</strong> Production deposits, staking, and holding or burn boosts are currently inactive. TinyFrens does not require custody of your wallet or private keys.</p>
+        <div class="address-card"><span>Official Base contract</span><a href="https://basescan.org/token/0x1A96226727a1D0a46334b3A4b3878B32B7659ba3" target="_blank" rel="noopener">0x1A96226727a1D0a46334b3A4b3878B32B7659ba3</a><small>Chain ID 8453 · 18 decimals</small></div>
+      </div>
+    </section>
+
+    <section class="economy-block" aria-labelledby="energyHeading">
+      <div class="economy-heading"><span>02 / GAMEPLAY</span><h2 id="energyHeading">Energy</h2></div>
+      <div class="economy-copy">
+        <p>Energy belongs to your TinyFrens account. It is not a token, cannot be transferred, and cannot be redeemed for FRENS. An account must own at least one verified Robots v1 NFT to recharge Energy or use Robot-gated game actions.</p>
+        <div class="formula"><span>Daily recharge</span><strong>18 + (6 × eligible Robots)</strong><small>Rechargeable Energy can build up to three days of the current daily rate.</small></div>
+        <div class="example-grid">
+          <article><strong>1 Robot</strong><span>24 Energy/day</span><small>72 rechargeable capacity</small></article>
+          <article><strong>2 Robots</strong><span>30 Energy/day</span><small>90 rechargeable capacity</small></article>
+          <article><strong>5 Robots</strong><span>48 Energy/day</span><small>144 rechargeable capacity</small></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="economy-block" aria-labelledby="costsHeading">
+      <div class="economy-heading"><span>03 / ACTIONS</span><h2 id="costsHeading">What Energy does</h2></div>
+      <div class="economy-copy">
+        <p>Energy keeps play paced without changing the NFT itself. Rechargeable Energy is spent before purchased Energy. Current starting costs are configurable as the game is tuned.</p>
+        <div class="cost-grid" aria-label="Default Energy costs">
+          <span>Feed <strong>4</strong></span><span>Play / mini-game <strong>5</strong></span><span>Rest <strong>4</strong></span><span>Adventure <strong>7</strong></span><span>Clean <strong>4</strong></span><span>Vitamin <strong>6</strong></span><span>Scold <strong>4</strong></span><span>Revive <strong>7</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="economy-block" aria-labelledby="futureHeading">
+      <div class="economy-heading"><span>04 / NOT ACTIVE YET</span><h2 id="futureHeading">What comes later</h2></div>
+      <div class="economy-copy">
+        <p>Holding, staking, and permanently burning FRENS are being modeled as capped, diminishing-return Energy boosts. Creator-fee sharing and on-chain jackpot infrastructure are also design work—not live production features.</p>
+        <p>Before any of that turns on, TinyFrens will publish the final rates, contract addresses, caps, risks, and test results. No mainnet deposit or irreversible burn should be inferred from a draft design.</p>
+        <p><a href="../docs/energy-economy-v2.html">Read the current Energy design →</a></p>
+      </div>
+    </section>
+  </main>
+  <footer><a class="brand" href="../">✦ TinyFrens</a><p>Play first. Explain the economy clearly.</p><nav><a href="../">Home</a> · <a href="../updates/">Updates</a> · <a href="../docs/">Docs</a> · <a href="../privacy/">Privacy</a> · <a href="../terms/">Terms</a></nav></footer>
+  <script src="../web/navigation.js"></script>
+</body>
+</html>
