@@ -698,7 +698,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.ok(chats.every(chat => chat.username === 'renamed-owner'));
     });
 
-    test('loopback deployment event requires its secret and deduplicates', async () => {
+    test('loopback deployment events require their secret and combine verified systems', async () => {
       const telegramCalls: Record<string, unknown>[] = [];
       const originalTelegramApi = sharedContext.telegramApi;
       sharedContext.telegramApi = {
@@ -717,12 +717,21 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       const headers = { 'x-tinyfrens-deploy-secret': 'deploy-secret' };
       const first = await app.inject({ method: 'POST', url: '/api/internal/website-published', headers, payload: { revision } });
       const second = await app.inject({ method: 'POST', url: '/api/internal/website-published', headers, payload: { revision } });
+      const backend = await app.inject({
+        method: 'POST',
+        url: '/api/internal/deployment-verified',
+        headers,
+        payload: { revision, target: 'backend' },
+      });
       sharedContext.telegramApi = originalTelegramApi;
       assert.equal(first.statusCode, 200);
       assert.equal(first.json().sent, 2);
       assert.equal(second.statusCode, 200);
       assert.equal(second.json().alreadyNotified, 2);
-      assert.equal(telegramCalls.length, 3);
+      assert.equal(backend.statusCode, 200);
+      assert.equal(backend.json().sent, 2);
+      assert.equal(telegramCalls.length, 5);
+      assert.match(String(telegramCalls.at(-1)?.text), /Telegram bot: ddddddd/);
     });
 
     test('POST /api/telegram/webhook retires old care-card buttons', async () => {

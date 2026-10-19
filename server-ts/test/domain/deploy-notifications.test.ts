@@ -30,12 +30,12 @@ describe('deployment notifications', () => {
     }), { status: 200 });
 
     const revision = 'a'.repeat(40);
-    assert.deepEqual(await deliverDeploymentNotification(context, revision, summaryFetcher), {
+    assert.deepEqual(await deliverDeploymentNotification(context, revision, 'website', summaryFetcher), {
       subscribers: 1,
       sent: 1,
       alreadyNotified: 0,
     });
-    assert.deepEqual(await deliverDeploymentNotification(context, revision, summaryFetcher), {
+    assert.deepEqual(await deliverDeploymentNotification(context, revision, 'website', summaryFetcher), {
       subscribers: 1,
       sent: 0,
       alreadyNotified: 1,
@@ -45,7 +45,7 @@ describe('deployment notifications', () => {
     assert.match(String(calls[0].payload.text), /What changed/);
     assert.match(String(calls[0].payload.text), /Discord, Backend/);
 
-    assert.deepEqual(await deliverDeploymentNotification(context, 'b'.repeat(40), summaryFetcher), {
+    assert.deepEqual(await deliverDeploymentNotification(context, 'b'.repeat(40), 'website', summaryFetcher), {
       subscribers: 1,
       sent: 1,
       alreadyNotified: 0,
@@ -55,7 +55,7 @@ describe('deployment notifications', () => {
 
     shouldFail = true;
     await assert.rejects(
-      deliverDeploymentNotification(context, 'c'.repeat(40), summaryFetcher),
+      deliverDeploymentNotification(context, 'c'.repeat(40), 'website', summaryFetcher),
       /failed for 1 subscribed chat/
     );
     assert.equal(context.repos.telegram.listDeployNotificationChats()[0].last_revision, 'b'.repeat(40));
@@ -80,14 +80,14 @@ describe('deployment notifications', () => {
     context.repos.telegram.subscribeDeployNotifications('-100123', 'owner', 1);
     const unavailable = async () => new Response(null, { status: 404 });
 
-    await deliverDeploymentNotification(context, 'd'.repeat(40), unavailable);
+    await deliverDeploymentNotification(context, 'd'.repeat(40), 'website', unavailable);
     assert.deepEqual(methods, ['sendMessage', 'pinChatMessage']);
     assert.equal(context.repos.telegram.listDeployNotificationChats()[0].message_id, 90);
 
     methods.length = 0;
     editFails = true;
     nextMessageId = 91;
-    await deliverDeploymentNotification(context, 'e'.repeat(40), unavailable);
+    await deliverDeploymentNotification(context, 'e'.repeat(40), 'website', unavailable);
     assert.deepEqual(methods, ['editMessageText', 'sendMessage', 'pinChatMessage']);
     assert.equal(context.repos.telegram.listDeployNotificationChats()[0].message_id, 91);
     db.close();
@@ -110,10 +110,39 @@ describe('deployment notifications', () => {
     db.prepare('UPDATE deploy_notification_chats SET last_revision=? WHERE chat_id=?')
       .run(revision, '-100456');
 
-    await deliverDeploymentNotification(context, revision, async () => new Response(null, { status: 404 }));
+    await deliverDeploymentNotification(context, revision, 'website', async () => new Response(null, { status: 404 }));
 
     assert.deepEqual(methods, ['sendMessage', 'pinChatMessage']);
     assert.equal(context.repos.telegram.listDeployNotificationChats()[0].message_id, 101);
+    db.close();
+  });
+
+  test('adds backend and bot verification to the existing card for the same revision', async () => {
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+    const context = createAppContext(loadConfig({ TELEGRAM_BOT_TOKEN: 'bot-token' }), db, {
+      telegramApi: {
+        async call(method, payload) {
+          calls.push({ method, payload });
+          return { data: { ok: true, result: { message_id: 45 } }, status: 200 };
+        },
+      },
+    });
+    context.repos.telegram.subscribeDeployNotifications('123', 'owner', 1);
+    const revision = 'a'.repeat(40);
+    const unavailable = async () => new Response(null, { status: 404 });
+
+    await deliverDeploymentNotification(context, revision, 'website', unavailable);
+    await deliverDeploymentNotification(context, revision, 'backend', unavailable);
+    const duplicate = await deliverDeploymentNotification(context, revision, 'backend', unavailable);
+
+    assert.deepEqual(calls.map(call => call.method), ['sendMessage', 'editMessageText']);
+    assert.match(String(calls[1].payload.text), /Website: aaaaaaa/);
+    assert.match(String(calls[1].payload.text), /Backend\/API: aaaaaaa/);
+    assert.match(String(calls[1].payload.text), /Telegram bot: aaaaaaa/);
+    assert.match(String(calls[1].payload.text), /Discord bot: aaaaaaa/);
+    assert.deepEqual(duplicate, { subscribers: 1, sent: 0, alreadyNotified: 1 });
     db.close();
   });
 });

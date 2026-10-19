@@ -5,6 +5,7 @@ on:
     paths:
       - 'server-ts/**'
       - 'scripts/deploy-server-release.sh'
+      - 'scripts/notify-server-deployment.sh'
       - 'scripts/update-server-env.sh'
       - 'scripts/server-healthcheck.sh'
       - 'scripts/check-server-deploy.mjs'
@@ -71,3 +72,21 @@ jobs:
       - name: Verify exact public revision
         if: steps.current.outputs.deploy == 'true'
         run: node scripts/verify-server-deploy.mjs "$GITHUB_SHA"
+      - name: Update unified Telegram deployment card
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          DEPLOY_KEY: ${{ secrets.TF_SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.TF_SERVER_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/server-ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/server-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/server-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/server-ssh/key"
+          trap 'rm -f "$RUNNER_TEMP/server-ssh/key"' EXIT
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/server-ssh/known_hosts" \
+            -i "$RUNNER_TEMP/server-ssh/key" miono@198.71.54.203 \
+            "notify $GITHUB_SHA"
