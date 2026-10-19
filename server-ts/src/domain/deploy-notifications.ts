@@ -1,4 +1,5 @@
 import type { AppContext } from '../context.js';
+import type { DeploymentComponentStatusRow } from '../db/repositories/telegram.js';
 
 export interface DeploymentNotificationResult {
   subscribers: number;
@@ -10,6 +11,22 @@ interface CommitSummary {
   title: string;
   files: string[];
 }
+
+export type DeploymentTarget = 'website' | 'backend';
+
+const TARGET_COMPONENTS: Record<DeploymentTarget, string[]> = {
+  website: ['website'],
+  backend: ['backend', 'telegram', 'discord'],
+};
+
+const COMPONENT_LABELS: Record<string, string> = {
+  website: 'Website',
+  backend: 'Backend/API',
+  telegram: 'Telegram bot',
+  discord: 'Discord bot',
+};
+
+const COMPONENT_ORDER = ['website', 'backend', 'telegram', 'discord'];
 
 const AREA_LABELS: Array<[string, RegExp]> = [
   ['Website', /^(?:web|site|play|updates|broadcast)\/|^(?:index\.html|vercel\.json)$/i],
@@ -58,28 +75,44 @@ async function fetchCommitSummary(
   }
 }
 
-function renderDeploymentCard(revision: string, summary: CommitSummary | null): string {
+function deploymentStateKey(statuses: DeploymentComponentStatusRow[]): string {
+  return statuses
+    .slice()
+    .sort((a, b) => a.component.localeCompare(b.component))
+    .map(status => `${status.component}:${status.revision}`)
+    .join('|');
+}
+
+function renderDeploymentCard(
+  revision: string,
+  target: DeploymentTarget,
+  statuses: DeploymentComponentStatusRow[],
+  summary: CommitSummary | null
+): string {
   const areas = summary
     ? AREA_LABELS.filter(([, pattern]) => summary.files.some(file => pattern.test(file))).map(([label]) => label)
     : [];
   const files = summary?.files
     .filter(file => !/(?:^|\/)(?:test|tests)\//i.test(file))
     .slice(0, 5) ?? [];
-  const lines = ['✅ TinyFrens update', '', `Revision: ${revision.slice(0, 7)}`];
+  const lines = [
+    '✅ TinyFrens systems are live',
+    '',
+    `Latest verified: ${target === 'website' ? 'Website' : 'Backend + bots'} · ${revision.slice(0, 7)}`,
+  ];
   if (summary?.title) lines.push('', 'What changed', `• ${summary.title}`);
   if (areas.length > 0) lines.push(`• Systems: ${areas.join(', ')}`);
   if (files.length > 0) {
     lines.push('', 'Updated code');
     for (const file of files) lines.push(`• ${file}`);
   }
-  lines.push(
-    '',
-    'Verified live',
-    '• Website publish completed successfully',
-    '',
-    'https://tinyfrens.lol',
-    `https://github.com/dutchiono/TinyFrens/commit/${revision}`
-  );
+  lines.push('', 'Verified live');
+  const byComponent = new Map(statuses.map(status => [status.component, status]));
+  for (const component of COMPONENT_ORDER) {
+    const status = byComponent.get(component);
+    if (status) lines.push(`• ${COMPONENT_LABELS[component]}: ${status.revision.slice(0, 7)}`);
+  }
+  lines.push('', 'https://tinyfrens.lol', `https://github.com/dutchiono/TinyFrens/commit/${revision}`);
   return lines.join('\n').slice(0, 3900);
 }
 
@@ -92,21 +125,27 @@ function telegramMessageId(response: { data: Record<string, unknown> | null }): 
 export async function deliverDeploymentNotification(
   context: AppContext,
   revision: string,
+  target: DeploymentTarget = 'website',
   fetcher: typeof fetch = fetch
 ): Promise<DeploymentNotificationResult> {
   if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid release revision');
+  if (!(target in TARGET_COMPONENTS)) throw new Error('Invalid deployment target');
   const token = context.config.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error('Telegram bot is not configured');
 
+  const now = Math.floor(context.now());
+  context.repos.telegram.recordDeploymentComponents(TARGET_COMPONENTS[target], revision, now);
+  const statuses = context.repos.telegram.listDeploymentComponentStatus();
+  const state = deploymentStateKey(statuses);
   const chats = context.repos.telegram.listDeployNotificationChats();
   const summary = await fetchCommitSummary(context, revision, fetcher);
-  const text = renderDeploymentCard(revision, summary);
+  const text = renderDeploymentCard(revision, target, statuses, summary);
   let sent = 0;
   let alreadyNotified = 0;
   let failures = 0;
 
   for (const chat of chats) {
-    if (chat.last_revision === revision && chat.message_id) {
+    if (chat.last_state === state && chat.message_id) {
       alreadyNotified += 1;
       continue;
     }
@@ -148,8 +187,9 @@ export async function deliverDeploymentNotification(
       context.repos.telegram.markDeployNotificationSent(
         chat.chat_id,
         revision,
+        state,
         messageId,
-        Math.floor(context.now())
+        now
       );
       sent += 1;
     } catch {

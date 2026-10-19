@@ -196,10 +196,14 @@ describe('Database: Schema & Migrations', () => {
     migrateDeployNotificationCards(db);
     migrateDeployNotificationCards(db);
 
-    const row = db.prepare<{ last_revision: string; message_id: number | null }>(
-      'SELECT last_revision, message_id FROM deploy_notification_chats WHERE chat_id=?'
+    const row = db.prepare<{ last_revision: string; last_state: string; message_id: number | null }>(
+      'SELECT last_revision, last_state, message_id FROM deploy_notification_chats WHERE chat_id=?'
     ).get('-100123');
-    assert.deepEqual(row, { last_revision: 'a'.repeat(40), message_id: null });
+    assert.deepEqual(row, { last_revision: 'a'.repeat(40), last_state: '', message_id: null });
+    assert.deepEqual(
+      db.prepare('SELECT component, revision, verified_at FROM deployment_component_status').get(),
+      { component: 'website', revision: 'a'.repeat(40), verified_at: 123 }
+    );
     db.close();
   });
 });

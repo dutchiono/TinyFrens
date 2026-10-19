@@ -58,6 +58,7 @@ describe('Parity Manifest & Inventory Verification', () => {
     'tg_moderation_warnings',
     'tg_fren_game',
     'deploy_notification_chats',
+    'deployment_component_status',
     'dc_users',
     'github_issue_chats',
   ];

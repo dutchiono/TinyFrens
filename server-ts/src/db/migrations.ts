@@ -158,8 +158,20 @@ export function migrateEnergyPurchases(db: DatabaseConnection): void {
 /** Keeps one editable deployment card per subscribed Telegram chat. */
 export function migrateDeployNotificationCards(db: DatabaseConnection): void {
   const columns = db.prepare<TableColumnInfo>('PRAGMA table_info(deploy_notification_chats)').all();
-  if (columns.some(column => column.name === 'message_id')) return;
-  db.exec('ALTER TABLE deploy_notification_chats ADD COLUMN message_id INTEGER;');
+  if (!columns.some(column => column.name === 'message_id')) {
+    db.exec('ALTER TABLE deploy_notification_chats ADD COLUMN message_id INTEGER;');
+  }
+  if (!columns.some(column => column.name === 'last_state')) {
+    db.exec("ALTER TABLE deploy_notification_chats ADD COLUMN last_state TEXT NOT NULL DEFAULT '';");
+  }
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS deployment_component_status(component TEXT PRIMARY KEY, revision TEXT NOT NULL, verified_at INTEGER NOT NULL);'
+  );
+  db.exec(
+    `INSERT OR IGNORE INTO deployment_component_status(component, revision, verified_at)
+     SELECT 'website', last_revision, updated FROM deploy_notification_chats
+     WHERE length(last_revision)=40 ORDER BY updated DESC LIMIT 1`
+  );
 }
 
 /**
