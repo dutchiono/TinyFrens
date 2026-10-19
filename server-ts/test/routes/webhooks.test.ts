@@ -394,6 +394,34 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.ok(json.data.content.includes('No one yet'));
       assert.strictEqual(json.data.components[0].components[0].label, 'Join crew (0/4)');
 
+      const run = sharedContext.db.prepare<{ id: string }>(
+        'SELECT id FROM tg_scrap_runs WHERE chat_id=?'
+      ).get('dc:2001:3001');
+      assert.ok(run);
+      const joinTs = '1700000003';
+      const joinBody = JSON.stringify({
+        type: 3,
+        guild_id: '2001',
+        channel_id: '3001',
+        member: { user: { id: '4002', username: 'unlinked' }, permissions: '0' },
+        data: { custom_id: `game:${run.id}:join` },
+      });
+      const joinData = Buffer.concat([Buffer.from(joinTs, 'utf-8'), Buffer.from(joinBody, 'utf-8')]);
+      const joinSig = crypto.sign(null, joinData, discordKeyPair.privateKey).toString('hex');
+      const join = await app.inject({
+        method: 'POST',
+        url: '/api/discord/interactions',
+        headers: {
+          'content-type': 'application/json',
+          'x-signature-ed25519': joinSig,
+          'x-signature-timestamp': joinTs,
+        },
+        payload: joinBody,
+      });
+      assert.equal(join.json().data.flags, 64);
+      assert.match(join.json().data.content, /not linked to a TinyFrens account/);
+      assert.equal(sharedContext.repos.telegram.getPetIdForDcUser('4002'), undefined);
+
       const secondTs = '1700000002';
       const secondData = Buffer.concat([Buffer.from(secondTs, 'utf-8'), Buffer.from(body, 'utf-8')]);
       const secondSig = crypto.sign(null, secondData, discordKeyPair.privateKey).toString('hex');
@@ -534,12 +562,32 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.strictEqual(res.statusCode, 400);
     });
 
-    test('POST /api/telegram/auth provides stable persistent identity per Telegram user', async () => {
+    test('POST /api/telegram/auth requires an explicitly linked account', async () => {
       const initData = signInitData('123456:TEST_BOT_TOKEN', {
         auth_date: '1700000000',
         query_id: 'AAH',
         user: JSON.stringify({ id: 10042, first_name: 'Ada', username: 'adalovelace' }),
       });
+
+      const unlinked = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/auth',
+        headers: { 'content-type': 'application/json' },
+        payload: JSON.stringify({ initData }),
+      });
+      assert.strictEqual(unlinked.statusCode, 409);
+      assert.strictEqual(unlinked.json().linkRequired, true);
+      assert.strictEqual(sharedContext.repos.telegram.getPetIdForTgUser('10042'), undefined);
+
+      const device = mintPet(sharedContext.db, { name: 'Ada account' });
+      const account = sharedContext.repos.deviceSync.ensureAccount(device.id);
+      sharedContext.repos.wallets.linkAccountWallet(
+        account,
+        '0x1004200000000000000000000000000000000000',
+        'personal_sign',
+        1700000000
+      );
+      sharedContext.repos.telegram.linkTgUser('10042', device.id, 1700000000);
 
       const res1 = await app.inject({
         method: 'POST',
@@ -759,6 +807,41 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       ).get('-100-scrap');
       assert.ok(run);
       assert.equal(run.message_id, 808);
+
+      const unlinkedJoin = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: {
+          'content-type': 'application/json',
+          'x-telegram-bot-api-secret-token': 'test-tg-secret',
+        },
+        payload: {
+          update_id: 205,
+          callback_query: {
+            id: 'cq_scrap_unlinked',
+            data: `game:${run.id}:join`,
+            from: { id: 'unlinked', first_name: 'No Account' },
+            message: {
+              message_id: 808,
+              chat: { id: '-100-scrap', type: 'supergroup' },
+            },
+          },
+        },
+      });
+      assert.equal(unlinkedJoin.statusCode, 200);
+      assert.equal(sharedContext.repos.telegram.getPetIdForTgUser('unlinked'), undefined);
+      assert.match(String(calls.at(-1)?.payload.text), /not linked to a TinyFrens account/);
+      assert.equal(calls.at(-1)?.payload.show_alert, true);
+
+      for (const [tgId, name, address] of [
+        ['starter', 'Ada account', '0x0000000000000000000000000000000000000101'],
+        ['friend', 'Bob account', '0x0000000000000000000000000000000000000102'],
+      ]) {
+        const pet = mintPet(sharedContext.db, { name });
+        const account = sharedContext.repos.deviceSync.ensureAccount(pet.id);
+        sharedContext.repos.wallets.linkAccountWallet(account, address, 'personal_sign', 1700000000);
+        sharedContext.repos.telegram.linkTgUser(tgId, pet.id, 1700000000);
+      }
 
       const joined = await app.inject({
         method: 'POST',

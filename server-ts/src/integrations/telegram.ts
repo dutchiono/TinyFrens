@@ -293,7 +293,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
       '🎮 <b>Group Scrap Run</b>',
       '',
       '1. Send /game in a group to open the lobby. Starting it does not join you.',
-      '2. Up to four people—including the starter—tap <b>Join crew</b> during the five-minute window.',
+      '2. Link Telegram to your existing TinyFrens account with /link, then tap <b>Join crew</b> during the five-minute window.',
       '3. A crew member taps <b>Search together</b> after the window closes.',
       '4. Everyone in the crew gets the same result and their own credit reward.',
       '',
@@ -310,6 +310,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
       'On each verified NFT card, use <b>Show in community bots</b> to choose slot 1–5. This is separate from <b>Screen</b>, which controls the floating Fren on your device.',
       '',
       'Telegram uses the TinyFrens account linked to your Telegram user. In TinyFrens Account, create a sync code; then DM @TinyFrensBot with <code>/link CODE</code> and approve the request on the original device.',
+      'TinyFrens does not create a playable account just because you tap Join.',
       '',
       'Each change is saved immediately. /show verifies current wallet ownership before posting; an empty slot or unlinked wallet returns a specific error.',
     ].join('\n');

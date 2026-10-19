@@ -58,7 +58,11 @@
         body: JSON.stringify({ initData })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Telegram auth failed');
+      if (!response.ok) {
+        const error = new Error(data.error || 'Telegram auth failed');
+        error.linkRequired = Boolean(data.linkRequired);
+        throw error;
+      }
       localStorage.setItem(storageKey(), JSON.stringify({ id: data.id, token: data.token, code: data.code }));
       // Reuse friends.js' own connect path so its enabled/identity state is set
       // from the identity we just stored (no throwaway device registration).
@@ -71,7 +75,10 @@
     } catch (err) {
       console.warn('Telegram auth:', err && err.message);
       const status = document.getElementById('partyStatus');
-      if (status) status.textContent = 'Telegram sign-in failed: ' + (err && err.message);
+      if (status) status.textContent = err && err.linkRequired
+        ? 'Link Telegram first: open TinyFrens Account on your existing device, create a sync code, then DM /link CODE to @TinyFrensBot and approve it.'
+        : 'Telegram sign-in failed: ' + (err && err.message);
+      if (err && err.linkRequired && window.showScreen) window.showScreen('account');
       return null;
     }
   }
