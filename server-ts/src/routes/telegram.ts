@@ -7,6 +7,7 @@ import { AppContext } from '../context.js';
 import { validateTelegramInitData } from '../crypto/signatures.js';
 import {
   classify,
+  directLinkRequest,
   adminServerTriage,
   canAccessAdminTools,
   chatMessage,
@@ -25,7 +26,7 @@ import {
 } from '../integrations/telegram.js';
 import { AccountLinkRequiredError, readAccountProfile, telegramPet } from '../domain/account.js';
 import { fileCommunityIssue } from '../domain/community-issues.js';
-import { requestSync } from '../domain/device-sync.js';
+import { requestSync, startCommunityLink } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
 import {
@@ -216,6 +217,43 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           },
           token
         );
+        return reply.status(200).send({ ok: true });
+      }
+
+      if (directLinkRequest(update) && chatId !== null && chatId !== undefined) {
+        if (!secret) return reply.status(503).send({ error: 'Telegram webhook secret is required' });
+        const msg = (update as Record<string, unknown>).message as Record<string, unknown> | undefined;
+        const sender = (msg?.from && typeof msg.from === 'object') ? (msg.from as Record<string, unknown>) : {};
+        if (String(chat?.type || '') !== 'private') {
+          await context.telegramApi.call('sendMessage', {
+            chat_id: chatId,
+            text: 'For privacy, link your account in a DM with @TinyFrensBot.',
+            reply_markup: replyMarkup('https://t.me/TinyFrensBot?start=link', 'Open private link', false),
+          }, token);
+          return reply.status(200).send({ ok: true });
+        }
+
+        try {
+          telegramPet(context, sender);
+          await context.telegramApi.call('sendMessage', {
+            chat_id: chatId,
+            text: 'Telegram is already linked to your TinyFrens account.',
+            reply_markup: replyMarkup(`${miniapp}#account`, '🐾 Open TinyFrens', true),
+          }, token);
+        } catch (error) {
+          if (!(error instanceof AccountLinkRequiredError)) throw error;
+          const pet = telegramPet(context, sender, false, true);
+          const username = sender.username ? `@${String(sender.username)}` : String(sender.first_name || 'Telegram');
+          const link = startCommunityLink(context, pet.id, 'telegram', `Telegram ${username}`);
+          const url = new URL(miniapp);
+          url.searchParams.set('community-link', link.token);
+          url.hash = 'account';
+          await context.telegramApi.call('sendMessage', {
+            chat_id: chatId,
+            text: 'Open this on the device where you already use TinyFrens, then confirm the link. It expires in 10 minutes.',
+            reply_markup: replyMarkup(url.toString(), 'Link my TinyFrens account', false),
+          }, token);
+        }
         return reply.status(200).send({ ok: true });
       }
 

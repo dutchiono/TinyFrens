@@ -84,6 +84,14 @@ export function linkCode(update: unknown): string | null {
   return code.length === 12 ? code : null;
 }
 
+export function directLinkRequest(update: unknown): boolean {
+  if (!update || typeof update !== 'object') return false;
+  const message = (update as Record<string, unknown>).message;
+  if (!message || typeof message !== 'object') return false;
+  const text = String((message as Record<string, unknown>).text || '').trim();
+  return /^\/link(?:@\w+)?\s*$/i.test(text) || /^\/start(?:@\w+)?\s+link\s*$/i.test(text);
+}
+
 export type UpdateKind =
   | 'callback_query'
   | 'start'
@@ -309,7 +317,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
       '',
       'On each verified NFT card, use <b>Show in community bots</b> to choose slot 1–5. This is separate from <b>Screen</b>, which controls the floating Fren on your device.',
       '',
-      'Telegram uses the TinyFrens account linked to your Telegram user. In TinyFrens Account, create a sync code; then DM @TinyFrensBot with <code>/link CODE</code> and approve the request on the original device.',
+      'Telegram uses the TinyFrens account linked to your Telegram user. DM @TinyFrensBot with <code>/link</code>, open the private button on the device where you already use TinyFrens, and confirm.',
       'TinyFrens does not create a playable account just because you tap Join.',
       '',
       'Each change is saved immediately. /show verifies current wallet ownership before posting; an empty slot or unlinked wallet returns a specific error.',
@@ -326,7 +334,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     '/show — Post Telegram slot 1.',
     '/show 2 through /show 5 — Post that exact Telegram slot.',
     '/showhelp — Account linking and slot help.',
-    '/link CODE — Link an existing TinyFrens account (DM).',
+    '/link — Link an existing TinyFrens account (DM).',
     '',
     '<b>🛠 Information</b>',
     '/progress — Website, Telegram, Discord, and backend updates.',

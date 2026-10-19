@@ -58,7 +58,7 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
     description: 'Link this Discord identity to an existing TinyFrens account',
     contexts: [0],
     integration_types: [0],
-    options: [{ type: 3, name: 'code', description: 'The 12-character sync code from TinyFrens Settings', required: true, min_length: 12, max_length: 16 }],
+    options: [{ type: 3, name: 'code', description: 'Optional 12-character sync code (legacy flow)', required: false, min_length: 12, max_length: 16 }],
   },
   {
     name: 'progress',

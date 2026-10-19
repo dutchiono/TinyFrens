@@ -42,7 +42,9 @@ class MainActivity : Activity() {
             addJavascriptInterface(Bridge(), "PetAndroid")
             val incoming = intent.data
             val sync = if (incoming?.scheme == "tinyfrens" && incoming.host == "connect") incoming.getQueryParameter("sync-device") else null
+            val communityLink = if (incoming?.scheme == "tinyfrens" && incoming.host == "connect") incoming.getQueryParameter("community-link") else null
             val suffix = if (sync != null && Regex("^[A-HJ-NP-Z2-9]{12}$").matches(sync)) "?sync-device=$sync#account"
+                else if (communityLink != null && Regex("^[A-Za-z0-9_-]{32}$").matches(communityLink)) "?community-link=$communityLink#account"
                 else if (intent.getStringExtra("screen") == "care") "#care" else ""
             loadUrl("file:///android_asset/index.html" + suffix)
         }
@@ -300,6 +302,11 @@ class MainActivity : Activity() {
     override fun onNewIntent(nextIntent: Intent) {
         super.onNewIntent(nextIntent)
         setIntent(nextIntent)
+        val communityLink = if (nextIntent.data?.scheme == "tinyfrens" && nextIntent.data?.host == "connect") nextIntent.data?.getQueryParameter("community-link") else null
+        if (communityLink != null && Regex("^[A-Za-z0-9_-]{32}$").matches(communityLink)) {
+            web.evaluateJavascript("window.TinyFrensCommunityLink?.open(${org.json.JSONObject.quote(communityLink)})", null)
+            return
+        }
         if (nextIntent.getStringExtra("screen") == "care") web.evaluateJavascript("window.showScreen?.('care')", null)
     }
     override fun onResume() {

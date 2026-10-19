@@ -2,7 +2,9 @@ import { FastifyInstance } from 'fastify';
 import { AppContext } from '../context.js';
 import { tokenPet } from '../domain/account.js';
 import {
+  acceptCommunityLink,
   acceptDeviceSync,
+  getCommunityLinkStatus,
   getDeviceSyncSnapshot,
   getDeviceSyncStatus,
   leaveDeviceSync,
@@ -141,6 +143,34 @@ export function registerDeviceSyncRoutes(app: FastifyInstance, context: AppConte
         .header('Cache-Control', 'no-store')
         .status(400)
         .send({ error: (e as Error).message });
+    }
+  });
+
+  app.post('/api/device-sync/community-link/status', async (request, reply) => {
+    try {
+      const body = request.body as Record<string, unknown> | null;
+      if (!body || typeof body !== 'object') throw new Error('Device credential not recognized');
+      const pid = tokenPet(context, body.token);
+      context.rateLimiter.limit(`community-link:status:${pid}`, 30, 60, context.now());
+      return reply.header('Cache-Control', 'no-store').status(200).send(
+        getCommunityLinkStatus(context, pid, body.linkToken)
+      );
+    } catch (e) {
+      return reply.header('Cache-Control', 'no-store').status(400).send({ error: (e as Error).message });
+    }
+  });
+
+  app.post('/api/device-sync/community-link/accept', async (request, reply) => {
+    try {
+      const body = request.body as Record<string, unknown> | null;
+      if (!body || typeof body !== 'object') throw new Error('Device credential not recognized');
+      const pid = tokenPet(context, body.token);
+      context.rateLimiter.limit(`community-link:accept:${pid}`, 10, 60, context.now());
+      return reply.header('Cache-Control', 'no-store').status(200).send(
+        acceptCommunityLink(context, pid, body.linkToken)
+      );
+    } catch (e) {
+      return reply.header('Cache-Control', 'no-store').status(400).send({ error: (e as Error).message });
     }
   });
 

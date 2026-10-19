@@ -39,7 +39,7 @@ and mapping the URLs), not new features.
 ## What stays the same everywhere
 
 Your fren follows the same rules on every platform — Android, desktop, web, Telegram, and
-Discord. Use `/link` and approve the request from your existing TinyFrens device before
+Discord. Use `/link`, open its private button on your existing TinyFrens device, and confirm before
 joining a Scrap Run. The bot does not silently create a separate playable account.
 
 ## Get notified

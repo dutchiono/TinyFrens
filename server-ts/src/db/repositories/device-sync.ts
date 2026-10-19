@@ -17,6 +17,14 @@ export interface DeviceSyncCodeRow {
   label: string | null;
 }
 
+export interface CommunityLinkRequestRow {
+  token: string;
+  device: string;
+  platform: string;
+  label: string;
+  expires: number;
+}
+
 export interface TurtlePairingRow {
   code: string;
   pet_id: string;
@@ -148,6 +156,36 @@ export class DeviceSyncRepository {
       deviceId,
       deviceId
     );
+  }
+
+  createCommunityLinkRequest(
+    token: string,
+    deviceId: string,
+    platform: string,
+    label: string,
+    expires: number,
+    nowSeconds: number
+  ): void {
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM community_link_requests WHERE device=? OR expires<=?').run(
+        deviceId,
+        nowSeconds
+      );
+      this.db.prepare(
+        'INSERT INTO community_link_requests(token, device, platform, label, expires) VALUES(?, ?, ?, ?, ?)'
+      ).run(token, deviceId, platform, label.slice(0, 40), expires);
+    })();
+  }
+
+  getCommunityLinkRequest(token: string): CommunityLinkRequestRow | undefined {
+    return this.db.prepare<CommunityLinkRequestRow>(
+      'SELECT token, device, platform, label, expires FROM community_link_requests WHERE token=?'
+    ).get(token);
+  }
+
+  deleteCommunityLinkRequestsForDevices(deviceIds: string[]): void {
+    const remove = this.db.prepare('DELETE FROM community_link_requests WHERE device=?');
+    for (const deviceId of deviceIds) remove.run(deviceId);
   }
 
   // Turtle Pairings

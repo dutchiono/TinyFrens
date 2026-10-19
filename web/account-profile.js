@@ -9,7 +9,7 @@
     <p id="accountXHandle" class="small"></p>
     <button type="submit">Save profile</button></form><div id="accountIdentities"></div><p id="accountProfileStatus" role="status"></p>
     <a class="telegram-account-link" href="https://t.me/TinyFrensBot?start=link" target="_blank" rel="noopener">DM @TinyFrensBot ↗</a>
-    <p class="small">To link Telegram to this account, copy a code under Sync devices and DM <strong>/link CODE</strong> to @TinyFrensBot. Approve the request here.</p>`;
+    <p class="small">To link Telegram, DM <strong>/link</strong> to @TinyFrensBot, open its private button on this device, and confirm. The sync code below remains available as a fallback.</p>`;
   settings.append(panel);
   const form = document.getElementById('accountProfileForm');
   const name = document.getElementById('accountDisplayName');

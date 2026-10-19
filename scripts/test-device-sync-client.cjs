@@ -8,12 +8,13 @@ function element(id) {
   });
   return elements.get(id);
 }
-const saved = new Map(); let failStatus = false, failStart = true, releaseState, serverRevision = 0, serverTelegramSelection = [];
+const saved = new Map(); let failStatus = false, failStart = true, established = false, releaseState, serverRevision = 0, serverTelegramSelection = [];
 const blockedState = new Promise(resolve => { releaseState=resolve; });
 let blockState = true;
 const context = {
-  URLSearchParams, Event, console,
-  location:{search:''}, navigator:{clipboard:{writeText:async()=>{}}},
+  URL, URLSearchParams, Event, console,
+  location:{search:'',href:'https://tinyfrens.lol/web/#account',pathname:'/web/',hash:'#account'},
+  history:{replaceState(){}}, navigator:{clipboard:{writeText:async()=>{}}},
   sessionStorage:{getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)},
   localStorage:{getItem:()=>null,setItem(){}},
   setInterval:fn=>intervals.push(fn), setTimeout:(fn,ms)=>{timers.push({fn,ms});},
@@ -29,12 +30,13 @@ const context = {
         if (blockState) await blockedState;
         if (Object.hasOwn(body, 'selection') || Object.hasOwn(body, 'telegramSelection')) serverRevision += 1;
         if (Object.hasOwn(body, 'telegramSelection')) serverTelegramSelection = body.telegramSelection;
-        return {account:'a',revision:serverRevision,selection:[],telegramSelection:serverTelegramSelection,addresses:[],devices:1};
+        return {account:'a',revision:serverRevision,selection:established?[{chainId:8453,originalAddress:'0x1',tokenId:1}]:[],telegramSelection:serverTelegramSelection,addresses:[],devices:1};
       }
       if (route.endsWith('/start')) {
         if (failStart) throw Error('offline');
         return {code:'ABCDEFGHJKLM',expires:Date.now()/1000+600};
       }
+      if (route.endsWith('/community-link/status')) return {label:'Telegram @goober',alreadyLinked:false};
       if (route.endsWith('/status')) {
         if (failStatus) throw Error('temporary connection failure');
         return {pending:false};
@@ -68,5 +70,13 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/device-sync.js'),'ut
   assert.equal(element('syncCode').textContent,'ABCD-EFGH-JKLM','network failure must retain a valid code');
   assert.ok([...saved.values()].some(value=>value.includes('ABCDEFGHJKLM')));
   assert.match(element('syncStatus').textContent,/temporary connection failure/);
+  failStatus=false;established=false;
+  const linkToken='abcdefghijklmnopqrstuvwxyzABCDEF';
+  await context.window.TinyFrensCommunityLink.open(linkToken);
+  assert.equal(element('approveCommunityLink').disabled,true,'empty browsers must not claim a chat identity');
+  assert.equal(element('openCommunityLinkApp').hidden,false,'browser flow should offer the installed app');
+  established=true;
+  await context.window.TinyFrensCommunityLink.open(linkToken);
+  assert.equal(element('approveCommunityLink').disabled,false,'established devices may confirm the chat identity');
   console.log('Device sync client checks passed: busy startup, Telegram slot acknowledgement/swap, visible retry, explicit renewal, transient failure retains code');
 })().catch(error=>{console.error(error);process.exitCode=1;});

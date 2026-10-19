@@ -6,6 +6,8 @@ import { createDbConnection } from '../../src/db/connection.js';
 import { runMigrations } from '../../src/db/migrations.js';
 import { createAppContext } from '../../src/context.js';
 import { Config, loadConfig } from '../../src/config.js';
+import { mintPet } from '../../src/domain/account.js';
+import { startCommunityLink } from '../../src/domain/device-sync.js';
 
 describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
   let app: FastifyInstance;
@@ -721,6 +723,77 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
         sharedContext.repos.deviceSync.getAccountForDevice(bridgePetId),
         sharedContext.repos.deviceSync.getAccountForDevice(petA.id)
       );
+    });
+
+    test('Telegram /link without a code creates a private one-tap request', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/telegram/webhook',
+        headers: { 'x-telegram-bot-api-secret-token': 'test-tg-secret' },
+        payload: {
+          message: {
+            text: '/link',
+            chat: { id: 778, type: 'private' },
+            from: { id: 1000, first_name: 'Goober', username: 'goober' },
+          },
+        },
+      });
+      assert.strictEqual(response.statusCode, 200);
+      const bridgePetId = sharedContext.repos.telegram.getPetIdForTgUser('1000');
+      assert.ok(bridgePetId);
+      const request = sharedContext.db.prepare<{ platform: string; label: string; expires: number }>(
+        'SELECT platform, label, expires FROM community_link_requests WHERE device=?'
+      ).get(bridgePetId);
+      assert.deepStrictEqual(request, {
+        platform: 'telegram',
+        label: 'Telegram @goober',
+        expires: currentTime + 600,
+      });
+    });
+
+    test('one-tap community link confirms on an established device and consumes the request', async () => {
+      const existing = mintPet(sharedContext.db, { name: 'Existing device' });
+      const bridge = mintPet(sharedContext.db, { name: 'Discord bridge' });
+      const account = sharedContext.repos.deviceSync.ensureAccount(existing.id);
+      sharedContext.repos.wallets.linkAccountWallet(
+        account,
+        '0x1234500000000000000000000000000000000000',
+        'personal_sign',
+        currentTime
+      );
+      const link = startCommunityLink(sharedContext, bridge.id, 'discord', 'Discord @goober');
+
+      const status = await app.inject({
+        method: 'POST',
+        url: '/api/device-sync/community-link/status',
+        headers: { origin: 'https://tinyfrens.lol' },
+        payload: { token: existing.token, linkToken: link.token },
+      });
+      assert.strictEqual(status.statusCode, 200);
+      assert.strictEqual(status.json().label, 'Discord @goober');
+      assert.strictEqual(status.json().alreadyLinked, false);
+
+      const accepted = await app.inject({
+        method: 'POST',
+        url: '/api/device-sync/community-link/accept',
+        headers: { origin: 'https://tinyfrens.lol' },
+        payload: { token: existing.token, linkToken: link.token },
+      });
+      assert.strictEqual(accepted.statusCode, 200);
+      assert.strictEqual(accepted.json().devices, 2);
+      assert.strictEqual(
+        sharedContext.repos.deviceSync.getAccountForDevice(existing.id),
+        sharedContext.repos.deviceSync.getAccountForDevice(bridge.id)
+      );
+
+      const replay = await app.inject({
+        method: 'POST',
+        url: '/api/device-sync/community-link/accept',
+        headers: { origin: 'https://tinyfrens.lol' },
+        payload: { token: existing.token, linkToken: link.token },
+      });
+      assert.strictEqual(replay.statusCode, 400);
+      assert.match(replay.json().error, /invalid or expired/);
     });
   });
 });

@@ -22,7 +22,7 @@ export function discordHelpText(): string {
     '`/gamehelp` — Rules, timing, and cross-platform state.',
     '`/show [slot]` — Post a verified NFT from slot 1–5.',
     '`/showhelp` — NFT slot and account-linking help.',
-    '`/link code` — Link Discord to your existing TinyFrens account.',
+    '`/link` — Open a private confirmation link for your existing TinyFrens account.',
     '',
     '**Information**',
     '`/status` — Check the backend and Discord connection.',
@@ -51,8 +51,8 @@ export function discordHelpText(): string {
 export function discordShowHelpText(): string {
   return [
     '## 🐾 NFT slots and account linking',
-    '1. In TinyFrens Settings, create a sync code.',
-    '2. Run `/link code:<your code>` here, then approve the request on the device that created it.',
+    '1. Run `/link` here.',
+    '2. Open the private button on the device where you already use TinyFrens, then confirm.',
     '3. In TinyFrens, assign verified NFTs to community-bot slots 1–5.',
     '4. Run `/show` or `/show slot:2` to post one. Ownership is verified each time.',
   ].join('\n');

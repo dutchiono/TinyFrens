@@ -8,7 +8,7 @@ Telegram signs the Mini App launch data. The TinyFrens relay verifies that signa
 
 1. On a device that already has your wallets and companions, open **More → Settings → Sync devices**.
 2. Copy a sync code.
-3. DM `@TinyFrensBot` with `/link YOUR-CODE`.
+3. DM `@TinyFrensBot` with `/link`, open the private button on the device where you already use TinyFrens, and confirm. The Settings sync code remains available as a fallback.
 4. Approve the request on the device that created the code.
 5. Open TinyFrens from the bot.
 

@@ -5,7 +5,7 @@ import { userProfile } from '../integrations/telegram.js';
 
 export class AccountLinkRequiredError extends Error {
   constructor(platform: 'Discord' | 'Telegram') {
-    super(`${platform} is not linked to a TinyFrens account. Open TinyFrens Account, create a sync code, then use /link and approve the request.`);
+    super(`${platform} is not linked to a TinyFrens account. Use /link, open the private button on a device where you already use TinyFrens, and confirm.`);
     this.name = 'AccountLinkRequiredError';
   }
 }

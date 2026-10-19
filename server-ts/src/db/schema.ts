@@ -126,6 +126,10 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
     table: 'device_sync_codes',
     sql: 'CREATE TABLE IF NOT EXISTS device_sync_codes(code TEXT PRIMARY KEY, device TEXT UNIQUE NOT NULL, expires REAL NOT NULL, requester TEXT, request_id TEXT, label TEXT);',
   },
+  {
+    table: 'community_link_requests',
+    sql: 'CREATE TABLE IF NOT EXISTS community_link_requests(token TEXT PRIMARY KEY, device TEXT NOT NULL, platform TEXT NOT NULL, label TEXT NOT NULL, expires REAL NOT NULL);',
+  },
 
   // Economy & deposits (server/economy.py)
   {

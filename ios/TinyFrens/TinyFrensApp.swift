@@ -5,14 +5,22 @@ import UIKit
 @main
 struct TinyFrensApp: App {
     @State private var widgetScreen: String?
+    @State private var communityLinkToken: String?
     @State private var widgetRequestID = UUID()
     var body: some Scene {
         WindowGroup {
-            PetWebView(widgetScreen: widgetScreen, widgetRequestID: widgetRequestID).ignoresSafeArea(.container, edges: .bottom)
+            PetWebView(widgetScreen: widgetScreen, communityLinkToken: communityLinkToken, widgetRequestID: widgetRequestID).ignoresSafeArea(.container, edges: .bottom)
                 .onOpenURL { url in
-                    guard url.scheme == "tinyfrens", let screen = url.host,
-                          ["pet", "care"].contains(screen) else { return }
-                    widgetScreen = screen
+                    guard url.scheme == "tinyfrens", let destination = url.host else { return }
+                    if destination == "connect",
+                       let token = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "community-link" })?.value,
+                       token.range(of: "^[A-Za-z0-9_-]{32}$", options: .regularExpression) != nil {
+                        communityLinkToken = token
+                        widgetScreen = nil
+                    } else if ["pet", "care"].contains(destination) {
+                        widgetScreen = destination
+                        communityLinkToken = nil
+                    } else { return }
                     widgetRequestID = UUID()
                 }
         }
@@ -21,6 +29,7 @@ struct TinyFrensApp: App {
 
 struct PetWebView: UIViewRepresentable {
     var widgetScreen: String?
+    var communityLinkToken: String?
     var widgetRequestID: UUID
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -46,10 +55,10 @@ struct PetWebView: UIViewRepresentable {
         return web
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        guard let screen = widgetScreen else { return }
         guard context.coordinator.lastWidgetRequestID != widgetRequestID else { return }
         context.coordinator.lastWidgetRequestID = widgetRequestID
-        context.coordinator.openWidgetScreen(screen)
+        if let token = communityLinkToken { context.coordinator.openCommunityLink(token) }
+        else if let screen = widgetScreen { context.coordinator.openWidgetScreen(screen) }
     }
     func makeCoordinator() -> Coordinator { Coordinator() }
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
@@ -58,6 +67,7 @@ struct PetWebView: UIViewRepresentable {
         private var checking = false
         var lastWidgetRequestID: UUID?
         private var pendingWidgetScreen: String?
+        private var pendingCommunityLink: String?
         private var loaded = false
         func openWidgetScreen(_ screen: String) {
             guard ["pet", "care"].contains(screen) else { return }
@@ -66,9 +76,17 @@ struct PetWebView: UIViewRepresentable {
             web?.evaluateJavaScript("window.showScreen?.('\(screen)')", completionHandler: nil)
             pendingWidgetScreen = nil
         }
+        func openCommunityLink(_ token: String) {
+            guard token.range(of: "^[A-Za-z0-9_-]{32}$", options: .regularExpression) != nil else { return }
+            pendingCommunityLink = token
+            guard loaded else { return }
+            web?.evaluateJavaScript("window.TinyFrensCommunityLink?.open('\(token)')", completionHandler: nil)
+            pendingCommunityLink = nil
+        }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
             if let screen = pendingWidgetScreen { openWidgetScreen(screen) }
+            if let token = pendingCommunityLink { openCommunityLink(token) }
         }
         func attach(_ webView: WKWebView) {
             web = webView
