@@ -9,7 +9,7 @@ const output = path.join(root, 'dist');
 execFileSync(process.execPath, [path.join(root, 'scripts/package-robots-launch.mjs'), '--check-files'], { stdio: 'inherit' });
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const entry of ['index.html', 'site', 'web', 'play', 'updates', 'tokenomics', 'privacy', 'terms', 'discord']) {
+for (const entry of ['index.html', 'site', 'web', 'play', 'game', 'updates', 'tokenomics', 'privacy', 'terms', 'discord']) {
   await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 await rm(path.join(output, 'web/admin.html'), { force: true });
