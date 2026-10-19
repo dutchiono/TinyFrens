@@ -3,6 +3,13 @@ import { DatabaseConnection } from '../db/connection.js';
 import { AppContext } from '../context.js';
 import { userProfile } from '../integrations/telegram.js';
 
+export class AccountLinkRequiredError extends Error {
+  constructor(platform: 'Discord' | 'Telegram') {
+    super(`${platform} is not linked to a TinyFrens account. Open TinyFrens Account, create a sync code, then use /link and approve the request.`);
+    this.name = 'AccountLinkRequiredError';
+  }
+}
+
 export function cleanName(value: unknown): string {
   const cleaned = String(value || '')
     .replace(/[\x00-\x1f\x7f]/g, '')
@@ -138,7 +145,8 @@ export function discordIdentity(
 
 export function discordPet(
   context: AppContext,
-  user: Record<string, unknown>
+  user: Record<string, unknown>,
+  allowCreateForLink = false
 ): { id: string; code: string } {
   const userId = String(user.id || '');
   if (!userId) throw new Error('No Discord user in request');
@@ -149,7 +157,7 @@ export function discordPet(
   if (existingPetId && existing) {
     pid = existingPetId;
     code = existing.code || '';
-  } else {
+  } else if (allowCreateForLink) {
     const displayName = cleanName(user.global_name || user.display_name || user.username || 'Fren');
     const minted = mintPet(context.db, {
       platform: 'discord',
@@ -160,7 +168,15 @@ export function discordPet(
     pid = minted.id;
     code = minted.code;
     context.repos.telegram.linkDcUser(userId, pid, Math.floor(context.now()));
+  } else {
+    throw new AccountLinkRequiredError('Discord');
   }
+  const account = context.repos.deviceSync.getAccountForDevice(pid);
+  const linked = account && (
+    context.repos.deviceSync.getDevicesForAccount(account).length > 1 ||
+    context.repos.wallets.getAccountWallets(account).length > 0
+  );
+  if (!allowCreateForLink && !linked) throw new AccountLinkRequiredError('Discord');
   discordIdentity(context, pid, user);
   return { id: pid, code };
 }
@@ -207,7 +223,8 @@ export function readAccountProfile(
 export function telegramPet(
   context: AppContext,
   user: Record<string, unknown>,
-  issueToken = false
+  issueToken = false,
+  allowCreateForLink = false
 ): { id: string; token: string | null; code: string } {
   const tgId = String(user.id || '');
   if (!tgId) {
@@ -233,7 +250,7 @@ export function telegramPet(
       const pet = context.repos.pets.findById(pid);
       code = pet?.code || '';
     }
-  } else {
+  } else if (allowCreateForLink) {
     const profile = userProfile(user);
     const minted = mintPet(context.db, profile);
     pid = minted.id;
@@ -241,8 +258,16 @@ export function telegramPet(
     code = minted.code;
     const now = Math.floor(context.now());
     context.repos.telegram.linkTgUser(tgId, pid, now);
+  } else {
+    throw new AccountLinkRequiredError('Telegram');
   }
 
+  const account = context.repos.deviceSync.getAccountForDevice(pid);
+  const linked = account && (
+    context.repos.deviceSync.getDevicesForAccount(account).length > 1 ||
+    context.repos.wallets.getAccountWallets(account).length > 0
+  );
+  if (!allowCreateForLink && !linked) throw new AccountLinkRequiredError('Telegram');
   telegramIdentity(context, pid, user);
   return { id: pid, token, code };
 }

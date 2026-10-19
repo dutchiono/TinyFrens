@@ -4,7 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config.js';
 import { createAppContext } from '../../src/context.js';
-import { telegramPet } from '../../src/domain/account.js';
+import { mintPet, telegramPet } from '../../src/domain/account.js';
 import { ROBOTS_CONTRACT } from '../../src/domain/companion-verifier.js';
 import { createDbConnection } from '../../src/db/connection.js';
 import { runMigrations } from '../../src/db/migrations.js';
@@ -59,7 +59,7 @@ describe('Telegram /show media orchestration', () => {
         discover: async () => ({ nfts: [], partial: false }),
       },
     });
-    const pet = telegramPet(context, { id: 42, first_name: 'Ada' });
+    const pet = telegramPet(context, { id: 42, first_name: 'Ada' }, false, true);
     const account = context.repos.deviceSync.ensureAccount(pet.id);
     context.repos.deviceSync.updateAccountSelections(account, JSON.stringify([{
       chainId: 8453,
@@ -148,8 +148,10 @@ describe('Telegram /show media orchestration', () => {
   });
 
   test('explains when a selected Telegram slot has no linked wallet', async () => {
-    const pet = telegramPet(context, { id: 44, first_name: 'No Wallet' });
+    const pet = telegramPet(context, { id: 44, first_name: 'No Wallet' }, false, true);
     const account = context.repos.deviceSync.ensureAccount(pet.id);
+    const webDevice = mintPet(context.db, { name: 'Web device' });
+    context.db.prepare('INSERT INTO device_sync_members(device, account) VALUES(?, ?)').run(webDevice.id, account);
     assert.equal(context.repos.deviceSync.updateAccountSelections(account, null, JSON.stringify([{
       chainId: 8453,
       originalAddress: ROBOTS_CONTRACT,
@@ -160,7 +162,7 @@ describe('Telegram /show media orchestration', () => {
     assert.match(String(api.calls.at(-1)?.payload.text), /Link a wallet first/);
   });
 
-  test('explains when the Telegram account has no selected companion', async () => {
+  test('requires an explicit account link instead of creating a Telegram account', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/telegram/webhook',
@@ -178,7 +180,7 @@ describe('Telegram /show media orchestration', () => {
       },
     });
     assert.equal(response.statusCode, 200);
-    assert.match(String(api.calls.at(-1)?.payload.text), /No community-bot slots/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /not linked to a TinyFrens account/);
     const markup = api.calls.at(-1)?.payload.reply_markup as any;
     assert.equal(markup.inline_keyboard[0][0].web_app.url, 'https://tinyfrens.lol/web/#pet');
   });

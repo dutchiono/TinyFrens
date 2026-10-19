@@ -1,7 +1,7 @@
 # TinyFrens on Discord 🎮
 
-> 🚧 **Coming soon.** TinyFrens isn't playable in Discord *yet*. This page explains what's
-> planned so you know what to expect. We'll update it the moment it's live.
+> ✅ **The server bot is live.** Slash commands, moderation, NFT posting, and the shared
+> Scrap Run work now. The embedded Discord Activity remains a separate later phase.
 
 ## The plan
 
@@ -39,8 +39,8 @@ and mapping the URLs), not new features.
 ## What stays the same everywhere
 
 Your fren follows the same rules on every platform — Android, desktop, web, Telegram, and
-soon Discord. Each place keeps its own save, and your fren's personality and care are
-identical.
+Discord. Use `/link` and approve the request from your existing TinyFrens device before
+joining a Scrap Run. The bot does not silently create a separate playable account.
 
 ## Get notified
 

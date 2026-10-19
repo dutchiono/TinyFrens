@@ -2,12 +2,12 @@ export function discordGameHelpText(): string {
   return [
     '## 🎮 Group Scrap Run',
     '1. Run `/game` in a server channel to open the lobby. Starting it does not join you.',
-    '2. Up to four people—including the starter—can press **Join crew** during the five-minute window.',
+    '2. Link Discord to your TinyFrens account with `/link`, then press **Join crew** during the five-minute window.',
     '3. A crew member presses **Search scrap** after the window closes.',
     '4. Everyone in the crew gets the same find and an individual account reward.',
     '',
     'Discord and Telegram use the same Scrap engine, reward rules, and database. Each group/channel keeps its own lobby so unrelated communities do not overwrite each other.',
-    'A Discord identity and a Telegram identity are separate until both are linked to the same TinyFrens account with `/link`.',
+    'TinyFrens never creates a playable Discord account just because you press Join. `/link` explicitly connects Discord to the account you already use elsewhere.',
     '',
     'The TinyFrens app also has short solo arcade modes. Those are separate modes—not another implementation of the group Scrap Run.',
   ].join('\n');

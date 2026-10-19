@@ -174,7 +174,7 @@ async function handleDiscordCommand(
 
   if (name === 'link') {
     try {
-      const pet = discordPet(context, user);
+      const pet = discordPet(context, user, true);
       const code = String(commandOption(command, 'code') || '');
       requestSync(context, pet.id, code, `Discord @${String(user.username || user.id || 'member')}`);
       return message('Link requested. Approve it on the TinyFrens device that created the code.', { ephemeral: true });
@@ -448,9 +448,17 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
   }
   const [, runId, action] = customId.split(':');
   const now = Math.floor(context.now());
+  let linkedPetId = '';
+  if (action === 'join') {
+    try {
+      linkedPetId = discordPet(context, user).id;
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'Link Discord to TinyFrens before joining.', { ephemeral: true });
+    }
+  }
   const result = action === 'join'
     ? joinScrapRun(
-        context.db, runId, String(user.id || ''), discordPet(context, user).id,
+        context.db, runId, String(user.id || ''), linkedPetId,
         String(user.global_name || user.username || 'Fren'), now
       )
     : action === 'resolve'

@@ -35,7 +35,8 @@ describe('community command help parity', () => {
     assert.match(discordGameHelpText(), /five-minute window/);
     assert.match(discordGameHelpText(), /does not join you/);
     assert.match(discordGameHelpText(), /same Scrap engine, reward rules, and database/);
-    assert.match(discordGameHelpText(), /identit(?:y|ies).*separate until.*linked/i);
+    assert.match(discordGameHelpText(), /never creates a playable Discord account/i);
+    assert.match(discordGameHelpText(), /explicitly connects Discord/i);
     assert.match(telegramHelpText('game'), /five-minute window/);
     assert.doesNotMatch(telegramHelpText('game'), /45-second/);
   });

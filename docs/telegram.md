@@ -32,7 +32,9 @@ Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open
 
 ### Group scrap prototype
 
-Use `/game` in a group to open a 45-second lobby built around a shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to open a five-minute lobby built around a shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+
+Joining requires an explicit account link. Create a sync code from TinyFrens Account, DM `/link CODE` to the bot, and approve the request on the original device. Pressing **Join crew** never creates a hidden Telegram-only account.
 
 - A crew holds up to four operators.
 - The operator who starts the run joins automatically.

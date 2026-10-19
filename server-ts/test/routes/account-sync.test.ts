@@ -705,6 +705,22 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
       assert.strictEqual(statusRes.statusCode, 200);
       assert.strictEqual(statusRes.json().label, 'Telegram @tele_linker');
       assert.strictEqual(statusRes.json().pending, true);
+
+      const bridgePetId = sharedContext.repos.telegram.getPetIdForTgUser('999');
+      assert.ok(bridgePetId);
+      const acceptRes = await app.inject({
+        method: 'POST',
+        url: '/api/device-sync/accept',
+        headers: { origin: 'https://tinyfrens.lol' },
+        payload: { token: petA.token, code, requestId: statusRes.json().requestId },
+      });
+      assert.strictEqual(acceptRes.statusCode, 200);
+      assert.strictEqual(acceptRes.json().devices, 2);
+      assert.strictEqual(sharedContext.repos.telegram.getPetIdForTgUser('999'), bridgePetId);
+      assert.strictEqual(
+        sharedContext.repos.deviceSync.getAccountForDevice(bridgePetId),
+        sharedContext.repos.deviceSync.getAccountForDevice(petA.id)
+      );
     });
   });
 });

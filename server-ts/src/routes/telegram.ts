@@ -23,7 +23,7 @@ import {
   TG_API,
   TelegramChatEntry,
 } from '../integrations/telegram.js';
-import { readAccountProfile, telegramPet } from '../domain/account.js';
+import { AccountLinkRequiredError, readAccountProfile, telegramPet } from '../domain/account.js';
 import { fileCommunityIssue } from '../domain/community-issues.js';
 import { requestSync } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
@@ -160,7 +160,10 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         profile,
       });
     } catch (e) {
-      return reply.status(400).send({ error: (e as Error).message || 'Telegram sign-in failed' });
+      return reply.status(e instanceof AccountLinkRequiredError ? 409 : 400).send({
+        error: (e as Error).message || 'Telegram sign-in failed',
+        linkRequired: e instanceof AccountLinkRequiredError,
+      });
     }
   });
 
@@ -198,7 +201,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         }
         const msg = (update as Record<string, unknown>).message as Record<string, unknown> | undefined;
         const sender = (msg?.from && typeof msg.from === 'object') ? (msg.from as Record<string, unknown>) : {};
-        const pet = telegramPet(context, sender);
+        const pet = telegramPet(context, sender, false, true);
         const username = sender.username ? String(sender.username) : '';
         const label = username ? `Telegram @${username}` : 'Telegram Mini App';
         requestSync(context, pet.id, syncCode, label);
@@ -303,12 +306,27 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           const senderName = String(cqSender.first_name || cqSender.username || 'Fren');
           const now = Math.floor(context.now());
           if (cqChatId) expireStaleScrapRun(context.db, String(cqChatId), now);
+          let linkedPetId = '';
+          if (action === 'join') {
+            try {
+              linkedPetId = telegramPet(context, cqSender).id;
+            } catch (error) {
+              if (cqId) {
+                await context.telegramApi.call('answerCallbackQuery', {
+                  callback_query_id: cqId,
+                  text: error instanceof Error ? error.message : 'Link Telegram to TinyFrens before joining.',
+                  show_alert: true,
+                }, token);
+              }
+              return reply.status(200).send({ ok: true });
+            }
+          }
           const result = action === 'join'
             ? joinScrapRun(
                 context.db,
                 runId,
                 senderUid,
-                telegramPet(context, cqSender).id,
+                linkedPetId,
                 senderName,
                 now
               )
@@ -483,9 +501,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         const show = text.match(/^\/show(?:@\w+)?(?:\s+([1-5]))?\s*$/i);
         if (show && chatId !== null && chatId !== undefined) {
           if (!secret) return reply.status(503).send({ error: 'Telegram webhook secret is required' });
-          const pet = telegramPet(context, sender);
           const isPrivate = chat?.type === 'private';
           try {
+            const pet = telegramPet(context, sender);
             await sendTelegramCompanion(context, chatId, pet.id, Number(show[1] || 1), token, isPrivate);
           } catch (error) {
             await sendCommand({
