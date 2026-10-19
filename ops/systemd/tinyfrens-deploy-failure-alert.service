@@ -1,7 +1,0 @@
-[Unit]
-Description=Alert the TinyFrens owner about a failed backend deployment
-
-[Service]
-Type=oneshot
-EnvironmentFile=/home/miono/tinyfrens-server/.env
-ExecStart=/home/miono/tinyfrens-ts-stage/current/scripts/server-alert.sh deploy-failure

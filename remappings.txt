@@ -1,5 +1,0 @@
-forge-std/=lib/forge-std/src/
-solady/=lib/solady/src/
-erc721a/=lib/ERC721A/
-@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/

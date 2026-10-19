@@ -16,83 +16,28 @@ jobs:
   quality-gate:
     name: quality-gate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          submodules: recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install server requirements
-        run: python -m pip install -r server/requirements.txt
-
-      - name: Test Python backend
-        run: python -m unittest discover -s server -v
-
-      - name: Test owner auto-merge policy
-        run: python scripts/test-owner-automerge.py
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Test restricted Node website publisher
-        run: node --test server/test-publish-web.mjs
-
-      - name: Check browser JavaScript syntax
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run prepare-assets
+      - name: Check renderer JavaScript syntax
+        working-directory: .
         shell: bash
         run: |
           set -euo pipefail
-          find web -maxdepth 1 -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+          find web -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
             node --check "$file"
           done
-
-      - name: Test mini-game rules and NFT players
-        run: |
-          node scripts/test-snack-catch.cjs
-          node scripts/test-fren-hop.cjs
-          node scripts/test-game-players.cjs
-          node scripts/test-robot-care.cjs
-          node scripts/test-account-header.cjs
-          node scripts/test-connections.cjs
-          node scripts/test-device-sync-client.cjs
-
-      - name: Test pet engine care rules
-        run: node scripts/test-pet-engine.cjs
-
-      - name: Test TypeScript server (server-ts)
-        run: |
-          cd server-ts
-          npm ci
-          npm run typecheck
-          npm test
-          npm run build
-          npm run differential
-          npm run smoke
-
-      - name: Build TypeScript server production image
-        run: docker build -f server/Dockerfile -t tinyfrens-server:ci .
-
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
-
-      - name: Test TypeScript indexer against Anvil
-        working-directory: server-ts
-        run: npm run test:indexer-integration
-
-      - name: Check NFT artwork and storage budget
-        run: node --test scripts/test-nft-art.mjs
-
-      - name: Compile Solidity contracts
-        run: forge build
-
-      - name: Test Solidity contracts
-        run: forge test -vvv
+      - name: Native renderer and overlay smoke test
+        run: xvfb-run --auto-servernum npx electron . --tinyfrens-smoke
+        timeout-minutes: 3

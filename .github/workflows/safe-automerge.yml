@@ -43,11 +43,11 @@ jobs:
 
           # A merge performed with GITHUB_TOKEN does not emit a usable push event for
           # downstream workflows. Wait for GitHub's native auto-merge to finish, then
-          # explicitly dispatch the website publisher on the resulting main branch.
+          # explicitly dispatch the desktop publisher on the resulting main branch.
           for attempt in $(seq 1 120); do
             pr=$(gh api "repos/$REPO/pulls/$PR")
             if jq -e '.state == "closed" and .merged == true' <<< "$pr" >/dev/null; then
-              gh workflow run publish-server.yml --repo "$REPO" --ref main
+              gh workflow run desktop.yml --repo "$REPO" --ref main
               exit 0
             fi
             if ! jq -e '.state == "open" and (.draft | not) and (any(.labels[]; .name == "hold-merge") | not)' <<< "$pr" >/dev/null; then
