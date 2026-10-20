@@ -6,7 +6,7 @@ of date.
 
 ## What TinyFrens is
 
-A pocket pet that follows you across platforms:
+Verified NFT companions that follow one account across platforms:
 
 - **Android** — a real floating overlay (Kotlin `TYPE_APPLICATION_OVERLAY`).
 - **Desktop** (Windows/Mac) — a transparent always-on-top window (Electron).
@@ -14,7 +14,7 @@ A pocket pet that follows you across platforms:
 - **Telegram** — a Mini App inside the Telegram client (bot + signed `initData` auth).
 - **Farcaster** — a Mini App + in-feed Snap.
 
-All of them share **one pet UI** in `web/` and one **relay server** in `server/` for
+All of them share **one companion UI** in `web/` and one **relay server** in `server/` for
 multiplayer "party rooms," chat, wallets, and platform auth.
 
 ## Repository map
@@ -32,30 +32,29 @@ multiplayer "party rooms," chat, wallets, and platform auth.
 | `scripts/` | Build + signing helpers (site build, Farcaster signer, videos, testnet) | Node / Python |
 | `docs/` | Documentation (you are here) | Markdown |
 
-## The pet model (the important bit)
+## Companion identity and care state
 
-Every surface renders the **same** pet from a small JSON state:
+Every surface renders artwork from the same verified NFT selection. A separate small
+state object tracks care and display preferences; it does not define a replacement
+species, colour, expression, or accessory:
 
 ```jsonc
 {
-  "name": "Tofu",
-  "shape": "bunny",        // cat, blob, robot, bunny, dog, bear, frog, turtle
-  "color": "#a474f1",      // any #rrggbb
-  "expression": "happy",   // happy, wink, shades, star_eyes
-  "accessory": "none",     // none, party_hat, crown, halo, bow_tie, orb
   "hunger": 80, "happiness": 80, "energy": 80,
-  "born": 1690000000000, "mode": "roam"
+  "born": 1690000000000, "mode": "roam",
+  "opacity": 100, "reduceMotion": false
 }
 ```
 
 - `web/app.js` owns care logic (Feed/Play/Nap) and decay.
-- `web/customize.js` owns looks and maps the state onto the `#pet` CSS sprite
-  (`data-shape`, `data-expression`, `data-accessory`, `--pet-color`).
+- `web/featured-turtle.js` renders verified NFT companions; there is no generic appearance customizer or fallback pet.
 - On native/desktop, state lives in the host (`PetAndroid.*` / `window.TinyFrensDesktop`);
   on web it's `localStorage` under `pocket-familiar-v1`.
 
-**Rule of thumb:** if you add a care action or look, it must work the same on every
-platform or be explicitly gated. Game rules live in [`GAMEPLAY.md`](../GAMEPLAY.md).
+**Rule of thumb:** companion features use the shared `web/` implementation. Native code
+may provide only the platform adapter required to display that same verified NFT. The
+universal-surface CI check rejects known parallel/fallback paths. Game rules live in
+[`GAMEPLAY.md`](../GAMEPLAY.md).
 
 ## Multiplayer: the relay server
 

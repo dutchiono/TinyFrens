@@ -80,11 +80,11 @@ MIT licensed. Early prototype; real-phone QA is still needed.
 
 - Wander across both screen axes, pause, blink, dance, eat, wave, sleep, and chase a floating toy.
 - Tap the Android pet for its action menu; drag to move it; tap or hold for circular actions; use the rightmost ☰ button to open the app.
-- Choose from 8 companions (cat, blob, robot, bunny, dog, bear, frog, or turtle), any body colour, size, and wandering speed. Saves and appearance persist through signed upgrades.
+- Connect a supported NFT and choose which verified companions appear on each device. TinyFrens never replaces their artwork with a customizable fallback pet.
 - Set Free roam for wandering; Bubble stays in place. Sleeping or very low energy pauses movement.
 - Android permission shortcuts: Allow floating, App settings (battery/notifications), Allow updates.
 - In-app Install update downloads a verified APK and opens Android's install prompt. On first use allow this app to install updates, return, and tap Install update again. Browser download remains available.
-- Web/iOS share the appearance controls and care animations; web movement stays inside the page. Cross-app text/buttons are not inspected or controlled.
+- Web/iOS render the same verified NFT artwork and care animations; web movement stays inside the page. Cross-app text/buttons are not inspected or controlled.
 - Android movement tests run before release publication. Physical-device behaviour still needs validation.
 
 For this first upgrade from 0.3, use the existing Browser download button or download the latest release. After installing 0.5, future updates can use Install update.
@@ -96,21 +96,19 @@ Tap or hold the pet to reveal three circular action buttons and a rightmost ☰ 
 - 🍓 Feed; hold for a wave.
 - 🎾 Play/dance; hold to place a toy.
 - ☾ Sleep.
-- ☰ Open the full care, customization, settings, and update app.
+- ☰ Open the full care, NFT selection, settings, and update app.
 
 Touch, mouse hover, or stylus hover shows a short label above the pet. Action responses fade away; the bubbles dismiss after eight seconds without interaction. Opening quick controls pauses wandering.
 
-## Free iPhone web app + PiP video
+## Free iPhone web app
 
 Share https://tinyfrens.lol/ or directly https://tinyfrens.lol/web/. The old /play/ URL now redirects. The repository root includes the real welcome page, so branch-based and workflow publishing both serve the same layout.
 
-In Safari: open the pet, tap Float pet, play the video if prompted, then tap Float pet again. iOS can provide a system-managed floating video window where supported; this is not a transparent interactive overlay. Care buttons remain in the webpage. Share → Add to Home Screen installs the free web app. If the installed web app does not offer PiP, open the same pet page in Safari.
-
-PiP loops match cat/blob/robot and the nearest of six colour presets. Videos are bundled offline-compatible H.264/AAC MP4 clips; generated with scripts/build-pet-videos.py. Native iOS shell also enables inline video and PiP playback, but native installation still needs Apple signing. Safari/iPhone device testing is required for PiP behaviour.
+In Safari, Share → Add to Home Screen installs the free web app. iOS keeps verified NFT companions inside TinyFrens because it does not allow the interactive cross-app overlay available on Android and desktop. The old generic Picture-in-Picture pet has been removed.
 
 ## Family setup and widgets
 
-The welcome page now has short phone-first instructions, direct Android download, grown-up permission steps, video PiP help, and widget availability. The same care/help instructions are bundled in the Android and iOS apps.
+The welcome page now has short phone-first instructions, direct Android download, grown-up permission steps, and widget availability. The same care/help instructions are bundled in the Android and iOS apps.
 
 The native iOS build includes a small WidgetKit hello widget. It opens TinyFrens when tapped; it does not show live care data or continuous animation. It needs installation of the signed native app; the Safari home-screen icon is not a widget. Open the installed native app once, then hold the home screen → Edit → Add Widget (or +) → TinyFrens → Add Widget. Android does not yet include a native home-screen widget.
 
@@ -134,4 +132,4 @@ Floating controls use one Show/Hide toggle. Tap, hold, or hover the Android pet 
 
 ## Little touches
 
-Looks now includes pet opacity (40–100%), sparkle bursts, gentle care screen effects, soft care sounds, fade, haptic taps and Reduce motion controls. Preferences save immediately. Native Android overlay and Windows/Mac overlay show care effects near the pet; web/iOS show them in the app. Android and native iPhone support haptics; Safari does not. System-controlled iPhone PiP is an opaque video and cannot use transparent pet opacity or these screen overlays. Effects have no care rewards. OS reduced-motion preferences also apply.
+Companion display settings include NFT opacity (40–100%), sparkle bursts, gentle care screen effects, soft care sounds, fade, haptic taps and Reduce motion controls. These settings never alter NFT artwork or traits. Preferences save immediately. Native Android and desktop overlays show effects near the NFT; web/iOS show them in the app. Effects have no care rewards. OS reduced-motion preferences also apply.

@@ -147,8 +147,9 @@ class PetOverlayService:Service(){
  }
  private fun style(){
   val v=pet?:return;val p=params?:return
-  if(turtles.selected()&&turtles.all().isEmpty()){stopSelf();return}
-  turtles.refreshIfDue();v.turtleSelected=turtles.selected();v.turtleBitmap=turtles.bitmap();v.turtleFrameMs=turtles.all().firstOrNull()?.optJSONObject("companion")?.optLong("frameMs",160)?:160;v.turtleFrames=turtles.all().firstOrNull()?.let{turtles.frames(it)}?:emptyList();primaryMotion=turtles.all().firstOrNull()?.optJSONObject("motion");syncOwnedPets()
+  turtles.refreshIfDue();val companions=turtles.all()
+  if(companions.isEmpty()){stopSelf();return}
+  v.turtleSelected=true;v.turtleBitmap=turtles.bitmap();v.turtleFrameMs=companions.first().optJSONObject("companion")?.optLong("frameMs",160)?:160;v.turtleFrames=turtles.frames(companions.first());primaryMotion=companions.first().optJSONObject("motion");syncOwnedPets()
   v.bodyColor=try{Color.parseColor(state.optString("color","#a474f1"))}catch(_:Exception){Color.rgb(164,116,241)}
   v.shape=state.optString("shape","cat");v.reducedMotion=reducedMotion()
   v.expression=state.optString("expression","happy");v.accessory=state.optString("accessory","none")
@@ -218,6 +219,7 @@ class PetOverlayService:Service(){
  override fun onStartCommand(i:Intent?,flags:Int,startId:Int):Int{
   if(i?.action==ACTION_HIDE){hideWithFade();return START_NOT_STICKY}
   if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY}
+  if(turtles.all().isEmpty()){stopSelf();return START_NOT_STICKY}
   if(pet==null)createOverlay();state=store.read();lastRead=0;style()
   if(i?.action==ACTION_SET_GUESTS){updateGuests(i.getStringExtra("guests")?:"[]");return START_STICKY}
   if(i?.action==ACTION_START_BATTLE){

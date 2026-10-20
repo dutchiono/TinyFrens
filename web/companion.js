@@ -26,10 +26,10 @@
     layer.setAttribute('role', 'button');
     layer.setAttribute('aria-label', 'Your fren — drag to move, tap for care');
 
-    sprite = document.getElementById('pet');
-    sprite = sprite ? sprite.cloneNode(true) : document.createElement('div');
-    sprite.removeAttribute('id');
-    sprite.dataset.action = '';
+    sprite = document.createElement('img');
+    sprite.className = 'tf-companion-nft';
+    sprite.alt = 'Your selected NFT companion';
+    sprite.hidden = true;
     layer.append(sprite);
 
     const bubbles = document.createElement('div');
@@ -62,13 +62,14 @@
   function doCare(action) {
     const button = document.getElementById(action);
     if (button) { button.click(); window.TinyFrensTelegram && window.TinyFrensTelegram.haptic('light'); }
-    // Reflect the resulting look on the companion sprite.
-    const live = document.getElementById('pet');
-    if (live && sprite && live.dataset) {
-      sprite.dataset.stage = live.dataset.stage;
-      sprite.dataset.shape = live.dataset.shape;
-      sprite.style.setProperty('--pet-color', live.style.getPropertyValue('--pet-color'));
-    }
+  }
+
+  function refreshSprite() {
+    if (!layer || !sprite) return;
+    const selected = [...document.querySelectorAll('.collection-companion')].find(item => !item.hidden && item.getAttribute('src'));
+    layer.hidden = !selected;
+    sprite.hidden = !selected;
+    if (selected && sprite.getAttribute('src') !== selected.getAttribute('src')) sprite.src = selected.src;
   }
 
   function onDown(ev) {
@@ -100,16 +101,9 @@
       layer.style.bottom = '86px';
       if (platform === 'discord') layer.classList.add('tf-companion-discord');
     }
-    window.addEventListener('pet-profile-changed', () => {
-      const live = document.getElementById('pet');
-      if (live && sprite) {
-        sprite.dataset.shape = live.dataset.shape;
-        sprite.dataset.stage = live.dataset.stage;
-        sprite.dataset.expression = live.dataset.expression;
-        sprite.dataset.accessory = live.dataset.accessory;
-        sprite.style.setProperty('--pet-color', live.style.getPropertyValue('--pet-color'));
-      }
-    });
+    refreshSprite();
+    window.addEventListener('tinyfrens-wallet-link-changed', refreshSprite);
+    setInterval(refreshSprite, 250);
   }
 
   window.TinyFrensCompanion = { enable, isEnabled: () => Boolean(layer) };
