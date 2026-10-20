@@ -106,13 +106,13 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         return;
       }
       const source = focus
-        ? 'the replied-to message'
+        ? 'the replied-to message and recent context'
         : explicitDescription.trim()
           ? 'your report'
           : `the last ${Math.min(messages.length, historyLimit)} messages`;
       await say(`📝 Reading ${source} and drafting an issue…`);
       const footer = focus
-        ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot from one explicitly replied-to message. Please edit if the summary missed something._`
+        ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, focused on one explicitly replied-to message with ${messages.length} recent message(s) supplied as context. Please edit if the summary missed something._`
         : explicitDescription.trim()
           ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot from the text supplied with /issue. Please edit if the summary missed something._`
           : `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
