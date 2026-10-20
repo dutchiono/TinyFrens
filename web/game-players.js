@@ -12,7 +12,7 @@
   function identity() {
     const base = String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
     const device = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base) || 'null');
-    if (!device?.token) throw Error('Connect your wallet in My NFTs to choose a player.');
+    if (!device?.token) throw Error('Connect your wallet in Account to choose a player.');
     return device;
   }
   function post(path, body = {}) {

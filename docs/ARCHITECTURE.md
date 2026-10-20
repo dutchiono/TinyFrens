@@ -19,7 +19,7 @@ TinyFrens is a cross-platform floating pet + social app with on-chain ownership 
 ## Frontend layers
 
 - **Web app (`web/`)**: Core UI, pet rendering, care actions, visits/party UI, wallet integration, sync logic. Shared across web/Telegram/Farcaster contexts.
-- **Navigation**: `web/navigation.js` + `web/navigation.css` provide consistent nav (Home/My NFTs/Gallery/Vote + More: Games/Care/Party/Help/Docs).
+- **Navigation**: `web/navigation.js` + `web/navigation.css` provide consistent nav (Frens/Care/Plaza/Games + Community: Gallery/Vote/Updates/Tokenomics/Help/Docs/Get the app; Account lives in the header account button).
 - **Site landing (`site/`)**: Marketing/homepage (`index.html`).
 - **Platform shells**: Android (Kotlin overlay), Electron desktop, iOS (Swift + widget). All consume shared web logic where possible.
 
