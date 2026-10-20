@@ -315,7 +315,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
       '/show — Post Telegram slot 1.',
       '/show 2 through /show 5 — Post that exact Telegram slot.',
       '',
-      'Open <b>My NFTs</b> and tap <b>Use for /show</b> on the Fren you want. Use <b>More /show commands</b> for slots 2–5. This is separate from <b>Screen</b>, which controls the floating Fren on your device.',
+      'Open <b>Frens</b> and tap <b>Use for /show</b> on the Fren you want. Use <b>More /show commands</b> for slots 2–5. This is separate from <b>Screen</b>, which controls the floating Fren on your device.',
       '',
       'Telegram uses the TinyFrens account linked to your Telegram user. DM @TinyFrensBot with <code>/link</code>, open the private button on the device where you already use TinyFrens, and confirm.',
       'TinyFrens does not create a playable account just because you tap Join.',

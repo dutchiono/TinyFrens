@@ -504,12 +504,7 @@
     join('public');
   });
 
-  // Space switcher & Home jump hooks
-  $('spaceHome')?.addEventListener('click', () => window.showScreen?.('pet'));
-  $('spacePlaza')?.addEventListener('click', () => {
-    window.showScreen?.('party');
-    if (!active) join('public');
-  });
+  // Plaza jump hooks
   $('visitPlazaQuick')?.addEventListener('click', () => {
     window.showScreen?.('party');
     if (!active) join('public');

@@ -22,6 +22,9 @@
         el('span', {className:'game-card-text'}, [el('strong', {textContent:game.title}), el('small', {textContent:game.blurb}), el('small', {textContent:'Best: ' + (bests()[game.id] || 0)})])]);
       button.onclick = () => play(game, status); list.append(button); return button;
     });
+    list.append(el('a', {className:'game-card', href:'https://tinyfrens.lol/game/'}, [
+      el('span', {className:'game-card-emoji', textContent:'📡'}),
+      el('span', {className:'game-card-text'}, [el('strong', {textContent:'Group Scrap Run'}), el('small', {textContent:'Find the signal with your Telegram group.'})])]));
     const refresh = el('button', {type:'button', className:'secondary', textContent:'Refresh NFTs'}); refresh.onclick = () => { players().clear(); showPicker(); };
     const connect = el('button', {type:'button', className:'secondary', textContent:'Manage wallets'}); connect.onclick = () => window.showScreen('wallet');
     hub.replaceChildren(el('div', {className:'game-player-picker'}, [preview, label, select]), status, list, el('div', {className:'actions'}, [connect, refresh]));
@@ -39,7 +42,12 @@
       };
       select.onchange();
       status.textContent = (data.items.length ? 'Choose an NFT, then start a game.' : 'Connect a wallet holding a supported animated NFT to play.') + (data.partial ? ' Some collections could not be checked. ' + data.errors.join(' ') : '');
-    } catch (error) { if (generation === current) status.textContent = error.message; }
+      if (!data.items.length) guide(status);
+    } catch (error) { if (generation === current) { status.textContent = error.message; guide(status); } }
+  }
+  function guide(status) {
+    const card = window.TinyFrensNextStep?.guide();
+    if (card) { status.hidden = true; status.after(card); }
   }
   async function play(game) {
     if (!player) return;
@@ -83,6 +91,13 @@
     new MutationObserver(() => { if (screen.hidden) stop(); else showPicker(); }).observe(screen, {attributes:true, attributeFilter:['hidden']});
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('tinyfrens-account-synced', () => { if (!screen.hidden) showPicker(); });
+    let lastStage = '';
+    window.addEventListener('tinyfrens-wallet-state', () => {
+      const next = window.TinyFrensNextStep?.stage();
+      if (next === lastStage) return;
+      lastStage = next;
+      if (!screen.hidden && !active) { players().clear(); showPicker(); }
+    });
     showPicker();
   }
   window.TinyFrensGames = {register(game) { if (game?.id && !games.some(item => item.id === game.id)) { games.push(game); if (hub && !active) showPicker(); } }, list:() => games.slice(), bests};

@@ -22,7 +22,7 @@ export async function communityCompanion(
 ): Promise<VerifiedTelegramCompanion> {
   const snapshot = getDeviceSyncSnapshot(context, petId);
   if (snapshot.telegramSelection.length === 0) {
-    throw new Error('No /show Fren is selected. Open TinyFrens → My NFTs and tap Use for /show on the NFT you want');
+    throw new Error('No /show Fren is selected. Open TinyFrens → Frens and tap Use for /show on the NFT you want');
   }
   const item = snapshot.telegramSelection.find(
     value => Number((value as Record<string, unknown>).slot) === position
@@ -30,7 +30,7 @@ export async function communityCompanion(
   if (!item) {
     const command = position === 1 ? '/show' : `/show ${position}`;
     const action = position === 1 ? 'tap Use for /show on the NFT you want' : `choose ${command} under More /show commands`;
-    throw new Error(`${command} has no Fren selected. Open TinyFrens → My NFTs and ${action}`);
+    throw new Error(`${command} has no Fren selected. Open TinyFrens → Frens and ${action}`);
   }
   const collection = String(item.originalAddress || '').toLowerCase();
   const tokenId = Number(item.tokenId);

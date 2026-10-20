@@ -137,11 +137,6 @@ main{max-width:460px;padding:calc(18px + env(safe-area-inset-top)) 22px calc(112
 .topbar{display:flex;align-items:center;justify-content:space-between;text-align:left;margin-bottom:26px}
 .wordmark{font-size:20px;font-weight:850;letter-spacing:-1px;color:#252326;text-decoration:none}.wordmark span{font-size:12px;margin-left:4px;color:#9371c4}
 .day-label{font-size:12px;font-weight:700;background:#e9e4d9;padding:7px 10px;border-radius:7px}
-.space-switcher{display:inline-flex;align-items:center;background:#e9e4d9;border:1px solid #dcd5c7;border-radius:999px;padding:3px;gap:2px}
-.space-pill{background:none;border:0;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:750;color:#716a67;cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:30px;transition:all .15s ease}
-.space-pill:active{transform:scale(0.96)}
-.space-pill.active{background:#252326;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.18)}
-.space-pill:hover:not(.active){background:#ded7cb;color:#252326}
 .screen>h1{font-size:30px;letter-spacing:-1px;margin:12px 0 4px}.screen-intro{margin:0 0 26px;color:#716a67;font-size:14px}
 .pet-card{padding:0;margin:0;border:0;border-radius:0;background:none;box-shadow:none}
 .name-row{gap:2px}.pet-name{font-size:32px;letter-spacing:-1px}.name-edit{min-width:44px;min-height:44px;color:#716a67;padding:8px}
@@ -398,9 +393,9 @@ details{padding:12px 0;border-bottom:1px solid #ddd5c8;font-size:13px}summary{mi
 body{background:radial-gradient(900px 520px at 50% -180px,#352a5b 0%,#17142a 58%,#110e21 100%);color:#f7f1ff}
 main{color:#f7f1ff}
 .wordmark{color:#fff}.wordmark span{color:#a474f1}.day-label{background:#211c39;color:#f7f1ff;border:1px solid #3c3155}
-.space-switcher,.tabbar{background:#211c39;border-color:#3c3155;box-shadow:0 10px 30px #09061280}
-.space-pill,.tabbar button,.tabbar a{color:#b8add3}
-.space-pill.active,.space-pill:hover:not(.active),.tabbar button[aria-selected=true],.tabbar a:hover{background:#332652;color:#fff}
+.tabbar{background:#211c39;border-color:#3c3155;box-shadow:0 10px 30px #09061280}
+.tabbar button,.tabbar a{color:#b8add3}
+.tabbar button[aria-selected=true],.tabbar a:hover{background:#332652;color:#fff}
 .screen>h1,.pet-name,h2,h3,label{color:#fff}.screen-intro,.stage-label,#mood,.overlay p,.small,footer,.stats label b,label output{color:#b8add3}
 .pet-stage{background-color:#130f25;background-image:radial-gradient(#3c3155 1px,transparent 1px)}
 .look-preview,.party-stage,.wallet-nft,.chat-message,.magic-link-box,.fren-vault-card,.mint-fren-card,.onchain-tools-card,.party-inspect-card{background:#211c39;color:#f7f1ff;border-color:#4a3b68;box-shadow:0 10px 30px #0906124d}
@@ -578,6 +573,7 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 .games-list{display:grid;gap:12px}
 .game-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#211c39;color:#f7f1ff;border:1px solid #4a3b68;border-bottom-width:3px;border-radius:14px;padding:14px 16px}
 .game-card:hover,.game-card:focus-visible{border-color:#a474f1}
+a.game-card{text-decoration:none;box-sizing:border-box}
 .game-card-emoji{font-size:34px;line-height:1}
 .game-card-text{display:grid;gap:3px;min-width:0}
 .game-card-text strong{font-size:16px}
@@ -628,6 +624,21 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 #screen-account textarea{min-height:88px}#screen-account .device-reset{padding:24px 0}#screen-account .device-reset p{font-size:13px;color:#b8add3}
 #screen-account .sync-code-display{width:100%;border-radius:8px}#screen-account .account-profile form{max-width:460px}
 @media(max-width:600px){#screen-account{padding-inline:4px}#screen-account>.collection-heading{margin:16px 0 24px}#screen-account .manual-wallet{align-items:flex-start;flex-direction:column}}
+.account-advanced{margin:24px 0 0;padding:16px 0 0;border-top:1px solid #403350}.account-advanced>summary{cursor:pointer;color:#c9a5ff;font-weight:700;min-height:44px;display:flex;align-items:center}
+
+/* Next-step guidance on Frens and Games */
+.next-step-host:empty{display:none}
+.next-step{background:#211c39;border:1px solid #4a3b68;border-radius:16px;padding:18px 20px;margin:0 0 18px;text-align:left}
+.next-step h2{font-size:18px;margin:0 0 6px}.next-step h3{font-size:16px;margin:0 0 6px}
+.next-step p{color:#b8add3;font-size:14px;line-height:1.5;margin:0 0 12px}
+.next-step .next-step-count{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9a5ff;margin:0 0 6px}
+.next-step .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0}.next-step .actions button{flex:none;width:auto;margin:0;min-height:44px;padding-inline:18px}
+.next-step-link{display:inline-flex;align-items:center;min-height:44px;color:#c9a5ff;font-weight:700}.next-step-link.primary{padding:0 18px;border-radius:12px;background:#a474f1;color:#17142a;text-decoration:none}
+.next-step.compact{margin:12px 0}
+#frensNextStep .wallet-manager{background:transparent;border:0;border-radius:0;padding:0;margin:0 0 12px}#frensNextStep .wallet-manager>summary{display:none}#frensNextStep .wallet-manager .overlay{border:0;padding:0;margin:0}
+#frensNextStep .bankr-connect{background:transparent;border:0;border-radius:0;padding:0;margin:12px 0}
+#frensNextStep .manual-wallet{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;margin:0}#frensNextStep .manual-wallet button{width:auto;margin:0;min-height:44px}
+@media(max-width:600px){#frensNextStep .manual-wallet{align-items:flex-start;flex-direction:column}}
 
 #screen-pet[hidden],#screen-account[hidden]{display:none!important}
 #screen-pet>.collection-heading{justify-content:center;text-align:center}
@@ -645,12 +656,8 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 
 .care-robot-picker{display:flex;align-items:center;gap:12px;margin:16px 0}.care-robot-picker select{background:#211c39;color:#f7f1ff;padding:10px;border:1px solid #594276;border-radius:8px;max-width:100%}.care-deposit{padding:18px 0;border-top:1px solid #403350}.deposit-address{overflow-wrap:anywhere;cursor:copy;font-family:monospace}
 
-/* Space Switcher & Plaza Experience */
-.top-space-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px auto 16px;max-width:860px;width:100%}
-.space-switcher{display:inline-flex;background:rgba(23,20,42,0.85);padding:4px;border-radius:999px;border:1px solid #4a3b68;box-shadow:0 4px 14px rgba(0,0,0,0.25)}
-.space-pill{background:transparent;color:#b8add3;border:0;border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;transition:all .18s ease;display:inline-flex;align-items:center;gap:6px;min-height:36px}
-.space-pill:hover{color:#fff;background:rgba(255,255,255,0.06)}
-.space-pill.active{background:linear-gradient(135deg,#7c5cbf,#9d7feb);color:#fff;box-shadow:0 2px 8px rgba(124,92,191,0.4)}
+/* Plaza Experience */
+.app-age{max-width:860px;margin-inline:auto}
 .plaza-jump-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;padding:12px 20px;border-radius:14px;background:linear-gradient(135deg,#2e4c27,#3d6b33);border:1.5px solid #629e55;color:#e8f7e4;font-size:15px;font-weight:750;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;width:100%;box-shadow:0 4px 12px rgba(46,76,39,0.3)}
 .plaza-jump-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(46,76,39,0.45);color:#fff}
 .plaza-jump-btn:active{transform:translateY(1px)}
@@ -689,9 +696,6 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 @media(max-width:640px){
   .private-room-hero{grid-template-columns:1fr;gap:14px}
   .private-divider{margin:2px 0}
-  .top-space-bar{flex-direction:column;align-items:stretch}
-  .space-switcher{justify-content:center}
-  .app-age{text-align:center}
   #screen-party .party-stage{height:360px}
 }
 

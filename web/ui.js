@@ -4,18 +4,11 @@ window.showScreen=name=>{
  if(name==='settings')name='account';
  if(name==='plaza'||name==='public')name='party';
  const walletRequested=name==='wallet';
- if(walletRequested)name='account';
- if(name==='pet' && window.TinyFrensWalletConnected===false)name='account';
- const screens=[...document.querySelectorAll('[data-screen]')].map(tab=>tab.dataset.screen);
- if(!screens.includes(name))name='pet';
+ if(walletRequested)name=document.getElementById('walletManager')?.closest('#screen-pet')?'pet':'account';
+ if(!document.getElementById('screen-'+name)?.classList.contains('screen'))name='pet';
  for(const screen of document.querySelectorAll('.screen'))screen.hidden=screen.id!=='screen-'+name;
  for(const tab of document.querySelectorAll('[data-screen]')){const active=tab.dataset.screen===name;if(tab.getAttribute('role')==='tab'){tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}else{if(active)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}}
- const homeBtn=document.getElementById('spaceHome'),plazaBtn=document.getElementById('spacePlaza');
- if(homeBtn&&plazaBtn){
-  const isHome=name==='pet',isPlaza=name==='party';
-  homeBtn.classList.toggle('active',isHome);homeBtn.setAttribute('aria-checked',String(isHome));
-  plazaBtn.classList.toggle('active',isPlaza);plazaBtn.setAttribute('aria-checked',String(isPlaza));
- }
+ document.querySelector('.tf-nav-tabs [aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest'});
  if(name==='party'){
   if(window.TinyFrensParty&&!window.TinyFrensParty.getActive()){
    window.TinyFrensParty.joinPublic();
