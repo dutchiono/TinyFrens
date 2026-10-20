@@ -88,7 +88,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     chatId: unknown,
     chat: Record<string, unknown> | null,
     token: string,
-    explicitDescription = ''
+    explicitDescription = '',
+    focus: TelegramChatEntry | null = null
   ) => {
     const say = async (text: string) => {
       try {
@@ -100,17 +101,25 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
       const messages = history(chatId);
-      if (messages.length === 0 && !explicitDescription.trim()) {
+      if (messages.length === 0 && !explicitDescription.trim() && !focus) {
         await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it.');
         return;
       }
-      await say(messages.length > 0
-        ? `📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`
-        : '📝 Drafting an issue from your report…');
-      const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
+      const source = focus
+        ? 'the replied-to message'
+        : explicitDescription.trim()
+          ? 'your report'
+          : `the last ${Math.min(messages.length, historyLimit)} messages`;
+      await say(`📝 Reading ${source} and drafting an issue…`);
+      const footer = focus
+        ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot from one explicitly replied-to message. Please edit if the summary missed something._`
+        : explicitDescription.trim()
+          ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot from the text supplied with /issue. Please edit if the summary missed something._`
+          : `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
       const result = await fileCommunityIssue(context, {
         messages,
         description: explicitDescription,
+        focus: focus || undefined,
         chatTitle: String(chat?.title || 'Telegram chat'),
         linkTarget: String(chatId),
         footer,
@@ -739,7 +748,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           if (replied && typeof replied === 'object') remember(chatId, replied as Record<string, unknown>);
           const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
           const entry = chatMessage({ message: replied });
-          await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
+          await fileIssueFromChat(chatId, chat, token, inlineDescription, entry);
           return reply.status(200).send({ ok: true });
         }
 

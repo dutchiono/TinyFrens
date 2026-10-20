@@ -22,7 +22,7 @@ describe('GitHub issue drafting parity', () => {
       { name: 'Old', text: 'ignored' },
       { name: ' Ada ', text: 'the vault is empty\u0000' },
       null,
-    ], 2), 'Ada: the vault is empty');
+    ], 2), '[Speaker: "Ada"] the vault is empty');
     const draft = parseDraft('TITLE: Fix empty vault\nLABELS: bug, telegram\n---\n## What happened\n- Empty');
     assert.equal(draft.title, 'Fix empty vault');
     assert.deepEqual(draft.labels, ['bug', 'telegram']);
@@ -52,7 +52,7 @@ describe('GitHub issue drafting parity', () => {
         labels: [{ name: 'bug' }],
       }), { status: 201 });
     };
-    const draft = await draftIssue('Ada: vault empty', 'ai-key', 'TinyFrens crew', 'gemini-test', fetcher);
+    const draft = await draftIssue('[Speaker: "Ada"] vault empty', 'ai-key', 'TinyFrens crew', 'gemini-test', fetcher);
     const labels = await listLabels('dutchiono', 'TinyFrens', 'gh-token', fetcher);
     const created = await createIssue('dutchiono', 'TinyFrens', 'gh-token', draft.title, draft.body, ['bug'], fetcher);
     const summary = responseSummary(created.data, created.status, 'dutchiono', 'TinyFrens');
@@ -60,7 +60,7 @@ describe('GitHub issue drafting parity', () => {
     assert.equal(summary.ok && summary.number, 77);
     assert.deepEqual(labels, new Set(['bug']));
     assert.equal(requests.length, 3);
-    assert.match(String(requests[0].init?.body), /Ada: vault empty/);
+    assert.match(String(requests[0].init?.body), /\\\"Ada\\\"\] vault empty/);
     assert.match(String(requests[2].init?.body), /"labels":\["bug"\]/);
   });
 });
