@@ -17,16 +17,16 @@
     <section class="game-hero">
       <span>TELEGRAM + DISCORD</span>
       <h1>Find the signal.<br><em>Build the crew.</em></h1>
-      <p><strong>/game</strong> opens a shared five-minute Scrap Run for one Telegram group or Discord channel. It is a lightweight community loop: join when you see it, search together, and share the find.</p>
-      <div class="game-facts"><span><strong>5 min</strong> join window</span><span><strong>4</strong> crew maximum</span><span><strong>1</strong> dynamic lobby message</span></div>
+      <p><strong>/game</strong> starts a live shared Scrap Run for one Telegram group or Discord channel. Join when you see it, search immediately, and share the find.</p>
+      <div class="game-facts"><span><strong>0 min</strong> forced wait</span><span><strong>4</strong> crew maximum</span><span><strong>1</strong> dynamic run message</span></div>
     </section>
 
     <section class="game-steps" aria-labelledby="stepsHeading">
       <div class="section-heading"><span>THE CURRENT LOOP</span><h2 id="stepsHeading">One command, four steps.</h2></div>
       <ol>
-        <li><span>01</span><div><h3>Open the run</h3><p>Use <strong>/game</strong> in a group or channel. If a run is already open, the bot refreshes that lobby instead of creating a second one. Starting a run does <strong>not</strong> automatically join you.</p></div></li>
-        <li><span>02</span><div><h3>Link, then join the crew</h3><p>Connect Telegram or Discord to your existing TinyFrens account with <strong>/link</strong>, then press <strong>Join crew</strong> during the five-minute window. The bot never creates a hidden playable account just because you join.</p></div></li>
-        <li><span>03</span><div><h3>Search after the timer</h3><p>Once the lobby closes, any joined crew member can press <strong>Search scrap</strong>. Pressing it early simply shows the remaining wait. Only a crew member can resolve the run.</p></div></li>
+        <li><span>01</span><div><h3>Open the run</h3><p>Use <strong>/game</strong> in a group or channel. If a run is already open, the bot refreshes that run instead of creating a second one. Starting a run does <strong>not</strong> automatically join you.</p></div></li>
+        <li><span>02</span><div><h3>Link, then join the crew</h3><p>Connect Telegram or Discord to your existing TinyFrens account with <strong>/link</strong>, then press <strong>Join crew</strong> while the run is open. The bot never creates a hidden playable account just because you join.</p></div></li>
+        <li><span>03</span><div><h3>Search right away</h3><p>Any joined crew member can press <strong>Search scrap</strong> immediately. There is no waiting period; other players can join until somebody searches. Only a crew member can resolve the run.</p></div></li>
         <li><span>04</span><div><h3>Share the find</h3><p>The bot rolls one piece of loot for the entire crew. Everyone receives the same rarity and the same individual game-credit reward, including the crew-size bonus.</p></div></li>
       </ol>
     </section>
@@ -47,7 +47,7 @@
     <section class="game-details" aria-labelledby="detailsHeading">
       <div class="section-heading"><span>GOOD TO KNOW</span><h2 id="detailsHeading">Same game, quiet chat.</h2></div>
       <div class="detail-grid">
-        <article><h3>No chat lock</h3><p>The group stays open for normal conversation. The bot edits one lobby card as people join and replaces it with the result, keeping the run from becoming message spam.</p></article>
+        <article><h3>No chat lock</h3><p>The group stays open for normal conversation. The bot edits one run card as people join and replaces it with the result, keeping the run from becoming message spam.</p></article>
         <article><h3>Same engine, separate rooms</h3><p>Telegram and Discord use the same rules, loot table, reward logic, and database code. Each group or channel keeps its own run so unrelated communities never overwrite each other.</p></article>
         <article><h3>One account, explicitly linked</h3><p>Discord and Telegram must be connected with <strong>/link</strong> before joining. Once approved, the platform identity belongs to the same TinyFrens account and uses its shared wallets and companion selections.</p></article>
         <article><h3>Credits are not FRENS or Energy</h3><p>The current Scrap Run awards off-chain game credits. It does not mint or transfer FRENS, and joining a run does not spend Robots v1 Energy. Those economy systems remain distinct.</p></article>

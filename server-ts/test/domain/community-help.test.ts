@@ -31,13 +31,13 @@ describe('community command help parity', () => {
     assert.deepEqual([...telegram].filter(command => !discord.has(command)), []);
   });
 
-  test('describes the shared five-minute Scrap engine consistently', () => {
-    assert.match(discordGameHelpText(), /five-minute window/);
+  test('describes the shared instant Scrap engine consistently', () => {
+    assert.match(discordGameHelpText(), /no waiting period/i);
     assert.match(discordGameHelpText(), /does not join you/);
     assert.match(discordGameHelpText(), /same Scrap engine, reward rules, and database/);
     assert.match(discordGameHelpText(), /never creates a playable Discord account/i);
     assert.match(discordGameHelpText(), /explicitly connects Discord/i);
-    assert.match(telegramHelpText('game'), /five-minute window/);
-    assert.doesNotMatch(telegramHelpText('game'), /45-second/);
+    assert.match(telegramHelpText('game'), /no waiting period/i);
+    assert.doesNotMatch(telegramHelpText('game'), /five-minute|45-second/i);
   });
 });

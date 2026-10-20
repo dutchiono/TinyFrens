@@ -46,7 +46,7 @@ describe('Telegram group scrap runs', () => {
     db.close();
   });
 
-  test('waits for the lobby, resolves once, and rewards every robot', () => {
+  test('resolves immediately once and rewards every robot', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);
     const started = startScrapRun(db, '-200', '1', 'Ada', 2_000, 0.1);
@@ -58,17 +58,14 @@ describe('Telegram group scrap runs', () => {
       balances.set(petId, (balances.get(petId) || 0) + credits);
     };
 
-    const early = resolveScrapRun(db, started.state.run.id, '1', 2_299, 0.97, grant);
-    assert.deepEqual(early, { ok: false, reason: 'waiting', waitSeconds: 1 });
-
-    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_300, 0.97, grant);
+    const resolved = resolveScrapRun(db, started.state.run.id, '2', 2_011, 0.97, grant);
     assert.equal(resolved.ok, true);
     if (!resolved.ok) throw new Error('resolve failed');
     assert.equal(resolved.changed, true);
     assert.equal(resolved.state.run.loot_name, 'Plasma Core');
     assert.equal(resolved.state.run.reward_each, 260);
     assert.deepEqual(resolved.state.members.map(member => member.reward), [260, 260]);
-    const [, completedKeyboard] = renderScrapCard(resolved.state, 2_300);
+    const [, completedKeyboard] = renderScrapCard(resolved.state, 2_011);
     assert.equal(completedKeyboard.inline_keyboard[0][0].callback_data, 'game:new');
 
     const replay = resolveScrapRun(db, started.state.run.id, '1', 2_301, 0.999, grant);
@@ -83,7 +80,8 @@ describe('Telegram group scrap runs', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);
     const started = startScrapRun(db, '-300', '1', '<Ada>', 3_000, 0.1);
-    assert.match(renderScrapCard(started.state, 3_000)[0], /5m left to join/);
+    assert.match(renderScrapCard(started.state, 3_000)[0], /Live now/);
+    assert.match(renderScrapCard(started.state, 3_000)[0], /no waiting period/i);
     assert.match(renderScrapCard(started.state, 3_000)[0], /No one yet/);
     joinScrapRun(db, started.state.run.id, '1', 'pet-1', '<Ada>', 3_000);
     joinScrapRun(db, started.state.run.id, '2', 'pet-2', 'Two', 3_001);
@@ -99,6 +97,18 @@ describe('Telegram group scrap runs', () => {
     assert.match(text, /&lt;Ada&gt;/);
     assert.doesNotMatch(text, /<Ada>/);
     assert.equal(keyboard.inline_keyboard[0][0].text, '🤝 Join crew (4/4)');
+    db.close();
+  });
+
+  test('allows crew to join an open run after the old lobby deadline', () => {
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const started = startScrapRun(db, '-350', '1', 'Ada', 3_500, 0.1);
+
+    const joined = joinScrapRun(db, started.state.run.id, '2', 'pet-2', 'Bob', 3_801);
+    assert.equal(joined.ok, true);
+    if (!joined.ok) throw new Error('late join failed');
+    assert.equal(joined.state.members[0]?.display_name, 'Bob');
     db.close();
   });
 

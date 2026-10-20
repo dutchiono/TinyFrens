@@ -1,7 +1,6 @@
 :root,html,body{background:transparent!important;overflow:hidden;width:340px;height:400px;margin:0;padding:0;user-select:none}
-.overlay-turtle{display:none;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:pixelated}
-#pet[data-turtle=true]>:not(.overlay-turtle){display:none}
-#pet[data-turtle=true]>.overlay-turtle:not([hidden]){display:block}
+.overlay-turtle{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:pixelated}
+.overlay-turtle[hidden]{display:none}
 #petHolder{position:absolute;left:106px;top:100px;width:128px;height:148px}
 #pet{cursor:grab;filter:drop-shadow(0 5px 2px #0003);touch-action:none;outline-offset:8px}
 #pet:active{cursor:grabbing}#pet[data-action=sleep]::after,#pet[data-action=wave]::after{color:#302040;background:#fffcf5;border-radius:8px;padding:3px}
@@ -14,4 +13,4 @@
 #toy{position:absolute;top:290px;left:260px;font-size:28px;color:#cdeab0;background:rgba(45,64,38,.82);border:1px solid #9dc47e;border-radius:50%;width:38px;height:38px;min-height:0;padding:0;box-shadow:0 2px 6px #0004}
 @media(prefers-reduced-motion:reduce){#hint{transition:none}}
 
-#pet[data-turtle=true],#pet[data-turtle=true] .overlay-turtle{animation:none!important}
+#pet,#pet .overlay-turtle{animation:none!important}

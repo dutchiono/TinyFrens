@@ -22,6 +22,7 @@ describe('Telegram conversation and issue orchestration', () => {
   let context: ReturnType<typeof createAppContext>;
   let api: FakeTelegramApi;
   let createdIssue: Record<string, unknown> | null;
+  let issuePrompt = '';
   const originalFetch = globalThis.fetch;
 
   before(async () => {
@@ -34,6 +35,9 @@ describe('Telegram conversation and issue orchestration', () => {
       if (url.includes('generateContent')) {
         const body = JSON.parse(String(init?.body || '{}'));
         const system = String(body.systemInstruction?.parts?.[0]?.text || '');
+        if (system.includes('single GitHub issue')) {
+          issuePrompt = String(body.contents?.[0]?.parts?.[0]?.text || '');
+        }
         const text = system.includes('single GitHub issue')
           ? 'TITLE: Fix empty vault\nLABELS: bug\n---\n## What happened\n- Ada saw an empty vault\n\n## Suggested next steps\n- Reproduce it'
           : 'Never expose token=super-secret-value-12345';
@@ -99,7 +103,7 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.equal(api.calls.at(-1)?.payload.reply_to_message_id, 2);
 
     await webhook({ message: { message_id: 22, text: '/gamehelp', chat: { id: -10, type: 'group' }, from: { id: 5 } } });
-    assert.match(String(api.calls.at(-1)?.payload.text), /five-minute window/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /no waiting period/i);
 
     await webhook({ message: { message_id: 23, text: '/showhelp', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
     assert.match(String(api.calls.at(-1)?.payload.text), /Use for \/show/);
@@ -150,5 +154,38 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.ok(createdIssue);
     assert.deepEqual((createdIssue as Record<string, unknown>).labels, ['telegram', 'bug']);
     assert.match(String((createdIssue as Record<string, unknown>).body), /Filed from Telegram chat `-30`/);
+  });
+
+  test('files a reply from that message only and reports the source truthfully', async () => {
+    issuePrompt = '';
+    for (let index = 0; index < 25; index += 1) {
+      await webhook({ message: {
+        message_id: 100 + index,
+        text: `unrelated message ${index}`,
+        chat: { id: -31, type: 'group', title: 'Tiny Crew' },
+        from: { id: 6, first_name: 'Michael' },
+      } });
+    }
+    const replied = {
+      message_id: 99,
+      text: 'I was unable to connect the desktop app to bankr',
+      chat: { id: -31, type: 'group', title: 'Tiny Crew' },
+      from: { id: 7, first_name: 'no-one' },
+    };
+    await webhook({ message: {
+      message_id: 126,
+      text: '/issue',
+      chat: { id: -31, type: 'group', title: 'Tiny Crew' },
+      from: { id: 5, first_name: 'Ada' },
+      reply_to_message: replied,
+    } });
+
+    assert.match(issuePrompt, /PRIMARY REPORT/);
+    assert.match(issuePrompt, /\[Speaker: "no-one"\] I was unable to connect/);
+    assert.doesNotMatch(issuePrompt, /unrelated message/);
+    const progress = api.calls.findLast(call => String(call.payload.text).includes('drafting an issue'));
+    assert.match(String(progress?.payload.text), /replied-to message/);
+    assert.match(String(createdIssue?.body), /one explicitly replied-to message/);
+    assert.doesNotMatch(String(createdIssue?.body), /summarising 25/);
   });
 });

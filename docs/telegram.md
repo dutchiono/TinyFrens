@@ -32,19 +32,19 @@ Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open
 
 ### Group scrap prototype
 
-Use `/game` in a group to open a five-minute lobby built around a shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to start a live shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
 
 Joining requires an explicit account link. Create a sync code from TinyFrens Account, DM `/link CODE` to the bot, and approve the request on the original device. Pressing **Join crew** never creates a hidden Telegram-only account.
 
 - A crew holds up to four operators.
-- The operator who starts the run joins automatically.
-- After 45 seconds, any crew member can search the scrap field.
+- Starting a run does not automatically join the operator.
+- Any crew member can search the scrap field immediately. There is no waiting period; others can join while the run remains open.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
 - Only one unresolved run can exist in a group. Reusing `/game` refreshes the existing message.
-- A completed card offers **New scrap run**, which starts the next lobby in the same message instead of adding chat noise.
+- A completed card offers **New scrap run**, which starts the next run in the same message instead of adding chat noise.
 - Joins and rewards are stored in SQLite and are idempotent.
 
-This is an intentionally small Telegram-first playtest. Lobby duration, crew size, loot weights, rewards, cooldowns, and cross-platform presentation are still design inputs rather than finalized balance.
+This is an intentionally small Telegram-first playtest. Crew size, loot weights, rewards, cooldowns, and cross-platform presentation are still design inputs rather than finalized balance.
 
 ### Project awareness
 

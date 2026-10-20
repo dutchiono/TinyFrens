@@ -36,7 +36,7 @@ export interface ScrapState {
 
 export type ScrapActionResult =
   | { ok: true; state: ScrapState; changed: boolean }
-  | { ok: false; reason: 'missing' | 'closed' | 'full' | 'not-member' | 'waiting'; waitSeconds?: number };
+  | { ok: false; reason: 'missing' | 'closed' | 'full' | 'not-member' };
 
 function cleanName(value: string): string {
   return value.replace(/[\x00-\x1f\x7f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Fren';
@@ -135,7 +135,7 @@ export function joinScrapRun(
   if (state.members.some(member => member.user_id === userId || member.pet_id === petId)) {
     return { ok: true, state, changed: false };
   }
-  if (now > state.run.join_until || state.members.length >= MAX_CREW_SIZE) {
+  if (state.members.length >= MAX_CREW_SIZE) {
     return { ok: false, reason: 'full' };
   }
   db.prepare(
@@ -166,10 +166,6 @@ export function resolveScrapRun(
   if (!current.members.some(member => member.user_id === userId)) {
     return { ok: false, reason: 'not-member' };
   }
-  if (now < current.run.join_until) {
-    return { ok: false, reason: 'waiting', waitSeconds: current.run.join_until - now };
-  }
-
   const loot = lootForRoll(random);
   const groupBonus = Math.max(0, current.members.length - 1) * 10;
   const rewardEach = loot.reward + groupBonus;
@@ -191,7 +187,7 @@ export function resolveScrapRun(
 
 export function renderScrapCard(
   state: ScrapState,
-  now: number
+  _now: number
 ): [string, { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }] {
   const { run, members } = state;
   const names = members.map(member => `• ${escapeHtml(member.display_name)}`).join('\n') || '• No one yet — press Join crew.';
@@ -212,21 +208,17 @@ export function renderScrapCard(
     ];
   }
 
-  const seconds = Math.max(0, run.join_until - now);
-  const timer = seconds > 0
-    ? (seconds >= 60 ? `${Math.ceil(seconds / 60)}m left to join` : `${seconds}s left to join`)
-    : 'Lobby ready to resolve';
   return [
     [
       '🛰 <b>SCRAP RUN</b>',
       '━━━━━━━━━━━━━━━━━━━━━',
       `<b>${escapeHtml(run.starter_name)}</b> found a scrap signal.`,
-      `⏱ <b>${timer}</b> · Crew <b>${members.length}/${MAX_CREW_SIZE}</b>`,
+      `⚡ <b>Live now</b> · Crew <b>${members.length}/${MAX_CREW_SIZE}</b>`,
       '',
       '<b>Crew</b>',
       names,
       '',
-      '<i>Join once. When the window closes, any crew member can search. Everyone gets the same find.</i>',
+      '<i>Join while the run is open, or search now. There is no waiting period. Everyone gets the same find.</i>',
     ].join('\n'),
     {
       inline_keyboard: [[
