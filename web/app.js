@@ -23,18 +23,7 @@ function localRead(){
   return localBridge('read');
 }
 function read(){return desktop?JSON.parse(desktop.getState()):native?JSON.parse(PetAndroid.getState()):localRead();}
-const NAMES=Engine.NAMES;
 function cleanName(n){return Engine.cleanName(n);}
-function randomName(shape,avoid){
-  return Engine.randomName(Engine.normalShape(shape),avoid);
-}
-function rename(n){
-  const name=cleanName(n);
-  if(desktop)return JSON.parse(desktop.rename(name));
-  if(native)return JSON.parse(PetAndroid.rename(name));
-  return localBridge('rename',name);
-}
-function ensureName(s){return s.name?s:rename(randomName(s.shape));}
 function action(name){
   if(desktop)return JSON.parse(desktop.action(name));
   if(native)return JSON.parse(PetAndroid.action(name));
@@ -86,26 +75,18 @@ $('start').onclick=()=>{
  if(desktop){const visible=desktop.togglePet();$('message').textContent=visible?'Your fren is floating.':'Fren hidden.';refreshFloatingButton();return;}
  if(!native){$('stage').scrollIntoView({behavior:'smooth',block:'center'});$('message').textContent='Your imported NFTs appear here in TinyFrens.';return;}
  if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Fren hidden.';$('start').textContent='Show NFTs';}
- else{const started=PetAndroid.startPet();$('message').textContent=started?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show NFTs again.';if(started)$('start').textContent='Hide NFTs';}
+ else{const started=PetAndroid.startPet();let selected=false;try{selected=JSON.parse(PetAndroid.getTurtle()).active===true;}catch{}$('message').textContent=started?'Your NFTs are ready! Switch apps.':selected?'Allow floating in Android settings, then tap Show NFTs again.':'Choose at least one verified NFT first.';if(started)$('start').textContent='Hide NFTs';}
  $('start').disabled=true;setTimeout(()=>{$('start').disabled=false;refreshFloatingButton();},500);
 };
 if(native||desktop){refreshFloatingButton();setInterval(()=>{if(!document.hidden)refreshFloatingButton();},1000);}
 $('platform').textContent=(native||desktop)?'Show your imported NFTs over other apps.':'Your imported NFTs appear here in TinyFrens.';
-function editName(open){
-  $('nameRow').hidden=open;$('nameForm').hidden=!open;
-  if(open){$('nameInput').value=read().name||'';$('nameInput').focus();$('nameInput').select();}
-}
-$('editName').onclick=()=>editName(true);
-$('shuffleName').onclick=()=>{$('nameInput').value=randomName(read().shape,$('nameInput').value);$('nameInput').focus();};
-$('nameForm').onsubmit=e=>{e.preventDefault();const n=cleanName($('nameInput').value);if(n){render(rename(n));window.dispatchEvent(new Event('pet-profile-changed'));}editName(false);};
-$('nameInput').onkeydown=e=>{if(e.key==='Escape')editName(false);};
 function refreshCare(){const s=read();render(s);window.stylePet?.(s);refreshFloatingButton();}
 window.onAndroidResume=refreshCare;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCare();});
 const careScreen=$('screen-care');
 new MutationObserver(()=>{if(!careScreen.hidden)refreshCare();}).observe(careScreen,{attributes:true,attributeFilter:['hidden']});
 if(!desktop)setInterval(()=>{if(!document.hidden&&!careScreen.hidden)refreshCare();},10000);
-const _initS = ensureName(read());
+const _initS = read();
 render(_initS);
 window.stylePet?.(_initS);
 
@@ -131,11 +112,7 @@ if(desktop){desktop.onState(s=>{render(s);window.stylePet?.(s);refreshFloatingBu
         if (data.success && data.token && data.pet) {
           const newId = { id: data.id, code: data.code, token: data.token };
           window.TinyFrensFriends?.setIdentity?.(newId);
-          let s;
-          if (desktop) s = JSON.parse(desktop.customize(JSON.stringify(data.pet)));
-          else if (native) s = JSON.parse(PetAndroid.customize(JSON.stringify(data.pet)));
-          else { s = Object.assign(read(), data.pet); localStorage.setItem(key, JSON.stringify(s)); }
-          window.stylePet?.(s);
+          const s = read();
           render(s);
           window.history.replaceState(null, '', window.location.pathname);
           const moodEl = $('mood');

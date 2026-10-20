@@ -160,7 +160,12 @@ class MainActivity : Activity() {
             .put("install", packageManager.canRequestPackageInstalls()).toString()
         @JavascriptInterface fun openSettings(kind: String) { runOnUiThread { settingsLink(kind) } }
         @JavascriptInterface fun customize(json: String): String {
-            val state = store.customize(json)
+            val incoming = try { org.json.JSONObject(json) } catch (_: Exception) { org.json.JSONObject() }
+            val allowed = org.json.JSONObject()
+            listOf("opacity", "sparkles", "screenEffects", "fade", "haptics", "reduceMotion", "sounds").forEach { key ->
+                if (incoming.has(key)) allowed.put(key, incoming.get(key))
+            }
+            val state = store.customize(allowed.toString())
             runOnUiThread { sendService("refresh") }
             return state.toString()
         }
@@ -168,7 +173,6 @@ class MainActivity : Activity() {
         @JavascriptInterface fun sound(name: String) { runOnUiThread { playPetSound(name) } }
         @JavascriptInterface fun notify(title: String, text: String) { runOnUiThread { postUpdateNotification(30, title.take(60), text.take(180)) } }
         @JavascriptInterface fun getState(): String = store.read().toString()
-        @JavascriptInterface fun rename(name: String): String = store.rename(name).toString()
         @JavascriptInterface fun action(name: String): String {
             val state = store.act(name)
             runOnUiThread { if(!state.optBoolean("blocked")&&state.optBoolean("haptics",true))web.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);sendService("refresh") }
@@ -180,6 +184,7 @@ class MainActivity : Activity() {
             return state.toString()
         }
         @JavascriptInterface fun startPet(): Boolean {
+            if (TurtleStore(this@MainActivity).all().isEmpty()) return false
             if (!Settings.canDrawOverlays(this@MainActivity)) {
                 runOnUiThread {
                     settingsLink("overlay")

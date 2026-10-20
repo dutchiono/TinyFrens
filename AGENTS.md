@@ -15,6 +15,12 @@ Work from a feature branch and open a pull request. Do not push directly to main
 - Keep server processes small and single-purpose. Prefer the TypeScript modules under `server-ts/` and minimal Node or shell operational helpers over new monolithic services.
 - Historical Python code may remain for parity and rollback archaeology until separately removed, but production configuration must not execute it.
 
+## Universal product surfaces
+- Product UI and game behavior belong in the canonical `web/` implementation. Android, iOS, desktop, Telegram, and Discord may add only the native adapter required to host that shared behavior.
+- Do not add a platform-only version of a feature when the shared implementation can support it.
+- Companion rendering is NFT-only. Never add a generic or customizable fallback pet when no verified NFT is selected.
+- Run `node scripts/check-universal-surfaces.mjs` when changing a product surface. Extend that guard when introducing a new native adapter or shared surface.
+
 ## Merge policy
 A trusted workflow requests GitHub native squash auto-merge for every non-draft PR authored by dutchiono from this repository into main, regardless of changed paths. The owner explicitly authorizes this policy for work submitted through their account. All merges must obey required branch protection/status checks, including the strict requirement to be current with main. Never bypass branch protections or use admin merge. The `hold-merge` label pauses auto-merge; drafts also stay unmerged. Agents should open a PR and let real CI and native auto-merge complete it, rather than performing a second ceremonial review or polling indefinitely.
 
