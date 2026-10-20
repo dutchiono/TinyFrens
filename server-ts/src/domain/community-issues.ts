@@ -20,6 +20,7 @@ export interface CommunityIssueMessage {
 export interface CommunityIssueRequest {
   messages: CommunityIssueMessage[];
   description?: string;
+  focus?: CommunityIssueMessage;
   chatTitle: string;
   linkTarget: string;
   footer: string;
@@ -34,12 +35,21 @@ export async function fileCommunityIssue(
   const [owner, repo] = parseRepo(context.config.GITHUB_REPO);
   const githubToken = await context.githubAuth.token(owner, repo);
   if (!githubToken) throw new Error('GitHub issue filing is not configured.');
-  const lines = request.description?.trim() || transcript(request.messages, context.config.TELEGRAM_ISSUE_HISTORY + 1);
+  const focusedMessage = request.focus ? transcript([request.focus], 1) : '';
+  const description = request.description?.trim() || '';
+  const selectedReport = [focusedMessage, description].filter(Boolean).join('\n');
+  const lines = focusedMessage
+    ? `PRIMARY REPORT — the /issue command explicitly replied to this message. Draft the issue from this report only:\n${focusedMessage}${description ? `\nAdditional detail supplied with /issue: ${description}` : ''}`
+    : description
+      ? `PRIMARY REPORT — the /issue command explicitly supplied this report. Draft the issue from this report only:\n${description}`
+      : transcript(request.messages, context.config.TELEGRAM_ISSUE_HISTORY + 1);
   if (!lines) throw new Error('I have not seen enough conversation context to draft an issue yet.');
+  const fallbackReport = selectedReport || lines;
+  const fallbackTitleSource = request.focus?.text || description || lines;
   const fallback = {
-    title: (`Report: ${lines.replace(/\s+/g, ' ').slice(0, 80)}`).slice(0, 90),
+    title: (`Report: ${fallbackTitleSource.replace(/\s+/g, ' ').slice(0, 80)}`).slice(0, 90),
     labels: [] as string[],
-    body: `## What happened\n\n${lines}\n\n## Suggested next steps\n\n- Reproduce and investigate the reported behavior.`,
+    body: `## What happened\n\n${fallbackReport}\n\n## Suggested next steps\n\n- Reproduce and investigate the reported behavior.`,
   };
   const apiKey = context.config.GEMINI_API_KEY || context.config.GOOGLE_API_KEY;
   let draft = fallback;
