@@ -1,11 +1,35 @@
 'use strict';
+const desktopApp = Boolean(window.TinyFrensDesktop);
+if (desktopApp) {
+ document.body.classList.add('desktop-app');
+ const petScreen=document.getElementById('screen-pet');
+ const oldHeading=petScreen?.querySelector('.collection-heading');
+ if(oldHeading)oldHeading.hidden=true;
+ if(petScreen){
+  const welcome=document.createElement('section');
+  welcome.className='desktop-welcome';
+  welcome.innerHTML=`<p class="desktop-kicker">START HERE</p><h1>Your fren is ready.</h1><p class="desktop-lead">Feed them, play with them, or let them nap. You do not need a wallet or an NFT to use the desktop companion.</p><div class="desktop-start-actions"><button type="button" data-screen="care">Care for my fren</button><button type="button" class="secondary" data-screen="looks">Change their look</button></div><p class="desktop-optional">Want to bring an NFT along later? That is optional and lives under <strong>NFTs</strong>.</p>`;
+  petScreen.prepend(welcome);
+ }
+ const walletScreen=document.getElementById('screen-wallet');
+ const walletPanel=document.getElementById('externalWalletPanel');
+ if(walletScreen){
+  const title=walletScreen.querySelector('h1');if(title)title.textContent='Bring an NFT along';
+  const intro=walletScreen.querySelector('.screen-intro');if(intro)intro.textContent='Optional: link a wallet, then choose supported NFTs to show on this computer.';
+  if(walletPanel)intro?.after(walletPanel);
+ }
+ const lookPanel=document.getElementById('lookPanel');
+ if(lookPanel&&walletScreen){
+  const looks=document.createElement('section');
+  looks.id='screen-looks';looks.className='screen';looks.hidden=true;
+  looks.innerHTML='<div class="collection-heading"><div><h1>Change their look</h1><p class="screen-intro">Pick a species, colour, expression, and accessory. Changes save immediately.</p></div></div>';
+  lookPanel.hidden=false;looks.append(lookPanel);walletScreen.before(looks);
+ }
+}
 window.showScreen=name=>{
  if(typeof name==='string'&&name.includes('?'))name=name.split('?')[0];
  if(name==='settings')name='account';
  if(name==='plaza'||name==='public')name='party';
- const walletRequested=name==='wallet';
- if(walletRequested)name='account';
- if(name==='pet' && window.TinyFrensWalletConnected===false)name='account';
  const screens=[...document.querySelectorAll('[data-screen]')].map(tab=>tab.dataset.screen);
  if(!screens.includes(name))name='pet';
  for(const screen of document.querySelectorAll('.screen'))screen.hidden=screen.id!=='screen-'+name;
@@ -24,7 +48,7 @@ window.showScreen=name=>{
  }
  const more=document.getElementById('moreMenu');if(more){more.open=false;}
  history.replaceState(null,'','#'+(name==='party'?'plaza':name));window.scrollTo(0,0);
- if(walletRequested){const manager=document.getElementById('walletManager');if(manager){manager.open=true;manager.scrollIntoView({block:'start'});}}
+ if(name==='wallet'){const manager=document.getElementById('walletManager');if(manager)manager.open=true;}
 };
 for(const tab of document.querySelectorAll('[data-screen]')){
  tab.onclick=()=>showScreen(tab.dataset.screen);

@@ -80,17 +80,17 @@ for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('clic
 });
 function refreshFloatingButton(){
  if(!native&&!desktop)return;
- const visible=desktop?desktop.isPetVisible():PetAndroid.isPetVisible();$('start').textContent=visible?'Hide NFTs':'Show NFTs';$('start').setAttribute('aria-pressed',String(visible));
+ const visible=desktop?desktop.isPetVisible():PetAndroid.isPetVisible();$('start').textContent=visible?'Hide fren':'Show fren';$('start').setAttribute('aria-pressed',String(visible));
 }
 $('start').onclick=()=>{
  if(desktop){const visible=desktop.togglePet();$('message').textContent=visible?'Your fren is floating.':'Fren hidden.';refreshFloatingButton();return;}
  if(!native){$('stage').scrollIntoView({behavior:'smooth',block:'center'});$('message').textContent='Your imported NFTs appear here in TinyFrens.';return;}
- if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Fren hidden.';$('start').textContent='Show NFTs';}
- else{const started=PetAndroid.startPet();$('message').textContent=started?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show NFTs again.';if(started)$('start').textContent='Hide NFTs';}
+ if(PetAndroid.isPetVisible()){PetAndroid.stopPet();$('message').textContent='Fren hidden.';$('start').textContent='Show fren';}
+ else{const started=PetAndroid.startPet();$('message').textContent=started?'Your fren is ready! Switch apps.':'Ask a grown-up to allow floating, then tap Show fren again.';if(started)$('start').textContent='Hide fren';}
  $('start').disabled=true;setTimeout(()=>{$('start').disabled=false;refreshFloatingButton();},500);
 };
 if(native||desktop){refreshFloatingButton();setInterval(()=>{if(!document.hidden)refreshFloatingButton();},1000);}
-$('platform').textContent=(native||desktop)?'Show your imported NFTs over other apps.':'Your imported NFTs appear here in TinyFrens.';
+$('platform').textContent=desktop?'Keep your fren floating above your other apps.':native?'Show your fren over other apps.':'Your fren appears here in TinyFrens.';
 function editName(open){
   $('nameRow').hidden=open;$('nameForm').hidden=!open;
   if(open){$('nameInput').value=read().name||'';$('nameInput').focus();$('nameInput').select();}

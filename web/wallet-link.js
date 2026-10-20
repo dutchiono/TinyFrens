@@ -53,9 +53,6 @@
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   let linkedAddresses = [];
   const manager = document.getElementById('walletManager');
-  document.getElementById('accountControls').prepend(manager);
-
-
   function identity() {
     const current = window.TinyFrensFriends?.identity?.() || JSON.parse(localStorage.getItem('tinyfrens-device:' + base()) || 'null');
     if (!current?.token) throw new Error('Your fren is still connecting. Try again in a moment.');
@@ -73,7 +70,7 @@
     window.TinyFrensWalletConnected = addresses.length > 0;
     document.getElementById('accountHeading').textContent = addresses.length ? 'Your account' : 'Set up your account';
     document.getElementById('accountIntro').textContent = addresses.length ? 'Wallets, linked devices and profile.' : 'Connect a wallet or link a device you already use.';
-    if ((!addresses.length || approvingDevice) && window.showScreen && document.getElementById('screen-pet').hidden === false) window.showScreen('account');
+    if (approvingDevice && window.showScreen) window.showScreen('wallet');
     manager.querySelector('summary').textContent = addresses.length ? `Connected wallets (${addresses.length})` : 'Add wallets';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();

@@ -21,6 +21,14 @@ let store, turtles, turtleTick, pet, careWindow, tray, tick, quitting = false, p
 let moving = null, target = null, nextTarget = 0, lastTick = Date.now(), ignoring = true, sleepingUntil = 0, fadeTimer = null, systemReducedMotion = false;
 const allowedWindows = new Map();
 const companionWindows = new Map();
+function floatOverlays(enabled) {
+  if (smoke) return;
+  for (const win of [pet, ...[...companionWindows.values()].map(entry => entry.win)]) {
+    if (!win || win.isDestroyed()) continue;
+    if (enabled) win.setAlwaysOnTop(true, 'floating');
+    else win.setAlwaysOnTop(false);
+  }
+}
 function pageURL(url) { try { const u = new URL(url); u.search = ''; u.hash = ''; return u.href; } catch { return ''; } }
 function trusted(event) {
   const expected = allowedWindows.get(event.sender.id);
@@ -63,6 +71,7 @@ function syncCompanions() {
     if (!entry) {
       const win = new BrowserWindow({width:128,height:128,frame:false,transparent:true,resizable:false,hasShadow:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:preferences()});
       win.setAlwaysOnTop(true, 'floating'); win.setIgnoreMouseEvents(true);
+      if (!smoke && careWindow?.isFocused()) win.setAlwaysOnTop(false);
       if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen:true});
       entry = {win, nft, point:null, target:null}; companionWindows.set(companionKey(nft), entry);
       secureWindow(win, path.join(__dirname, 'companion.html')).catch(() => {});
@@ -118,6 +127,8 @@ function openApp() {
     careWindow.removeMenu();
     secureWindow(careWindow, path.join(__dirname, 'web/index.html')).catch(() => {});
     careWindow.once('ready-to-show', () => careWindow.show());
+    careWindow.on('focus', () => floatOverlays(false));
+    careWindow.on('blur', () => floatOverlays(true));
     careWindow.on('close', event => { if (!quitting) { event.preventDefault(); careWindow.hide(); } });
   } else { careWindow.show(); careWindow.focus(); broadcast(); }
 }
@@ -227,7 +238,16 @@ async function smokeTest() {
     assert.equal(pet.isVisible(), true);
     assert.equal(await js('typeof window.TinyFrensDesktop'), 'object');
     assert.equal(await js('typeof require'), 'undefined');
-    assert.equal(await js('document.getElementById("start").textContent'), 'Hide NFTs');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Hide fren');
+    assert.equal(await js('document.getElementById("screen-pet").hidden'), false);
+    assert.equal(await js('document.querySelector(".desktop-welcome h1").textContent'), 'Your fren is ready.');
+    assert.deepEqual(await js('[...document.querySelectorAll("#mainNavigation .tf-nav-links>button")].map(button=>button.textContent)'), ['Home','Care','Customize','NFTs']);
+    assert.equal(await js('document.getElementById("externalWalletPanel").parentElement.id'), 'screen-wallet');
+    await js('document.getElementById("tab-care").click()');
+    assert.equal(await js('document.getElementById("screen-care").hidden'), false);
+    await js('document.getElementById("tab-looks").click()');
+    assert.equal(await js('document.getElementById("screen-looks").hidden'), false);
+    await js('document.getElementById("tab-pet").click()');
     await js('document.getElementById("play").click()');
     await pause(100);
     assert.equal(store.read().energy, 68); assert.equal(store.read().hunger, 72);
@@ -244,7 +264,7 @@ async function smokeTest() {
     await pet.webContents.executeJavaScript('document.getElementById("closePet").click()');
     await pause(100);
     assert.equal(pet.isVisible(), false);
-    assert.equal(await js('document.getElementById("start").textContent'), 'Show NFTs');
+    assert.equal(await js('document.getElementById("start").textContent'), 'Show fren');
     await js('document.getElementById("start").click()');
     await pause(100); assert.equal(pet.isVisible(), true);
     const before = pet.getBounds(), area = screen.getDisplayMatching(before).workArea;

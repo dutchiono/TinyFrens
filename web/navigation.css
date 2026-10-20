@@ -40,3 +40,11 @@ body.tf-connect-page>main{padding:0 20px}
 @media(max-width:480px){#mainNavigation .tf-header-fren{width:34px;height:34px;bottom:10px}}
 
 #mainNavigation .tf-header-ledge{position:absolute;top:49px;height:3px;border-radius:2px;background:#66517e;opacity:.65;pointer-events:none}
+
+.desktop-app #mainNavigation .tf-nav-inner{max-width:900px}
+.desktop-app #mainNavigation .tf-nav-links{gap:8px}
+.desktop-app #mainNavigation .tf-nav-links>button{padding-inline:18px}
+@media(max-width:620px){
+ .desktop-app #mainNavigation .tf-nav-links{overflow-x:auto;padding-bottom:2px}
+ .desktop-app #mainNavigation .tf-nav-links>button{padding-inline:12px}
+}

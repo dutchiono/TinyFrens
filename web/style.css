@@ -695,3 +695,31 @@ button{background:#a474f1;color:#120f22;border-color:#0d0a19}
 }
 
 .connection-qr:empty{display:none}.connection-qr{max-width:220px;margin:12px auto;background:#fff;padding:8px;border-radius:12px}.connection-qr svg{display:block;width:100%;height:auto}.connection-scanner{max-width:min(480px,90vw);border:1px solid #63517c;border-radius:14px;background:#211c39;color:#f3eeff}.connection-scanner video{width:100%;max-height:55vh}#walletProvider{display:block;width:100%;padding:10px;margin:8px 0;background:#17142a;color:#f3eeff;border:1px solid #63517c;border-radius:8px}
+
+/* Electron gets a task-first home instead of the browser account funnel. */
+.desktop-app .top-space-bar{display:none}
+.desktop-app main{max-width:900px;padding-top:28px}
+.desktop-app #screen-pet:not([hidden]){display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:18px;align-items:start}
+.desktop-welcome{grid-column:1;padding:34px;border:1px solid #584274;border-radius:22px;background:linear-gradient(145deg,#2a2044,#1d1833);box-shadow:0 18px 44px #08051155}
+.desktop-kicker{margin:0 0 10px;color:#b995ff;font-size:11px;font-weight:850;letter-spacing:.18em}
+.desktop-welcome h1{margin:0 0 12px;color:#fff;font-size:clamp(32px,5vw,50px);line-height:1;letter-spacing:-2px}
+.desktop-lead{max-width:590px;margin:0;color:#d0c5e4;font-size:16px;line-height:1.6}
+.desktop-start-actions{display:flex;gap:10px;margin-top:24px}
+.desktop-start-actions button{flex:1}
+.desktop-optional{margin:18px 0 0;color:#9f94b8;font-size:13px;line-height:1.5}
+.desktop-app #screen-pet>.floating-controls{grid-column:1;margin:0;padding:22px;border:1px solid #4a3b68;border-radius:18px;background:#211c39}
+.desktop-app #screen-pet>.floating-controls .actions{max-width:260px;margin-bottom:0}
+.desktop-app #screen-pet>.pet-card{grid-column:2;grid-row:1/span 2;position:sticky;top:155px;display:block;min-height:390px;padding:28px 20px;border:1px solid #4a3b68;border-radius:22px;background:linear-gradient(180deg,#27203f,#1b172f)}
+.desktop-app #screen-pet .name-row{display:flex}
+.desktop-app #screen-pet .stage-label,.desktop-app #screen-pet #mood,.desktop-app #screen-pet #chatHint{display:block}
+.desktop-app #screen-pet .pet-stage{margin-block:22px;background:radial-gradient(circle,#564771 1px,transparent 1px);background-size:18px 18px}
+.desktop-app #screen-looks,.desktop-app #screen-wallet,.desktop-app #screen-account,.desktop-app #screen-care{max-width:760px;margin-inline:auto}
+.desktop-app #screen-looks>.collection-heading,.desktop-app #screen-wallet>.collection-heading{justify-content:flex-start;text-align:left}
+.desktop-app #lookPanel>.overlay{padding:22px;border:1px solid #4a3b68;border-radius:18px;background:#211c39}
+@media(max-width:720px){
+ .desktop-app #screen-pet:not([hidden]){display:block}
+ .desktop-welcome{padding:24px}
+ .desktop-app #screen-pet>.floating-controls{margin-top:16px}
+ .desktop-app #screen-pet>.pet-card{position:static;margin-top:16px;min-height:0}
+ .desktop-start-actions{flex-direction:column}
+}

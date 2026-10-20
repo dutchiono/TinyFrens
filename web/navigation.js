@@ -4,6 +4,7 @@
   const source = document.currentScript.src;
   const web = file => new URL(file, source).href;
   const nativeApp = !!(window.PetAndroid || window.TinyFrensDesktop || window.PetIOS);
+  const desktopApp = !!window.TinyFrensDesktop;
   const updatesUrl = 'https://tinyfrens.lol/updates/';
   const tokenomicsUrl = 'https://tinyfrens.lol/tokenomics/';
   const home = nativeApp ? web('index.html#pet') : location.protocol === 'file:' ? 'https://www.tinyfrens.lol/' : new URL('../', source).href;
@@ -13,9 +14,15 @@
     ? `<button id="tab-${screen}" type="button" data-screen="${screen}">${label}</button>`
     : `<a href="${web('index.html#' + screen)}">${label}</a>`;
   const link = (key, href, label) => `<a href="${href}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
-  host.innerHTML = `<div class="tf-header-frens" aria-hidden="true"></div><div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">●</span></a></div>
-    <nav class="tf-nav-links" aria-label="Main navigation">${link('home', home, 'Home')}${item('pet', 'My NFTs')}${link('gallery', web('gallery.html'), 'Gallery')}${link('vote', web('vote.html'), 'Vote')}
-    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">⌄</span></summary><div class="tf-more-options">${item('games', 'Games')}<a href="https://tinyfrens.lol/game/">Group game</a>${item('care', 'Care')}${item('party', 'Plaza')}${item('help', 'Help')}${item('account', 'Account')}${link('tokenomics', tokenomicsUrl, 'Tokenomics')}${link('updates', updatesUrl, 'Updates')}<a href="https://tinyfrens.lol/docs/" target="_blank" rel="noopener">Docs ↗</a><a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a></div></details></nav></div>`;
+  const primary = desktopApp && inApp
+    ? `${item('pet', 'Home')}${item('care', 'Care')}${item('looks', 'Customize')}${item('wallet', 'NFTs')}`
+    : `${link('home', home, 'Home')}${item('pet', 'My NFTs')}${link('gallery', web('gallery.html'), 'Gallery')}${link('vote', web('vote.html'), 'Vote')}`;
+  const secondary = desktopApp && inApp
+    ? `${item('games', 'Games')}${item('party', 'Plaza')}${item('help', 'Help')}${item('account', 'Settings')}`
+    : `${item('games', 'Games')}<a href="https://tinyfrens.lol/game/">Group game</a>${item('care', 'Care')}${item('party', 'Plaza')}${item('help', 'Help')}${item('account', 'Account')}${link('tokenomics', tokenomicsUrl, 'Tokenomics')}${link('updates', updatesUrl, 'Updates')}<a href="https://tinyfrens.lol/docs/" target="_blank" rel="noopener">Docs &nearr;</a><a href="${new URL('../', source).protocol === 'file:' ? 'https://www.tinyfrens.lol/#install' : new URL('../#install', source).href}">Get the app</a>`;
+  host.innerHTML = `<div class="tf-header-frens" aria-hidden="true"></div><div class="tf-nav-inner"><div class="tf-nav-heading"><a class="tf-brand" href="${home}">tinyfrens<span aria-hidden="true">&#9679;</span></a></div>
+    <nav class="tf-nav-links" aria-label="Main navigation">${primary}
+    <details class="tf-more" id="moreMenu"><summary>More <span aria-hidden="true">&#8964;</span></summary><div class="tf-more-options">${secondary}</div></details></nav></div>`;
   const updatesLink = host.querySelector(`a[href="${updatesUrl}"]`);
   updatesLink?.addEventListener('click', event => {
     if (!nativeApp || navigator.onLine !== false) return;
