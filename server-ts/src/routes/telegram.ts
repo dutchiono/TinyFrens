@@ -384,10 +384,9 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           let toast = 'That scrap run is no longer available.';
           let showAlert = false;
           if (!result.ok) {
-            if (result.reason === 'full') toast = 'That crew is full or its join window has closed.';
+            if (result.reason === 'full') toast = 'That crew is full.';
             if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
-            if (result.reason === 'waiting') toast = `Crew is still open for ${result.waitSeconds || 1}s.`;
-            showAlert = result.reason !== 'waiting';
+            showAlert = true;
           } else {
             toast = action === 'join'
               ? (result.changed ? 'You joined the crew.' : 'You are already in this crew.')
@@ -587,7 +586,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               let failure = 'Telegram API request failed';
               try {
                 let visible = false;
-                if (!started.created && previousCardId && now <= started.state.run.join_until) {
+                if (!started.created && previousCardId) {
                   const edited = await context.telegramApi.call('editMessageText', {
                     chat_id: chatId,
                     message_id: previousCardId,
