@@ -2,7 +2,7 @@
   const host = document.getElementById('externalWalletPanel');
   if (!host) return;
   const panel = document.createElement('section'); panel.className = 'device-sync-panel';
-  panel.innerHTML = `<h2>Link another device</h2><p>Share your wallets, screen Frens, Telegram slots, sizes and movement settings. Copy a code from the device you want to use, then enter it on the other device.</p>
+  panel.innerHTML = `<h2>Link another device</h2><p>Share your wallets, screen Frens, community /show choices, sizes and movement settings. Copy a code from the device you want to use, then enter it on the other device.</p>
     <div class="sync-code-row"><button id="syncCode" class="sync-code-display" type="button" title="Copy this code">Connecting…</button><button id="createSyncCode" type="button" class="secondary">Get code / retry</button></div><div id="syncQR" class="connection-qr"></div><p id="syncExpiry" class="small"></p>
     <label for="enterSyncCode">Enter a code from your other device</label><div class="sync-code-row"><input id="enterSyncCode" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="14"><button id="joinSync" type="button">Sync</button></div>
     <button id="scanSyncQR" type="button" class="secondary">Scan QR code</button><p class="small">You can also scan with your phone’s Camera app. Choose “Open this connection in the Android app” on the page it opens to link your installed app.</p><p id="syncStatus" role="status"></p><button id="leaveSync" type="button" class="secondary" hidden>Stop syncing this device</button>
@@ -47,7 +47,7 @@
   }
   async function setTelegramSlot(nft, requestedSlot) {
     const slot = Number(requestedSlot);
-    if (!Number.isInteger(slot) || slot < 0 || slot > 5) throw Error('Choose Telegram slot 1 through 5, or Off.');
+    if (!Number.isInteger(slot) || slot < 0 || slot > 5) throw Error('Choose /show through /show 5, or Not selected.');
     await ensureState();
     const identity = telegramIdentity(nft), nftKey = key(identity);
     const previous = telegramSelection.find(item => key(item) === nftKey);
@@ -59,7 +59,7 @@
     try {
       const data = await post('state', {revision, telegramSelection:next});
       revision = data.revision; setTelegramSelection(data.telegramSelection);
-      $('syncStatus').textContent = slot ? `Saved in Telegram slot ${slot}.` : 'Removed from Telegram.';
+      $('syncStatus').textContent = slot ? `Saved for ${slot === 1 ? '/show' : `/show ${slot}`} in Telegram and Discord.` : 'Removed from community /show.';
       return slot;
     } finally { busy = false; }
   }

@@ -102,7 +102,7 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.match(String(api.calls.at(-1)?.payload.text), /five-minute window/);
 
     await webhook({ message: { message_id: 23, text: '/showhelp', chat: { id: 1, type: 'private' }, from: { id: 5 } } });
-    assert.match(String(api.calls.at(-1)?.payload.text), /Show in community bots/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /Use for \/show/);
     assert.match(String(api.calls.at(-1)?.payload.text), /exact Telegram slot/);
   });
 

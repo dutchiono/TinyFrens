@@ -22,12 +22,16 @@ export async function communityCompanion(
 ): Promise<VerifiedTelegramCompanion> {
   const snapshot = getDeviceSyncSnapshot(context, petId);
   if (snapshot.telegramSelection.length === 0) {
-    throw new Error('No community-bot slots are selected. Open TinyFrens and choose Show in community bots first');
+    throw new Error('No /show Fren is selected. Open TinyFrens → My NFTs and tap Use for /show on the NFT you want');
   }
   const item = snapshot.telegramSelection.find(
     value => Number((value as Record<string, unknown>).slot) === position
   ) as Record<string, unknown> | undefined;
-  if (!item) throw new Error(`Telegram slot ${position} is empty. Choose it in TinyFrens first`);
+  if (!item) {
+    const command = position === 1 ? '/show' : `/show ${position}`;
+    const action = position === 1 ? 'tap Use for /show on the NFT you want' : `choose ${command} under More /show commands`;
+    throw new Error(`${command} has no Fren selected. Open TinyFrens → My NFTs and ${action}`);
+  }
   const collection = String(item.originalAddress || '').toLowerCase();
   const tokenId = Number(item.tokenId);
   const addresses = linkedWallets(context, petId);
