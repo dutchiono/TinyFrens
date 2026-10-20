@@ -130,6 +130,8 @@ describe('Admin Store Tests', () => {
     assert.equal(username, 'dutch');
     assert.ok(token);
     assert.equal(a.validateSession(token), 'dutch');
+    assert.deepEqual(a.listUsers().map(user => user.username), ['dutch', 'mantrid', 'michael']);
+    assert.equal(a.listUsers().find(user => user.username === 'michael')?.passwordChangeRequired, true);
   });
 
   it('authentication invalid password', () => {
@@ -147,6 +149,24 @@ describe('Admin Store Tests', () => {
     const users = admin.listUsers().map(u => u.username);
     assert.ok(users.includes('alice'));
     assert.ok(users.includes('dutch'));
+    assert.throws(() => admin.createUser('alice', 'anotherpassword123'), /already exists/);
+  });
+
+  it('changes only the signed-in admin password and revokes their other sessions', () => {
+    admin.createUser('alice', 'superpassword123');
+    const first = admin.authenticate('alice', 'superpassword123');
+    const second = admin.authenticate('alice', 'superpassword123');
+    db.prepare('UPDATE admin_users SET must_change_password=1 WHERE username=?').run('alice');
+    assert.equal(admin.passwordChangeRequired('alice'), true);
+
+    admin.changePassword('alice', 'superpassword123', 'differentpassword456', first.token);
+    assert.equal(admin.validateSession(first.token), 'alice');
+    assert.equal(admin.validateSession(second.token), null);
+    assert.equal(admin.passwordChangeRequired('alice'), false);
+    assert.throws(() => admin.authenticate('alice', 'superpassword123'), UnauthorizedError);
+    assert.equal(admin.authenticate('alice', 'differentpassword456').username, 'alice');
+    assert.equal(admin.recentAudit()[0].action, 'login');
+    assert.ok(admin.recentAudit().some(entry => entry.action === 'change_password'));
   });
 
   it('session expiry and logout', () => {

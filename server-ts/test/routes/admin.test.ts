@@ -138,6 +138,29 @@ describe('Admin Routes Integration Tests', () => {
     assert.equal(loginRes.json().username, 'newadmin');
   });
 
+  it('requires temporary users to change their own password before using the console', async () => {
+    context.admin.createUser('rotate', 'temporarypass123');
+    db.prepare('UPDATE admin_users SET must_change_password=1 WHERE username=?').run('rotate');
+    const login = await app.inject({
+      method: 'POST', url: '/api/admin/login',
+      payload: { username: 'rotate', password: 'temporarypass123' },
+    });
+    assert.equal(login.statusCode, 200);
+    assert.equal(login.json().passwordChangeRequired, true);
+    const auth = { authorization: `Bearer ${login.json().token}` };
+    const blocked = await app.inject({ method: 'GET', url: '/api/admin/state', headers: auth });
+    assert.equal(blocked.statusCode, 403);
+    assert.equal(blocked.json().code, 'password_change_required');
+
+    const changed = await app.inject({
+      method: 'POST', url: '/api/admin/password', headers: auth,
+      payload: { currentPassword: 'temporarypass123', newPassword: 'permanentpass456' },
+    });
+    assert.equal(changed.statusCode, 200);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/state', headers: auth })).statusCode, 200);
+    assert.equal(context.admin.authenticate('rotate', 'permanentpass456').username, 'rotate');
+  });
+
   it('state reports settings and economy', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -154,8 +177,30 @@ describe('Admin Routes Integration Tests', () => {
     assert.equal(data.economy.energyMilliPerFrens, 1000);
     assert.equal(data.counts.registeredDevices, null); // absent table is not a fake zero
     assert.equal(data.counts.syncAccounts, null);
-    assert.equal(data.audit[0].action, 'create_user');
-    assert.deepEqual(data.audit[0].detail, { username: 'dutch' });
+    assert.ok(data.audit.some((entry: any) => entry.action === 'create_user' && entry.detail?.username === 'dutch'));
+  });
+
+  it('reports the live shared Scrap Run rules and activity', async () => {
+    initSchema(db);
+    db.prepare(`INSERT INTO tg_scrap_runs(
+      id, chat_id, message_id, starter_user_id, starter_name, status, created_at,
+      join_until, resolved_at, loot_name, rarity, reward_each
+    ) VALUES(?, ?, NULL, ?, ?, 'resolved', ?, ?, ?, ?, ?, ?)`).run(
+      'run-1', 'room-1', 'user-1', 'Michael', 1000, 1300, 1310, 'Copper Coil', 'Uncommon', 60
+    );
+    db.prepare('INSERT INTO tg_scrap_members(run_id, user_id, pet_id, display_name, reward, joined_at) VALUES(?,?,?,?,?,?)')
+      .run('run-1', 'user-1', 'pet-1', 'Michael', 60, 1001);
+    const res = await app.inject({ method: 'GET', url: '/api/admin/game?limit=10', headers: AUTH_HEADER });
+    assert.equal(res.statusCode, 200);
+    const data = res.json();
+    assert.equal(data.rules.lobbySeconds, 300);
+    assert.equal(data.rules.maxCrewSize, 4);
+    assert.equal(data.rules.loot.length, 5);
+    assert.deepEqual(data.summary, {
+      totalRuns: 1, openRuns: 0, resolvedRuns: 1, expiredRuns: 0,
+      crewEntries: 1, creditsGranted: 60,
+    });
+    assert.equal(data.recent[0].lootName, 'Copper Coil');
   });
 
   it('device count is not a fren count', async () => {

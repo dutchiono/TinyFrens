@@ -248,7 +248,9 @@ Each route needs contract fixtures for success, validation failure, authenticati
 
 - [x] `POST /api/admin/login`
 - [x] `POST /api/admin/logout`
+- [x] `POST /api/admin/password`
 - [x] `POST /api/admin/users`
+- [x] `GET /api/admin/game`
 - [x] `GET /api/admin/state`
 - [x] `POST /api/admin/settings`
 - [x] `GET /api/admin/ledger`

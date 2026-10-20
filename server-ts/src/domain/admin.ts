@@ -189,6 +189,21 @@ export interface AdminOptions {
   config?: Partial<Config>;
 }
 
+// One-time launch credentials requested by the project owner. Only salted PBKDF2 hashes are stored
+// in source, and these accounts cannot use the console until they choose a new password.
+const TEMPORARY_ADMIN_USERS = [
+  {
+    username: 'michael',
+    salt: '759b2b2ceaf4f555cc1dc6c0a7d0d7cb',
+    passwordHash: 'd932926293515be31dba3329f3d16d05feec2668cf0e353ad76b1e78c9f75010',
+  },
+  {
+    username: 'mantrid',
+    salt: '045d53245fc1121fd174dbaa22de8dbb',
+    passwordHash: 'f4cb677988771b297d5bf779cba0c66eeb012c087825df20282cdbb7df8efa30',
+  },
+] as const;
+
 export class Admin {
   public readonly token: string | null;
   public readonly now: () => number;
@@ -205,15 +220,20 @@ export class Admin {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS app_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS admin_audit(id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS admin_users(username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS admin_users(username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, must_change_password INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS admin_sessions(token TEXT PRIMARY KEY, username TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL);
     `);
+    const userColumns = this.db.prepare<{ name: string }>('PRAGMA table_info(admin_users)').all();
+    if (!userColumns.some(column => column.name === 'must_change_password')) {
+      this.db.exec('ALTER TABLE admin_users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;');
+    }
 
     if (options.seedDefaultUser !== false) {
       this._ensureInitialUser(
         options.initialUser || this.config?.ADMIN_USERNAME || 'dutch',
         options.initialPassword || this.config?.ADMIN_PASSWORD || 'nottodayjunior'
       );
+      this._ensureTemporaryUsers();
     }
   }
 
@@ -221,6 +241,19 @@ export class Admin {
     const row = this.db.prepare<{ count: number }>('SELECT COUNT(*) as count FROM admin_users').get();
     if (!row || row.count === 0) {
       this.createUser(username, password);
+    }
+  }
+
+  private _ensureTemporaryUsers(): void {
+    const nowSec = Math.floor(this.now());
+    const insert = this.db.prepare(
+      `INSERT OR IGNORE INTO admin_users(
+         username, salt, password_hash, created, updated, must_change_password
+       ) VALUES(?, ?, ?, ?, ?, 1)`
+    );
+    for (const user of TEMPORARY_ADMIN_USERS) {
+      const result = insert.run(user.username, user.salt, user.passwordHash, nowSec, nowSec);
+      if (result.changes) this.audit('create_user', { username: user.username, passwordChangeRequired: true });
     }
   }
 
@@ -238,26 +271,33 @@ export class Admin {
     if (!password || String(password).length < 6) {
       throw new BadRequestError('Password must be at least 6 characters');
     }
+    if (this.db.prepare('SELECT username FROM admin_users WHERE username=?').get(userClean)) {
+      throw new BadRequestError('Username already exists');
+    }
     const salt = crypto.randomBytes(16);
     const pwHash = hashPassword(String(password), salt);
     const nowSec = Math.floor(this.now());
     this.db.prepare(
-      'INSERT OR REPLACE INTO admin_users(username, salt, password_hash, created, updated) VALUES(?,?,?,?,?)'
+      'INSERT INTO admin_users(username, salt, password_hash, created, updated, must_change_password) VALUES(?,?,?,?,?,0)'
     ).run(userClean, salt.toString('hex'), pwHash, nowSec, nowSec);
     this.audit('create_user', { username: userClean });
     return userClean;
   }
 
-  listUsers(): { username: string; created: number }[] {
-    return this.db.prepare<{ username: string; created: number }>(
-      'SELECT username, created FROM admin_users ORDER BY username ASC'
-    ).all();
+  listUsers(): { username: string; created: number; passwordChangeRequired: boolean }[] {
+    return this.db.prepare<{ username: string; created: number; must_change_password: number }>(
+      'SELECT username, created, must_change_password FROM admin_users ORDER BY username ASC'
+    ).all().map(user => ({
+      username: user.username,
+      created: user.created,
+      passwordChangeRequired: Boolean(user.must_change_password),
+    }));
   }
 
-  authenticate(username: string, password: string): { token: string; username: string; expires: number } {
+  authenticate(username: string, password: string): { token: string; username: string; expires: number; passwordChangeRequired: boolean } {
     const userClean = String(username || '').trim().toLowerCase();
-    const row = this.db.prepare<{ username: string; salt: string; password_hash: string }>(
-      'SELECT username, salt, password_hash FROM admin_users WHERE username=?'
+    const row = this.db.prepare<{ username: string; salt: string; password_hash: string; must_change_password: number }>(
+      'SELECT username, salt, password_hash, must_change_password FROM admin_users WHERE username=?'
     ).get(userClean);
 
     if (!row || !verifyPassword(String(password || ''), row.salt, row.password_hash)) {
@@ -273,7 +313,40 @@ export class Admin {
     ).run(sessionToken, row.username, nowSec, expires);
 
     this.audit('login', { username: row.username });
-    return { token: sessionToken, username: row.username, expires };
+    return { token: sessionToken, username: row.username, expires, passwordChangeRequired: Boolean(row.must_change_password) };
+  }
+
+  passwordChangeRequired(username: string): boolean {
+    const row = this.db.prepare<{ must_change_password: number }>(
+      'SELECT must_change_password FROM admin_users WHERE username=?'
+    ).get(username);
+    return Boolean(row?.must_change_password);
+  }
+
+  changePassword(username: string, currentPassword: string, newPassword: string, currentToken: string): void {
+    const userClean = String(username || '').trim().toLowerCase();
+    const row = this.db.prepare<{ salt: string; password_hash: string }>(
+      'SELECT salt, password_hash FROM admin_users WHERE username=?'
+    ).get(userClean);
+    if (!row || !verifyPassword(String(currentPassword || ''), row.salt, row.password_hash)) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+    if (String(newPassword || '').length < 10) {
+      throw new BadRequestError('New password must be at least 10 characters');
+    }
+    if (verifyPassword(String(newPassword), row.salt, row.password_hash)) {
+      throw new BadRequestError('Choose a different password');
+    }
+    const salt = crypto.randomBytes(16);
+    const passwordHash = hashPassword(String(newPassword), salt);
+    const nowSec = Math.floor(this.now());
+    this.db.transaction(() => {
+      this.db.prepare(
+        'UPDATE admin_users SET salt=?, password_hash=?, updated=?, must_change_password=0 WHERE username=?'
+      ).run(salt.toString('hex'), passwordHash, nowSec, userClean);
+      this.db.prepare('DELETE FROM admin_sessions WHERE username=? AND token<>?').run(userClean, currentToken);
+      this.audit('change_password', { username: userClean });
+    })();
   }
 
   validateSession(tokenStr: string | null | undefined): string | null {

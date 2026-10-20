@@ -18,6 +18,12 @@ import {
   shapeOverrides,
 } from '../domain/admin.js';
 import { MARKET_TOKEN } from '../domain/market-quote-math.js';
+import {
+  SCRAP_GROUP_BONUS_CREDITS,
+  SCRAP_LOBBY_SECONDS,
+  SCRAP_LOOT_TABLE,
+  SCRAP_MAX_CREW_SIZE,
+} from '../domain/telegram-scrap.js';
 import { loadEconomyConfigFile, getEconomySettings } from './economy.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -77,6 +83,68 @@ export function getCounts(db: DatabaseConnection, nowSec: number): Record<string
   };
 }
 
+export function getScrapGameView(db: DatabaseConnection, limit: number): Record<string, unknown> {
+  const summary = db.prepare<{
+    total_runs: number;
+    open_runs: number;
+    resolved_runs: number;
+    expired_runs: number;
+    total_rewards: number;
+  }>(`SELECT COUNT(*) AS total_runs,
+             COALESCE(SUM(status='open'), 0) AS open_runs,
+             COALESCE(SUM(status='resolved'), 0) AS resolved_runs,
+             COALESCE(SUM(status='expired'), 0) AS expired_runs,
+             COALESCE(SUM(CASE WHEN status='resolved' THEN
+               reward_each * (SELECT COUNT(*) FROM tg_scrap_members m WHERE m.run_id=tg_scrap_runs.id)
+             ELSE 0 END), 0) AS total_rewards
+        FROM tg_scrap_runs`).get();
+  const members = db.prepare<{ count: number }>('SELECT COUNT(*) AS count FROM tg_scrap_members').get()?.count || 0;
+  const recent = db.prepare<{
+    id: string;
+    chat_id: string;
+    starter_name: string;
+    status: string;
+    created_at: number;
+    resolved_at: number | null;
+    loot_name: string | null;
+    rarity: string | null;
+    reward_each: number | null;
+    crew_size: number;
+  }>(`SELECT r.id, r.chat_id, r.starter_name, r.status, r.created_at, r.resolved_at,
+             r.loot_name, r.rarity, r.reward_each, COUNT(m.user_id) AS crew_size
+        FROM tg_scrap_runs r LEFT JOIN tg_scrap_members m ON m.run_id=r.id
+       GROUP BY r.id ORDER BY r.created_at DESC LIMIT ?`).all(limit);
+  return {
+    rules: {
+      platforms: ['Telegram', 'Discord'],
+      lobbySeconds: SCRAP_LOBBY_SECONDS,
+      maxCrewSize: SCRAP_MAX_CREW_SIZE,
+      groupBonusCredits: SCRAP_GROUP_BONUS_CREDITS,
+      loot: SCRAP_LOOT_TABLE.map(({ rollBelow: _rollBelow, ...item }) => item),
+    },
+    summary: {
+      totalRuns: summary?.total_runs || 0,
+      openRuns: summary?.open_runs || 0,
+      resolvedRuns: summary?.resolved_runs || 0,
+      expiredRuns: summary?.expired_runs || 0,
+      crewEntries: members,
+      creditsGranted: summary?.total_rewards || 0,
+    },
+    recent: recent.map(row => ({
+      id: row.id,
+      roomId: row.chat_id,
+      starterName: row.starter_name,
+      status: row.status,
+      createdAt: row.created_at,
+      resolvedAt: row.resolved_at,
+      lootName: row.loot_name,
+      rarity: row.rarity,
+      rewardEach: row.reward_each,
+      crewSize: row.crew_size,
+    })),
+  };
+}
+
 export function getEconomyView(context: AppContext): Record<string, unknown> {
   const view: Record<string, unknown> = {
     treasury: null,
@@ -130,7 +198,7 @@ function findAdminHtmlPath(): string | null {
 }
 
 export function registerAdminRoutes(app: FastifyInstance, context: AppContext): void {
-  const guard = (request: FastifyRequest, reply: FastifyReply): boolean => {
+  const guard = (request: FastifyRequest, reply: FastifyReply, allowPasswordChange = false): boolean => {
     if (!context.admin.enabled) {
       reply.status(503).send({ error: 'Admin is disabled' });
       return false;
@@ -144,6 +212,10 @@ export function registerAdminRoutes(app: FastifyInstance, context: AppContext): 
     const [valid, username] = context.admin.isValidToken(tokenStr);
     if (!valid) {
       reply.status(401).send({ error: 'Invalid or expired token' });
+      return false;
+    }
+    if (!allowPasswordChange && username !== 'system' && context.admin.passwordChangeRequired(username)) {
+      reply.status(403).send({ error: 'Password change required', code: 'password_change_required' });
       return false;
     }
     (request as any).adminUser = username;
@@ -182,10 +254,30 @@ export function registerAdminRoutes(app: FastifyInstance, context: AppContext): 
   });
 
   app.post('/api/admin/logout', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!guard(request, reply)) return;
+    if (!guard(request, reply, true)) return;
     const tokenStr = (request as any).adminToken;
     context.admin.logoutSession(tokenStr);
     return reply.status(200).send({ ok: true });
+  });
+
+  app.post('/api/admin/password', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!context.admin.enabled) return reply.status(503).send({ error: 'Admin is disabled' });
+    const header = request.headers.authorization || '';
+    const tokenStr = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    const username = context.admin.validateSession(tokenStr);
+    if (!username) return reply.status(401).send({ error: 'A signed-in admin session is required' });
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return reply.status(400).send({ error: 'Expected JSON body' });
+    }
+    try {
+      context.admin.changePassword(username, String(body.currentPassword || ''), String(body.newPassword || ''), tokenStr);
+      return reply.status(200).send({ ok: true, username });
+    } catch (err: any) {
+      if (err instanceof UnauthorizedError) return reply.status(400).send({ error: err.message });
+      if (err instanceof BadRequestError) return reply.status(400).send({ error: err.message });
+      return reply.status(500).send({ error: 'Password change failed' });
+    }
   });
 
   app.post('/api/admin/users', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -235,6 +327,17 @@ export function registerAdminRoutes(app: FastifyInstance, context: AppContext): 
     if (!guard(request, reply)) return;
     const quote = await context.marketQuote.get({ chainId: 8453, frensToken: MARKET_TOKEN });
     return reply.status(200).header('Cache-Control', 'no-store').send(quote);
+  });
+
+  app.get('/api/admin/game', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!guard(request, reply)) return;
+    const query = request.query as Record<string, string | undefined>;
+    try {
+      const limit = clampInt(query.limit ?? 50, 1, 200);
+      return reply.status(200).send(getScrapGameView(context.db, limit));
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message || 'Bad request' });
+    }
   });
 
   app.post('/api/admin/settings', async (request: FastifyRequest, reply: FastifyReply) => {

@@ -174,6 +174,14 @@ export function migrateDeployNotificationCards(db: DatabaseConnection): void {
   );
 }
 
+/** Adds first-login password rotation without changing existing administrator access. */
+export function migrateAdminPasswordChange(db: DatabaseConnection): void {
+  const columns = db.prepare<TableColumnInfo>('PRAGMA table_info(admin_users)').all();
+  if (!columns.some(column => column.name === 'must_change_password')) {
+    db.exec('ALTER TABLE admin_users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;');
+  }
+}
+
 /**
  * Applies all schema definitions and backward-compatible data migrations.
  */
@@ -184,4 +192,5 @@ export function runMigrations(db: DatabaseConnection): void {
   migrateAccountWallets(db);
   migrateEnergyPurchases(db);
   migrateDeployNotificationCards(db);
+  migrateAdminPasswordChange(db);
 }

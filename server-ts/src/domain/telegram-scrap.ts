@@ -1,8 +1,16 @@
 import { createHash } from 'node:crypto';
 import { DatabaseConnection } from '../db/connection.js';
 
-const LOBBY_SECONDS = 5 * 60;
-const MAX_CREW_SIZE = 4;
+export const SCRAP_LOBBY_SECONDS = 5 * 60;
+export const SCRAP_MAX_CREW_SIZE = 4;
+export const SCRAP_GROUP_BONUS_CREDITS = 10;
+export const SCRAP_LOOT_TABLE = [
+  { name: 'Rusted Gear', rarity: 'Common', chancePercent: 60, reward: 25, rollBelow: 0.6 },
+  { name: 'Copper Coil', rarity: 'Uncommon', chancePercent: 25, reward: 50, rollBelow: 0.85 },
+  { name: 'Lithium Cell', rarity: 'Rare', chancePercent: 10, reward: 100, rollBelow: 0.95 },
+  { name: 'Plasma Core', rarity: 'Epic', chancePercent: 4, reward: 250, rollBelow: 0.99 },
+  { name: 'Sentient AI Chip', rarity: 'Legendary', chancePercent: 1, reward: 1_000, rollBelow: 1 },
+] as const;
 export const STALE_RUN_SECONDS = 10 * 60;
 
 export interface ScrapRun {
@@ -113,7 +121,7 @@ export function startScrapRun(
     `INSERT INTO tg_scrap_runs(
       id, chat_id, message_id, starter_user_id, starter_name, status, created_at, join_until
     ) VALUES(?, ?, NULL, ?, ?, 'open', ?, ?)`
-  ).run(id, chatId, userId, name, now, now + LOBBY_SECONDS);
+  ).run(id, chatId, userId, name, now, now + SCRAP_LOBBY_SECONDS);
   return { state: getScrapState(db, id)!, created: true };
 }
 
@@ -135,7 +143,7 @@ export function joinScrapRun(
   if (state.members.some(member => member.user_id === userId || member.pet_id === petId)) {
     return { ok: true, state, changed: false };
   }
-  if (now > state.run.join_until || state.members.length >= MAX_CREW_SIZE) {
+  if (now > state.run.join_until || state.members.length >= SCRAP_MAX_CREW_SIZE) {
     return { ok: false, reason: 'full' };
   }
   db.prepare(
@@ -145,11 +153,8 @@ export function joinScrapRun(
 }
 
 function lootForRoll(roll: number): { name: string; rarity: string; reward: number } {
-  if (roll < 0.6) return { name: 'Rusted Gear', rarity: 'Common', reward: 25 };
-  if (roll < 0.85) return { name: 'Copper Coil', rarity: 'Uncommon', reward: 50 };
-  if (roll < 0.95) return { name: 'Lithium Cell', rarity: 'Rare', reward: 100 };
-  if (roll < 0.99) return { name: 'Plasma Core', rarity: 'Epic', reward: 250 };
-  return { name: 'Sentient AI Chip', rarity: 'Legendary', reward: 1_000 };
+  const loot = SCRAP_LOOT_TABLE.find(item => roll < item.rollBelow) || SCRAP_LOOT_TABLE.at(-1)!;
+  return { name: loot.name, rarity: loot.rarity, reward: loot.reward };
 }
 
 export function resolveScrapRun(
@@ -171,7 +176,7 @@ export function resolveScrapRun(
   }
 
   const loot = lootForRoll(random);
-  const groupBonus = Math.max(0, current.members.length - 1) * 10;
+  const groupBonus = Math.max(0, current.members.length - 1) * SCRAP_GROUP_BONUS_CREDITS;
   const rewardEach = loot.reward + groupBonus;
   db.transaction(() => {
     const changed = db.prepare(
@@ -196,7 +201,7 @@ export function renderScrapCard(
   const { run, members } = state;
   const names = members.map(member => `• ${escapeHtml(member.display_name)}`).join('\n') || '• No one yet — press Join crew.';
   if (run.status === 'resolved') {
-    const bonus = Math.max(0, members.length - 1) * 10;
+    const bonus = Math.max(0, members.length - 1) * SCRAP_GROUP_BONUS_CREDITS;
     return [
       [
         '🛰 <b>SCRAP RUN COMPLETE</b>',
@@ -221,7 +226,7 @@ export function renderScrapCard(
       '🛰 <b>SCRAP RUN</b>',
       '━━━━━━━━━━━━━━━━━━━━━',
       `<b>${escapeHtml(run.starter_name)}</b> found a scrap signal.`,
-      `⏱ <b>${timer}</b> · Crew <b>${members.length}/${MAX_CREW_SIZE}</b>`,
+      `⏱ <b>${timer}</b> · Crew <b>${members.length}/${SCRAP_MAX_CREW_SIZE}</b>`,
       '',
       '<b>Crew</b>',
       names,
@@ -230,7 +235,7 @@ export function renderScrapCard(
     ].join('\n'),
     {
       inline_keyboard: [[
-        { text: `🤝 Join crew (${members.length}/${MAX_CREW_SIZE})`, callback_data: `game:${run.id}:join` },
+        { text: `🤝 Join crew (${members.length}/${SCRAP_MAX_CREW_SIZE})`, callback_data: `game:${run.id}:join` },
         { text: '🔎 Search scrap', callback_data: `game:${run.id}:resolve` },
       ]],
     },
