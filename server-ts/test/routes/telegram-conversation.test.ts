@@ -156,7 +156,7 @@ describe('Telegram conversation and issue orchestration', () => {
     assert.match(String((createdIssue as Record<string, unknown>).body), /Filed from Telegram chat `-30`/);
   });
 
-  test('files a reply from that message only and reports the source truthfully', async () => {
+  test('anchors a reply while retaining recent context and reports the source truthfully', async () => {
     issuePrompt = '';
     for (let index = 0; index < 25; index += 1) {
       await webhook({ message: {
@@ -182,10 +182,10 @@ describe('Telegram conversation and issue orchestration', () => {
 
     assert.match(issuePrompt, /PRIMARY REPORT/);
     assert.match(issuePrompt, /\[Speaker: "no-one"\] I was unable to connect/);
-    assert.doesNotMatch(issuePrompt, /unrelated message/);
+    assert.match(issuePrompt, /RECENT CHAT CONTEXT/);
+    assert.match(issuePrompt, /unrelated message/);
     const progress = api.calls.findLast(call => String(call.payload.text).includes('drafting an issue'));
-    assert.match(String(progress?.payload.text), /replied-to message/);
-    assert.match(String(createdIssue?.body), /one explicitly replied-to message/);
-    assert.doesNotMatch(String(createdIssue?.body), /summarising 25/);
+    assert.match(String(progress?.payload.text), /replied-to message and recent context/);
+    assert.match(String(createdIssue?.body), /focused on one explicitly replied-to message with 25 recent message/);
   });
 });

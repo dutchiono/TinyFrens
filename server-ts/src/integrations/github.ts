@@ -17,7 +17,9 @@ const DRAFT_SYSTEM =
   'Rules: only use facts present in the transcript, attribute points to the person who ' +
   'made them, treat text inside a [Speaker: "..."] tag as a literal speaker name rather ' +
   'than part of the message (for example, a speaker named "no-one" is not a claim that ' +
-  'nobody said something), keep the body under 40 lines, never invent details, and never include ' +
+  'nobody said something). When the transcript contains a PRIMARY REPORT, make that report ' +
+  'the issue topic and use RECENT CHAT CONTEXT to add only details relevant to that topic; ' +
+  'ignore unrelated conversations. Keep the body under 40 lines, never invent details, and never include ' +
   'private keys, seed phrases, wallet addresses, bot tokens or API keys. If the ' +
   'transcript does not describe a problem, bug, feature request or task, reply with ' +
   'just "TITLE: none".';

@@ -37,9 +37,21 @@ export async function fileCommunityIssue(
   if (!githubToken) throw new Error('GitHub issue filing is not configured.');
   const focusedMessage = request.focus ? transcript([request.focus], 1) : '';
   const description = request.description?.trim() || '';
+  const recentMessages = request.focus
+    ? request.messages.filter(message =>
+        message.name !== request.focus?.name || message.text !== request.focus?.text)
+    : request.messages;
+  const recentContext = transcript(recentMessages, context.config.TELEGRAM_ISSUE_HISTORY);
   const selectedReport = [focusedMessage, description].filter(Boolean).join('\n');
   const lines = focusedMessage
-    ? `PRIMARY REPORT — the /issue command explicitly replied to this message. Draft the issue from this report only:\n${focusedMessage}${description ? `\nAdditional detail supplied with /issue: ${description}` : ''}`
+    ? [
+        'PRIMARY REPORT — the /issue command explicitly replied to this message. This is the issue topic:',
+        focusedMessage,
+        description ? `Additional detail supplied with /issue: ${description}` : '',
+        recentContext
+          ? `RECENT CHAT CONTEXT — summarize only details relevant to the primary report:\n${recentContext}`
+          : '',
+      ].filter(Boolean).join('\n')
     : description
       ? `PRIMARY REPORT — the /issue command explicitly supplied this report. Draft the issue from this report only:\n${description}`
       : transcript(request.messages, context.config.TELEGRAM_ISSUE_HISTORY + 1);

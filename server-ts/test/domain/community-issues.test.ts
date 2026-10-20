@@ -97,7 +97,7 @@ describe('shared community issue filing', () => {
     db.close();
   });
 
-  test('uses an explicitly replied-to message instead of unrelated recent history', async () => {
+  test('anchors on an explicitly replied-to message while retaining recent history', async () => {
     const db = createDbConnection(':memory:');
     runMigrations(db);
     let prompt = '';
@@ -134,7 +134,8 @@ describe('shared community issue filing', () => {
 
     assert.match(prompt, /PRIMARY REPORT/);
     assert.match(prompt, /\[Speaker: "no-one"\] I was unable to connect/);
-    assert.doesNotMatch(prompt, /legacy code discussion/);
+    assert.match(prompt, /RECENT CHAT CONTEXT/);
+    assert.match(prompt, /legacy code discussion/);
     db.close();
   });
 });
