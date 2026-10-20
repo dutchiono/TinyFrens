@@ -26,17 +26,16 @@ export function renderDiscordScrap(state: ScrapState): {
       }],
     };
   }
-  const timestamp = Math.max(0, Math.floor(run.join_until));
   return {
     content: [
       '## 🛰 SCRAP RUN',
       `**${run.starter_name}** found a scrap signal.`,
-      `⏱ Join until <t:${timestamp}:R> · Crew **${members.length}/${MAX_CREW_SIZE}**`,
+      `⚡ **Live now** · Crew **${members.length}/${MAX_CREW_SIZE}**`,
       '',
       '**Crew**',
       crew,
       '',
-      '_Join anytime during the five-minute window. After it closes, any crew member can search. Everyone gets the same find._',
+      '_Join while the run is open, or search now. There is no waiting period. Everyone gets the same find._',
     ].join('\n'),
     components: [{
       type: 1,

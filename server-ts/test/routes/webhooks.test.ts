@@ -1060,7 +1060,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       assert.equal(calls.filter(call => call.method === 'deleteMessage').length, 2);
     });
 
-    test('POST /api/telegram/webhook resurfaces an expired open scrap card', async () => {
+    test('POST /api/telegram/webhook refreshes an open scrap card after the old lobby deadline', async () => {
       const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
       const originalTelegramApi = sharedContext.telegramApi;
       const originalNow = sharedContext.now;
@@ -1098,16 +1098,16 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       sharedContext.telegramApi = originalTelegramApi;
       sharedContext.now = originalNow;
 
-      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 2);
-      assert.equal(calls.filter(call => call.method === 'editMessageText').length, 0);
+      assert.equal(calls.filter(call => call.method === 'sendMessage').length, 1);
+      assert.equal(calls.filter(call => call.method === 'editMessageText').length, 1);
       const deletedIds = calls
         .filter(call => call.method === 'deleteMessage')
         .map(call => call.payload.message_id);
-      assert.deepEqual(deletedIds, [800, 900, 801]);
+      assert.deepEqual(deletedIds, [800, 801]);
       const run = sharedContext.db.prepare<{ message_id: number }>(
         'SELECT message_id FROM tg_scrap_runs WHERE chat_id=?'
       ).get('-100-stale-scrap');
-      assert.equal(run?.message_id, 901);
+      assert.equal(run?.message_id, 900);
     });
 
     test('POST /api/telegram/webhook addresses update briefings to the requested user with verified progress', async () => {

@@ -255,7 +255,7 @@ export async function setupDiscordGuild(
   const parentId = String(category.id);
   const channelSpecs = [
     { name: 'tinyfrens', topic: 'TinyFrens community chat, bot commands, and companion updates.' },
-    { name: 'scrap-yard', topic: 'Start the shared five-minute Scrap Run with /game.' },
+    { name: 'scrap-yard', topic: 'Start a live shared Scrap Run with /game.' },
     { name: 'updates', topic: 'TinyFrens website, Telegram, Discord, game, and backend updates.' },
     { name: 'github-updates', topic: 'Automated GitHub pull requests, CI, releases and deployment status.' },
   ];

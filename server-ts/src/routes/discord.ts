@@ -489,9 +489,8 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
     const errors = {
       missing: 'That Scrap Run is no longer available.',
       closed: 'That Scrap Run is closed.',
-      full: 'The crew is full or its join window has closed.',
+      full: 'The crew is full.',
       'not-member': 'Join the crew before searching.',
-      waiting: `The crew is still open for ${result.waitSeconds || 1}s.`,
     };
     return message(errors[result.reason], { ephemeral: true });
   }

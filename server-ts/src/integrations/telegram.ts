@@ -300,9 +300,9 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     return [
       '🎮 <b>Group Scrap Run</b>',
       '',
-      '1. Send /game in a group to open the lobby. Starting it does not join you.',
-      '2. Link Telegram to your existing TinyFrens account with /link, then tap <b>Join crew</b> during the five-minute window.',
-      '3. A crew member taps <b>Search together</b> after the window closes.',
+      '1. Send /game in a group to start a live Scrap Run. Starting it does not join you.',
+      '2. Link Telegram to your existing TinyFrens account with /link, then tap <b>Join crew</b> while the run is open.',
+      '3. Any crew member can tap <b>Search scrap</b> immediately. There is no waiting period.',
       '4. Everyone in the crew gets the same result and their own credit reward.',
       '',
       'The bot edits one shared card instead of posting each action as a new message. If a run is already open, /game refreshes that same card.',
