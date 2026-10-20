@@ -46,7 +46,8 @@ assert.doesNotMatch(navigation, /new URL\('\.\.\/updates\//, 'native builds must
 assert.match(navigation, /navigator\.onLine !== false/);
 const walletLink = fs.readFileSync(path.join(root, 'wallet-link.js'), 'utf8');
 const featuredTurtle = fs.readFileSync(path.join(root, 'featured-turtle.js'), 'utf8');
-assert.match(walletLink, /Show in community bots/);
+assert.match(walletLink, /Use for \/show/);
+assert.match(walletLink, /More \/show commands/);
 assert.match(walletLink, /TinyFrensSetCompanionMovement/);
 assert.doesNotMatch(featuredTurtle, /Movement settings/, 'movement controls must not remain duplicated below the NFT cards');
 console.log('Connection checks passed: providers, QR validation, NFT card controls, and native-safe Updates navigation');

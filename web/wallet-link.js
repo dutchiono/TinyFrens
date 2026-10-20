@@ -21,6 +21,7 @@
     </section></details>
     <section id="supportedNFTPanel" class="overlay wallet-link-panel" hidden>
       <div class="collection-toolbar"><h2>Your collection</h2><button type="button" id="scanWallet" class="secondary" disabled>Refresh</button></div>
+      <p class="community-show-help"><strong>Choose your /show Fren</strong><br>Tap “Use for /show” on an NFT below. That choice works in both Telegram and Discord.</p>
       <label class="nft-search">Find an NFT<input id="nftSearch" type="search" placeholder="Name, collection or token number"></label>
       <div id="walletMatches" class="wallet-nfts" aria-live="polite"></div>
       <p id="walletScanStatus" role="status"></p>
@@ -226,25 +227,45 @@
           speed.oninput = () => { speedValue.value = speed.value; };
           speed.onchange = saveMovement;
 
-          const telegramLabel = document.createElement('label'); telegramLabel.className = 'nft-setting'; telegramLabel.textContent = 'Show in community bots';
+          const community = document.createElement('div'); community.className = 'nft-community-show';
+          const communityButton = document.createElement('button'); communityButton.type = 'button';
+          const communityStatus = document.createElement('span'); communityStatus.className = 'nft-community-status'; communityStatus.setAttribute('role', 'status');
+          const moreSlots = document.createElement('details'); moreSlots.className = 'nft-community-more';
+          const moreSlotsSummary = document.createElement('summary'); moreSlotsSummary.textContent = 'More /show commands';
+          const telegramLabel = document.createElement('label'); telegramLabel.className = 'nft-setting'; telegramLabel.textContent = 'Command';
           const telegramSlot = document.createElement('select'); telegramSlot.dataset.telegramSlot = window.TinyFrensCompanionKey(nft);
           for (let slot = 0; slot <= 5; slot += 1) {
-            const option = document.createElement('option'); option.value = String(slot); option.textContent = slot ? `Slot ${slot}` : 'Off'; telegramSlot.append(option);
+            const option = document.createElement('option'); option.value = String(slot);
+            option.textContent = slot ? (slot === 1 ? '/show (primary)' : `/show ${slot}`) : 'Not selected';
+            telegramSlot.append(option);
           }
-          telegramSlot.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
-          telegramSlot.onchange = async () => {
-            telegramSlot.disabled = true;
+          const drawCommunitySelection = () => {
+            const slot = window.TinyFrensTelegramSlots?.slotFor(nft) || 0;
+            telegramSlot.value = String(slot);
+            communityButton.textContent = slot === 1 ? '✓ Selected for /show' : 'Use for /show';
+            communityButton.classList.toggle('selected', slot === 1);
+            communityButton.setAttribute('aria-pressed', String(slot === 1));
+            communityStatus.textContent = slot > 1 ? `Selected for /show ${slot} in Telegram and Discord.` : slot === 1 ? 'Selected in Telegram and Discord.' : '';
+          };
+          const saveCommunitySlot = async slot => {
+            communityButton.disabled = true; telegramSlot.disabled = true;
             try {
               const verified = await verify(nft);
               if (!verified.active) throw Error('Ownership could not be verified. Refresh NFTs and try again.');
-              await window.TinyFrensTelegramSlots.setSlot(verified, Number(telegramSlot.value));
+              if (!window.TinyFrensTelegramSlots) throw Error('Your account settings are still loading. Try again in a moment.');
+              await window.TinyFrensTelegramSlots.setSlot(verified, slot);
+              drawCommunitySelection();
             } catch (error) {
-              scanStatus.textContent = error.message;
-              telegramSlot.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
-            } finally { telegramSlot.disabled = false; }
+              drawCommunitySelection();
+              communityStatus.textContent = error.message;
+            } finally { communityButton.disabled = false; telegramSlot.disabled = false; }
           };
-          telegramLabel.append(telegramSlot);
-          info.append(sizeLabel, movementLabel, speedLabel, telegramLabel); card.append(toggle);
+          communityButton.onclick = () => saveCommunitySlot(1);
+          telegramSlot.onchange = () => saveCommunitySlot(Number(telegramSlot.value));
+          telegramLabel.append(telegramSlot); moreSlots.append(moreSlotsSummary, telegramLabel);
+          community.append(communityButton, communityStatus, moreSlots);
+          drawCommunitySelection();
+          info.append(sizeLabel, movementLabel, speedLabel); card.append(toggle, community);
         }
         matches.append(card);
       }
@@ -423,7 +444,14 @@
   window.addEventListener('tinyfrens-telegram-slots-changed', () => {
     for (const select of matches.querySelectorAll('[data-telegram-slot]')) {
       const nft = {chainId:Number(select.dataset.telegramSlot.split(':')[0]), originalAddress:select.dataset.telegramSlot.split(':')[1], tokenId:Number(select.dataset.telegramSlot.split(':')[2])};
-      select.value = String(window.TinyFrensTelegramSlots?.slotFor(nft) || 0);
+      const slot = window.TinyFrensTelegramSlots?.slotFor(nft) || 0;
+      select.value = String(slot);
+      const community = select.closest('.nft-community-show');
+      const button = community.querySelector('button');
+      button.textContent = slot === 1 ? '✓ Selected for /show' : 'Use for /show';
+      button.classList.toggle('selected', slot === 1);
+      button.setAttribute('aria-pressed', String(slot === 1));
+      community.querySelector('.nft-community-status').textContent = slot > 1 ? `Selected for /show ${slot} in Telegram and Discord.` : slot === 1 ? 'Selected in Telegram and Discord.' : '';
     }
   });
   initialLoad();
