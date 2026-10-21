@@ -31,9 +31,12 @@ import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
 import {
   expireStaleScrapRun,
+  craftSignalBooster,
   getOpenScrapRun,
   joinScrapRun,
   renderScrapCard,
+  renderScrapInventory,
+  renderScrapScoreboard,
   resolveScrapRun,
   setScrapMessageId,
   startScrapRun,
@@ -377,11 +380,12 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                 senderName,
                 now
               )
-            : action === 'resolve'
+            : action === 'safe' || action === 'deep' || action === 'resolve'
               ? resolveScrapRun(
                   context.db,
                   runId,
                   senderUid,
+                  action === 'deep' ? 'deep' : 'safe',
                   now,
                   context.random(),
                   (petId, credits, scrapRunId) => {
@@ -395,6 +399,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           if (!result.ok) {
             if (result.reason === 'full') toast = 'That crew is full.';
             if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
+            if (result.reason === 'daily-limit') toast = 'You used all 3 Scrap Run joins for today. Try again after 00:00 UTC.';
             showAlert = true;
           } else {
             toast = action === 'join'
@@ -557,6 +562,25 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               text: error instanceof Error ? error.message : 'TinyFrens could not verify that NFT right now',
               reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
             });
+          }
+          return reply.status(200).send({ ok: true });
+        }
+
+        if (/^\/(?:scoreboard|inventory|craft)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const command = text.match(/^\/(scoreboard|inventory|craft)/i)?.[1]?.toLowerCase();
+          try {
+            const pet = telegramPet(context, sender);
+            const now = Math.floor(context.now());
+            const responseText = command === 'scoreboard'
+              ? renderScrapScoreboard(context.db, now, pet.id)
+              : command === 'inventory'
+                ? renderScrapInventory(context.db, pet.id, now)
+                : craftSignalBooster(context.db, pet.id, now)
+                  ? '🛠 <b>Signal Booster crafted.</b> Your next Deep scan consumes it and cannot miss.'
+                  : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+            await sendCommand({ chat_id: chatId, text: responseText, parse_mode: 'HTML' });
+          } catch (error) {
+            await sendCommand({ chat_id: chatId, text: error instanceof Error ? error.message : 'Link Telegram to use Scrap inventory.' });
           }
           return reply.status(200).send({ ok: true });
         }

@@ -14,8 +14,11 @@ import { parseRepo } from '../integrations/github.js';
 import { fetchGithubProgress, renderTelegramUpdateBriefing } from '../integrations/telegram.js';
 import {
   expireStaleScrapRun,
+  craftSignalBooster,
   getOpenScrapRun,
   joinScrapRun,
+  renderScrapInventory,
+  renderScrapScoreboard,
   resolveScrapRun,
   startScrapRun,
 } from '../domain/telegram-scrap.js';
@@ -171,6 +174,23 @@ async function handleDiscordCommand(
   if (name === 'gamehelp') return message(discordGameHelpText(), { ephemeral: true });
   if (name === 'showhelp') return message(discordShowHelpText(), { ephemeral: true });
   if (name === 'myid') return message(`Your Discord user ID: \`${String(user.id || '')}\``, { ephemeral: true });
+
+  if (name === 'scoreboard' || name === 'inventory' || name === 'craft') {
+    try {
+      const pet = discordPet(context, user);
+      const now = Math.floor(context.now());
+      const html = name === 'scoreboard'
+        ? renderScrapScoreboard(context.db, now, pet.id)
+        : name === 'inventory'
+          ? renderScrapInventory(context.db, pet.id, now)
+          : craftSignalBooster(context.db, pet.id, now)
+            ? '🛠 **Signal Booster crafted.** Your next Deep scan consumes it and cannot miss.'
+            : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+      return message(html.replace(/<b>/g, '**').replace(/<\/b>/g, '**'), { ephemeral: true });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'Link Discord to use Scrap inventory.', { ephemeral: true });
+    }
+  }
 
   if (name === 'link') {
     try {
@@ -479,9 +499,9 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
         context.db, runId, String(user.id || ''), linkedPetId,
         String(user.global_name || user.username || 'Fren'), now
       )
-    : action === 'resolve'
+    : action === 'safe' || action === 'deep' || action === 'resolve'
       ? resolveScrapRun(
-          context.db, runId, String(user.id || ''), now, context.random(),
+          context.db, runId, String(user.id || ''), action === 'deep' ? 'deep' : 'safe', now, context.random(),
           (petId, credits, scrapRunId) => context.economy.grant(petId, credits, 'discord-scrap', 'scrap-run', scrapRunId)
         )
       : { ok: false as const, reason: 'missing' as const };
@@ -491,6 +511,7 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
       closed: 'That Scrap Run is closed.',
       full: 'The crew is full.',
       'not-member': 'Join the crew before searching.',
+      'daily-limit': 'You used all 3 Scrap Run joins for today. Try again after 00:00 UTC.',
     };
     return message(errors[result.reason], { ephemeral: true });
   }
