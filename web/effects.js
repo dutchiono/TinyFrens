@@ -2,8 +2,8 @@
 (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const panel = document.createElement('section'); panel.className = 'overlay';
-  panel.innerHTML = '<h2>Little touches</h2><label for="petOpacity">Pet opacity <output id="opacityValue">100%</output></label><input id="petOpacity" type="range" min="40" max="100" step="5" value="100"><label class="toggle"><span>Sparkles</span><input id="petSparkles" type="checkbox" checked></label><label class="toggle"><span>Screen effects</span><input id="petScreenEffects" type="checkbox" checked></label><label class="toggle"><span>Sounds</span><input id="petSounds" type="checkbox" checked></label><label class="toggle"><span>Fade in and out</span><input id="petFade" type="checkbox" checked></label><label class="toggle"><span>Haptic taps</span><input id="petHaptics" type="checkbox" checked></label><label class="toggle"><span>Reduce motion</span><input id="petReduceMotion" type="checkbox"></label><p id="effectsHelp" class="small">Gentle care effects, soft sounds, never flashing. System reduced-motion settings also apply.</p>';
-  $('lookPanel').append(panel);
+  panel.innerHTML = '<h2>Companion display</h2><label for="petOpacity">NFT opacity <output id="opacityValue">100%</output></label><input id="petOpacity" type="range" min="40" max="100" step="5" value="100"><label class="toggle"><span>Sparkles</span><input id="petSparkles" type="checkbox" checked></label><label class="toggle"><span>Screen effects</span><input id="petScreenEffects" type="checkbox" checked></label><label class="toggle"><span>Sounds</span><input id="petSounds" type="checkbox" checked></label><label class="toggle"><span>Fade in and out</span><input id="petFade" type="checkbox" checked></label><label class="toggle"><span>Haptic taps</span><input id="petHaptics" type="checkbox" checked></label><label class="toggle"><span>Reduce motion</span><input id="petReduceMotion" type="checkbox"></label><p id="effectsHelp" class="small">Display settings affect your selected NFT companions; their artwork and traits cannot be customized here.</p>';
+  $('settingsPanel')?.append(panel);
   const flags = {petSparkles:'sparkles',petScreenEffects:'screenEffects',petSounds:'sounds',petFade:'fade',petHaptics:'haptics',petReduceMotion:'reduceMotion'};
   function apply(s) {
     const opacity = Math.max(40, Math.min(100, Number(s.opacity) || 100));
@@ -12,7 +12,7 @@
     document.documentElement.dataset.reducedMotion=String(reduced.matches||s.reduceMotion===true);
     document.documentElement.dataset.petFade=String(s.fade!==false&&!reduced.matches&&s.reduceMotion!==true);
     $('pet').style.transition=s.fade!==false&&!reduced.matches&&s.reduceMotion!==true?'opacity 220ms ease':'none';
-    $('pet').style.opacity=String(opacity/100);document.querySelectorAll('#lookPreview .pet').forEach(p=>p.style.opacity=String(opacity/100));
+    $('pet').style.opacity=String(opacity/100);document.querySelectorAll('.collection-companion').forEach(p=>p.style.opacity=String(opacity/100));
   }
   function save() {
     const data={...read(),opacity:Number($('petOpacity').value)};

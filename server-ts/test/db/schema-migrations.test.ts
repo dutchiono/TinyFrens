@@ -8,6 +8,7 @@ import {
   migrateDeployNotificationCards,
   migrateEnergyPurchases,
   migrateAdminPasswordChange,
+  migrateScrapGameLoop,
   migrateWalletLinks,
   runMigrations,
 } from '../../src/db/migrations.js';
@@ -221,6 +222,23 @@ describe('Database: Schema & Migrations', () => {
       db.prepare('SELECT username, must_change_password FROM admin_users').get(),
       { username: 'dutch', must_change_password: 0 }
     );
+    db.close();
+  });
+
+  test('adds Scrap Run mode fields to legacy databases', () => {
+    const db = createDbConnection(':memory:');
+    db.exec(`CREATE TABLE tg_scrap_runs(
+      id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, message_id INTEGER,
+      starter_user_id TEXT NOT NULL, starter_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL,
+      join_until INTEGER NOT NULL, resolved_at INTEGER, loot_name TEXT,
+      rarity TEXT, reward_each INTEGER
+    );`);
+    migrateScrapGameLoop(db);
+    migrateScrapGameLoop(db);
+    const columns = db.prepare<{ name: string }>('PRAGMA table_info(tg_scrap_runs)').all().map(row => row.name);
+    assert.ok(columns.includes('search_mode'));
+    assert.ok(columns.includes('booster_used'));
     db.close();
   });
 });

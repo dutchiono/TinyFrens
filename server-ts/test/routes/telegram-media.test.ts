@@ -142,7 +142,7 @@ describe('Telegram /show media orchestration', () => {
     }]), revision), true);
 
     assert.equal((await show()).statusCode, 200);
-    assert.match(String(api.calls.at(-1)?.payload.text), /My NFTs/);
+    assert.match(String(api.calls.at(-1)?.payload.text), /Frens/);
     assert.match(String(api.calls.at(-1)?.payload.text), /Use for \/show/);
     assert.equal((await show('/show 2')).statusCode, 200);
     assert.equal(api.calls.at(-1)?.method, 'sendAnimation');

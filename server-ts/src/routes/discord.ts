@@ -9,13 +9,16 @@ import { communityCompanion } from '../domain/telegram-companion.js';
 import { renderDiscordScrap } from '../domain/discord-scrap.js';
 import { fileCommunityIssue } from '../domain/community-issues.js';
 import { addBlocklist, addFilter } from '../domain/telegram-moderation.js';
+import { joinEnergyPoweredScrapRun, scrapEnergyError, scrapEnergyStatus } from '../domain/scrap-energy.js';
 import { companionGif } from '../media/telegram-gif.js';
 import { parseRepo } from '../integrations/github.js';
 import { fetchGithubProgress, renderTelegramUpdateBriefing } from '../integrations/telegram.js';
 import {
   expireStaleScrapRun,
+  craftSignalBooster,
   getOpenScrapRun,
-  joinScrapRun,
+  renderScrapInventory,
+  renderScrapScoreboard,
   resolveScrapRun,
   startScrapRun,
 } from '../domain/telegram-scrap.js';
@@ -171,6 +174,31 @@ async function handleDiscordCommand(
   if (name === 'gamehelp') return message(discordGameHelpText(), { ephemeral: true });
   if (name === 'showhelp') return message(discordShowHelpText(), { ephemeral: true });
   if (name === 'myid') return message(`Your Discord user ID: \`${String(user.id || '')}\``, { ephemeral: true });
+
+  if (name === 'scoreboard' || name === 'inventory' || name === 'craft') {
+    try {
+      const pet = discordPet(context, user);
+      const now = Math.floor(context.now());
+      let html: string;
+      if (name === 'scoreboard') {
+        html = renderScrapScoreboard(context.db, now, pet.id);
+      } else if (name === 'inventory') {
+        const energy = await scrapEnergyStatus(context, pet.id);
+        html = renderScrapInventory(context.db, pet.id, {
+          totalMilli: energy.status.totalMilli,
+          costMilli: energy.costMilli,
+          waitSeconds: energy.waitSeconds,
+        });
+      } else {
+        html = craftSignalBooster(context.db, pet.id, now)
+          ? '🛠 **Signal Booster crafted.** Your next Deep scan consumes it and cannot miss.'
+          : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+      }
+      return message(html.replace(/<b>/g, '**').replace(/<\/b>/g, '**'), { ephemeral: true });
+    } catch (error) {
+      return message(error instanceof Error ? error.message : 'Link Discord to use Scrap inventory.', { ephemeral: true });
+    }
+  }
 
   if (name === 'link') {
     try {
@@ -474,24 +502,31 @@ async function handleDiscordComponent(context: AppContext, interaction: DiscordO
       return message(error instanceof Error ? error.message : 'Link Discord to TinyFrens before joining.', { ephemeral: true });
     }
   }
-  const result = action === 'join'
-    ? joinScrapRun(
-        context.db, runId, String(user.id || ''), linkedPetId,
-        String(user.global_name || user.username || 'Fren'), now
-      )
-    : action === 'resolve'
+  let result;
+  try {
+    result = action === 'join'
+      ? await joinEnergyPoweredScrapRun(context, {
+          runId,
+          userId: String(user.id || ''),
+          petId: linkedPetId,
+          displayName: String(user.global_name || user.username || 'Fren'),
+          now,
+        })
+      : action === 'safe' || action === 'deep' || action === 'resolve'
       ? resolveScrapRun(
-          context.db, runId, String(user.id || ''), now, context.random(),
+          context.db, runId, String(user.id || ''), action === 'deep' ? 'deep' : 'safe', now, context.random(),
           (petId, credits, scrapRunId) => context.economy.grant(petId, credits, 'discord-scrap', 'scrap-run', scrapRunId)
         )
       : { ok: false as const, reason: 'missing' as const };
+  } catch (error) {
+    return message(scrapEnergyError(error), { ephemeral: true });
+  }
   if (!result.ok) {
     const errors = {
       missing: 'That Scrap Run is no longer available.',
       closed: 'That Scrap Run is closed.',
-      full: 'The crew is full or its join window has closed.',
+      full: 'The crew is full.',
       'not-member': 'Join the crew before searching.',
-      waiting: `The crew is still open for ${result.waitSeconds || 1}s.`,
     };
     return message(errors[result.reason], { ephemeral: true });
   }

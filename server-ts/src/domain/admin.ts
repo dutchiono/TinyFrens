@@ -228,7 +228,7 @@ export class Admin {
       this.db.exec('ALTER TABLE admin_users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;');
     }
 
-    if (options.seedDefaultUser !== false) {
+    if (options.seedDefaultUser !== false && !this.config?.DB_READ_ONLY) {
       this._ensureInitialUser(
         options.initialUser || this.config?.ADMIN_USERNAME || 'dutch',
         options.initialPassword || this.config?.ADMIN_PASSWORD || 'nottodayjunior'

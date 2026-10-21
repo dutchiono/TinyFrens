@@ -4,7 +4,7 @@
 
 Windows and Mac have a native floating pet with care bubbles, dragging, roaming, a close button and shared desktop saves.
 
-Looks → Little touches provides 40–100% opacity, sparkles, gentle care glow, fade and Reduce motion. Android and desktop overlays show effects near the pet; web/native iOS show them inside the app. Effects are cosmetic, brief and do not change care rewards. Native Android/iPhone support haptic taps on compatible hardware. Browser support varies; Safari and desktop do not provide pet haptics. System-controlled iPhone PiP remains an opaque video.
+Companion display settings provide 40–100% NFT opacity, sparkles, gentle care glow, fade and Reduce motion without changing NFT artwork or traits. Android and desktop overlays show effects near the companion; web/native iOS show them inside the app. Effects are cosmetic, brief and do not change care rewards.
 
 ## More screen effects — planned
 

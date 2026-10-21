@@ -13,6 +13,7 @@ export function renderDiscordScrap(state: ScrapState): {
         '## 🛰 SCRAP RUN COMPLETE',
         `The crew recovered **${run.loot_name || 'Unknown Scrap'}**`,
         `**${run.rarity || 'Unknown'}** find · **${run.reward_each || 0} credits each**`,
+        `${run.search_mode === 'deep' ? '🌌 Deep scan' : '🛡 Safe scan'}${run.booster_used ? ' · Signal Booster used' : ''}`,
         '',
         '**Crew**',
         crew,
@@ -24,24 +25,29 @@ export function renderDiscordScrap(state: ScrapState): {
       }],
     };
   }
-  const timestamp = Math.max(0, Math.floor(run.join_until));
   return {
     content: [
       '## 🛰 SCRAP RUN',
       `**${run.starter_name}** found a scrap signal.`,
-      `⏱ Join until <t:${timestamp}:R> · Crew **${members.length}/${SCRAP_MAX_CREW_SIZE}**`,
+      `⚡ **Live now** · Crew **${members.length}/${SCRAP_MAX_CREW_SIZE}**`,
       '',
       '**Crew**',
       crew,
       '',
-      '_Join anytime during the five-minute window. After it closes, any crew member can search. Everyone gets the same find._',
+      '_Joining spends your account Energy. One Robot recharges a run in about 6 hours; owning more Robots recharges faster. Then choose a safe scan or risk a deep scan._',
     ].join('\n'),
-    components: [{
-      type: 1,
-      components: [
-        { type: 2, style: 1, label: `Join crew (${members.length}/${SCRAP_MAX_CREW_SIZE})`, custom_id: `game:${run.id}:join`, emoji: { name: '🤝' } },
-        { type: 2, style: 2, label: 'Search scrap', custom_id: `game:${run.id}:resolve`, emoji: { name: '🔎' } },
-      ],
-    }],
+    components: [
+      {
+        type: 1,
+        components: [{ type: 2, style: 1, label: `Join crew (${members.length}/${SCRAP_MAX_CREW_SIZE})`, custom_id: `game:${run.id}:join`, emoji: { name: '🤝' } }],
+      },
+      {
+        type: 1,
+        components: [
+          { type: 2, style: 2, label: 'Safe scan', custom_id: `game:${run.id}:safe`, emoji: { name: '🛡' } },
+          { type: 2, style: 4, label: 'Deep scan', custom_id: `game:${run.id}:deep`, emoji: { name: '🌌' } },
+        ],
+      },
+    ],
   };
 }

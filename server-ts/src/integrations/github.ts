@@ -15,7 +15,11 @@ const DRAFT_SYSTEM =
   'BODY in Markdown with a "## What happened" section, then a "## Suggested next steps" ' +
   'section with short bullets.\n' +
   'Rules: only use facts present in the transcript, attribute points to the person who ' +
-  'made them, keep the body under 40 lines, never invent details, and never include ' +
+  'made them, treat text inside a [Speaker: "..."] tag as a literal speaker name rather ' +
+  'than part of the message (for example, a speaker named "no-one" is not a claim that ' +
+  'nobody said something). When the transcript contains a PRIMARY REPORT, make that report ' +
+  'the issue topic and use RECENT CHAT CONTEXT to add only details relevant to that topic; ' +
+  'ignore unrelated conversations. Keep the body under 40 lines, never invent details, and never include ' +
   'private keys, seed phrases, wallet addresses, bot tokens or API keys. If the ' +
   'transcript does not describe a problem, bug, feature request or task, reply with ' +
   'just "TITLE: none".';
@@ -63,7 +67,7 @@ export function transcript(messages: unknown, limit = HISTORY_SIZE): string {
       .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
       .trim()
       .slice(0, 500);
-    if (text) lines.push(`${name}: ${text}`);
+    if (text) lines.push(`[Speaker: ${JSON.stringify(name)}] ${text}`);
   }
   return lines.join('\n');
 }

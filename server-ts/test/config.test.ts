@@ -19,6 +19,7 @@ describe('Configuration Ledger & Parser', () => {
     assert.equal(config.ENERGY_PER_ROBOT_PER_DAY, 6);
     assert.equal(config.ENERGY_CAPACITY_DAYS, 3);
     assert.equal(config.ROBOT_ENERGY_COST_PLAY, 5);
+    assert.equal(config.SCRAP_RUN_ENERGY_COST, 6);
     assert.equal(config.ECONOMY_MODE, 'off');
     assert.equal(config.TESTNET_ENERGY_MILLI_PER_FRENS, 1000);
     assert.equal(config.TELEGRAM_ISSUE_HISTORY, 25);

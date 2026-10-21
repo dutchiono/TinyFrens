@@ -96,4 +96,46 @@ describe('shared community issue filing', () => {
     assert.match(String(issuePayload?.body), /\/game did not respond/);
     db.close();
   });
+
+  test('anchors on an explicitly replied-to message while retaining recent history', async () => {
+    const db = createDbConnection(':memory:');
+    runMigrations(db);
+    let prompt = '';
+    const context = createAppContext(loadConfig({
+      GEMINI_API_KEY: 'gemini-test',
+      GITHUB_REPO: 'dutchiono/TinyFrens',
+    }), db, { githubAuth: { async token() { return 'github-test'; } } });
+    const fetcher = async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('generateContent')) {
+        const body = JSON.parse(String(init?.body || '{}'));
+        prompt = String(body.contents?.[0]?.parts?.[0]?.text || '');
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{
+          text: 'TITLE: Connect desktop app to Bankr\nLABELS: none\n---\n## What happened\n- Mantrid Prime could not connect.\n\n## Suggested next steps\n- Reproduce it.',
+        }] } }] }), { status: 200 });
+      }
+      if (url.endsWith('/labels?per_page=100')) return new Response('[]', { status: 200 });
+      if (url.endsWith('/issues')) return new Response(JSON.stringify({
+        number: 143,
+        html_url: 'https://github.com/dutchiono/TinyFrens/issues/143',
+        title: 'Connect desktop app to Bankr',
+        labels: [],
+      }), { status: 201 });
+      throw new Error(`Unexpected fetch ${url}`);
+    };
+
+    await fileCommunityIssue(context, {
+      messages: [{ name: 'Michael', text: 'Unrelated legacy code discussion' }],
+      focus: { name: 'no-one', text: 'I was unable to connect the desktop app to bankr' },
+      chatTitle: 'Telegram group',
+      linkTarget: '-1001',
+      footer: '_Filed from a reply._',
+    }, fetcher);
+
+    assert.match(prompt, /PRIMARY REPORT/);
+    assert.match(prompt, /\[Speaker: "no-one"\] I was unable to connect/);
+    assert.match(prompt, /RECENT CHAT CONTEXT/);
+    assert.match(prompt, /legacy code discussion/);
+    db.close();
+  });
 });

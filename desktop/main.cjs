@@ -53,7 +53,14 @@ function animate(action) { for (const win of [pet, careWindow]) if (win && !win.
 function broadcastTurtle() {
   const data = turtles.view();
   for (const win of [pet, careWindow]) if (win && !win.isDestroyed()) win.webContents.send('tinyfrens:turtle', data);
+  syncPrimaryCompanion();
   syncCompanions();
+}
+function syncPrimaryCompanion() {
+  if (!pet || pet.isDestroyed()) return;
+  const shouldShow = petVisible && turtles.view().active;
+  if (shouldShow && !pet.isVisible()) { pet.showInactive(); fadeWindow(0, 1); }
+  else if (!shouldShow && pet.isVisible()) { pet.hide(); pet.setOpacity(1); }
 }
 function syncCompanions() {
   const items = (turtles.view().items || []).slice(1);
@@ -106,7 +113,7 @@ function fadeWindow(from, to, done) {
   const start=Date.now(); pet.setOpacity(from);
   fadeTimer=setInterval(()=>{const p=Math.min(1,(Date.now()-start)/220);pet.setOpacity(from+(to-from)*p);if(p===1){clearInterval(fadeTimer);done?.();}},20);
 }
-function showPet() { petVisible=true; menuUntil = 0; drag = null; pet.showInactive(); fadeWindow(0,1); broadcast(); }
+function showPet() { petVisible=true; menuUntil = 0; drag = null; syncPrimaryCompanion(); broadcast(); }
 function hidePet() { petVisible=false;drag = null; menuUntil = 0; fadeWindow(pet.getOpacity(),0,()=>{pet.hide();pet.setOpacity(1);broadcast();}); broadcast(); }
 function openApp() {
   if (!careWindow || careWindow.isDestroyed()) {
@@ -133,6 +140,7 @@ function updateTray() {
 }
 function moveTick() {
   const now = Date.now(), elapsed = Math.min(.1, (now - lastTick) / 1000); lastTick = now;
+  syncPrimaryCompanion();
   if (pet && !pet.isDestroyed()) pet.webContents.send('tinyfrens:companion-motion', {walking:false});
   moveCompanions(elapsed);
   if (!petVisible || !pet?.isVisible()) return;
@@ -221,22 +229,25 @@ async function smokeTest() {
   const deadline = setTimeout(() => { console.error('Desktop smoke test timed out'); finishSmoke(1); }, 30000);
   const js = source => careWindow.webContents.executeJavaScript(source);
   try {
-    for (let i = 0; i < 200 && (pet.webContents.isLoading() || careWindow.webContents.isLoading() || !pet.isVisible()); i++) await pause(100);
+    for (let i = 0; i < 200 && (pet.webContents.isLoading() || careWindow.webContents.isLoading()); i++) await pause(100);
     assert.equal(pet.isAlwaysOnTop(), true);
     assert.equal(pet.hasShadow(), false);
-    assert.equal(pet.isVisible(), true);
+    assert.equal(pet.isVisible(), false);
+    assert.equal(await pet.webContents.executeJavaScript('document.querySelector("#pet .body")'), null);
     assert.equal(await js('typeof window.TinyFrensDesktop'), 'object');
     assert.equal(await js('typeof require'), 'undefined');
     assert.equal(await js('document.getElementById("start").textContent'), 'Hide NFTs');
+    const smokeImage = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="green"/></svg>').toString('base64');
+    turtles.selected = [{active:true, tokenId:7, name:'Smoke fixture', image:smokeImage,
+      companion:{adapter:'hood-turtles-v1', idle:smokeImage, frames:[], frameMs:160}, validUntil:Date.now()/1000 + 3600}];
+    broadcastTurtle(); await pause(200);
+    assert.equal(pet.isVisible(), true);
     await js('document.getElementById("play").click()');
     await pause(100);
     assert.equal(store.read().energy, 68); assert.equal(store.read().hunger, 72);
-    await js('document.getElementById("petShape").value="robot";document.getElementById("petShape").dispatchEvent(new Event("change"))');
-    await pause(100);
-    assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.shape'), 'robot');
-    await js('document.getElementById("petOpacity").value="55";document.getElementById("petOpacity").dispatchEvent(new Event("input"))');
-    await pause(100);assert.equal(store.read().opacity,55);
-    assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").style.opacity'),'0.55');
+    const originalShape = store.read().shape;
+    await js('TinyFrensDesktop.customize(JSON.stringify({shape:"bunny",color:"#ff00ff",opacity:55}))');
+    assert.equal(store.read().shape, originalShape); assert.equal(store.read().opacity, 55);
     await pet.webContents.executeJavaScript('document.querySelector("[data-action=feed]").click()');
     await pause(100);
     assert.equal(store.read().hunger, 97);
@@ -258,7 +269,7 @@ async function smokeTest() {
     await careWindow.loadFile(path.join(__dirname, 'web/hood-turtles.html'));
     assert.equal(await js('typeof TinyFrensDesktop.turtleRequest'), 'function');
     turtles.fetch = async () => ({ok:true, text:async () => JSON.stringify({active:true, tokenId:7,
-      name:'Smoke fixture', image:'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="green"/></svg>').toString('base64'), companion:{adapter:'hood-turtles-v1', idle:'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="green"/></svg>').toString('base64'),frames:[],frameMs:160}, validUntil:Date.now()/1000 + 3600})});
+      name:'Smoke fixture', image:smokeImage, companion:{adapter:'hood-turtles-v1', idle:smokeImage,frames:[],frameMs:160}, validUntil:Date.now()/1000 + 3600})});
     await js(`TinyFrensDesktop.turtleRequest('${SERVER}', '/native/import-turtle', {token:'smoke-fixture', tokenId:7})`);
     await pause(200);
     assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.turtle'), 'true');
@@ -288,7 +299,8 @@ async function smokeTest() {
     assert.equal(companionWindows.size,0);
     await js('TinyFrensDesktop.clearTurtle()'); await pause(100);
     assert.equal(await pet.webContents.executeJavaScript('document.getElementById("pet").dataset.turtle'), 'false');
-    console.log('Desktop smoke passed: isolated renderer, always-on-top overlay, shared care, movement, packaged import navigation, turtle IPC/artwork/unload.');
+    assert.equal(pet.isVisible(), false);
+    console.log('Desktop smoke passed: no legacy fallback, isolated renderer, verified NFT overlay, shared care, movement, packaged import navigation, turtle IPC/artwork/unload.');
     clearTimeout(deadline); finishSmoke(0);
   } catch (error) { console.error(error); clearTimeout(deadline); finishSmoke(1); }
 }
@@ -308,11 +320,12 @@ ipcMain.on('tinyfrens:sync', (event, name, value) => {
       case 'toggle': if (petVisible) hidePet(); else showPet(); event.returnValue = petVisible; break;
       case 'hide': hidePet(); event.returnValue = true; break;
       case 'open': openApp(); if (value === 'care') { const route = () => careWindow.webContents.executeJavaScript("window.showScreen?.('care')"); if (careWindow.webContents.isLoading()) careWindow.webContents.once('did-finish-load', route); else route(); } event.returnValue = true; break;
-      case 'rename': event.returnValue = JSON.stringify(store.rename(typeof value === 'string' ? value : '')); broadcast(); break;
       case 'customize': {
         const data = typeof value === 'string' && value.length < 1024 ? JSON.parse(value) : {};
         if (!data || typeof data !== 'object') throw new Error('Invalid look');
-        event.returnValue = JSON.stringify(store.customize(data)); broadcast(); break;
+        const allowed = {};
+        for (const key of ['opacity','sparkles','screenEffects','fade','haptics','reduceMotion','sounds']) if (Object.hasOwn(data, key)) allowed[key] = data[key];
+        event.returnValue = JSON.stringify(store.customize(allowed)); broadcast(); break;
       }
       case 'mode': event.returnValue = JSON.stringify(store.mode(value)); broadcast(); break;
       case 'action': {

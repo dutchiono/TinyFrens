@@ -134,6 +134,16 @@ describe('Admin Store Tests', () => {
     assert.equal(a.listUsers().find(user => user.username === 'michael')?.passwordChangeRequired, true);
   });
 
+  it('does not seed administrators when the database is read-only', () => {
+    const readonlyDb = new BetterSqliteConnection(':memory:');
+    const readonlyAdmin = new Admin(readonlyDb, {
+      token: null,
+      config: { DB_READ_ONLY: true },
+    });
+    assert.equal(readonlyAdmin.enabled, false);
+    assert.deepEqual(readonlyAdmin.listUsers(), []);
+  });
+
   it('authentication invalid password', () => {
     assert.throws(() => admin.authenticate('dutch', 'wrongpassword'), UnauthorizedError);
   });

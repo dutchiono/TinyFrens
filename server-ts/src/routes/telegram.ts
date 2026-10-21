@@ -29,11 +29,14 @@ import { fileCommunityIssue } from '../domain/community-issues.js';
 import { requestSync, startCommunityLink } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
+import { joinEnergyPoweredScrapRun, scrapEnergyError, scrapEnergyStatus } from '../domain/scrap-energy.js';
 import {
   expireStaleScrapRun,
+  craftSignalBooster,
   getOpenScrapRun,
-  joinScrapRun,
   renderScrapCard,
+  renderScrapInventory,
+  renderScrapScoreboard,
   resolveScrapRun,
   setScrapMessageId,
   startScrapRun,
@@ -88,7 +91,8 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     chatId: unknown,
     chat: Record<string, unknown> | null,
     token: string,
-    explicitDescription = ''
+    explicitDescription = '',
+    focus: TelegramChatEntry | null = null
   ) => {
     const say = async (text: string) => {
       try {
@@ -100,17 +104,25 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
     try {
       context.rateLimiter.limit(`tg-issue:${String(chatId)}`, 5, 3600, context.now());
       const messages = history(chatId);
-      if (messages.length === 0 && !explicitDescription.trim()) {
+      if (messages.length === 0 && !explicitDescription.trim() && !focus) {
         await say('Describe the problem with /issue <what happened>, or reply /issue to a message describing it.');
         return;
       }
-      await say(messages.length > 0
-        ? `📝 Reading the last ${Math.min(messages.length, historyLimit)} messages and drafting an issue…`
-        : '📝 Drafting an issue from your report…');
-      const footer = `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
+      const source = focus
+        ? 'the replied-to message and recent context'
+        : explicitDescription.trim()
+          ? 'your report'
+          : `the last ${Math.min(messages.length, historyLimit)} messages`;
+      await say(`📝 Reading ${source} and drafting an issue…`);
+      const footer = focus
+        ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, focused on one explicitly replied-to message with ${messages.length} recent message(s) supplied as context. Please edit if the summary missed something._`
+        : explicitDescription.trim()
+          ? `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot from the text supplied with /issue. Please edit if the summary missed something._`
+          : `_Filed from Telegram chat \`${String(chatId)}\` by the TinyFrens bot, summarising ${messages.length} recent message(s). Please edit if the summary missed something._`;
       const result = await fileCommunityIssue(context, {
         messages,
         description: explicitDescription,
+        focus: focus || undefined,
         chatTitle: String(chat?.title || 'Telegram chat'),
         linkTarget: String(chatId),
         footer,
@@ -359,20 +371,18 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               return reply.status(200).send({ ok: true });
             }
           }
-          const result = action === 'join'
-            ? joinScrapRun(
-                context.db,
-                runId,
-                senderUid,
-                linkedPetId,
-                senderName,
-                now
-              )
-            : action === 'resolve'
+          let result;
+          try {
+            result = action === 'join'
+              ? await joinEnergyPoweredScrapRun(context, {
+                  runId, userId: senderUid, petId: linkedPetId, displayName: senderName, now,
+                })
+              : action === 'safe' || action === 'deep' || action === 'resolve'
               ? resolveScrapRun(
                   context.db,
                   runId,
                   senderUid,
+                  action === 'deep' ? 'deep' : 'safe',
                   now,
                   context.random(),
                   (petId, credits, scrapRunId) => {
@@ -380,14 +390,23 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                   }
                 )
               : { ok: false as const, reason: 'missing' as const };
+          } catch (error) {
+            if (cqId) {
+              await context.telegramApi.call('answerCallbackQuery', {
+                callback_query_id: cqId,
+                text: scrapEnergyError(error),
+                show_alert: true,
+              }, token);
+            }
+            return reply.status(200).send({ ok: true });
+          }
 
           let toast = 'That scrap run is no longer available.';
           let showAlert = false;
           if (!result.ok) {
-            if (result.reason === 'full') toast = 'That crew is full or its join window has closed.';
+            if (result.reason === 'full') toast = 'That crew is full.';
             if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
-            if (result.reason === 'waiting') toast = `Crew is still open for ${result.waitSeconds || 1}s.`;
-            showAlert = result.reason !== 'waiting';
+            showAlert = true;
           } else {
             toast = action === 'join'
               ? (result.changed ? 'You joined the crew.' : 'You are already in this crew.')
@@ -553,6 +572,33 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           return reply.status(200).send({ ok: true });
         }
 
+        if (/^\/(?:scoreboard|inventory|craft)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
+          const command = text.match(/^\/(scoreboard|inventory|craft)/i)?.[1]?.toLowerCase();
+          try {
+            const pet = telegramPet(context, sender);
+            const now = Math.floor(context.now());
+            let responseText: string;
+            if (command === 'scoreboard') {
+              responseText = renderScrapScoreboard(context.db, now, pet.id);
+            } else if (command === 'inventory') {
+              const energy = await scrapEnergyStatus(context, pet.id);
+              responseText = renderScrapInventory(context.db, pet.id, {
+                totalMilli: energy.status.totalMilli,
+                costMilli: energy.costMilli,
+                waitSeconds: energy.waitSeconds,
+              });
+            } else {
+              responseText = craftSignalBooster(context.db, pet.id, now)
+                ? '🛠 <b>Signal Booster crafted.</b> Your next Deep scan consumes it and cannot miss.'
+                : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+            }
+            await sendCommand({ chat_id: chatId, text: responseText, parse_mode: 'HTML' });
+          } catch (error) {
+            await sendCommand({ chat_id: chatId, text: error instanceof Error ? error.message : 'Link Telegram to use Scrap inventory.' });
+          }
+          return reply.status(200).send({ ok: true });
+        }
+
         const isGroupChat = chat?.type === 'group' || chat?.type === 'supergroup';
         if (/^\/(?:scrap|pet|play)(?:@\w+)?\s*$/i.test(text) && chatId !== null && chatId !== undefined) {
           await sendCommand({ chat_id: chatId, text: 'Use /game — it is the one TinyFrens group game.' });
@@ -587,7 +633,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               let failure = 'Telegram API request failed';
               try {
                 let visible = false;
-                if (!started.created && previousCardId && now <= started.state.run.join_until) {
+                if (!started.created && previousCardId) {
                   const edited = await context.telegramApi.call('editMessageText', {
                     chat_id: chatId,
                     message_id: previousCardId,
@@ -740,7 +786,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           if (replied && typeof replied === 'object') remember(chatId, replied as Record<string, unknown>);
           const inlineDescription = text.replace(/^\/issue(?:@\w+)?\s*/i, '').trim();
           const entry = chatMessage({ message: replied });
-          await fileIssueFromChat(chatId, chat, token, inlineDescription || (entry ? entry.text : ''));
+          await fileIssueFromChat(chatId, chat, token, inlineDescription, entry);
           return reply.status(200).send({ ok: true });
         }
 

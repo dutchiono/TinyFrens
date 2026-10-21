@@ -41,6 +41,24 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
     integration_types: [0],
   },
   {
+    name: 'scoreboard',
+    description: 'Show weekly standings and your all-time Scrap record',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'inventory',
+    description: 'Show your salvage, Energy, and next-run timing',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'craft',
+    description: 'Craft a Signal Booster from salvage',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
     name: 'show',
     description: 'Post a verified NFT from one of your TinyFrens slots',
     contexts: [0],
@@ -255,7 +273,7 @@ export async function setupDiscordGuild(
   const parentId = String(category.id);
   const channelSpecs = [
     { name: 'tinyfrens', topic: 'TinyFrens community chat, bot commands, and companion updates.' },
-    { name: 'scrap-yard', topic: 'Start the shared five-minute Scrap Run with /game.' },
+    { name: 'scrap-yard', topic: 'Start a live shared Scrap Run with /game.' },
     { name: 'updates', topic: 'TinyFrens website, Telegram, Discord, game, and backend updates.' },
     { name: 'github-updates', topic: 'Automated GitHub pull requests, CI, releases and deployment status.' },
   ];

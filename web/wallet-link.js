@@ -53,6 +53,8 @@
   const matches = document.getElementById('walletMatches');
   const base = () => String(window.TINYFRENS_SERVER || '').replace(/\/$/, '');
   let linkedAddresses = [];
+  const walletState = window.TinyFrensWalletState = {loaded:false, failed:false, addresses:[], nfts:null};
+  const announce = () => window.dispatchEvent(new Event('tinyfrens-wallet-state'));
   const manager = document.getElementById('walletManager');
   document.getElementById('accountControls').prepend(manager);
 
@@ -74,7 +76,7 @@
     window.TinyFrensWalletConnected = addresses.length > 0;
     document.getElementById('accountHeading').textContent = addresses.length ? 'Your account' : 'Set up your account';
     document.getElementById('accountIntro').textContent = addresses.length ? 'Wallets, linked devices and profile.' : 'Connect a wallet or link a device you already use.';
-    if ((!addresses.length || approvingDevice) && window.showScreen && document.getElementById('screen-pet').hidden === false) window.showScreen('account');
+    if (approvingDevice && window.showScreen && document.getElementById('screen-pet').hidden === false) window.showScreen('account');
     manager.querySelector('summary').textContent = addresses.length ? `Connected wallets (${addresses.length})` : 'Add wallets';
     document.getElementById('supportedNFTPanel').hidden = !addresses.length;
     linkedWallet.replaceChildren();
@@ -100,6 +102,10 @@
     linkButton.textContent = addresses.length ? 'Add wallet manually' : 'Connect wallet manually';
     scanButton.disabled = !addresses.length;
     if (!addresses.length) matches.replaceChildren();
+    if (addresses.length) walletState.loaded = true;
+    if (addresses.join() !== walletState.addresses.join()) walletState.nfts = null;
+    walletState.addresses = [...addresses];
+    announce();
   }
 
   if (window.PetAndroid) setInterval(() => {
@@ -274,12 +280,14 @@
       const queue = [...previews];
       const worker = async () => { while (queue.length) await queue.shift()(); };
       void Promise.all([worker(), worker()]);
+      walletState.nfts = supported.length; walletState.scanError = ''; announce();
       const failed = data.errors.length;
       scanStatus.textContent = (supported.length ? supported.length + ' supported NFT(s) found.' : 'No supported NFTs found yet. Check your wallets in Account, or refresh after your next mint.') +
         (data.partial ? ' Partial scan: ' + failed + ' indexer request(s) failed or pages were limited.' : '') +
         (failed ? ' ' + data.errors.slice(0,2).join('; ') : '');
     } catch(error) {
       scanStatus.textContent = error.message;
+      walletState.scanError = error.message; announce();
     } finally {
       scanButton.disabled = !linkedAddresses.length;
     }
@@ -287,6 +295,7 @@
 
   async function loadLink() {
     const data = await post('/api/wallet-link/status');
+    walletState.loaded = true; walletState.failed = false;
     showLink(data.addresses || (data.address ? [data.address] : []));
     linkStatus.textContent = linkedAddresses.length ? 'Linked wallets are checked together. Add another whenever you need.' : '';
     if (linkedAddresses.length) await scan();
@@ -412,6 +421,7 @@
     try { await loadLink(); }
     catch (error) {
       linkStatus.textContent = 'Could not connect to your account. Check your connection and retry.';
+      walletState.failed = true; announce();
     } finally { loading = false; }
   }
   window.addEventListener('tinyfrens-identity-ready', initialLoad);
