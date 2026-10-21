@@ -751,6 +751,75 @@ describe('Account & Device Sync Parity (Phase 6 Slice 6A)', () => {
       });
     });
 
+    test('Telegram /link recognizes the same linked user in a public group', async () => {
+      let sentMessage: Record<string, unknown> | null = null;
+      const originalCall = sharedContext.telegramApi.call.bind(sharedContext.telegramApi);
+      sharedContext.telegramApi.call = async (_method, payload) => {
+        sentMessage = payload;
+        return { data: { ok: true }, status: 200 };
+      };
+      const linkedPet = mintPet(sharedContext.db, { name: 'Public linked account' });
+      const linkedAccount = sharedContext.repos.deviceSync.ensureAccount(linkedPet.id);
+      sharedContext.repos.wallets.linkAccountWallet(
+        linkedAccount,
+        '0x1001000000000000000000000000000000000000',
+        'personal_sign',
+        currentTime
+      );
+      sharedContext.repos.telegram.linkTgUser('1001', linkedPet.id, currentTime);
+
+      try {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/telegram/webhook',
+          headers: { 'x-telegram-bot-api-secret-token': 'test-tg-secret' },
+          payload: {
+            message: {
+              text: '/link',
+              chat: { id: -100777, type: 'supergroup' },
+              from: { id: 1001, first_name: 'Linked', username: 'linked' },
+            },
+          },
+        });
+
+        assert.strictEqual(response.statusCode, 200);
+        assert.match(String(sentMessage?.text), /linked and available in this chat/i);
+      } finally {
+        sharedContext.telegramApi.call = originalCall;
+      }
+    });
+
+    test('Telegram explains when an anonymous group admin hides the linked identity', async () => {
+      let sentMessage: Record<string, unknown> | null = null;
+      const originalCall = sharedContext.telegramApi.call.bind(sharedContext.telegramApi);
+      sharedContext.telegramApi.call = async (_method, payload) => {
+        sentMessage = payload;
+        return { data: { ok: true }, status: 200 };
+      };
+
+      try {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/telegram/webhook',
+          headers: { 'x-telegram-bot-api-secret-token': 'test-tg-secret' },
+          payload: {
+            message: {
+              text: '/link',
+              chat: { id: -100778, type: 'supergroup' },
+              sender_chat: { id: -100778, type: 'supergroup' },
+              from: { id: 1087968824, first_name: 'GroupAnonymousBot', is_bot: true },
+            },
+          },
+        });
+
+        assert.strictEqual(response.statusCode, 200);
+        assert.match(String(sentMessage?.text), /anonymous admin/i);
+        assert.match(String(sentMessage?.text), /Remain Anonymous/i);
+      } finally {
+        sharedContext.telegramApi.call = originalCall;
+      }
+    });
+
     test('one-tap community link confirms on an established device and consumes the request', async () => {
       const existing = mintPet(sharedContext.db, { name: 'Existing device' });
       const bridge = mintPet(sharedContext.db, { name: 'Discord bridge' });
