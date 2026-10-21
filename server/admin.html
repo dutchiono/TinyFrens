@@ -104,13 +104,24 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   </details>
 </div>
 
+<div class="card hidden" id="passwordCard">
+  <h2 style="margin-top:0">Change your password</h2>
+  <p id="passwordIntro">Enter your current password and choose a new one.</p>
+  <div class="row">
+    <label>Current password<input class="wide" id="currentPassword" type="password" autocomplete="current-password"></label>
+    <label>New password<input class="wide" id="changedPassword" type="password" minlength="10" autocomplete="new-password"></label>
+    <label>Confirm new password<input class="wide" id="confirmPassword" type="password" minlength="10" autocomplete="new-password"></label>
+  </div>
+  <div class="row" style="margin-top:14px"><button id="changePasswordBtn">Save new password</button><button class="ghost" id="cancelPasswordBtn">Cancel</button><span id="passwordmsg" class="muted" role="status"></span></div>
+</div>
+
 <div id="userBar" class="user-bar hidden">
   <div>Logged in as <b id="loggedInUser">dutch</b></div>
-  <button class="ghost" id="logoutBtn">Log out</button>
+  <div class="row"><button class="ghost" id="openPasswordBtn">Change password</button><button class="ghost" id="logoutBtn">Log out</button></div>
 </div>
 
 <div id="app" class="hidden">
-  <nav aria-label="Admin sections"><a href="#overview">Overview</a><a href="#care-settings">Care settings</a><a href="#activity">Activity</a><a href="#access">Admin access</a></nav>
+  <nav aria-label="Admin sections"><a href="#overview">Overview</a><a href="#scrap-game">Scrap game</a><a href="#care-settings">Legacy care</a><a href="#activity">Activity</a><a href="#access">Admin access</a></nav>
   <section id="overview">
     <div class="section-heading"><h2>Economy overview</h2><button class="ghost" id="refresh">Refresh overview</button></div>
     <p id="loadmsg" class="muted" role="status"></p>
@@ -124,6 +135,17 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     </div>
     <p class="section-note">Registered devices are browser/app credentials, including older installations. Sync accounts group linked devices. Neither is a count of imported frens or active users.</p>
     <p class="section-note" id="economy"></p>
+  </section>
+  <section id="scrap-game">
+    <h2>Community Scrap Run</h2>
+    <p class="section-note">The live shared game used by Telegram and Discord. Rules below come from the same server constants that resolve each run.</p>
+    <div class="panel">
+      <div class="status-strip" id="gameStats"></div>
+      <div class="split"><div class="panel-heading"><h3>Current rules</h3><p id="gameRules"></p></div><div class="panel-heading"><h3>Reward curve</h3><p id="gameBonus"></p></div></div>
+      <div class="table-wrap" style="margin:0;border-left:0;border-right:0;border-radius:0;max-height:none"><table><thead><tr><th>Loot</th><th>Rarity</th><th>Chance</th><th>Base credits</th></tr></thead><tbody id="gameLoot"></tbody></table></div>
+    </div>
+    <h3 style="margin-top:18px">Recent runs</h3>
+    <div class="table-wrap"><table><thead><tr><th>Run</th><th>Room</th><th>Starter</th><th>Status</th><th>Crew</th><th>Find</th><th>Credits each</th><th>Started</th></tr></thead><tbody id="gameRuns"></tbody></table></div>
   </section>
   <section id="care-settings">
   <h2>Legacy care policy</h2>
@@ -183,7 +205,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       </div>
       <span id="usermsg" class="muted"></span>
     </div>
-    <div class="table-wrap"><table style="margin-top:16px"><thead><tr><th>Username</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table></div>
+    <div class="table-wrap"><table style="margin-top:16px"><thead><tr><th>Username</th><th>Password</th><th>Created</th></tr></thead><tbody id="usersList"></tbody></table></div>
     </div>
   </details>
   </section>
@@ -226,7 +248,9 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
             sessionStorage.removeItem(USER_KEY);
             showLogin('Session expired or unauthorized. Please log in.');
           }
-          throw new Error(body.error || ('HTTP ' + r.status));
+          var error = new Error(body.error || ('HTTP ' + r.status));
+          error.code = body.code || ''; error.status = r.status;
+          throw error;
         }
         return body;
       });
@@ -293,6 +317,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
 
   function showLogin(msg){
     $('loginCard').classList.remove('hidden');
+    $('passwordCard').classList.add('hidden');
     $('userBar').classList.add('hidden');
     $('app').classList.add('hidden');
     if(msg){
@@ -306,9 +331,20 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
 
   function showApp(username){
     $('loginCard').classList.add('hidden');
+    $('passwordCard').classList.add('hidden');
     $('userBar').classList.remove('hidden');
     $('app').classList.remove('hidden');
     $('loggedInUser').textContent = username || sessionStorage.getItem(USER_KEY) || 'admin';
+    $('openPasswordBtn').classList.toggle('hidden', username === 'system');
+  }
+
+  function showPasswordChange(username, required){
+    $('loginCard').classList.add('hidden'); $('app').classList.add('hidden');
+    $('userBar').classList.remove('hidden'); $('passwordCard').classList.remove('hidden');
+    $('loggedInUser').textContent = username || sessionStorage.getItem(USER_KEY) || 'admin';
+    $('passwordIntro').textContent = required ? 'You must replace the temporary password before using the console.' : 'Enter your current password and choose a new one of at least 10 characters.';
+    $('cancelPasswordBtn').classList.toggle('hidden', Boolean(required));
+    $('passwordmsg').textContent = '';
   }
 
   function renderUsers(users){
@@ -318,8 +354,9 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     (users || []).forEach(function(u){
       var tr = document.createElement('tr');
       var tdUser = document.createElement('td'); tdUser.textContent = u.username;
+      var tdPassword = document.createElement('td'); tdPassword.textContent = u.passwordChangeRequired ? 'Change required' : 'Set';
       var tdDate = document.createElement('td'); tdDate.textContent = when(u.created);
-      tr.appendChild(tdUser); tr.appendChild(tdDate);
+      tr.appendChild(tdUser); tr.appendChild(tdPassword); tr.appendChild(tdDate);
       body.appendChild(tr);
     });
   }
@@ -481,6 +518,23 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
     });
   }
 
+  function loadGame(){
+    return api('/api/admin/game?limit=50').then(function(data){
+      var summary = data.summary || {}, rules = data.rules || {};
+      var stats = $('gameStats'); stats.textContent = '';
+      [['Runs', summary.totalRuns], ['Open', summary.openRuns], ['Resolved', summary.resolvedRuns], ['Expired', summary.expiredRuns], ['Crew entries', summary.crewEntries], ['Credits granted', summary.creditsGranted]].forEach(function(pair){
+        var item = document.createElement('div'); item.className = 'status-item'; item.textContent = pair[0];
+        var value = document.createElement('span'); value.textContent = pair[1] == null ? '—' : Number(pair[1]).toLocaleString(); item.appendChild(value); stats.appendChild(item);
+      });
+      $('gameRules').textContent = (rules.platforms || []).join(' + ') + ' · ' + Math.round((rules.lobbySeconds || 0) / 60) + '-minute lobby · up to ' + (rules.maxCrewSize || 0) + ' crew.';
+      $('gameBonus').textContent = 'Every crew member gets the same find, plus ' + (rules.groupBonusCredits || 0) + ' credits for each additional crew member.';
+      var loot = $('gameLoot'); loot.textContent = '';
+      (rules.loot || []).forEach(function(item){ var tr=document.createElement('tr'); [item.name,item.rarity,item.chancePercent+'%',item.reward].forEach(function(value){var td=document.createElement('td');td.textContent=value;tr.appendChild(td);});loot.appendChild(tr); });
+      var runs = $('gameRuns'); runs.textContent = '';
+      (data.recent || []).forEach(function(run){ var tr=document.createElement('tr'); [run.id,run.roomId,run.starterName,run.status,run.crewSize,run.lootName || '—',run.rewardEach == null ? '—' : run.rewardEach,when(run.createdAt)].forEach(function(value){var td=document.createElement('td');td.textContent=value;tr.appendChild(td);});runs.appendChild(tr); });
+    });
+  }
+
   function loadState(){
     $('authmsg').textContent = 'Loading…';
     $('authmsg').className = 'muted';
@@ -490,9 +544,10 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       $('loadmsg').className = 'muted';
       showApp(state.currentUser || sessionStorage.getItem(USER_KEY));
       render();
-      return Promise.all([loadEnergy(), loadLedger(), loadCare(), loadMarket()]);
+      return Promise.all([loadGame(), loadEnergy(), loadLedger(), loadCare(), loadMarket()]);
     }).catch(function(err){
-      if(!state) showLogin(err.message);
+      if(err.code === 'password_change_required') showPasswordChange(sessionStorage.getItem(USER_KEY), true);
+      else if(!state) showLogin(err.message);
       else { $('loadmsg').textContent = err.message; $('loadmsg').className = 'err'; }
     });
   }
@@ -521,7 +576,7 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       sessionStorage.setItem(USER_KEY, data.username);
       $('password').value = '';
       $('authmsg').textContent = '';
-      loadState();
+      if(data.passwordChangeRequired) showPasswordChange(data.username, true); else loadState();
     }).catch(function(err){
       $('authmsg').textContent = err.message;
       $('authmsg').className = 'err';
@@ -547,6 +602,16 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
       sessionStorage.removeItem(USER_KEY);
       showLogin();
     });
+  }
+
+  function changePassword(){
+    var current = $('currentPassword').value, next = $('changedPassword').value, confirm = $('confirmPassword').value, msg = $('passwordmsg');
+    if(!current || !next){ msg.textContent='Current and new passwords are required.'; msg.className='err'; return; }
+    if(next !== confirm){ msg.textContent='New passwords do not match.'; msg.className='err'; return; }
+    msg.textContent='Saving…'; msg.className='muted';
+    api('/api/admin/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:current,newPassword:next})}).then(function(){
+      $('currentPassword').value=''; $('changedPassword').value=''; $('confirmPassword').value=''; msg.textContent='Password changed.'; msg.className='ok'; state=null; return loadState();
+    }).catch(function(err){ msg.textContent=err.message; msg.className='err'; });
   }
 
   function saveTunables(){
@@ -613,6 +678,9 @@ details.panel[open] summary{border-bottom:1px solid var(--line)}
   $('password').addEventListener('keydown', function(e){ if(e.key === 'Enter') login(); });
   $('tokenBtn').addEventListener('click', loginWithToken);
   $('logoutBtn').addEventListener('click', logout);
+  $('openPasswordBtn').addEventListener('click', function(){ showPasswordChange(sessionStorage.getItem(USER_KEY), false); });
+  $('cancelPasswordBtn').addEventListener('click', function(){ loadState(); });
+  $('changePasswordBtn').addEventListener('click', changePassword);
   $('save').addEventListener('click', saveTunables);
   Array.prototype.forEach.call(document.querySelectorAll('.allowance-preset'), function(button){
     button.addEventListener('click', function(){ $('allowance').value = button.dataset.value; });

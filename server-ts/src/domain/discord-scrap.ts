@@ -1,6 +1,4 @@
-import { ScrapState } from './telegram-scrap.js';
-
-const MAX_CREW_SIZE = 4;
+import { SCRAP_GROUP_BONUS_CREDITS, SCRAP_MAX_CREW_SIZE, ScrapState } from './telegram-scrap.js';
 
 export function renderDiscordScrap(state: ScrapState): {
   content: string;
@@ -9,7 +7,7 @@ export function renderDiscordScrap(state: ScrapState): {
   const { run, members } = state;
   const crew = members.map(member => `• ${member.display_name}`).join('\n') || '• No one yet — press **Join crew**.';
   if (run.status === 'resolved') {
-    const bonus = Math.max(0, members.length - 1) * 10;
+    const bonus = Math.max(0, members.length - 1) * SCRAP_GROUP_BONUS_CREDITS;
     return {
       content: [
         '## 🛰 SCRAP RUN COMPLETE',
@@ -31,7 +29,7 @@ export function renderDiscordScrap(state: ScrapState): {
     content: [
       '## 🛰 SCRAP RUN',
       `**${run.starter_name}** found a scrap signal.`,
-      `⚡ **Live now** · Crew **${members.length}/${MAX_CREW_SIZE}**`,
+      `⚡ **Live now** · Crew **${members.length}/${SCRAP_MAX_CREW_SIZE}**`,
       '',
       '**Crew**',
       crew,
@@ -41,7 +39,7 @@ export function renderDiscordScrap(state: ScrapState): {
     components: [
       {
         type: 1,
-        components: [{ type: 2, style: 1, label: `Join crew (${members.length}/${MAX_CREW_SIZE})`, custom_id: `game:${run.id}:join`, emoji: { name: '🤝' } }],
+        components: [{ type: 2, style: 1, label: `Join crew (${members.length}/${SCRAP_MAX_CREW_SIZE})`, custom_id: `game:${run.id}:join`, emoji: { name: '🤝' } }],
       },
       {
         type: 1,

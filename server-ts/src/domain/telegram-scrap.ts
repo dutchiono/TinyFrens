@@ -1,8 +1,16 @@
 import { createHash } from 'node:crypto';
 import { DatabaseConnection } from '../db/connection.js';
 
-const LOBBY_SECONDS = 5 * 60;
-const MAX_CREW_SIZE = 4;
+export const SCRAP_LOBBY_SECONDS = 5 * 60;
+export const SCRAP_MAX_CREW_SIZE = 4;
+export const SCRAP_GROUP_BONUS_CREDITS = 10;
+export const SCRAP_LOOT_TABLE = [
+  { name: 'Rusted Gear', rarity: 'Common', chancePercent: 65, reward: 25, rollBelow: 0.65 },
+  { name: 'Copper Coil', rarity: 'Uncommon', chancePercent: 25, reward: 40, rollBelow: 0.9 },
+  { name: 'Lithium Cell', rarity: 'Rare', chancePercent: 8, reward: 75, rollBelow: 0.98 },
+  { name: 'Plasma Core', rarity: 'Epic', chancePercent: 1.8, reward: 150, rollBelow: 0.998 },
+  { name: 'Sentient AI Chip', rarity: 'Legendary', chancePercent: 0.2, reward: 1_000, rollBelow: 1 },
+] as const;
 export const STALE_RUN_SECONDS = 10 * 60;
 export type ScrapSearchMode = 'safe' | 'deep';
 
@@ -130,7 +138,7 @@ export function startScrapRun(
     `INSERT INTO tg_scrap_runs(
       id, chat_id, message_id, starter_user_id, starter_name, status, created_at, join_until
     ) VALUES(?, ?, NULL, ?, ?, 'open', ?, ?)`
-  ).run(id, chatId, userId, name, now, now + LOBBY_SECONDS);
+  ).run(id, chatId, userId, name, now, now + SCRAP_LOBBY_SECONDS);
   return { state: getScrapState(db, id)!, created: true };
 }
 
@@ -154,7 +162,7 @@ export function joinScrapRun(
     if (state.members.some(member => member.user_id === userId || member.pet_id === petId)) {
       return { ok: true as const, state, changed: false };
     }
-    if (state.members.length >= MAX_CREW_SIZE) {
+    if (state.members.length >= SCRAP_MAX_CREW_SIZE) {
       return { ok: false as const, reason: 'full' as const };
     }
     spendEnergy?.();
@@ -310,7 +318,7 @@ export function resolveScrapRun(
     ).get(resolver.pet_id) !== undefined;
   }
   const loot = lootForRoll(mode, boosterUsed ? 0.25 + Math.max(0, Math.min(1, random)) * 0.75 : random);
-  const groupBonus = Math.max(0, current.members.length - 1) * 10;
+  const groupBonus = Math.max(0, current.members.length - 1) * SCRAP_GROUP_BONUS_CREDITS;
   const rewardEach = loot.reward > 0 ? loot.reward + groupBonus : 0;
   db.transaction(() => {
     const changed = db.prepare(
@@ -346,7 +354,7 @@ export function renderScrapCard(
   const { run, members } = state;
   const names = members.map(member => `• ${escapeHtml(member.display_name)}`).join('\n') || '• No one yet — press Join crew.';
   if (run.status === 'resolved') {
-    const bonus = Math.max(0, members.length - 1) * 10;
+    const bonus = Math.max(0, members.length - 1) * SCRAP_GROUP_BONUS_CREDITS;
     return [
       [
         '🛰 <b>SCRAP RUN COMPLETE</b>',
@@ -368,7 +376,7 @@ export function renderScrapCard(
       '🛰 <b>SCRAP RUN</b>',
       '━━━━━━━━━━━━━━━━━━━━━',
       `<b>${escapeHtml(run.starter_name)}</b> found a scrap signal.`,
-      `⚡ <b>Live now</b> · Crew <b>${members.length}/${MAX_CREW_SIZE}</b>`,
+      `⚡ <b>Live now</b> · Crew <b>${members.length}/${SCRAP_MAX_CREW_SIZE}</b>`,
       '',
       '<b>Crew</b>',
       names,
@@ -377,7 +385,7 @@ export function renderScrapCard(
     ].join('\n'),
     {
       inline_keyboard: [
-        [{ text: `🤝 Join crew (${members.length}/${MAX_CREW_SIZE})`, callback_data: `game:${run.id}:join` }],
+        [{ text: `🤝 Join crew (${members.length}/${SCRAP_MAX_CREW_SIZE})`, callback_data: `game:${run.id}:join` }],
         [
           { text: '🛡 Safe scan', callback_data: `game:${run.id}:safe` },
           { text: '🌌 Deep scan', callback_data: `game:${run.id}:deep` },

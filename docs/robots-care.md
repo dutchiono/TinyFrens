@@ -181,19 +181,21 @@ authorizes on a fresh `ownerOf`, matching the existing companion flow.
 
 Shipped (P3):
 
-- `server/admin.py` — token-protected (`Authorization: Bearer $ADMIN_TOKEN`) routes under
-  `/api/admin/*`. With no `ADMIN_TOKEN` the whole surface answers **503**, so nothing is exposed by
-  accident; the token is compared in constant time. This surface never touches keys, seeds or
-  deployments.
+- `server-ts/src/routes/admin.ts` — username/session- or token-protected routes under
+  `/api/admin/*`. With no admin user or `ADMIN_TOKEN` the whole surface answers **503**, so nothing
+  is exposed by accident; the token is compared in constant time. This surface never touches keys,
+  seeds or deployments.
 - `GET /api/admin/state` — care tunables (effective + overrides), the care-action list, economy
   status (including the read-only deposit treasury address, the per-transfer cap and
   `creditsPerFrens`), counts and the recent audit log. `POST /api/admin/settings` — retune
   `dailyAllowance`, `gameRewardCredits` and the per-action FRENS prices; persisted in `app_settings`
   and read **live** by the care layer (so `RobotCare` re-reads them per request, no restart).
   `GET /api/admin/ledger` and `GET /api/admin/care` — read-only views of the credit ledger and daily
-  care usage.
+  care usage. `GET /api/admin/game` reports the shared Telegram/Discord Scrap Run rules and recent
+  activity from the same constants and tables used by the game.
 - `server/admin.html` (reached via `/admin` on the relay server) — the operator page. The API is origin-independent (it
-  authenticates via session bearer tokens or ADMIN_TOKEN) and every response is `Cache-Control: no-store`.
+  authenticates via session bearer tokens or ADMIN_TOKEN), named admins can change their own
+  passwords, and every response is `Cache-Control: no-store`.
 - Deployment: reachable at `/admin` on `PET_DOMAIN`, or on its own host by setting `ADMIN_DOMAIN`
   and uncommenting the Caddy block (`server/Caddyfile`, `server/README.md`); production runs as
   systemd `tinyfrens-server.service` on `miono`.

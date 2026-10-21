@@ -96,7 +96,7 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   },
   {
     table: 'admin_users',
-    sql: 'CREATE TABLE IF NOT EXISTS admin_users(username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);',
+    sql: 'CREATE TABLE IF NOT EXISTS admin_users(username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, must_change_password INTEGER NOT NULL DEFAULT 0);',
   },
   {
     table: 'admin_sessions',

@@ -7,6 +7,7 @@ import {
   migrateDeviceSyncTelegramSelection,
   migrateDeployNotificationCards,
   migrateEnergyPurchases,
+  migrateAdminPasswordChange,
   migrateScrapGameLoop,
   migrateWalletLinks,
   runMigrations,
@@ -204,6 +205,22 @@ describe('Database: Schema & Migrations', () => {
     assert.deepEqual(
       db.prepare('SELECT component, revision, verified_at FROM deployment_component_status').get(),
       { component: 'website', revision: 'a'.repeat(40), verified_at: 123 }
+    );
+    db.close();
+  });
+
+  test('adds the required-password-change flag without locking existing admins', () => {
+    const db = createDbConnection(':memory:');
+    db.exec(`CREATE TABLE admin_users(
+      username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL,
+      created INTEGER NOT NULL, updated INTEGER NOT NULL
+    );`);
+    db.prepare('INSERT INTO admin_users VALUES(?,?,?,?,?)').run('dutch', 'salt', 'hash', 100, 100);
+    migrateAdminPasswordChange(db);
+    migrateAdminPasswordChange(db);
+    assert.deepEqual(
+      db.prepare('SELECT username, must_change_password FROM admin_users').get(),
+      { username: 'dutch', must_change_password: 0 }
     );
     db.close();
   });
