@@ -42,7 +42,7 @@ Joining requires an explicit account link. Create a sync code from TinyFrens Acc
 - Each linked fren can join three runs per UTC day, across both Telegram and Discord.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
 - Successful finds also add persistent salvage to `/inventory`. `/craft` spends 3 Rusted Gear and 2 Copper Coil to make a Signal Booster; the next Deep scan by that fren consumes it and cannot miss.
-- `/scoreboard` ranks weekly salvage and shows personal objectives for completing three runs, finding rare scrap, and running with a crew.
+- `/scoreboard` ranks weekly salvage, shows personal weekly objectives, and keeps each fren's all-time salvage, runs, rare finds, and crew runs after the weekly reset.
 - Only one unresolved run can exist in a group. Reusing `/game` refreshes the existing message.
 - A completed card offers **New scrap run**, which starts the next run in the same message instead of adding chat noise.
 - Joins and rewards are stored in SQLite and are idempotent.

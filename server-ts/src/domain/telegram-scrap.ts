@@ -242,6 +242,27 @@ export function getWeeklyScoreboard(db: DatabaseConnection, now: number, limit =
   }));
 }
 
+export function getLifetimeScrapStats(db: DatabaseConnection, petId: string): ScrapScoreRow {
+  const row = db.prepare<{
+    display_name: string | null; salvage: number | null; runs: number; rare_finds: number | null; crew_runs: number | null;
+  }>(
+    `SELECT MAX(m.display_name) AS display_name, COALESCE(SUM(m.reward), 0) AS salvage,
+            COUNT(*) AS runs,
+            COALESCE(SUM(CASE WHEN r.rarity IN ('Rare','Epic','Legendary') THEN 1 ELSE 0 END), 0) AS rare_finds,
+            COALESCE(SUM(CASE WHEN (SELECT COUNT(*) FROM tg_scrap_members crew WHERE crew.run_id=r.id)>1 THEN 1 ELSE 0 END), 0) AS crew_runs
+       FROM tg_scrap_members m JOIN tg_scrap_runs r ON r.id=m.run_id
+      WHERE m.pet_id=? AND r.status='resolved'`
+  ).get(petId);
+  return {
+    petId,
+    displayName: row?.display_name || 'Fren',
+    salvage: Number(row?.salvage || 0),
+    runs: Number(row?.runs || 0),
+    rareFinds: Number(row?.rare_finds || 0),
+    crewRuns: Number(row?.crew_runs || 0),
+  };
+}
+
 export function renderScrapInventory(db: DatabaseConnection, petId: string, now: number): string {
   const items = getScrapInventory(db, petId);
   const lines = items.length ? items.map(row => `• ${row.item} ×${row.quantity}`) : ['• Empty'];
@@ -255,10 +276,15 @@ export function renderScrapScoreboard(db: DatabaseConnection, now: number, petId
     ? rows.map((row, index) => `${index + 1}. <b>${escapeHtml(row.displayName)}</b> — ${row.salvage} salvage · ${row.runs} runs`).join('\n')
     : 'No completed runs this week yet.';
   const own = petId ? allRows.find(row => row.petId === petId) : undefined;
-  const objectives = own
-    ? `\n\n<b>Your weekly objectives</b>\n${own.runs >= 3 ? '✅' : '⬜'} Complete 3 runs (${Math.min(own.runs, 3)}/3)\n${own.rareFinds >= 1 ? '✅' : '⬜'} Find rare scrap (${Math.min(own.rareFinds, 1)}/1)\n${own.crewRuns >= 1 ? '✅' : '⬜'} Run with a crew (${Math.min(own.crewRuns, 1)}/1)`
+  const weekly = own || { runs: 0, rareFinds: 0, crewRuns: 0 };
+  const objectives = petId
+    ? `\n\n<b>Your weekly objectives</b>\n${weekly.runs >= 3 ? '✅' : '⬜'} Complete 3 runs (${Math.min(weekly.runs, 3)}/3)\n${weekly.rareFinds >= 1 ? '✅' : '⬜'} Find rare scrap (${Math.min(weekly.rareFinds, 1)}/1)\n${weekly.crewRuns >= 1 ? '✅' : '⬜'} Run with a crew (${Math.min(weekly.crewRuns, 1)}/1)`
     : '';
-  return `🏆 <b>WEEKLY SCRAP SCOREBOARD</b>\n${rankings}${objectives}`;
+  const lifetime = petId ? getLifetimeScrapStats(db, petId) : undefined;
+  const lifetimeText = lifetime
+    ? `\n\n<b>Your all-time record</b>\n${lifetime.salvage} salvage · ${lifetime.runs} runs · ${lifetime.rareFinds} rare finds · ${lifetime.crewRuns} crew runs`
+    : '';
+  return `🏆 <b>WEEKLY SCRAP SCOREBOARD</b>\n${rankings}${objectives}${lifetimeText}`;
 }
 
 export function resolveScrapRun(

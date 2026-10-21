@@ -330,7 +330,7 @@ export function telegramHelpText(topic: TelegramHelpTopic): string {
     '<b>🎮 Group Game</b>',
     '/game — Start or refresh the shared Scrap Run.',
     '/gamehelp — Rules and timing.',
-    '/scoreboard — Weekly Scrap Run standings.',
+    '/scoreboard — Weekly standings and your all-time record.',
     '/inventory — Your salvage and daily runs.',
     '/craft — Craft a Signal Booster.',
     '',

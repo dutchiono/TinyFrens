@@ -6,11 +6,13 @@ import {
   craftSignalBooster,
   expireStaleScrapRun,
   getScrapInventory,
+  getLifetimeScrapStats,
   getWeeklyScoreboard,
   getOpenScrapRun,
   getScrapState,
   joinScrapRun,
   renderScrapCard,
+  renderScrapScoreboard,
   remainingDailyRuns,
   resolveScrapRun,
   startScrapRun,
@@ -187,6 +189,25 @@ describe('Telegram group scrap runs', () => {
       ['Ada', 160, 1, 1],
       ['Bob', 160, 1, 1],
     ]);
+    db.close();
+  });
+
+  test('preserves personal lifetime totals after the weekly scoreboard resets', () => {
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const oldRun = startScrapRun(db, 'old', '1', 'Ada', 100_000, 0.1).state;
+    joinScrapRun(db, oldRun.run.id, '1', 'pet-1', 'Ada', 100_001);
+    resolveScrapRun(db, oldRun.run.id, '1', 'safe', 100_002, 0, () => undefined);
+
+    const afterReset = 1_000_000;
+    assert.deepEqual(getWeeklyScoreboard(db, afterReset), []);
+    assert.deepEqual(getLifetimeScrapStats(db, 'pet-1'), {
+      petId: 'pet-1', displayName: 'Ada', salvage: 25, runs: 1, rareFinds: 0, crewRuns: 0,
+    });
+    const card = renderScrapScoreboard(db, afterReset, 'pet-1');
+    assert.match(card, /No completed runs this week/);
+    assert.match(card, /Your all-time record/);
+    assert.match(card, /25 salvage · 1 runs/);
     db.close();
   });
 });

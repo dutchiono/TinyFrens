@@ -21,7 +21,7 @@ export function discordHelpText(): string {
     '**Group game**',
     '`/game` — Start or refresh this channel’s shared Scrap Run.',
     '`/gamehelp` — Rules, timing, and cross-platform state.',
-    '`/scoreboard` — Weekly salvage standings and objectives.',
+    '`/scoreboard` — Weekly standings, objectives, and your all-time record.',
     '`/inventory` — Your salvage and remaining daily runs.',
     '`/craft` — Craft a Signal Booster from salvage.',
     '`/show [slot]` — Post a verified NFT from slot 1–5.',

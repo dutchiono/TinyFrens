@@ -9,7 +9,7 @@ export const PRIVATE_TELEGRAM_COMMANDS: TelegramCommand[] = [
   { command: 'start', description: 'Open TinyFrens' },
   { command: 'help', description: 'See every command' },
   { command: 'gamehelp', description: 'How the group Scrap Run works' },
-  { command: 'scoreboard', description: 'Weekly Scrap Run standings' },
+  { command: 'scoreboard', description: 'Weekly standings and all-time record' },
   { command: 'inventory', description: 'Your salvage and daily runs' },
   { command: 'craft', description: 'Craft a Signal Booster' },
   { command: 'show', description: 'Post one of your NFT frens' },
@@ -23,7 +23,7 @@ export const PRIVATE_TELEGRAM_COMMANDS: TelegramCommand[] = [
 export const GROUP_TELEGRAM_COMMANDS: TelegramCommand[] = [
   { command: 'game', description: 'Start or refresh the group Scrap Run' },
   { command: 'gamehelp', description: 'How the group Scrap Run works' },
-  { command: 'scoreboard', description: 'Weekly Scrap Run standings' },
+  { command: 'scoreboard', description: 'Weekly standings and all-time record' },
   { command: 'inventory', description: 'Your salvage and daily runs' },
   { command: 'craft', description: 'Craft a Signal Booster' },
   { command: 'show', description: 'Post one of your NFT frens' },
