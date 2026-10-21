@@ -36,7 +36,7 @@ export function renderDiscordScrap(state: ScrapState): {
       '**Crew**',
       crew,
       '',
-      '_Join the crew, then choose a safe guaranteed scan or risk a deep scan for better salvage. Each fren gets 3 joins per UTC day._',
+      '_Joining spends your account Energy. One Robot recharges a run in about 6 hours; owning more Robots recharges faster. Then choose a safe scan or risk a deep scan._',
     ].join('\n'),
     components: [
       {

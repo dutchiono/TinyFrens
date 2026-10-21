@@ -6,12 +6,13 @@ import {
   craftSignalBooster,
   expireStaleScrapRun,
   getScrapInventory,
+  getLifetimeScrapStats,
   getWeeklyScoreboard,
   getOpenScrapRun,
   getScrapState,
   joinScrapRun,
   renderScrapCard,
-  remainingDailyRuns,
+  renderScrapScoreboard,
   resolveScrapRun,
   startScrapRun,
 } from '../../src/domain/telegram-scrap.js';
@@ -86,7 +87,7 @@ describe('Telegram group scrap runs', () => {
     initSchema(db);
     const started = startScrapRun(db, '-300', '1', '<Ada>', 3_000, 0.1);
     assert.match(renderScrapCard(started.state, 3_000)[0], /Live now/);
-    assert.match(renderScrapCard(started.state, 3_000)[0], /safe guaranteed scan/i);
+    assert.match(renderScrapCard(started.state, 3_000)[0], /account Energy/i);
     assert.match(renderScrapCard(started.state, 3_000)[0], /No one yet/);
     joinScrapRun(db, started.state.run.id, '1', 'pet-1', '<Ada>', 3_000);
     joinScrapRun(db, started.state.run.id, '2', 'pet-2', 'Two', 3_001);
@@ -131,19 +132,16 @@ describe('Telegram group scrap runs', () => {
     db.close();
   });
 
-  test('caps daily participation across chats', () => {
+  test('charges a new member once and never charges an idempotent join', () => {
     const db = createDbConnection(':memory:');
     initSchema(db);
-    for (let index = 0; index < 3; index += 1) {
-      const run = startScrapRun(db, `chat-${index}`, String(index), 'Ada', 10_000 + index, index / 10).state;
-      assert.equal(joinScrapRun(db, run.run.id, '1', 'pet-1', 'Ada', 10_000 + index).ok, true);
-    }
-    assert.equal(remainingDailyRuns(db, 'pet-1', 10_100), 0);
-    const fourth = startScrapRun(db, 'chat-4', '4', 'Ada', 10_100, 0.5).state;
-    assert.deepEqual(joinScrapRun(db, fourth.run.id, '1', 'pet-1', 'Ada', 10_100), {
-      ok: false,
-      reason: 'daily-limit',
-    });
+    const run = startScrapRun(db, 'energy', '1', 'Ada', 10_000, 0.1).state;
+    let spends = 0;
+    const first = joinScrapRun(db, run.run.id, '1', 'pet-1', 'Ada', 10_001, () => { spends += 1; });
+    const replay = joinScrapRun(db, run.run.id, '1', 'pet-1', 'Ada', 10_002, () => { spends += 1; });
+    assert.equal(first.ok && first.changed, true);
+    assert.equal(replay.ok && replay.changed, false);
+    assert.equal(spends, 1);
     db.close();
   });
 
@@ -187,6 +185,25 @@ describe('Telegram group scrap runs', () => {
       ['Ada', 160, 1, 1],
       ['Bob', 160, 1, 1],
     ]);
+    db.close();
+  });
+
+  test('preserves personal lifetime totals after the weekly scoreboard resets', () => {
+    const db = createDbConnection(':memory:');
+    initSchema(db);
+    const oldRun = startScrapRun(db, 'old', '1', 'Ada', 100_000, 0.1).state;
+    joinScrapRun(db, oldRun.run.id, '1', 'pet-1', 'Ada', 100_001);
+    resolveScrapRun(db, oldRun.run.id, '1', 'safe', 100_002, 0, () => undefined);
+
+    const afterReset = 1_000_000;
+    assert.deepEqual(getWeeklyScoreboard(db, afterReset), []);
+    assert.deepEqual(getLifetimeScrapStats(db, 'pet-1'), {
+      petId: 'pet-1', displayName: 'Ada', salvage: 25, runs: 1, rareFinds: 0, crewRuns: 0,
+    });
+    const card = renderScrapScoreboard(db, afterReset, 'pet-1');
+    assert.match(card, /No completed runs this week/);
+    assert.match(card, /Your all-time record/);
+    assert.match(card, /25 salvage · 1 runs/);
     db.close();
   });
 });

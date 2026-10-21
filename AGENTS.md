@@ -25,3 +25,7 @@ Work from a feature branch and open a pull request. Do not push directly to main
 A trusted workflow requests GitHub native squash auto-merge for every non-draft PR authored by dutchiono from this repository into main, regardless of changed paths. The owner explicitly authorizes this policy for work submitted through their account. All merges must obey required branch protection/status checks, including the strict requirement to be current with main. Never bypass branch protections or use admin merge. The `hold-merge` label pauses auto-merge; drafts also stay unmerged. Agents should open a PR and let real CI and native auto-merge complete it, rather than performing a second ceremonial review or polling indefinitely.
 
 Agents may propose fixes to issues but must not self-approve, deploy contracts, expose credentials or release funds.
+
+## Post-merge cleanup
+- After a pull request merges, delete its feature branch locally and on the remote, and remove any temporary worktree you created once the worktree is clean and the merged commit is safely on `main`.
+- Never remove a dirty, shared, or still-active branch/worktree. If cleanup must be deferred, leave a clear note explaining what remains and why.

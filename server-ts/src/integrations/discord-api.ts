@@ -42,13 +42,13 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   },
   {
     name: 'scoreboard',
-    description: 'Show weekly Scrap Run standings and objectives',
+    description: 'Show weekly standings and your all-time Scrap record',
     contexts: [0],
     integration_types: [0],
   },
   {
     name: 'inventory',
-    description: 'Show your salvage and daily Scrap Run allowance',
+    description: 'Show your salvage, Energy, and next-run timing',
     contexts: [0],
     integration_types: [0],
   },
