@@ -42,6 +42,25 @@ import {
   startScrapRun,
 } from '../domain/telegram-scrap.js';
 
+function isAnonymousGroupSender(
+  message: Record<string, unknown>,
+  sender: Record<string, unknown>
+): boolean {
+  return Boolean(message.sender_chat) || String(sender.id || '') === '1087968824';
+}
+
+function telegramAccountError(
+  error: unknown,
+  message: Record<string, unknown>,
+  sender: Record<string, unknown>,
+  fallback: string
+): string {
+  if (error instanceof AccountLinkRequiredError && isAnonymousGroupSender(message, sender)) {
+    return 'Telegram hid your personal account because you posted as an anonymous admin. Turn off “Remain Anonymous” for this command, or use the game buttons, so TinyFrens receives your linked Telegram user ID.';
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
 async function callTelegramApi(
   method: string,
   payload: Record<string, unknown>,
@@ -237,11 +256,25 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
         const msg = (update as Record<string, unknown>).message as Record<string, unknown> | undefined;
         const sender = (msg?.from && typeof msg.from === 'object') ? (msg.from as Record<string, unknown>) : {};
         if (String(chat?.type || '') !== 'private') {
-          await context.telegramApi.call('sendMessage', {
-            chat_id: chatId,
-            text: 'For privacy, link your account in a DM with @TinyFrensBot.',
-            reply_markup: replyMarkup('https://t.me/TinyFrensBot?start=link', 'Open private link', false),
-          }, token);
+          try {
+            telegramPet(context, sender);
+            await context.telegramApi.call('sendMessage', {
+              chat_id: chatId,
+              text: 'Your Telegram account is linked and available in this chat. Use /game, /inventory, /scoreboard, or /show.',
+            }, token);
+          } catch (error) {
+            if (!(error instanceof AccountLinkRequiredError)) throw error;
+            const anonymous = isAnonymousGroupSender(msg || {}, sender);
+            await context.telegramApi.call('sendMessage', {
+              chat_id: chatId,
+              text: anonymous
+                ? telegramAccountError(error, msg || {}, sender, 'Telegram account unavailable.')
+                : 'This Telegram account is not linked yet. For privacy, link it in a DM with @TinyFrensBot.',
+              reply_markup: anonymous
+                ? undefined
+                : replyMarkup('https://t.me/TinyFrensBot?start=link', 'Open private link', false),
+            }, token);
+          }
           return reply.status(200).send({ ok: true });
         }
 
@@ -565,7 +598,7 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           } catch (error) {
             await sendCommand({
               chat_id: chatId,
-              text: error instanceof Error ? error.message : 'TinyFrens could not verify that NFT right now',
+              text: telegramAccountError(error, telegramMessage, sender, 'TinyFrens could not verify that NFT right now'),
               reply_markup: replyMarkup(isPrivate ? `${miniapp}#pet` : deepLink, '🐾 Open TinyFrens', isPrivate),
             });
           }
@@ -594,7 +627,10 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
             }
             await sendCommand({ chat_id: chatId, text: responseText, parse_mode: 'HTML' });
           } catch (error) {
-            await sendCommand({ chat_id: chatId, text: error instanceof Error ? error.message : 'Link Telegram to use Scrap inventory.' });
+            await sendCommand({
+              chat_id: chatId,
+              text: telegramAccountError(error, telegramMessage, sender, 'Link Telegram to use Scrap inventory.'),
+            });
           }
           return reply.status(200).send({ ok: true });
         }
