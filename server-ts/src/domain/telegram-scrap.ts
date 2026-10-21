@@ -3,7 +3,6 @@ import { DatabaseConnection } from '../db/connection.js';
 
 const LOBBY_SECONDS = 5 * 60;
 const MAX_CREW_SIZE = 4;
-export const MAX_DAILY_SCRAP_RUNS = 3;
 export const STALE_RUN_SECONDS = 10 * 60;
 export type ScrapSearchMode = 'safe' | 'deep';
 
@@ -40,7 +39,7 @@ export interface ScrapState {
 
 export type ScrapActionResult =
   | { ok: true; state: ScrapState; changed: boolean }
-  | { ok: false; reason: 'missing' | 'closed' | 'full' | 'not-member' | 'daily-limit' };
+  | { ok: false; reason: 'missing' | 'closed' | 'full' | 'not-member' };
 
 export interface ScrapInventoryItem {
   item: string;
@@ -145,24 +144,25 @@ export function joinScrapRun(
   userId: string,
   petId: string,
   displayName: string,
-  now: number
+  now: number,
+  spendEnergy?: () => void
 ): ScrapActionResult {
-  const state = getScrapState(db, id);
-  if (!state) return { ok: false, reason: 'missing' };
-  if (state.run.status !== 'open') return { ok: false, reason: 'closed' };
-  if (state.members.some(member => member.user_id === userId || member.pet_id === petId)) {
-    return { ok: true, state, changed: false };
-  }
-  if (remainingDailyRuns(db, petId, now) <= 0) {
-    return { ok: false, reason: 'daily-limit' };
-  }
-  if (state.members.length >= MAX_CREW_SIZE) {
-    return { ok: false, reason: 'full' };
-  }
-  db.prepare(
-    'INSERT OR IGNORE INTO tg_scrap_members(run_id, user_id, pet_id, display_name, reward, joined_at) VALUES(?, ?, ?, ?, 0, ?)'
-  ).run(id, userId, petId, cleanName(displayName), now);
-  return { ok: true, state: getScrapState(db, id)!, changed: true };
+  return db.transaction(() => {
+    const state = getScrapState(db, id);
+    if (!state) return { ok: false as const, reason: 'missing' as const };
+    if (state.run.status !== 'open') return { ok: false as const, reason: 'closed' as const };
+    if (state.members.some(member => member.user_id === userId || member.pet_id === petId)) {
+      return { ok: true as const, state, changed: false };
+    }
+    if (state.members.length >= MAX_CREW_SIZE) {
+      return { ok: false as const, reason: 'full' as const };
+    }
+    spendEnergy?.();
+    db.prepare(
+      'INSERT INTO tg_scrap_members(run_id, user_id, pet_id, display_name, reward, joined_at) VALUES(?, ?, ?, ?, 0, ?)'
+    ).run(id, userId, petId, cleanName(displayName), now);
+    return { ok: true as const, state: getScrapState(db, id)!, changed: true };
+  })();
 }
 
 function lootForRoll(mode: ScrapSearchMode, roll: number): { name: string; rarity: string; reward: number } {
@@ -189,13 +189,6 @@ function utcWeekStart(now: number): number {
   const date = new Date(now * 1_000);
   const day = (date.getUTCDay() + 6) % 7;
   return utcDayStart(now) - day * 86_400;
-}
-
-export function remainingDailyRuns(db: DatabaseConnection, petId: string, now: number): number {
-  const row = db.prepare<{ count: number }>(
-    'SELECT COUNT(*) AS count FROM tg_scrap_members WHERE pet_id=? AND joined_at>=?'
-  ).get(petId, utcDayStart(now));
-  return Math.max(0, MAX_DAILY_SCRAP_RUNS - Number(row?.count || 0));
 }
 
 export function getScrapInventory(db: DatabaseConnection, petId: string): ScrapInventoryItem[] {
@@ -263,10 +256,17 @@ export function getLifetimeScrapStats(db: DatabaseConnection, petId: string): Sc
   };
 }
 
-export function renderScrapInventory(db: DatabaseConnection, petId: string, now: number): string {
+export function renderScrapInventory(
+  db: DatabaseConnection,
+  petId: string,
+  energy?: { totalMilli: number; costMilli: number; waitSeconds: number | null }
+): string {
   const items = getScrapInventory(db, petId);
   const lines = items.length ? items.map(row => `• ${row.item} ×${row.quantity}`) : ['• Empty'];
-  return ['🎒 <b>SCRAP INVENTORY</b>', ...lines, '', `Runs left today: <b>${remainingDailyRuns(db, petId, now)}/${MAX_DAILY_SCRAP_RUNS}</b>`, 'Craft: 3 Rusted Gear + 2 Copper Coil → Signal Booster.'].join('\n');
+  const energyLine = energy
+    ? `Scrap Energy: <b>${(energy.totalMilli / 1_000).toFixed(1)}</b> · Join cost: <b>${(energy.costMilli / 1_000).toFixed(0)}</b>${energy.waitSeconds === null ? ' · Recharge locked' : energy.waitSeconds > 0 ? ` · Ready in about ${Math.ceil(energy.waitSeconds / 3_600)}h` : ' · Ready now'}`
+    : '';
+  return ['🎒 <b>SCRAP INVENTORY</b>', ...lines, '', energyLine, 'Craft: 3 Rusted Gear + 2 Copper Coil → Signal Booster.'].filter(Boolean).join('\n');
 }
 
 export function renderScrapScoreboard(db: DatabaseConnection, now: number, petId?: string): string {
@@ -373,7 +373,7 @@ export function renderScrapCard(
       '<b>Crew</b>',
       names,
       '',
-      '<i>Join the crew, then choose a safe guaranteed scan or risk a deep scan for better salvage. Each fren gets 3 joins per UTC day.</i>',
+      '<i>Joining spends your account Energy. One Robot recharges a run in about 6 hours; owning more Robots recharges faster. Then choose a safe scan or risk a deep scan.</i>',
     ].join('\n'),
     {
       inline_keyboard: [

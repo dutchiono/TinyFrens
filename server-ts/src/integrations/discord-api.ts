@@ -48,7 +48,7 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
   },
   {
     name: 'inventory',
-    description: 'Show your salvage and daily Scrap Run allowance',
+    description: 'Show your salvage, Energy, and next-run timing',
     contexts: [0],
     integration_types: [0],
   },

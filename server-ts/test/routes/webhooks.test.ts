@@ -784,6 +784,12 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
       const originalTelegramApi = sharedContext.telegramApi;
       const originalNow = sharedContext.now;
+      const originalRobotsVerifier = sharedContext.robotsVerifier;
+      sharedContext.robotsVerifier = {
+        discover: async () => ({ nfts: [{ tokenId: 1 }], partial: false }),
+        read: async () => ({ active: true }),
+        ownerOf: async () => true,
+      };
       sharedContext.telegramApi = {
         async call(method, payload) {
           calls.push({ method, payload });
@@ -856,6 +862,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
         const account = sharedContext.repos.deviceSync.ensureAccount(pet.id);
         sharedContext.repos.wallets.linkAccountWallet(account, address, 'personal_sign', 1700000000);
         sharedContext.repos.telegram.linkTgUser(tgId, pet.id, 1700000000);
+        sharedContext.playerEnergy.grantPurchased(account, 6_000, 'test');
       }
 
       const joined = await app.inject({
@@ -942,6 +949,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
       });
       sharedContext.telegramApi = originalTelegramApi;
       sharedContext.now = originalNow;
+      sharedContext.robotsVerifier = originalRobotsVerifier;
 
       assert.equal(joined.statusCode, 200);
       assert.equal(starterJoined.statusCode, 200);

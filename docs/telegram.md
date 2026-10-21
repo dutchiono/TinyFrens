@@ -39,7 +39,7 @@ Joining requires an explicit account link. Create a sync code from TinyFrens Acc
 - A crew holds up to four operators.
 - Starting a run does not automatically join the operator.
 - Any crew member can scan immediately. A Safe scan always finds modest salvage; a Deep scan can miss but has better rare finds and credit rewards.
-- Each linked fren can join three runs per UTC day, across both Telegram and Discord.
+- Every crew member spends 6 account Energy when joining. Starting or refreshing a card is free. With one eligible Robot, 6 Energy recharges in about six hours; owning more eligible Robots increases the account recharge rate. Telegram, Discord, and the shared web care game spend the same account Energy, so switching platforms does not bypass progression.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
 - Successful finds also add persistent salvage to `/inventory`. `/craft` spends 3 Rusted Gear and 2 Copper Coil to make a Signal Booster; the next Deep scan by that fren consumes it and cannot miss.
 - `/scoreboard` ranks weekly salvage, shows personal weekly objectives, and keeps each fren's all-time salvage, runs, rare finds, and crew runs after the weekly reset.
@@ -47,7 +47,7 @@ Joining requires an explicit account link. Create a sync code from TinyFrens Acc
 - A completed card offers **New scrap run**, which starts the next run in the same message instead of adding chat noise.
 - Joins and rewards are stored in SQLite and are idempotent.
 
-The reward weights and crafting recipe are balance inputs and can change, but the daily cap, persistent inventory, risk choice, crafting sink, and shared weekly standings are enforced server-side.
+The reward weights, Energy cost, and crafting recipe are balance inputs and can change, but the account Energy gate, persistent inventory, risk choice, crafting sink, and shared weekly/all-time records are enforced server-side. Planned FRENS holding, staking, and burn recharge boosts remain inactive; this feature does not silently enable them.
 
 ### Project awareness
 

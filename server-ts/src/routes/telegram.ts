@@ -29,11 +29,11 @@ import { fileCommunityIssue } from '../domain/community-issues.js';
 import { requestSync, startCommunityLink } from '../domain/device-sync.js';
 import { isChatAdmin } from '../domain/telegram-moderation.js';
 import { sendTelegramCompanion } from '../domain/telegram-companion.js';
+import { joinEnergyPoweredScrapRun, scrapEnergyError, scrapEnergyStatus } from '../domain/scrap-energy.js';
 import {
   expireStaleScrapRun,
   craftSignalBooster,
   getOpenScrapRun,
-  joinScrapRun,
   renderScrapCard,
   renderScrapInventory,
   renderScrapScoreboard,
@@ -371,16 +371,13 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
               return reply.status(200).send({ ok: true });
             }
           }
-          const result = action === 'join'
-            ? joinScrapRun(
-                context.db,
-                runId,
-                senderUid,
-                linkedPetId,
-                senderName,
-                now
-              )
-            : action === 'safe' || action === 'deep' || action === 'resolve'
+          let result;
+          try {
+            result = action === 'join'
+              ? await joinEnergyPoweredScrapRun(context, {
+                  runId, userId: senderUid, petId: linkedPetId, displayName: senderName, now,
+                })
+              : action === 'safe' || action === 'deep' || action === 'resolve'
               ? resolveScrapRun(
                   context.db,
                   runId,
@@ -393,13 +390,22 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
                   }
                 )
               : { ok: false as const, reason: 'missing' as const };
+          } catch (error) {
+            if (cqId) {
+              await context.telegramApi.call('answerCallbackQuery', {
+                callback_query_id: cqId,
+                text: scrapEnergyError(error),
+                show_alert: true,
+              }, token);
+            }
+            return reply.status(200).send({ ok: true });
+          }
 
           let toast = 'That scrap run is no longer available.';
           let showAlert = false;
           if (!result.ok) {
             if (result.reason === 'full') toast = 'That crew is full.';
             if (result.reason === 'not-member') toast = 'Join the crew before resolving its run.';
-            if (result.reason === 'daily-limit') toast = 'You used all 3 Scrap Run joins for today. Try again after 00:00 UTC.';
             showAlert = true;
           } else {
             toast = action === 'join'
@@ -571,13 +577,21 @@ export function registerTelegramRoutes(app: FastifyInstance, context: AppContext
           try {
             const pet = telegramPet(context, sender);
             const now = Math.floor(context.now());
-            const responseText = command === 'scoreboard'
-              ? renderScrapScoreboard(context.db, now, pet.id)
-              : command === 'inventory'
-                ? renderScrapInventory(context.db, pet.id, now)
-                : craftSignalBooster(context.db, pet.id, now)
-                  ? '🛠 <b>Signal Booster crafted.</b> Your next Deep scan consumes it and cannot miss.'
-                  : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+            let responseText: string;
+            if (command === 'scoreboard') {
+              responseText = renderScrapScoreboard(context.db, now, pet.id);
+            } else if (command === 'inventory') {
+              const energy = await scrapEnergyStatus(context, pet.id);
+              responseText = renderScrapInventory(context.db, pet.id, {
+                totalMilli: energy.status.totalMilli,
+                costMilli: energy.costMilli,
+                waitSeconds: energy.waitSeconds,
+              });
+            } else {
+              responseText = craftSignalBooster(context.db, pet.id, now)
+                ? '🛠 <b>Signal Booster crafted.</b> Your next Deep scan consumes it and cannot miss.'
+                : 'You need 3 Rusted Gear and 2 Copper Coil to craft a Signal Booster.';
+            }
             await sendCommand({ chat_id: chatId, text: responseText, parse_mode: 'HTML' });
           } catch (error) {
             await sendCommand({ chat_id: chatId, text: error instanceof Error ? error.message : 'Link Telegram to use Scrap inventory.' });
