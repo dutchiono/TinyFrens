@@ -220,11 +220,15 @@ export const SCHEMA_STATEMENTS: { table: string; sql: string }[] = [
   },
   {
     table: 'tg_scrap_runs',
-    sql: "CREATE TABLE IF NOT EXISTS tg_scrap_runs(id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, message_id INTEGER, starter_user_id TEXT NOT NULL, starter_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, join_until INTEGER NOT NULL, resolved_at INTEGER, loot_name TEXT, rarity TEXT, reward_each INTEGER);",
+    sql: "CREATE TABLE IF NOT EXISTS tg_scrap_runs(id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, message_id INTEGER, starter_user_id TEXT NOT NULL, starter_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, join_until INTEGER NOT NULL, resolved_at INTEGER, loot_name TEXT, rarity TEXT, reward_each INTEGER, search_mode TEXT, booster_used INTEGER NOT NULL DEFAULT 0);",
   },
   {
     table: 'tg_scrap_members',
     sql: "CREATE TABLE IF NOT EXISTS tg_scrap_members(run_id TEXT NOT NULL, user_id TEXT NOT NULL, pet_id TEXT NOT NULL, display_name TEXT NOT NULL, reward INTEGER NOT NULL DEFAULT 0, joined_at INTEGER NOT NULL, PRIMARY KEY(run_id, pet_id), UNIQUE(run_id, user_id), FOREIGN KEY(run_id) REFERENCES tg_scrap_runs(id));",
+  },
+  {
+    table: 'tg_scrap_inventory',
+    sql: 'CREATE TABLE IF NOT EXISTS tg_scrap_inventory(pet_id TEXT NOT NULL, item TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0), updated_at INTEGER NOT NULL, PRIMARY KEY(pet_id, item));',
   },
   {
     table: 'tg_filters',

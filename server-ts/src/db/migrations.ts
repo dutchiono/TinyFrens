@@ -174,6 +174,17 @@ export function migrateDeployNotificationCards(db: DatabaseConnection): void {
   );
 }
 
+/** Adds persisted Scrap Run choices without invalidating active legacy lobbies. */
+export function migrateScrapGameLoop(db: DatabaseConnection): void {
+  const columns = db.prepare<TableColumnInfo>('PRAGMA table_info(tg_scrap_runs)').all();
+  if (!columns.some(column => column.name === 'search_mode')) {
+    db.exec('ALTER TABLE tg_scrap_runs ADD COLUMN search_mode TEXT;');
+  }
+  if (!columns.some(column => column.name === 'booster_used')) {
+    db.exec('ALTER TABLE tg_scrap_runs ADD COLUMN booster_used INTEGER NOT NULL DEFAULT 0;');
+  }
+}
+
 /**
  * Applies all schema definitions and backward-compatible data migrations.
  */
@@ -184,4 +195,5 @@ export function runMigrations(db: DatabaseConnection): void {
   migrateAccountWallets(db);
   migrateEnergyPurchases(db);
   migrateDeployNotificationCards(db);
+  migrateScrapGameLoop(db);
 }

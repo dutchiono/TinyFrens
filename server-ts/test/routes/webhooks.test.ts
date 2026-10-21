@@ -910,7 +910,7 @@ describe('Signed Webhooks & External Integrations Parity (Phase 5)', () => {
           update_id: 202,
           callback_query: {
             id: 'cq_scrap_resolve',
-            data: `game:${run.id}:resolve`,
+            data: `game:${run.id}:safe`,
             from: { id: 'starter', first_name: 'Ada' },
             message: {
               message_id: 808,

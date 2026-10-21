@@ -30,21 +30,24 @@ Use `/show` after linking your account to post the first selected NFT as a trans
 
 Add `@TinyFrensBot` to a group to post an **Open TinyFrens** button. People open the Mini App and can join the shared room with their linked NFT companions. Android and desktop can also show companions over other apps; Telegram keeps them inside the Mini App sandbox.
 
-### Group scrap prototype
+### Group Scrap Run
 
-Use `/game` in a group to start a live shared Scrap Run. It is the only game command. The bot posts one message with **Join crew** and **Search scrap** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player.
+Use `/game` in a group to start a live shared Scrap Run. The bot posts one message with **Join crew**, **Safe scan**, and **Deep scan** buttons, removes the triggering command when its admin permissions allow it, then edits that same message as operators join and when the run finishes. It does not lock the group or post a new message for each player. Telegram and Discord use the same game state, inventory, and rankings.
 
 Joining requires an explicit account link. Create a sync code from TinyFrens Account, DM `/link CODE` to the bot, and approve the request on the original device. Pressing **Join crew** never creates a hidden Telegram-only account.
 
 - A crew holds up to four operators.
 - Starting a run does not automatically join the operator.
-- Any crew member can search the scrap field immediately. There is no waiting period; others can join while the run remains open.
+- Any crew member can scan immediately. A Safe scan always finds modest salvage; a Deep scan can miss but has better rare finds and credit rewards.
+- Each linked fren can join three runs per UTC day, across both Telegram and Discord.
 - Everyone receives the same account credit reward, plus 10 credits per additional crew member. Rewards use the shared TinyFrens account ledger, so they are not trapped in Telegram.
+- Successful finds also add persistent salvage to `/inventory`. `/craft` spends 3 Rusted Gear and 2 Copper Coil to make a Signal Booster; the next Deep scan by that fren consumes it and cannot miss.
+- `/scoreboard` ranks weekly salvage and shows personal objectives for completing three runs, finding rare scrap, and running with a crew.
 - Only one unresolved run can exist in a group. Reusing `/game` refreshes the existing message.
 - A completed card offers **New scrap run**, which starts the next run in the same message instead of adding chat noise.
 - Joins and rewards are stored in SQLite and are idempotent.
 
-This is an intentionally small Telegram-first playtest. Crew size, loot weights, rewards, cooldowns, and cross-platform presentation are still design inputs rather than finalized balance.
+The reward weights and crafting recipe are balance inputs and can change, but the daily cap, persistent inventory, risk choice, crafting sink, and shared weekly standings are enforced server-side.
 
 ### Project awareness
 

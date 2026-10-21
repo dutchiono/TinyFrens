@@ -41,6 +41,24 @@ export const DISCORD_COMMANDS: DiscordCommandDefinition[] = [
     integration_types: [0],
   },
   {
+    name: 'scoreboard',
+    description: 'Show weekly Scrap Run standings and objectives',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'inventory',
+    description: 'Show your salvage and daily Scrap Run allowance',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
+    name: 'craft',
+    description: 'Craft a Signal Booster from salvage',
+    contexts: [0],
+    integration_types: [0],
+  },
+  {
     name: 'show',
     description: 'Post a verified NFT from one of your TinyFrens slots',
     contexts: [0],
