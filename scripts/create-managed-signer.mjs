@@ -1,6 +1,4 @@
 import { Configuration, NeynarAPIClient } from "@neynar/nodejs-sdk";
-import { ViemLocalEip712Signer } from "@farcaster/hub-nodejs";
-import { bytesToHex, hexToBytes } from "viem";
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { parseArgs } from "node:util";
 import fs from "node:fs";
@@ -26,7 +24,11 @@ Usage:
   process.exit(0);
 }
 
-const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || "824702FF-A740-47EE-9C65-FDD3324BCD3E";
+const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
+if (!NEYNAR_API_KEY) {
+  console.error("Error: NEYNAR_API_KEY is required.");
+  process.exit(1);
+}
 const client = new NeynarAPIClient(new Configuration({ apiKey: NEYNAR_API_KEY }));
 
 // Read key or mnemonic from args or env or .secrets/
@@ -91,21 +93,28 @@ console.log(`   Signer UUID: ${createSigner.signer_uuid}`);
 console.log(`   Public Key:  ${createSigner.public_key}`);
 
 console.log(`\n4. Generating EIP-712 SignedKeyRequest signature...`);
-const appAccountKey = new ViemLocalEip712Signer(account);
 const deadline = Math.floor(Date.now() / 1000) + 86400; // 24 hours
-const uintAddress = hexToBytes(createSigner.public_key);
-
-const signatureRes = await appAccountKey.signKeyRequest({
-  requestFid: BigInt(fid),
-  key: uintAddress,
-  deadline: BigInt(deadline),
+const signatureHex = await account.signTypedData({
+  domain: {
+    name: "Farcaster SignedKeyRequestValidator",
+    version: "1",
+    chainId: 10,
+    verifyingContract: "0x00000000FC700472606ED4fA22623Acf62c60553",
+  },
+  types: {
+    SignedKeyRequest: [
+      { name: "requestFid", type: "uint256" },
+      { name: "key", type: "bytes" },
+      { name: "deadline", type: "uint256" },
+    ],
+  },
+  primaryType: "SignedKeyRequest",
+  message: {
+    requestFid: BigInt(fid),
+    key: createSigner.public_key,
+    deadline: BigInt(deadline),
+  },
 });
-
-if (signatureRes.isErr()) {
-  throw new Error(`Failed to sign key request: ${signatureRes.error}`);
-}
-
-const signatureHex = bytesToHex(signatureRes.value);
 
 console.log(`\n5. Registering signed key with Neynar (sponsored)...`);
 const signedKey = await client.registerSignedKey({

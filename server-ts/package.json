@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "TinyFrens TypeScript server",
   "type": "module",
+  "engines": {
+    "node": ">=22.23.4 <23"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
