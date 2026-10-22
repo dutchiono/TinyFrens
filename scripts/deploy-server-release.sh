@@ -82,11 +82,18 @@ fi
 mkdir "$stage"
 tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$stage"
 test -f "$stage/server-ts/package-lock.json"
+test -f "$stage/.node-version"
 test -f "$stage/ops/systemd/tinyfrens-server-ts.service"
 test -f "$stage/ops/systemd/tinyfrens-discord.service"
 test -f "$stage/ops/systemd/tinyfrens-deploy-failure-alert.service"
 
 export PATH="$base/toolchain/bin:$PATH"
+required_node=$(tr -d '\r\n' < "$stage/.node-version")
+actual_node=$("$base/toolchain/bin/node" --version)
+if [[ -z $required_node || $actual_node != "v$required_node" ]]; then
+  echo "Deployment requires Node v$required_node; installed toolchain is $actual_node." >&2
+  exit 66
+fi
 cd "$stage/server-ts"
 npm ci
 npm run build

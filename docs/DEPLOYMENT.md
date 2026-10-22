@@ -18,6 +18,7 @@
 ## Server deployment
 
 - **Production server**: `server-ts/` (Node.js/TypeScript). The historical Python server is not a production entrypoint.
+- **Runtime**: the exact supported Node.js security release is pinned in `.node-version`; deployments fail closed if the server toolchain differs.
 - **Delivery**: `.github/workflows/deploy-backend.yml` reconciles production to the exact `main` revision on pushes, manual dispatches, and every five minutes.
 - **Safety**: Releases install side-by-side, run build/startup checks, switch atomically, and roll back the active release when health verification fails.
 - **Recovery**: systemd restarts the process, login lingering keeps the user service manager alive without SSH, and a local timer checks `/health` every minute.
