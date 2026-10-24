@@ -3,10 +3,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  # Native auto-merges requested with GITHUB_TOKEN can suppress push workflows.
-  # Reconcile main periodically too; unchanged releases skip building/publishing.
-  schedule:
-    - cron: '*/5 * * * *'
 permissions:
   contents: read
 concurrency:

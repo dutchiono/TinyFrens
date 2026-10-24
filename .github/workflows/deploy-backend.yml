@@ -13,10 +13,6 @@ on:
       - 'ops/systemd/**'
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
-  # Native auto-merges requested with GITHUB_TOKEN can suppress push workflows.
-  # Reconcile the deployed revision to main periodically as a second trigger.
-  schedule:
-    - cron: '*/5 * * * *'
 permissions:
   contents: read
 concurrency:
