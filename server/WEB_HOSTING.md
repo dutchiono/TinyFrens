@@ -28,9 +28,10 @@ existing relay on 127.0.0.1:8790. The admin surface remains relay-only.
 `.github/workflows/publish-server.yml` publishes every new `main` revision,
 and can be run manually on `main` from GitHub Actions. It uses repository
 secrets `TF_WEB_SSH_KEY` and `TF_WEB_KNOWN_HOSTS`. Pull requests never publish.
-An every-five-minute scheduled reconciliation also handles native auto-merges
-whose `GITHUB_TOKEN` suppresses downstream push workflows. GitHub may delay
-scheduled runs. Unchanged releases skip the build and upload.
+The trusted owner auto-merge workflow explicitly dispatches both production
+workflows after GitHub completes a native auto-merge whose `GITHUB_TOKEN`
+suppresses downstream push workflows. Unchanged releases skip the build and
+upload.
 
 The `tinyfrens-deploy` system account is separate from the API user and has
 no sudo privileges. Its SSH key is restricted to the root-owned Node 22

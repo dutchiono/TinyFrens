@@ -40,7 +40,10 @@ if sys.argv[1:] == ['api', 'repos/dutchiono/TinyFrens/pulls/42']:
     print((root/('response.json' if count == 0 else 'merged.json')).read_text())
 elif sys.argv[1:3] == ['pr', 'merge']:
     pass
-elif sys.argv[1:] == ['workflow', 'run', 'publish-server.yml', '--repo', 'dutchiono/TinyFrens', '--ref', 'main']:
+elif sys.argv[1:] in (
+    ['workflow', 'run', 'publish-server.yml', '--repo', 'dutchiono/TinyFrens', '--ref', 'main'],
+    ['workflow', 'run', 'deploy-backend.yml', '--repo', 'dutchiono/TinyFrens', '--ref', 'main'],
+):
     pass
 else:
     raise SystemExit('Unexpected GitHub operation')
@@ -58,9 +61,11 @@ else:
         calls = self.run_policy()
         self.assertEqual(calls[1], ['pr', 'merge', '42', '--repo', 'dutchiono/TinyFrens',
                                   '--squash', '--auto', '--match-head-commit', 'current-head'])
-        self.assertEqual(calls[-1], ['workflow', 'run', 'publish-server.yml', '--repo',
+        self.assertEqual(calls[-2], ['workflow', 'run', 'publish-server.yml', '--repo',
                                     'dutchiono/TinyFrens', '--ref', 'main'])
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(calls[-1], ['workflow', 'run', 'deploy-backend.yml', '--repo',
+                                    'dutchiono/TinyFrens', '--ref', 'main'])
+        self.assertEqual(len(calls), 5)
 
     def test_other_author_is_not_merged(self):
         self.assertEqual(len(self.run_policy(user={'login': 'someone-else'})), 1)
