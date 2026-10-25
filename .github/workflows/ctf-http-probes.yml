@@ -1,0 +1,24 @@
+name: CTF HTTP probes
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe POST parsing on documented challenge endpoint
+        shell: bash
+        run: |
+          set -u
+          url="https://stealmybitcoin.com/ping.php"
+          echo "=== URL-encoded POST ==="
+          curl --silent --show-error --include --max-time 15 --retry 0 --data 'message=ping' "$url" || true
+          echo
+          echo "=== multipart POST ==="
+          curl --silent --show-error --include --max-time 15 --retry 0 --form 'message=ping' "$url" || true
+          echo
+          echo "Probes complete."
