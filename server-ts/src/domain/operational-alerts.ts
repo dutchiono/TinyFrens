@@ -5,6 +5,24 @@ export interface OperationalAlertSink {
   report(key: string, title: string, detail?: string): Promise<boolean>;
 }
 
+export class AlertAttemptThrottle {
+  private readonly attempts = new Map<string, number>();
+
+  constructor(private readonly intervalSeconds = 15 * 60) {}
+
+  acquire(key: string, now: number): boolean {
+    const timestamp = Math.floor(now);
+    const lastAttempt = this.attempts.get(key);
+    if (lastAttempt !== undefined && timestamp - lastAttempt < this.intervalSeconds) return false;
+    this.attempts.set(key, timestamp);
+    return true;
+  }
+
+  release(key: string): void {
+    this.attempts.delete(key);
+  }
+}
+
 function safeText(value: unknown): string {
   const text = value instanceof Error ? value.message : String(value ?? 'Unknown failure');
   return text
@@ -16,7 +34,7 @@ function safeText(value: unknown): string {
 }
 
 export class TelegramOperationalAlerts implements OperationalAlertSink {
-  private readonly attempts = new Map<string, number>();
+  private readonly throttle = new AlertAttemptThrottle();
 
   constructor(
     private readonly config: Config,
@@ -29,10 +47,7 @@ export class TelegramOperationalAlerts implements OperationalAlertSink {
     const ownerId = this.config.TELEGRAM_DEPLOY_OWNER_ID;
     if (!token || !ownerId) return false;
 
-    const now = Math.floor(this.now());
-    const lastAttempt = this.attempts.get(key) || 0;
-    if (now - lastAttempt < 15 * 60) return false;
-    this.attempts.set(key, now);
+    if (!this.throttle.acquire(key, this.now())) return false;
 
     try {
       const lines = [`🚨 TinyFrens failure`, '', safeText(title)];
@@ -43,10 +58,10 @@ export class TelegramOperationalAlerts implements OperationalAlertSink {
         text: lines.join('\n'),
       }, token);
       const sent = response.status < 400 && response.data?.ok === true;
-      if (!sent) this.attempts.delete(key);
+      if (!sent) this.throttle.release(key);
       return sent;
     } catch {
-      this.attempts.delete(key);
+      this.throttle.release(key);
       return false;
     }
   }

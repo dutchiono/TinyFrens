@@ -1,7 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadConfig } from '../../src/config.js';
-import { TelegramOperationalAlerts } from '../../src/domain/operational-alerts.js';
+import { AlertAttemptThrottle, TelegramOperationalAlerts } from '../../src/domain/operational-alerts.js';
+
+test('alert throttle suppresses a repeated incident until its interval expires', () => {
+  const throttle = new AlertAttemptThrottle(900);
+
+  assert.equal(throttle.acquire('discord:shard', 1_700_000_000), true);
+  assert.equal(throttle.acquire('discord:shard', 1_700_000_899), false);
+  assert.equal(throttle.acquire('discord:shard', 1_700_000_900), true);
+});
+
+test('alert throttle permits a retry after a failed delivery', () => {
+  const throttle = new AlertAttemptThrottle();
+
+  assert.equal(throttle.acquire('discord:shard', 1_700_000_000), true);
+  throttle.release('discord:shard');
+  assert.equal(throttle.acquire('discord:shard', 1_700_000_001), true);
+});
 
 test('operational alerts DM the owner, redact secrets, and deduplicate incidents', async () => {
   const calls: Array<Record<string, unknown>> = [];
