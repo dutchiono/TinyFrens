@@ -12,6 +12,7 @@ import { loadConfig } from './config.js';
 import { createAppContext } from './context.js';
 import { createDbConnection } from './db/connection.js';
 import { runMigrations } from './db/migrations.js';
+import { AlertAttemptThrottle } from './domain/operational-alerts.js';
 import { matchBlocklist, matchFilter, recordStrike } from './domain/telegram-moderation.js';
 import {
   fetchGithubProgress,
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
   });
   let alertUserId = config.DISCORD_ALERT_USER_ID;
   let heartbeat: NodeJS.Timeout | undefined;
+  const ownerAlertThrottle = new AlertAttemptThrottle();
   const historyLimit = Math.max(1, Math.min(200, config.TELEGRAM_ISSUE_HISTORY));
 
   const reportFailure = async (key: string, title: string, error: unknown): Promise<void> => {
@@ -47,10 +49,13 @@ async function main(): Promise<void> {
     console.error(title, error);
     await context.operationalAlerts.report(`discord:${key}`, title, detail);
     if (!alertUserId || !client.isReady()) return;
+    const alertKey = `discord:${key}`;
+    if (!ownerAlertThrottle.acquire(alertKey, context.now())) return;
     try {
       const user = await client.users.fetch(alertUserId);
       await user.send(`🚨 **TinyFrens failure**\n\n${title}\n\n${detail.slice(0, 1_000)}`);
     } catch (alertError) {
+      ownerAlertThrottle.release(alertKey);
       console.error('Discord owner alert delivery failed', alertError);
     }
   };
